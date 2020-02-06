@@ -593,7 +593,7 @@ CsRegs<URV>::defineMachineRegs()
   // to defined interrupts are modifiable.
   defineCsr("mip", CsrNumber::MIP, mand, imp, 0, rom, mieMask);
 
-  // Machine protection and translation.
+  // Physical memory protection.
   defineCsr("pmpcfg0",   Csrn::PMPCFG0,   !mand, imp, 0, wam, wam);
   defineCsr("pmpcfg1",   Csrn::PMPCFG1,   !mand, imp, 0, wam, wam);
   defineCsr("pmpcfg2",   Csrn::PMPCFG2,   !mand, imp, 0, wam, wam);
