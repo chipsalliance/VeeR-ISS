@@ -683,7 +683,7 @@ applyDataMemConfig(Hart<URV>& hart, const nlohmann::json& config)
 
 template<typename URV>
 bool
-HartConfig::applyMemoryConfig(Hart<URV>& hart, bool /*verbose*/) const
+HartConfig::applyMemoryConfig(Hart<URV>& hart, bool iccmRw, bool /*verbose*/) const
 {
   unsigned errors = 0;
   if (not applyIccmConfig(hart, *config_))
@@ -695,7 +695,7 @@ HartConfig::applyMemoryConfig(Hart<URV>& hart, bool /*verbose*/) const
   if (not applyPicConfig(hart, *config_))
     errors++;
 
-  hart.finishCcmConfig();
+  hart.finishCcmConfig(iccmRw);
 
   if (config_ -> count("memmap"))
     {
@@ -1205,8 +1205,8 @@ template bool HartConfig::applyConfig<uint64_t>(Hart<uint64_t>&, bool) const;
 template bool HartConfig::configHarts<uint32_t>(std::vector<Hart<uint32_t>*>&, bool) const;
 template bool HartConfig::configHarts<uint64_t>(std::vector<Hart<uint64_t>*>&, bool) const;
 
-template bool HartConfig::applyMemoryConfig<uint32_t>(Hart<uint32_t>&, bool) const;
-template bool HartConfig::applyMemoryConfig<uint64_t>(Hart<uint64_t>&, bool) const;
+template bool HartConfig::applyMemoryConfig<uint32_t>(Hart<uint32_t>&, bool, bool) const;
+template bool HartConfig::applyMemoryConfig<uint64_t>(Hart<uint64_t>&, bool, bool) const;
 
 template bool HartConfig::finalizeCsrConfig<uint32_t>(std::vector<Hart<uint32_t>*>&) const;
 template bool HartConfig::finalizeCsrConfig<uint64_t>(std::vector<Hart<uint64_t>*>&) const;

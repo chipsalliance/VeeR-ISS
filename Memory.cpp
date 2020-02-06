@@ -966,7 +966,7 @@ Memory::defineMemoryMappedRegisterWriteMask(size_t region,
 //
 // This is done to match the echx1 RTL.
 void
-Memory::finishCcmConfig()
+Memory::finishCcmConfig(bool iccmRw)
 {
   for (size_t region = 0; region < regionCount_; ++region)
     {
@@ -997,8 +997,11 @@ Memory::finishCcmConfig()
 	      PageAttribs& attrib = attribs_.at(pageIx);
 	      if (attrib.isExec())
 		{
-		  attrib.setWrite(false);
-		  attrib.setRead(false);
+                  if (not iccmRw)
+                    {
+                      attrib.setWrite(false);
+                      attrib.setRead(false);
+                    }
 		}
 	      else if (attrib.isWrite())
 		attrib.setExec(false);

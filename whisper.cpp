@@ -214,6 +214,7 @@ struct Args
   bool raw = false;       // True if bare-metal program (no linux no newlib).
   bool fastExt = false;    // True if fast external interrupt dispatch enabled.
   bool unmappedElfOk = false;
+  bool iccmRw = false;
 
   // Expand each target program string into program name and args.
   void expandTargets();
@@ -239,7 +240,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 463;
+  unsigned subversion = 464;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -464,6 +465,8 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
 	 "External interrupt period in micro-seconds: Convert arg to an "
          "instruction count, n, assuming a 1ghz clock, and force an external "
          " interrupt every n instructions. No-op if arg is zero.")
+        ("iccmrw", po::bool_switch(&args.iccmRw),
+         "Temporary switch to make ICCM region available to ld/st isntructions.")
 	("verbose,v", po::bool_switch(&args.verbose),
 	 "Be verbose.")
 	("version", po::bool_switch(&args.version),
@@ -1376,7 +1379,7 @@ session(const Args& args, const HartConfig& config)
       return false;
 
   // Configure memory.
-  if (not config.applyMemoryConfig(*(harts.at(0)), args.verbose))
+  if (not config.applyMemoryConfig(*(harts.at(0)), args.iccmRw, args.verbose))
     return false;
   for (unsigned i = 1; i < hartCount; ++i)
     harts.at(i)->copyMemRegionConfig(*harts.at(0));

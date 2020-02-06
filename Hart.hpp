@@ -601,8 +601,8 @@ namespace WdRiscv
 
     /// Called after memory is configured to refine memory access to
     /// sections of regions containing ICCM, DCCM or PIC-registers.
-    void finishCcmConfig()
-    { memory_.finishCcmConfig(); }
+    void finishCcmConfig(bool iccmRw)
+    { memory_.finishCcmConfig(iccmRw); }
 
     /// Turn off all fetch access (except in ICCM regions) then turn
     /// it on only in the pages overlapping the given address windows.
