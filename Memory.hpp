@@ -709,10 +709,6 @@ namespace WdRiscv
     size_t getRegionIndex(size_t addr) const
     { return (addr >> regionShift_) & regionMask_; }
 
-    /// Return true if given address is in a mapped page.
-    bool isAddrMapped(size_t addr) const
-    { return getAttrib(addr).isMapped(); }
-
     /// Return true if given address is in a readable page.
     bool isAddrReadable(size_t addr) const
     { return getAttrib(addr).isRead(); }
