@@ -855,6 +855,13 @@ HartConfig::applyConfig(Hart<URV>& hart, bool verbose) const
       hart.enableRvzbs(flag);
     }
 
+  tag = "enable_zbr";
+  if (config_ -> count(tag))
+    {
+      bool flag = getJsonBoolean(tag, config_ -> at(tag));
+      hart.enableRvzbr(flag);
+    }
+
   tag = "load_queue_size";
   if (config_ -> count(tag))
     {
