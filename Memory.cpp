@@ -971,7 +971,7 @@ Memory::finishCcmConfig()
   for (size_t region = 0; region < regionCount_; ++region)
     {
       if (not regionConfigured_.at(region))
-	continue;   // Region does not have DCCP, PIC, or ICCM.
+	continue;   // Region does not have DCCM, PIC, or ICCM.
 
       bool hasData = false;  // True if region has DCCM/PIC section(s).
       bool hasInst = false;  // True if region has ICCM section(s).
