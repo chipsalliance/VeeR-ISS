@@ -1448,8 +1448,76 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printRdRs1Rs2(*this, out, "pack", di);
       break;
 
-    case InstId::orc_b:
-      printRdRs1(*this, out, "rev8", di);
+    case InstId::addwu:
+      printRdRs1Rs2(*this, out, "addwu", di);
+      break;
+
+    case InstId::subwu:
+      printRdRs1Rs2(*this, out, "subwu", di);
+      break;
+
+    case InstId::addiwu:
+      printRegRegImm12(*this, out, "addiwu", di);
+      break;
+
+    case InstId::sext_b:
+      printRdRs1(*this, out, "sext.b", di);
+      break;
+
+    case InstId::sext_h:
+      printRdRs1(*this, out, "sext.h", di);
+      break;
+
+    case InstId::addu_w:
+      printRdRs1Rs2(*this, out, "addu.w", di);
+      break;
+
+    case InstId::subu_w:
+      printRdRs1Rs2(*this, out, "subu.w", di);
+      break;
+
+    case InstId::slliu_w:
+      printShiftImm(*this, out, "slliu.w", di);
+      break;
+
+    case InstId::packh:
+      printRdRs1Rs2(*this, out, "packh", di);
+      break;
+
+    case InstId::packu:
+      printRdRs1Rs2(*this, out, "packu", di);
+      break;
+
+    case InstId::grev:
+      printRdRs1Rs2(*this, out, "grev", di);
+      break;
+
+    case InstId::grevi:
+      printShiftImm(*this, out, "grevi", di);
+      break;
+
+    case InstId::gorc:
+      printRdRs1Rs2(*this, out, "gorc", di);
+      break;
+
+    case InstId::gorci:
+      printShiftImm(*this, out, "gorci", di);
+      break;
+
+    case InstId::shfl:
+      printRdRs1Rs2(*this, out, "shfl", di);
+      break;
+
+    case InstId::shfli:
+      printShiftImm(*this, out, "shfli", di);
+      break;
+
+    case InstId::unshfl:
+      printRdRs1Rs2(*this, out, "unshfl", di);
+      break;
+
+    case InstId::unshfli:
+      printShiftImm(*this, out, "unshfli", di);
       break;
 
     case InstId::sbset:
@@ -1519,6 +1587,51 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
     case InstId::sh3add:
       printRdRs1Rs2(*this, out, "sh3add", di);
       break;
+
+    case InstId::sh1addu_w:
+      printRdRs1Rs2(*this, out, "sh1addu.w", di);
+      break;
+
+    case InstId::sh2addu_w:
+      printRdRs1Rs2(*this, out, "sh2addu.w", di);
+      break;
+
+    case InstId::sh3addu_w:
+      printRdRs1Rs2(*this, out, "sh3addu.w", di);
+      break;
+
+    case InstId::crc32_b:
+      printRdRs1(*this, out, "crc32.b", di);
+      break;
+
+    case InstId::crc32_h:
+      printRdRs1(*this, out, "crc32.h", di);
+      break;
+
+    case InstId::crc32_w:
+      printRdRs1(*this, out, "crc32.w", di);
+      break;
+
+    case InstId::crc32_d:
+      printRdRs1(*this, out, "crc32.d", di);
+      break;
+
+    case InstId::crc32c_b:
+      printRdRs1(*this, out, "crc32c.b", di);
+      break;
+
+    case InstId::crc32c_h:
+      printRdRs1(*this, out, "crc32c.h", di);
+      break;
+
+    case InstId::crc32c_w:
+      printRdRs1(*this, out, "crc32c.w", di);
+      break;
+
+    case InstId::crc32c_d:
+      printRdRs1(*this, out, "crc32c.d", di);
+      break;
+
 
     default:
       out << "illegal";

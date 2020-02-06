@@ -261,9 +261,9 @@ namespace WdRiscv
      clz,
      ctz,
      pcnt,
-     andn, // was andc
-     orn,  // new
-     xnor, // new
+     andn,
+     orn,
+     xnor,
      slo,
      sro,
      sloi,
@@ -278,9 +278,25 @@ namespace WdRiscv
      rev8,  // was bswap
      rev,   // was brev
      pack,
-     orc_b,
+     addwu,
+     subwu,
+     addiwu,
+     sext_b,
+     sext_h,
+     addu_w,
+     subu_w,
+     slliu_w,
+     packh,
+     packu,
+     grev,
+     grevi,
+     gorc,
+     gorci,
+     shfl,
+     shfli,
+     unshfl,
+     unshfli,
 
-     // zbs
      sbset,
      sbclr,
      sbinv,
@@ -306,7 +322,20 @@ namespace WdRiscv
      sh1add,
      sh2add,
      sh3add,
+     sh1addu_w,
+     sh2addu_w,
+     sh3addu_w,
 
-     maxId = sh3add
+     // zbr
+     crc32_b,
+     crc32_h,
+     crc32_w,
+     crc32_d,
+     crc32c_b,
+     crc32c_h,
+     crc32c_w,
+     crc32c_d,
+
+     maxId = crc32c_d
     };
 }
