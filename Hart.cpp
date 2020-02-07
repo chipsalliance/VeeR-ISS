@@ -11134,10 +11134,124 @@ Hart<URV>::execGorci(const DecodedInst* di)
 }
 
 
+static
+uint32_t
+shuffleStage32(uint32_t src, uint32_t maskL, uint32_t maskR, unsigned n)
+{
+  uint32_t x = src & ~(maskL | maskR);
+  x |= ((src << n) & maskL) | ((src >> n) & maskR);
+  return x;
+}
+
+
+static
+uint32_t
+shuffle32(uint32_t x, unsigned shamt)
+{
+  if (shamt & 8)
+    x = shuffleStage32(x, 0x00ff0000, 0x0000ff00, 8);
+  if (shamt & 4)
+    x = shuffleStage32(x, 0x0f000f00, 0x00f000f0, 4);
+  if (shamt & 2)
+    x = shuffleStage32(x, 0x30303030, 0x0c0c0c0c, 2);
+  if (shamt & 1)
+    x = shuffleStage32(x, 0x44444444, 0x22222222, 1);
+
+  return x;
+}
+
+
+static
+uint32_t
+unshuffle32(uint32_t x, unsigned shamt)
+{
+  if (shamt & 1)
+    x = shuffleStage32(x, 0x44444444, 0x22222222, 1);
+  if (shamt & 2)
+    x = shuffleStage32(x, 0x30303030, 0x0c0c0c0c, 2);
+  if (shamt & 4)
+    x = shuffleStage32(x, 0x0f000f00, 0x00f000f0, 4);
+  if (shamt & 8)
+    x = shuffleStage32(x, 0x00ff0000, 0x0000ff00, 8);
+
+  return x;
+}
+
+
+static
+uint64_t
+shuffleStage64(uint64_t src, uint64_t maskL, uint64_t maskR, unsigned n)
+{
+  uint64_t x = src & ~(maskL | maskR);
+  x |= ((src << n) & maskL) | ((src >> n) & maskR);
+  return x;
+}
+
+
+static
+uint64_t
+shuffle64(uint64_t x, unsigned shamt)
+{
+  if (shamt & 16)
+    x = shuffleStage64(x, 0x0000ffff00000000LL, 0x00000000ffff0000LL, 16);
+  if (shamt & 8)
+    x = shuffleStage64(x, 0x00ff000000ff0000LL, 0x0000ff000000ff00LL, 8);
+  if (shamt & 4)
+    x = shuffleStage64(x, 0x0f000f000f000f00LL, 0x00f000f000f000f0LL, 4);
+  if (shamt & 2)
+    x = shuffleStage64(x, 0x3030303030303030LL, 0x0c0c0c0c0c0c0c0cLL, 2);
+  if (shamt & 1)
+    x = shuffleStage64(x, 0x4444444444444444LL, 0x2222222222222222LL, 1);
+
+  return x;
+}
+
+
+static
+uint64_t
+unshuffle64(uint64_t x, unsigned shamt)
+{
+  if (shamt & 1)
+    x = shuffleStage64(x, 0x4444444444444444LL, 0x2222222222222222LL, 1);
+  if (shamt & 2)
+    x = shuffleStage64(x, 0x3030303030303030LL, 0x0c0c0c0c0c0c0c0cLL, 2);
+  if (shamt & 4)
+    x = shuffleStage64(x, 0x0f000f000f000f00LL, 0x00f000f000f000f0LL, 4);
+  if (shamt & 8)
+    x = shuffleStage64(x, 0x00ff000000ff0000LL, 0x0000ff000000ff00LL, 8);
+  if (shamt & 16)
+    x = shuffleStage64(x, 0x0000ffff00000000LL, 0x00000000ffff0000LL, 16);
+
+  return x;
+}
+
+
 template <typename URV>
 void
 Hart<URV>::execShfl(const DecodedInst* di)
 {
+  if (not isRvzbb())
+    {
+      illegalInst();
+      return;
+    }
+
+  URV v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+  URV val = 0;
+
+  if constexpr (sizeof(URV) == 4)
+    {
+      unsigned shamt = v2 & 15;
+      val = shuffle32(v1, shamt);
+    }
+  else
+    {
+      unsigned shamt = v2 & 31;
+      val = shuffle64(v1, shamt);
+    }
+
+  intRegs_.write(di->op0(), val);
 }
 
 
@@ -11145,6 +11259,36 @@ template <typename URV>
 void
 Hart<URV>::execShfli(const DecodedInst* di)
 {
+  if (not isRvzbb())
+    {
+      illegalInst();
+      return;
+    }
+
+  URV v1 = intRegs_.read(di->op1());
+  URV amt = di->op2();
+  URV val = 0;
+
+  if constexpr (sizeof(URV) == 4)
+    {
+      if (amt > 15)
+        {
+          illegalInst();
+          return;
+        }
+      val = shuffle32(v1, amt);
+    }
+  else
+    {
+      if (amt > 31)
+        {
+          illegalInst();
+          return;
+        }
+      val = shuffle64(v1, amt);
+    }
+
+  intRegs_.write(di->op0(), val);
 }
 
 
@@ -11152,6 +11296,28 @@ template <typename URV>
 void
 Hart<URV>::execUnshfl(const DecodedInst* di)
 {
+  if (not isRvzbb())
+    {
+      illegalInst();
+      return;
+    }
+
+  URV v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+  URV val = 0;
+
+  if constexpr (sizeof(URV) == 4)
+    {
+      unsigned shamt = v2 & 15;
+      val = unshuffle32(v1, shamt);
+    }
+  else
+    {
+      unsigned shamt = v2 & 31;
+      val = unshuffle64(v1, shamt);
+    }
+
+  intRegs_.write(di->op0(), val);
 }
 
 
@@ -11159,6 +11325,36 @@ template <typename URV>
 void
 Hart<URV>::execUnshfli(const DecodedInst* di)
 {
+  if (not isRvzbb())
+    {
+      illegalInst();
+      return;
+    }
+
+  URV v1 = intRegs_.read(di->op1());
+  URV amt = di->op2();
+  URV val = 0;
+
+  if constexpr (sizeof(URV) == 4)
+    {
+      if (amt > 15)
+        {
+          illegalInst();
+          return;
+        }
+      val = unshuffle32(v1, amt);
+    }
+  else
+    {
+      if (amt > 31)
+        {
+          illegalInst();
+          return;
+        }
+      val = unshuffle64(v1, amt);
+    }
+
+  intRegs_.write(di->op0(), val);
 }
 
 
