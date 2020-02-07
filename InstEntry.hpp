@@ -53,9 +53,10 @@ namespace WdRiscv
 
   ///
   /// Generic information about an instruction including, opcode,
-  /// type (integer, floatin-point, etc...), operand count, operand type,
+  /// type (integer, floatin-pointg, etc...), operand count, operand type,
   /// and operand direction (source versus destination). This is used to
-  /// represent an entry in the instruction table defining the RISC ISA.
+  /// represent an entry in the instruction table defining the RISCV
+  /// instruction set arcitecture.
   ///
   /// An instruction may have up to 4 operands: op0, op1, op2, op3:
   /// - For instructions of the form "inst rd, rs1, rs2", rd, rs1 and
