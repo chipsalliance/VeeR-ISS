@@ -293,24 +293,6 @@ collectCommandLineValues(const boost::program_options::variables_map& varMap,
       auto numStr = varMap["memorysize"].as<std::string>();
       if (not parseCmdLineNumber("memorysize", numStr, args.memorySize))
         ok = false;
-      else 
-        {
-          size_t size = *args.memorySize;
-          if (size < 4096)
-            {
-              std::cerr << "Memory size (" << size << ") too small: Using 4096\n";
-              size = 4096;
-            }
-          else if ((size % 4096) != 0)
-            {
-              size_t newSize = (size / 4096) * 4096;
-              if (newSize == 0)
-                newSize = 4096;
-              std::cerr << "Memory size (" << size << ") not a multiple of 4096: "
-                        << "Using " << newSize << '\n';
-              *args.memorySize = newSize;
-            }
-        }
     }
 
   if (varMap.count("snapshotperiod"))
@@ -1331,6 +1313,93 @@ sessionRun(std::vector<Hart<URV>*>& harts, const Args& args, FILE* traceFile,
 }
 
 
+/// Santize memory parameters. Page/region sizes must be greater and
+/// equal to 4 and must be powers of 2.
+/// Region size must be a multiple of page size.
+/// Memory size must be a multiple of region size.
+/// Return true if given parameters are good. False if any parameters
+/// is changed to meet expectation.
+static
+bool
+checkAndRepairMemoryParams(size_t& memSize, size_t& pageSize,
+                           size_t& regionSize)
+{
+  bool ok = true;
+
+  unsigned logPageSize = static_cast<unsigned>(std::log2(pageSize));
+  size_t p2PageSize = size_t(1) << logPageSize;
+  if (p2PageSize != pageSize)
+    {
+      std::cerr << "Memory page size (0x" << std::hex << pageSize << ") "
+		<< "is not a power of 2 -- using 0x" << p2PageSize << '\n'
+		<< std::dec;
+      pageSize = p2PageSize;
+      ok = false;
+    }
+
+  if (pageSize < 64)
+    {
+      std::cerr << "Page size (" << pageSize << ") is less than 64. Using 64.\n";
+      pageSize = 64;
+      ok = false;
+    }
+
+  size_t logRegionSize = static_cast<size_t>(std::log2(regionSize));
+  size_t p2RegionSize = size_t(1) << logRegionSize;
+  if (p2RegionSize != regionSize)
+    {
+      std::cerr << "Memory region size (0x" << std::hex << regionSize << ") "
+		<< "is not a power of 2 -- using 0x" << p2RegionSize << '\n'
+		<< std::dec;
+      regionSize = p2RegionSize;
+      ok = false;
+    }
+
+  if (regionSize < pageSize)
+    {
+      std::cerr << "Memory region size (0x" << std::hex << regionSize << ") "
+		<< "smaller than page size (0x" << pageSize << ") -- "
+		<< "using page size\n" << std::dec;
+      regionSize = pageSize;
+      ok = false;
+    }
+
+  size_t pagesInRegion = regionSize / pageSize;
+  size_t multiple = pagesInRegion * pageSize;
+  if (multiple != regionSize)
+    {
+      std::cerr << "Memory region size (0x" << std::hex << regionSize << ") "
+		<< "is not a multiple of page size (0x" << pageSize << ") -- "
+		<< "using 0x" << multiple << " as region size\n" << std::dec;
+      regionSize = multiple;
+      ok = false;
+    }
+
+  if (memSize < pageSize)
+    {
+      std::cerr << "Memory size (0x" << std::hex << memSize << ") "
+		<< "smaller than page size (0x" << pageSize << ") -- "
+                << "using 0x" << pageSize << " as memory size\n" << std::dec;
+      memSize = pageSize;
+      ok = false;
+    }
+
+  size_t pageCount = memSize / pageSize;
+  if (pageCount * pageSize != memSize)
+    {
+      pageCount++;
+      size_t newSize = pageCount * pageSize;
+      std::cerr << "Memory size (0x" << std::hex << memSize << ") is not a "
+		<< "multiple of page size (0x" << pageSize << ") -- "
+		<< "using 0x" << newSize << '\n' << std::dec;
+      memSize = newSize;
+      ok = false;
+    }
+
+  return ok;
+}
+
+
 template <typename URV>
 static
 bool
@@ -1356,6 +1425,12 @@ session(const Args& args, const HartConfig& config)
   size_t pageSize = 4*1024;
   if (not config.getPageSize(pageSize))
     pageSize = args.pageSize;
+
+  size_t regionSize = 256*1024*1024;
+  //if (not config.getRegionSize(regionSize))
+  //regionSize = args.regionSize;
+
+  checkAndRepairMemoryParams(memorySize, pageSize, regionSize);
 
   Memory memory(memorySize, pageSize);
   memory.setHartCount(hartCount);

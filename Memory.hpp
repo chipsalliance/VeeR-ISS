@@ -25,6 +25,7 @@
 #include <mutex>
 #include <type_traits>
 #include <cassert>
+#include <PmaManager.hpp>
 
 namespace WdRiscv
 {
@@ -888,5 +889,7 @@ namespace WdRiscv
 
     std::vector<Reservation> reservations_;
     std::vector<LastWriteData> lastWriteData_;
+
+    PmaManager pmaMgr_;
   };
 }

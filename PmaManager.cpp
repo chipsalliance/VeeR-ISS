@@ -18,6 +18,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <cassert>
 #include "PmaManager.hpp"
 
 using namespace WdRiscv;
@@ -26,50 +27,16 @@ using namespace WdRiscv;
 PmaManager::PmaManager(uint64_t memSize, uint64_t pageSize)
   : memSize_(memSize), pageSize_(pageSize)
 {
-  if (pageSize_ >= 64*1024*1024)
-    {
-      pageSize_ = 64*1024*1024;
-      std::cerr << "Page size (" << pageSize << ") too large: Using "
-                << pageSize_ << '\n';
-    }
-
-  if ((memSize & 4) != 0)
-    {
-      memSize_ = (memSize_ >> 2) << 2;
-      std::cerr << "Memory size (" << memSize << ") is not a multiple of 4."
-                << " Using " << memSize_ << '\n';
-    }
+  assert(memSize >= pageSize);
+  assert(pageSize >= 64);
 
   uint64_t logPageSize = static_cast<uint64_t>(std::log2(pageSize_));
   uint64_t p2PageSize = uint64_t(1) << logPageSize;
-  if (p2PageSize != pageSize_)
-    {
-      std::cerr << "Memory page size (0x" << std::hex << pageSize_ << ") "
-		<< "is not a power of 2 -- using 0x" << p2PageSize << '\n'
-		<< std::dec;
-      pageSize_ = p2PageSize;
-    }
+  assert(p2PageSize == pageSize_);
   pageShift_ = logPageSize;
 
-  if (memSize_ < pageSize_)
-    {
-      std::cerr << "Unreasonably small memory size (less than 0x "
-		<< std::hex << pageSize_ << ") -- using 0x" << pageSize_
-		<< '\n' << std::dec;
-      memSize_ = pageSize_;
-    }
-
   uint64_t pageCount = memSize_ / pageSize_;
-  if (pageCount * pageSize_ != memSize_)
-    {
-      pageCount++;
-      uint64_t newSize = pageCount * pageSize_;
-      std::cerr << "Memory size (0x" << std::hex << memSize_ << ") is not a "
-		<< "multiple of page size (0x" << pageSize_ << ") -- "
-		<< "using 0x" << newSize << '\n' << std::dec;
-
-      memSize_ = newSize;
-    }
+  assert(pageCount * pageSize_ == memSize_);
 
   // Whole memory is intially set for instruction/data/atomic access.
   // No iccm/dccm/mmr/io.

@@ -35,74 +35,28 @@ using namespace WdRiscv;
 
 Memory::Memory(size_t size, size_t pageSize, size_t regionSize)
   : size_(size), data_(nullptr), pageSize_(pageSize), reservations_(1),
-    lastWriteData_(1)
+    lastWriteData_(1), pmaMgr_(size, pageSize)
 { 
-  if ((size & 4) != 0)
-    {
-      size_ = (size >> 2) << 2;
-      std::cerr << "Memory size (" << size << ") is not a multiple of 4. Using "
-		<< size_ << '\n';
-    }
+  assert(size >= pageSize);
+  assert(regionSize >= pageSize);
+  assert(pageSize >= 64);
 
   unsigned logPageSize = static_cast<unsigned>(std::log2(pageSize_));
   unsigned p2PageSize = unsigned(1) << logPageSize;
-  if (p2PageSize != pageSize_)
-    {
-      std::cerr << "Memory page size (0x" << std::hex << pageSize_ << ") "
-		<< "is not a power of 2 -- using 0x" << p2PageSize << '\n'
-		<< std::dec;
-      pageSize_ = p2PageSize;
-    }
+  assert(p2PageSize == pageSize);
+
   pageShift_ = logPageSize;
 
-  if (size_ < pageSize_)
-    {
-      std::cerr << "Unreasonably small memory size (less than 0x "
-		<< std::hex << pageSize_ << ") -- using 0x" << pageSize_
-		<< '\n' << std::dec;
-      size_ = pageSize_;
-    }
-
   pageCount_ = size_ / pageSize_;
-  if (size_t(pageCount_) * pageSize_ != size_)
-    {
-      pageCount_++;
-      size_t newSize = pageCount_ * pageSize_;
-      std::cerr << "Memory size (0x" << std::hex << size_ << ") is not a "
-		<< "multiple of page size (0x" << pageSize_ << ") -- "
-		<< "using 0x" << newSize << '\n' << std::dec;
-
-      size_ = newSize;
-    }
+  assert(pageCount_ * pageSize_ == size_);
 
   size_t logRegionSize = static_cast<size_t>(std::log2(regionSize));
   size_t p2RegionSize = size_t(1) << logRegionSize;
-  if (p2RegionSize != regionSize)
-    {
-      std::cerr << "Memory region size (0x" << std::hex << regionSize << ") "
-		<< "is not a power of 2 -- using 0x" << p2RegionSize << '\n'
-		<< std::dec;
-      regionSize = p2RegionSize;
-    }
-
-  regionSize_ = regionSize;
-  if (regionSize_ < pageSize_)
-    {
-      std::cerr << "Memory region size (0x" << std::hex << regionSize_ << ") "
-		<< "smaller than page size (0x" << pageSize_ << ") -- "
-		<< "using page size\n" << std::dec;
-      regionSize_ = pageSize_;
-    }
+  assert(p2RegionSize == regionSize);
 
   size_t pagesInRegion = regionSize_ / pageSize_;
   size_t multiple = pagesInRegion * pageSize_;
-  if (multiple != regionSize_)
-    {
-      std::cerr << "Memory region size (0x" << std::hex << regionSize_ << ") "
-		<< "is not a multiple of page size (0x" << pageSize_ << ") -- "
-		<< "using " << multiple << " as region size\n" << std::dec;
-      regionSize_ = multiple;
-    }
+  assert(multiple == regionSize_);
 
   regionCount_ = size_ / regionSize_;
   if (regionCount_ * regionSize_ < size_)
