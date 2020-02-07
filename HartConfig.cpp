@@ -695,6 +695,9 @@ HartConfig::applyMemoryConfig(Hart<URV>& hart, bool iccmRw, bool /*verbose*/) co
   if (not applyPicConfig(hart, *config_))
     errors++;
 
+  if (config_ -> count("iccmrw") and getJsonBoolean("iccmrw", config_ ->at("iccmrw")))
+    iccmRw = true;
+
   hart.finishCcmConfig(iccmRw);
 
   if (config_ -> count("memmap"))
