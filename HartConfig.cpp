@@ -471,8 +471,6 @@ applyMemMappedRegConfig(Hart<URV>& hart, const nlohmann::json& config)
   if (not hart.defineMemoryMappedRegisterArea(addr, size))
     return false;
 
-  unsigned errors = 0;
-
   // Start by giving all registers in region a default mask.
   size_t possibleRegCount = size / 4;
   if (mmr.count("default_mask"))
@@ -483,36 +481,37 @@ applyMemMappedRegConfig(Hart<URV>& hart, const nlohmann::json& config)
         hart.defineMemoryMappedRegisterWriteMask(addr + ix*4, mask);
     }
 
-  if (mmr.count("registers"))
+  if (not mmr.count("registers"))
+    return true;
+
+  const auto& regs = mmr.at("registers");
+  if (not regs.is_object())
     {
-      const auto& regs = config.at("registers");
-      if (not regs.is_object())
-        {
-          std::cerr << "Invalid regisers entry under memory_mapped_registers "
-                    << "in config file (expecting an object)\n";
-          return false;
-        }
+      std::cerr << "Invalid memory_mapped_registers.registers entry "
+                << "in config file (expecting an object)\n";
+      return false;
+    }
 
-      for (auto it = regs.begin(); it != regs.end(); ++it)
-        {
-          const std::string& name = it.key();
-          const auto& conf = it.value();
+  unsigned errors = 0;
+  for (auto it = regs.begin(); it != regs.end(); ++it)
+    {
+      const std::string& name = it.key();
+      const auto& conf = it.value();
 
-          if (not conf.count("count") or not conf.count("address") or
-              not conf.count("mask"))
-            {
-              std::cerr << "Register entry \"" << name << "\"under "
-                        << "memory_mapped_registers must have count/addres/mask\n";
-              errors++;
-              continue;
-            }
-          URV count = getJsonUnsigned<URV>("count", conf.at("count"));
-          URV mask = getJsonUnsigned<URV>("mask", conf.at("mask"));
-          URV addr = getJsonUnsigned<URV>("address", conf.at("address"));
-          for (URV ix = 0; ix < count; ++ix)
-            if (not hart.defineMemoryMappedRegisterWriteMask(addr + ix*4, mask))
-              errors++;
+      if (not conf.count("count") or not conf.count("address") or
+          not conf.count("mask"))
+        {
+          std::cerr << "Register entry \"" << name << "\"under "
+                    << "memory_mapped_registers must have count/address/mask\n";
+          errors++;
+          continue;
         }
+      URV count = getJsonUnsigned<URV>("count", conf.at("count"));
+      URV mask = getJsonUnsigned<URV>("mask", conf.at("mask"));
+      URV addr = getJsonUnsigned<URV>("address", conf.at("address"));
+      for (URV ix = 0; ix < count; ++ix)
+        if (not hart.defineMemoryMappedRegisterWriteMask(addr + ix*4, mask))
+          errors++;
     }
 
   return errors == 0;
@@ -758,7 +757,12 @@ HartConfig::applyMemoryConfig(Hart<URV>& hart, bool iccmRw, bool /*verbose*/) co
   if (not applyDccmConfig(hart, *config_))
     errors++;
 
+#if 0
   if (not applyPicConfig(hart, *config_))
+    errors++;
+#endif
+
+  if (not applyMemMappedRegConfig(hart, *config_))
     errors++;
 
   if (config_ -> count("iccmrw") and getJsonBoolean("iccmrw", config_ ->at("iccmrw")))

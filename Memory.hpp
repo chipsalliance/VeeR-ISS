@@ -174,40 +174,26 @@ namespace WdRiscv
     bool read(size_t address, T& value) const
     {
       PageAttribs attrib = getAttrib(address);
+      Pma pma1 = pmaMgr_.getPma(address);
       if (not attrib.isRead())
 	return false;
 
 #ifndef FAST_SLOPPY
       if (address & (sizeof(T) - 1))  // If address is misaligned
 	{
-          Pma pma1 = pmaMgr_.getPma(address);
           Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
           if (pma1 != pma2)
             return false;
-
-	  size_t page = getPageStartAddr(address);
-	  size_t page2 = getPageStartAddr(address + sizeof(T) - 1);
-	  if (page != page2)
-	    {
-	      // Read crosses page boundary: Check next page.
-	      PageAttribs attrib2 = getAttrib(address + sizeof(T));
-	      if (not attrib2.isRead())
-		return false;
-	      if (attrib.isDccm() != attrib2.isDccm())
-		return false;  // Cannot cross a DCCM boundary.
-	      if (attrib.isMemMappedReg() != attrib2.isMemMappedReg())
-		return false;  // Cannot cross a PIC boundary.
-	    }
 	}
 
       // Memory mapped region accessible only with word-size read.
-      if constexpr (sizeof(T) == 4)
+      if (pma1.isMemMappedReg())
         {
-	  if (attrib.isMemMappedReg())
-	    return readRegister(address, value);
-	}
-      else if (attrib.isMemMappedReg())
-	return false;
+          if constexpr (sizeof(T) == 4)
+            return readRegister(address, value);
+          else
+            return false;
+        }
 #endif
 
       value = *(reinterpret_cast<const T*>(data_ + address));
@@ -223,7 +209,8 @@ namespace WdRiscv
 	return false;
 
 #ifndef FAST_SLOPPY
-      if (attrib.isMemMappedReg())
+      Pma pma = pmaMgr_.getPma(address);
+      if (pma.isMemMappedReg())
 	return false; // Only word access allowed to memory mapped regs.
 #endif
 
@@ -311,35 +298,29 @@ namespace WdRiscv
     bool checkWrite(size_t address, T& value)
     {
       PageAttribs attrib1 = getAttrib(address);
+      Pma pma1 = pmaMgr_.getPma(address);
       if (not attrib1.isWrite())
 	return false;
 
       if (address & (sizeof(T) - 1))  // If address is misaligned
 	{
-	  size_t page = getPageStartAddr(address);
-	  size_t page2 = getPageStartAddr(address + sizeof(T) - 1);
-	  if (page != page2)
-	    {
-	      // Write crosses page boundary: Check next page.
-	      PageAttribs attrib2 = getAttrib(address + sizeof(T));
-	      if (not attrib2.isWrite())
-		return false;
-	      if (attrib1.isDccm() != attrib2.isDccm())
-		return false;  // Cannot cross a DCCM boundary.
-	      if (attrib1.isMemMappedReg() != attrib2.isMemMappedReg())
-		return false;  // Cannot cross a PIC boundary.
-	    }
+          Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
+          if (pma1 != pma2)
+            return false;
 	}
 
       // Memory mapped region accessible only with word-size write.
-      if constexpr (sizeof(T) == 4)
+      if (pma1.isMemMappedReg())
         {
-	  if (attrib1.isMemMappedReg() and (address & 3) != 0)
-	    return false;
-	  value = doRegisterMasking(address, value);
-	}
-      else if (attrib1.isMemMappedReg())
-	return false;
+          if constexpr (sizeof(T) == 4)
+            {
+              if ((address & 3) != 0)
+                return false;
+              value = doRegisterMasking(address, value);
+            }
+          else
+            return false;
+        }
 
       return true;
     }
