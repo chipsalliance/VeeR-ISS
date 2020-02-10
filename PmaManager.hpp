@@ -32,37 +32,82 @@ namespace WdRiscv
   {
   public:
 
-    enum Attrib { None = 0, Inst = 1, Data = 2, Mapped = 3,
-                  Idempotent = 4, Atomic = 8, Iccm = 16,
-                  Dccm = 32, MemMapped = 64, Cached = 128 };
-
     friend class PmaManager;
+
+    enum Attrib
+      {
+       None = 0, Exec = 1, Read = 2, Write = 4,
+       Idempotent = 8, Atomic = 16, Iccm = 32,
+       Dccm = 64, MemMapped = 128, Cached = 256,
+       Aligned = 1024,
+       Mapped = Exec | Read | Write,
+       Default = Mapped | Idempotent | Atomic
+      };
 
     /// Default constructor: All access allowed. No-dccm, no-iccm,
     /// no-mmr, atomic.
-    Pma()
-      : attrib_(uint16_t(Attrib::Inst) | uint16_t(Attrib::Data) |
-                uint16_t(Attrib::Idempotent) | uint16_t(Attrib::Atomic))
+    Pma(Attrib a = None)
+      : attrib_(a), word_(false)
     { }
 
-    bool isMapped() const        { return attrib_ & Attrib::Mapped; }
-    bool isIccm() const          { return attrib_ & Attrib::Iccm; }
-    bool isDccm() const          { return attrib_ & Attrib::Dccm; }
-    bool isMemMappedReg() const  { return attrib_ & Attrib::MemMapped; }
-    bool isIdempotent() const    { return attrib_ & Attrib::Idempotent; }
+    /// Return true if mapped.
+    bool isMapped() const
+    { return attrib_ & Mapped; }
+
+    /// Return true if in ICCM region (instruction closely coupled
+    /// memory).
+    bool isIccm() const
+    { return attrib_ & Iccm; }
+
+    /// Return true if in DCCM region (instruction closely coupled
+    /// memory).
+    bool isDccm() const
+    { return attrib_ & Dccm; }
+
+    /// Return true if in memory-mapped-register region.
+    bool isMemMappedReg() const
+    { return attrib_ & MemMapped; }
+
+    /// Return true if in idempotent region.
+    bool isIdempotent() const
+    { return attrib_ & Idempotent; }
+
+    /// Return true if in cacheable region.
     bool isCacheable() const     { return attrib_ & Attrib::Cached; }
 
-    /// True if instruction fech is allowed at word-aligned word
-    /// covering given address.
-    bool hasInst() const         { return attrib_ & Attrib::Inst; }
+    /// Return true if in readable (ld instructions allowed) region.
+    bool isRead() const
+    { return attrib_ & Read; }
 
-    /// True if load/store is allowed at word-aligned word covering
-    /// given address.
-    bool hasData() const         { return attrib_ & Attrib::Data; }
+    /// Return true if in writeable (st instructions allowed) region.
+    bool isWrite() const
+    { return attrib_ & Write; }
 
-    /// True if atomic instructions allowed at word-aligned word
-    /// covering given address.
-    bool hasAtomic() const       { return attrib_ & Attrib::Atomic; }
+    /// Return true if in executable (fetch allowed) region.
+    bool isExec() const
+    { return attrib_ & Exec; }
+
+    /// Return true in region where access must be aligned.
+    bool isAligned() const
+    { return attrib_ & Aligned; }
+
+    /// Return true in region where atomic instructions are allowed.
+    bool isAtomic() const
+    { return attrib_ & Atomic; }
+
+    /// Return true in cached region.
+    bool isCached() const
+    { return attrib_ & Cached; }
+
+    /// Return true if this object has the same attributes as the
+    /// given object.
+    bool operator== (const Pma& other) const
+    { return attrib_ == other.attrib_; }
+
+    /// Return true if this object has different attributes from those
+    /// of the given object.
+    bool operator!= (const Pma& other) const
+    { return attrib_ != other.attrib_; }
 
   private:
 
@@ -78,12 +123,16 @@ namespace WdRiscv
   class PmaManager
   {
   public:
+
+    friend class Memory;
+
     PmaManager(uint64_t memorySize, uint64_t pageSize);
 
     /// Return the physical memory attribute associated with the
     /// word-aligned word designated by the given address. Return an
     /// unmapped attribute if the given address is out of memory
-    /// range.
+    /// range. Internally we associate attributes with pages or
+    /// with words for the areas
     Pma getPma(uint64_t addr) const
     {
       uint64_t ix = getPageIx(addr);
@@ -106,9 +155,40 @@ namespace WdRiscv
     /// region.
     void disable(uint64_t addr0, uint64_t addr1, Pma::Attrib attrib);
 
+    /// Set attribute of word-aligned words overlapping given region.
+    void setAttribute(uint64_t addr0, uint64_t addr1, Pma::Attrib attrib);
+
     /// Return start address of page containing given address.
     size_t getPageStartAddr(size_t addr) const
     { return (addr >> pageShift_) << pageShift_; }
+
+    /// Associate a mask with the word-aligned word at the given address.
+    void setMemMappedMask(size_t addr, uint32_t mask)
+    { addr = (addr >> 2) << 2; memMappedMasks_[addr] = mask; }
+
+    /// Return mask associated with the word-aligned word at the given
+    /// address.  Return 0xffffffff if no mask was ever associated
+    /// with given address.
+    uint32_t getMemMappedMask(size_t addr) const
+    {
+      addr = (addr >> 2) << 2;
+      if (not memMappedMasks_.count(addr))
+        return 0xffffffff;
+      return memMappedMasks_.at(addr);
+    }
+
+  protected:
+
+    /// Reset (to zero) all memory mapped registers.
+    void resetMemMapped(uint8_t* data)
+    {
+      for (auto kv : memMappedMasks_)
+        {
+          size_t addr = kv.first;
+          uint32_t* wordAddr = reinterpret_cast<uint32_t*>(data + addr);
+          *wordAddr = 0;
+        }
+    }
 
   private:
 
@@ -138,5 +218,6 @@ namespace WdRiscv
     uint64_t memSize_;
     uint64_t pageSize_ = 4*1024;
     unsigned pageShift_ = 12;
+    std::unordered_map<size_t, uint32_t> memMappedMasks_;
   };
 }

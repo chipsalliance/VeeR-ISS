@@ -651,17 +651,8 @@ Memory::writeByteNoAccessCheck(size_t addr, uint8_t value)
 
 
 bool
-Memory::checkCcmConfig(const std::string& tag, size_t region, size_t offset,
-		       size_t size) const
+Memory::checkCcmConfig(const std::string& tag, size_t addr, size_t size) const
 {
-  if (region >= regionCount_)
-    {
-      std::cerr << "Invalid " << tag << " region (" << region
-		<< "). Expecting number between 0 and "
-		<< (regionCount_ - 1) << "\n";
-      return false;
-    }
-
   if (size < pageSize_)
     {
       std::cerr << "Invalid " << tag << " size (" << size << "). Expecting a\n"
@@ -670,11 +661,10 @@ Memory::checkCcmConfig(const std::string& tag, size_t region, size_t offset,
     }
 
   // CCM area must be page aligned.
-  size_t addr = region*regionSize_ + offset;
   if ((addr % pageSize_) != 0)
     {
-      std::cerr << "Invalid " << tag << " start address (" << addr
-		<< "): not page (" << pageSize_ << ") aligned\n";
+      std::cerr << "Invalid " << tag << " start address (0x" << std::hex << addr
+		<< "): not page (0x" << pageSize_ << ") aligned\n" << std::dec;
       return false;
     }
 
@@ -697,16 +687,24 @@ Memory::checkCcmConfig(const std::string& tag, size_t region, size_t offset,
     
 
 bool
-Memory::checkCcmOverlap(const std::string& tag, size_t region, size_t offset,
-			size_t size, bool iccm, bool dccm, bool pic)
+Memory::checkCcmOverlap(const std::string& tag, size_t addr, size_t size,
+                        bool iccm, bool dccm, bool pic)
 {
+  size_t region = addr / regionSize_;
+  if (region > regionCount_)
+    {
+      std::cerr << tag << " area at address 0x" << std::hex << addr
+                << " is outside of defined memory.\n";
+      return false;
+    }
+
   // If a region is ever configured, then only the configured parts
   // are available (accessible).
   if (not regionConfigured_.at(region))
     {
       // Region never configured. Make it all inaccessible.
       regionConfigured_.at(region) = true;
-      size_t ix0 = getPageIx(regionSize_*size_t(region));
+      size_t ix0 = getPageIx(region*regionSize_);
       size_t ix1 = ix0 + getPageIx(regionSize_);
       for (size_t ix = ix0; ix < ix1; ++ix)
 	{
@@ -717,7 +715,6 @@ Memory::checkCcmOverlap(const std::string& tag, size_t region, size_t offset,
     }
 
   // Check area overlap.
-  size_t addr = region * regionSize_ + offset;
   size_t ix0 = getPageIx(addr);
   size_t ix1 = getPageIx(addr + size);
   for (size_t ix = ix0; ix < ix1; ++ix)
@@ -741,14 +738,13 @@ Memory::checkCcmOverlap(const std::string& tag, size_t region, size_t offset,
 
 
 bool
-Memory::defineIccm(size_t region, size_t offset, size_t size)
+Memory::defineIccm(size_t addr, size_t size)
 {
-  if (not checkCcmConfig("ICCM", region, offset, size))
+  if (not checkCcmConfig("ICCM", addr, size))
     return false;
 
-  checkCcmOverlap("ICCM", region, offset, size, true, false, false);
+  checkCcmOverlap("ICCM", addr, size, true, false, false);
 
-  size_t addr = region * regionSize_ + offset;
   size_t ix = getPageIx(addr);
 
   // Set attributes of pages in iccm
@@ -757,22 +753,25 @@ Memory::defineIccm(size_t region, size_t offset, size_t size)
     {
       auto& attrib = attribs_.at(ix + i);
       attrib.setExec(true);
-      // attrib.setRead(true);
       attrib.setIccm(true);
     }
+
+  // Mark as excutable and iccm.
+  Pma::Attrib attrib = Pma::Attrib(Pma::Exec | Pma::Iccm);
+  pmaMgr_.setAttribute(addr, addr + size - 1, attrib);
+
   return true;
 }
 
 
 bool
-Memory::defineDccm(size_t region, size_t offset, size_t size)
+Memory::defineDccm(size_t addr, size_t size)
 {
-  if (not checkCcmConfig("DCCM", region, offset, size))
+  if (not checkCcmConfig("DCCM", addr, size))
     return false;
 
-  checkCcmOverlap("DCCM", region, offset, size, false, true, false);
+  checkCcmOverlap("DCCM", addr, size, false, true, false);
 
-  size_t addr = region * regionSize_ + offset;
   size_t ix = getPageIx(addr);
 
   // Set attributes of pages in dccm
@@ -784,33 +783,39 @@ Memory::defineDccm(size_t region, size_t offset, size_t size)
       attrib.setRead(true);
       attrib.setDccm(true);
     }
+
+  // Mark as read/write/dccm.
+  Pma::Attrib attrib = Pma::Attrib(Pma::Read | Pma::Write | Pma::Dccm);
+  pmaMgr_.setAttribute(addr, addr + size - 1, attrib);
+
   return true;
 }
 
 
 bool
-Memory::defineMemoryMappedRegisterRegion(size_t region, size_t offset,
-					 size_t size)
+Memory::defineMemoryMappedRegisterArea(size_t addr, size_t size)
 {
-  if (not checkCcmConfig("PIC memory", region, offset, size))
+  if (not checkCcmConfig("PIC memory", addr, size))
     return false;
 
-  checkCcmOverlap("PIC memory", region, offset, size, false, false, true);
+  checkCcmOverlap("PIC memory", addr, size, false, false, true);
 
-  size_t addr = region * regionSize_ + offset;
   size_t pageIx = getPageIx(addr);
 
   // Set attributes of memory-mapped-register pages
   size_t count = size / pageSize_;  // page count
   for (size_t i = 0; i < count; ++i)
     {
-      mmrPages_.push_back(pageIx);
-
       auto& attrib = attribs_.at(pageIx++);
       attrib.setRead(true);
       attrib.setWrite(true);
       attrib.setMemMappedReg(true);
     }
+
+  // Mark as read/write/memory-mapped.
+  Pma::Attrib attrib = Pma::Attrib(Pma::Read | Pma::Write | Pma::MemMapped);
+  pmaMgr_.setAttribute(addr, addr + size - 1, attrib);
+
   return true;
 }
 
@@ -818,88 +823,29 @@ Memory::defineMemoryMappedRegisterRegion(size_t region, size_t offset,
 void
 Memory::resetMemoryMappedRegisters()
 {
-  for (auto pageIx : mmrPages_)
-    {
-      size_t addr0 = pageIx * pageSize_;  // page start address
-      size_t addr1 = addr0 + pageSize_ - 1; // last byte in page.
-      size_t hostAddr0 = 0, hostAddr1 = 0;
-      if (getSimMemAddr(addr0, hostAddr0) and getSimMemAddr(addr1, hostAddr1))
-	memset(reinterpret_cast<void*>(hostAddr0), 0, pageSize_);
-    }
+  pmaMgr_.resetMemMapped(data_);
 }
 
 
-static void
-printPicRegisterError(const std::string& error, size_t region, size_t picOffset,
-		      size_t regAreaOffset, size_t regIx)
-{
-  std::cerr << std::hex;
-  std::cerr << error << ":\n"
-	    << "  region:          0x" << region << '\n'
-	    << "  pic-base-offset: 0x" << picOffset << '\n'
-	    << "  register-offset: 0x" << regAreaOffset << '\n'
-	    << "  register-index:  0x" << regIx << '\n';
-  std::cerr << std::dec;
-}
-
-
-// Parameters:
-//   region: 256 mb region index
-//   pic offset: pic area offset within region
-//   register area offset: offset of register file withing pic area
-//   register index: index of register with register area
-//   mask: mask of register
 bool
-Memory::defineMemoryMappedRegisterWriteMask(size_t region,
-					    size_t picOffset,
-					    size_t regAreaOffset,
-					    size_t regIx,
-					    uint32_t mask)
+Memory::defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask)
 {
-  size_t sectionStart = region * regionSize_ + picOffset;
-  size_t ix = getPageIx(sectionStart);
-  if (not attribs_.at(ix).isMapped())
+  if ((addr & 3) != 0)
     {
-      printPicRegisterError("PIC area does not exist", region, picOffset,
-			    regAreaOffset, regIx);
+      std::cerr << "Memory mapped register address 0x" << std::hex << addr
+                << std::dec << " is not word aligned\n";
       return false;
     }
 
-  if (not attribs_.at(ix).isMemMappedReg())
+  Pma pma = pmaMgr_.getPma(addr);
+  if (not pma.isMemMappedReg())
     {
-      printPicRegisterError("Area not defined for PIC registers", region,
-			    picOffset, regAreaOffset, regIx);
+      std::cerr << "Memory mapped register address 0x" << std::hex << addr
+                << std::dec << " is outside any memory mapped register area\n";
       return false;
     }
 
-  if (regAreaOffset & 3)
-    {
-      printPicRegisterError("PIC register offset not a multiple of 4",
-			    region, picOffset, regAreaOffset, regIx);
-      return false;
-    }
-
-  size_t registerAddr = sectionStart + regAreaOffset + regIx*4;
-  size_t pageIx = getPageIx(registerAddr);
-  if (not attribs_.at(pageIx).isMemMappedReg())
-    {
-      printPicRegisterError("PIC register out of bounds", region, picOffset,
-			    regAreaOffset, regIx);
-      return false;
-    }
-
-  if (masks_.empty())
-    masks_.resize(pageCount_);
-
-  size_t pageStart = getPageStartAddr(registerAddr);
-  std::vector<uint32_t>& pageMasks = masks_.at(pageIx);
-  if (pageMasks.empty())
-    {
-      size_t wordCount = pageSize_ / 4;
-      pageMasks.resize(wordCount);
-    }
-  size_t maskIx = (registerAddr - pageStart) / 4;
-  pageMasks.at(maskIx) = mask;
+  pmaMgr_.setMemMappedMask(addr, mask);
 
   return true;
 }

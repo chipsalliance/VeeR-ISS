@@ -180,6 +180,11 @@ namespace WdRiscv
 #ifndef FAST_SLOPPY
       if (address & (sizeof(T) - 1))  // If address is misaligned
 	{
+          Pma pma1 = pmaMgr_.getPma(address);
+          Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
+          if (pma1 != pma2)
+            return false;
+
 	  size_t page = getPageStartAddr(address);
 	  size_t page2 = getPageStartAddr(address + sizeof(T) - 1);
 	  if (page != page2)
@@ -590,6 +595,10 @@ namespace WdRiscv
     size_t pageSize() const
     { return pageSize_; }
 
+    /// Return the region size.
+    size_t regionSize() const
+    { return regionSize_; }
+
     /// Return the number of the page containing the given address.
     size_t getPageIx(size_t addr) const
     { return addr >> pageShift_; }
@@ -606,48 +615,39 @@ namespace WdRiscv
     { return (addr >> pageShift_) << pageShift_; }
 
     /// Return true if CCM (iccm or dccm) configuration defined by
-    /// region/offset/size is valid. Return false otherwise. Tag
-    /// parameter ("iccm"/"dccm") is used with error messages.
-    bool checkCcmConfig(const std::string& tag, size_t region, size_t offset,
-			size_t size) const;
+    /// addr/size is valid. Return false otherwise. Tag parameter
+    /// ("iccm"/"dccm"/"pic") is used with error messages.
+    bool checkCcmConfig(const std::string& tag, size_t addr, size_t size) const;
 
     /// Complain if CCM (iccm or dccm) defined by region/offset/size
     /// overlaps a previously defined CCM area. Return true if all is
     /// well (no overlap).
-    bool checkCcmOverlap(const std::string& tag, size_t region, size_t offset,
-			 size_t size, bool iccm, bool dccm, bool pic);
+    bool checkCcmOverlap(const std::string& tag, size_t addr, size_t size,
+			 bool iccm, bool dccm, bool pic);
 
     /// Define instruction closed coupled memory (in core instruction memory).
-    bool defineIccm(size_t region, size_t offset, size_t size);
+    bool defineIccm(size_t addr, size_t size);
 
     /// Define data closed coupled memory (in core data memory).
-    bool defineDccm(size_t region, size_t offset, size_t size);
+    bool defineDccm(size_t addr, size_t size);
 
     /// Define region for memory mapped registers. Return true on
     /// success and false if offset or size are not properly aligned
     /// or sized.
-    bool defineMemoryMappedRegisterRegion(size_t region, size_t offset,
-					  size_t size);
+    bool defineMemoryMappedRegisterArea(size_t addr, size_t size);
 
     /// Reset (to zero) all memory mapped registers.
     void resetMemoryMappedRegisters();
 
     /// Define write mask for a memory-mapped register with given
-    /// index and register-offset within the given region and region-offset.
-    /// Address of memory associated with register is:
-    ///   region*256M + regionOffset + registerBlockOffset + registerIx*4.
-    /// Return true on success and false if the region (index) is not
-    /// valid or if the region is not mapped of if the region was not
-    /// defined for memory mapped registers or if the register address
-    /// is out of bounds.
-    bool defineMemoryMappedRegisterWriteMask(size_t region,
-					     size_t regionOffset,
-					     size_t registerBlockOffset,
-					     size_t registerIx,
-					     uint32_t mask);
+    /// address.  Return true on success and false if the address is
+    /// not within a memory-mapped area (see
+    /// defineMemoryMappedRegisterArea).
+    bool defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask);
 
     /// Called after memory is configured to refine memory access to
-    /// sections of regions containing ICCM, DCCM or PIC-registers.
+    /// sections of regions containing ICCM, DCCM or memory mapped
+    /// register area (e.g. PIC).
     void finishCcmConfig(bool iccmRw);
 
     /// Read a memory mapped register.
@@ -663,20 +663,7 @@ namespace WdRiscv
     /// the given address. Return all 1 if given address is not a
     /// memory mapped register.
     uint32_t getMemoryMappedMask(size_t addr) const
-    {
-      uint32_t mask = ~ uint32_t(0);
-      if (masks_.empty())
-	return mask;
-
-      size_t pageIx = getPageIx(addr);
-      auto& pageMasks = masks_.at(pageIx);
-      if (pageMasks.empty())
-	return mask;
-
-      size_t wordIx = (addr - getPageStartAddr(addr)) / 4;
-      mask = pageMasks.at(wordIx);
-      return mask;
-    }
+    { return pmaMgr_.getMemMappedMask(addr); }
 
     /// Perform masking for a write to a memory mapped register.
     /// Return masked value.
@@ -717,22 +704,22 @@ namespace WdRiscv
     /// Return true if page of given address is in data closed coupled
     /// memory.
     bool isAddrInDccm(size_t addr) const
-    { return getAttrib(addr).isDccm(); }
+    { Pma pma = pmaMgr_.getPma(addr); return pma.isDccm(); }
 
     /// Return true if page of given address is in instruction closed
     /// coupled memory.
     bool isAddrInIccm(size_t addr) const
-    { return getAttrib(addr).isIccm(); }
+    { Pma pma = pmaMgr_.getPma(addr); return pma.isIccm(); }
 
     /// Return true if given address is in memory-mapped register region.
     bool isAddrInMappedRegs(size_t addr) const
-    { return getAttrib(addr).isMemMappedReg(); }
+    { Pma pma = pmaMgr_.getPma(addr); return pma.isMemMappedReg(); }
 
     /// Return true if given data address is external to the core.
-    bool isDataAddrExternal(size_t addr) const
+    bool isDataAddressExternal(size_t addr) const
     {
-      PageAttribs attrib = getAttrib(addr);
-      return not (attrib.isDccm() or attrib.isMemMappedReg());
+      Pma pma = pmaMgr_.getPma(addr);
+      return not (pma.isDccm() or pma.isMemMappedReg());
     }
 
     /// Return the simulator memory address corresponding to the
@@ -879,9 +866,6 @@ namespace WdRiscv
 
     // Attributes are assigned to pages.
     std::vector<PageAttribs> attribs_;      // One entry per page.
-    std::vector<std::vector<uint32_t> > masks_;  // One vector per page.
-
-    std::vector<size_t> mmrPages_;  // Memory mapped register pages.
 
     bool checkUnmappedElf_ = true;
 

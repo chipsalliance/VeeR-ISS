@@ -1710,11 +1710,12 @@ Hart<URV>::readInst(size_t address, uint32_t& inst)
 
 template <typename URV>
 bool
-Hart<URV>::defineIccm(size_t region, size_t offset, size_t size)
+Hart<URV>::defineIccm(size_t addr, size_t size)
 {
-  bool ok = memory_.defineIccm(region, offset, size);
+  bool ok = memory_.defineIccm(addr, size);
   if (ok)
     {
+      size_t region = addr/regionSize();
       regionHasLocalMem_.at(region) = true;
       regionHasLocalInstMem_.at(region) = true;
     }
@@ -1724,11 +1725,12 @@ Hart<URV>::defineIccm(size_t region, size_t offset, size_t size)
 
 template <typename URV>
 bool
-Hart<URV>::defineDccm(size_t region, size_t offset, size_t size)
+Hart<URV>::defineDccm(size_t addr, size_t size)
 {
-  bool ok = memory_.defineDccm(region, offset, size);
+  bool ok = memory_.defineDccm(addr, size);
   if (ok)
     {
+      size_t region = addr/regionSize();
       regionHasLocalMem_.at(region) = true;
       regionHasLocalDataMem_.at(region) = true;
       regionHasDccm_.at(region) = true;
@@ -1739,12 +1741,12 @@ Hart<URV>::defineDccm(size_t region, size_t offset, size_t size)
 
 template <typename URV>
 bool
-Hart<URV>::defineMemoryMappedRegisterRegion(size_t region, size_t offset,
-					  size_t size)
+Hart<URV>::defineMemoryMappedRegisterArea(size_t addr, size_t size)
 {
-  bool ok = memory_.defineMemoryMappedRegisterRegion(region, offset, size);
+  bool ok = memory_.defineMemoryMappedRegisterArea(addr, size);
   if (ok)
     {
+      size_t region = addr / memory_.regionSize();
       regionHasLocalMem_.at(region) = true;
       regionHasLocalDataMem_.at(region) = true;
       regionHasMemMappedRegs_.at(region) = true;
@@ -1755,15 +1757,9 @@ Hart<URV>::defineMemoryMappedRegisterRegion(size_t region, size_t offset,
 
 template <typename URV>
 bool
-Hart<URV>::defineMemoryMappedRegisterWriteMask(size_t region,
-					       size_t regionOffset,
-					       size_t registerBlockOffset,
-					       size_t registerIx,
-					       uint32_t mask)
+Hart<URV>::defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask)
 {
-  return memory_.defineMemoryMappedRegisterWriteMask(region, regionOffset,
-						     registerBlockOffset,
-						     registerIx, mask);
+  return memory_.defineMemoryMappedRegisterWriteMask(addr, mask);
 }
 
 
@@ -1843,8 +1839,12 @@ Hart<URV>::configMemoryDataAccess(const std::vector< std::pair<URV,URV> >& windo
 	{
 	  memory_.setWriteAccess(addr, false);
 	  memory_.setReadAccess(addr, false);
+
+          Pma::Attrib attr = Pma::Attrib(Pma::Read | Pma::Write);
+          memory_.pmaMgr_.disable(addr, addr + pageSize - 1, attr);
 	}
     }
+  
 
   // Mark pages in configuration windows as accessible except when
   // they fall in dccm/pic regions.
@@ -1869,6 +1869,9 @@ Hart<URV>::configMemoryDataAccess(const std::vector< std::pair<URV,URV> >& windo
 	    {
 	      memory_.setWriteAccess(addr, true);
 	      memory_.setReadAccess(addr, true);
+
+              Pma::Attrib attr = Pma::Attrib(Pma::Read | Pma::Write);
+              memory_.pmaMgr_.enable(addr, addr + pageSize - 1, attr);
 	    }
 	}
 

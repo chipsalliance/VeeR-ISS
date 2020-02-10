@@ -404,7 +404,8 @@ applyPicConfig(Hart<URV>& hart, const nlohmann::json& config)
   uint64_t region = getJsonUnsigned<URV>("region", pic.at("region"));
   uint64_t size = getJsonUnsigned<URV>("size", pic.at("size"));
   uint64_t regionOffset = getJsonUnsigned<URV>("offset", pic.at("offset"));
-  if (not hart.defineMemoryMappedRegisterRegion(region, regionOffset, size))
+  uint64_t addr = region*hart.regionSize() + regionOffset;
+  if (not hart.defineMemoryMappedRegisterArea(addr, size))
     return false;
 
   // Define the memory mapped registers.
@@ -416,7 +417,7 @@ applyPicConfig(Hart<URV>& hart, const nlohmann::json& config)
   // Start by giving all registers in region a mask of zero.
   size_t possibleRegCount = size / 4;
   for (size_t ix = 0; ix < possibleRegCount; ++ix)
-    hart.defineMemoryMappedRegisterWriteMask(region, regionOffset, 0, ix, 0);
+    hart.defineMemoryMappedRegisterWriteMask(addr + ix*4, 0);
 
   std::vector<std::string> names = { "mpiccfg_offset", "meipl_offset",
 				     "meip_offset", "meie_offset",
@@ -444,11 +445,74 @@ applyPicConfig(Hart<URV>& hart, const nlohmann::json& config)
       uint64_t registerOffset = getJsonUnsigned<URV>(("pic." + name),
 						     pic.at(name));
       registerOffset += adjust.at(i);
+      size_t addr = region*hart.regionSize() + regionOffset + registerOffset;
       for (size_t regIx = 0; regIx < count; ++regIx)
-	if (not hart.defineMemoryMappedRegisterWriteMask(region, regionOffset,
-							 registerOffset, regIx,
-							 mask))
+	if (not hart.defineMemoryMappedRegisterWriteMask(addr + regIx*4, mask))
 	  errors++;
+    }
+
+  return errors == 0;
+}
+
+
+template <typename URV>
+static
+bool
+applyMemMappedRegConfig(Hart<URV>& hart, const nlohmann::json& config)
+{
+  if (not config.count("memory_mapped_registers"))
+    return true;  // Nothing to apply.
+
+  const auto& mmr = config.at("memory_mapped_registers");
+
+  // Define memory-mapped-register region.
+  uint64_t addr = getJsonUnsigned<URV>("address", mmr.at("address"));
+  uint64_t size = getJsonUnsigned<URV>("size", mmr.at("size"));
+  if (not hart.defineMemoryMappedRegisterArea(addr, size))
+    return false;
+
+  unsigned errors = 0;
+
+  // Start by giving all registers in region a default mask.
+  size_t possibleRegCount = size / 4;
+  if (mmr.count("default_mask"))
+    {
+      uint32_t mask = getJsonUnsigned<uint32_t>("default_mask",
+                                                mmr.at("default_mask"));
+      for (size_t ix = 0; ix < possibleRegCount; ++ix)
+        hart.defineMemoryMappedRegisterWriteMask(addr + ix*4, mask);
+    }
+
+  if (mmr.count("registers"))
+    {
+      const auto& regs = config.at("registers");
+      if (not regs.is_object())
+        {
+          std::cerr << "Invalid regisers entry under memory_mapped_registers "
+                    << "in config file (expecting an object)\n";
+          return false;
+        }
+
+      for (auto it = regs.begin(); it != regs.end(); ++it)
+        {
+          const std::string& name = it.key();
+          const auto& conf = it.value();
+
+          if (not conf.count("count") or not conf.count("address") or
+              not conf.count("mask"))
+            {
+              std::cerr << "Register entry \"" << name << "\"under "
+                        << "memory_mapped_registers must have count/addres/mask\n";
+              errors++;
+              continue;
+            }
+          URV count = getJsonUnsigned<URV>("count", conf.at("count"));
+          URV mask = getJsonUnsigned<URV>("mask", conf.at("mask"));
+          URV addr = getJsonUnsigned<URV>("address", conf.at("address"));
+          for (URV ix = 0; ix < count; ++ix)
+            if (not hart.defineMemoryMappedRegisterWriteMask(addr + ix*4, mask))
+              errors++;
+        }
     }
 
   return errors == 0;
@@ -469,7 +533,8 @@ applyIccmConfig(Hart<URV>& hart, const nlohmann::json& config)
       size_t region = getJsonUnsigned<URV>("iccm.region", iccm.at("region"));
       size_t size   = getJsonUnsigned<URV>("iccm.size",   iccm.at("size"));
       size_t offset = getJsonUnsigned<URV>("iccm.offset", iccm.at("offset"));
-      return hart.defineIccm(region, offset, size);
+      size_t addr   = region*hart.regionSize() + offset;
+      return hart.defineIccm(addr, size);
     }
 
   std::cerr << "The ICCM entry in the configuration file must contain "
@@ -492,7 +557,8 @@ applyDccmConfig(Hart<URV>& hart, const nlohmann::json& config)
       size_t region = getJsonUnsigned<URV>("dccm.region", dccm.at("region"));
       size_t size   = getJsonUnsigned<URV>("dccm.size",   dccm.at("size"));
       size_t offset = getJsonUnsigned<URV>("dccm.offset", dccm.at("offset"));
-      return hart.defineDccm(region, offset, size);
+      size_t addr   = region*hart.regionSize() + offset;
+      return hart.defineDccm(addr, size);
     }
 
   std::cerr << "The DCCM entry in the configuration file must contain "

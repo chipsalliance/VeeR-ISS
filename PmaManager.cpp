@@ -40,7 +40,7 @@ PmaManager::PmaManager(uint64_t memSize, uint64_t pageSize)
 
   // Whole memory is intially set for instruction/data/atomic access.
   // No iccm/dccm/mmr/io.
-  pagePmas_.resize(pageCount);
+  pagePmas_.resize(pageCount, Pma::Default);
 }
 
 
@@ -112,6 +112,38 @@ PmaManager::disable(uint64_t a0, uint64_t a1, Pma::Attrib attrib)
           pma.attrib_ = pma.attrib_ & mask;
           uint64_t pageIx = getPageIx(p0);
           pagePmas_[pageIx] = pma;
+          a0 += pageSize_;
+        }
+    }
+}
+
+
+void
+PmaManager::setAttribute(uint64_t a0, uint64_t a1, Pma::Attrib attrib)
+{
+  a0 = (a0 >> 2) << 2;   // Make word aligned.
+  a1 = (a1 >> 2) << 2;   // Make word aligned.
+
+  while (a0 <= a1)
+    {
+      uint64_t p0 = getPageStartAddr(a0);
+      uint64_t p1 = getPageStartAddr(a1);
+      bool doWord = (a0 != p0) or (p0 == p1 and (a1 - a0 + 4 != pageSize_));
+      Pma pma = getPma(a0);
+      doWord = doWord or pma.word_;
+      if (doWord)
+        {
+          fracture(a0);
+          Pma pma(attrib);
+          pma.word_ = true;
+          uint64_t last = std::min(a1, p0 + pageSize_ - 4);
+          for ( ; a0 <= last; a0 += 4)
+            wordPmas_[a0>>2] = pma;
+        }
+      else
+        {
+          uint64_t pageIx = getPageIx(p0);
+          pagePmas_[pageIx] = Pma(attrib);
           a0 += pageSize_;
         }
     }

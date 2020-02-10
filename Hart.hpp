@@ -580,24 +580,17 @@ namespace WdRiscv
     { return instCounter_; }
 
     /// Define instruction closed coupled memory (in core instruction memory).
-    bool defineIccm(size_t region, size_t offset, size_t size);
+    bool defineIccm(size_t addr, size_t size);
 
     /// Define data closed coupled memory (in core data memory).
-    bool defineDccm(size_t region, size_t offset, size_t size);
+    bool defineDccm(size_t addr, size_t size);
 
-    /// Define a region for memory mapped registers.
-    bool defineMemoryMappedRegisterRegion(size_t region, size_t offset,
-					  size_t size);
+    /// Define an area of memory mapped registers.
+    bool defineMemoryMappedRegisterArea(size_t addr, size_t size);
 
-    /// Define a memory mapped register. Region (as defined by region
-    /// and offset) must be already defined using
-    /// defineMemoryMappedRegisterRegion. The register address must not
-    /// fall outside the region
-    bool defineMemoryMappedRegisterWriteMask(size_t region,
-					     size_t regionOffset,
-					     size_t registerBlockOffset,
-					     size_t registerIx,
-					     uint32_t mask);
+    /// Define a memory mapped register. Address must be within an
+    /// area already defined using defineMemoryMappedRegisterArea.
+    bool defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask);
 
     /// Called after memory is configured to refine memory access to
     /// sections of regions containing ICCM, DCCM or PIC-registers.
@@ -822,7 +815,7 @@ namespace WdRiscv
 
     /// Return true if given data (ld/st) address is external to the hart.
     bool isDataAddressExternal(size_t addr) const
-    { return memory_.isDataAddrExternal(addr); }
+    { return memory_.isDataAddressExternal(addr); }
 
     /// Return true if rv32f (single precision floating point)
     /// extension is enabled in this hart.
@@ -1002,6 +995,14 @@ namespace WdRiscv
     /// Nothing is forced if n is zero.
     void setupPeriodicTimerInterrupts(uint64_t n)
     { alarmCounter_ = alarmInterval_ = n; }
+
+    /// Return the memory page size (e.g. 4096).
+    size_t pageSize() const
+    { return memory_.pageSize(); }
+
+    /// Return the memory region size (e.g. 256M).
+    size_t regionSize() const
+    { return memory_.regionSize(); }
 
   protected:
 
