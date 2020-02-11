@@ -281,9 +281,8 @@ namespace WdRiscv
     template <typename T>
     bool checkWrite(size_t address, T& value)
     {
-      PageAttribs attrib1 = getAttrib(address);
       Pma pma1 = pmaMgr_.getPma(address);
-      if (not attrib1.isWrite())
+      if (not pma1.isWrite())
 	return false;
 
       if (address & (sizeof(T) - 1))  // If address is misaligned
@@ -317,35 +316,25 @@ namespace WdRiscv
     template <typename T>
     bool write(unsigned localHartId, size_t address, T value)
     {
-      PageAttribs attrib1 = getAttrib(address);
-      if (not attrib1.isWrite())
+      Pma pma1 = pmaMgr_.getPma(address);
+      if (not pma1.isWrite())
 	return false;
 
 #ifndef FAST_SLOPPY
       if (address & (sizeof(T) - 1))  // If address is misaligned
 	{
-	  size_t page = getPageStartAddr(address);
-	  size_t page2 = getPageStartAddr(address + sizeof(T) - 1);
-	  if (page != page2)
-	    {
-	      // Write crosses page boundary: Check next page.
-	      PageAttribs attrib2 = getAttrib(address + sizeof(T));
-	      if (not attrib2.isWrite())
-		return false;
-              if (attrib1.isDccm() != attrib2.isDccm())
-		return false;  // Cannot cross a DCCM boundary.
-	      if (attrib1.isMemMappedReg() != attrib2.isMemMappedReg())
-		return false;  // Cannot cross a PIC boundary.
-	    }
+          Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
+          if (pma1 != pma2)
+            return false;
 	}
 
       // Memory mapped region accessible only with word-size write.
       if constexpr (sizeof(T) == 4)
         {
-	  if (attrib1.isMemMappedReg())
+	  if (pma1.isMemMappedReg())
 	    return writeRegister(localHartId, address, value);
 	}
-      else if (attrib1.isMemMappedReg())
+      else if (pma1.isMemMappedReg())
 	return false;
 
       auto& lwd = lastWriteData_.at(localHartId);
@@ -365,11 +354,11 @@ namespace WdRiscv
     /// false if address is out of bounds or is not writable.
     bool writeByte(unsigned localHartId, size_t address, uint8_t value)
     {
-      PageAttribs attrib = getAttrib(address);
-      if (not attrib.isWrite())
+      Pma pma = pmaMgr_.getPma(address);
+      if (not pma.isWrite())
 	return false;
 
-      if (attrib.isMemMappedReg())
+      if (pma.isMemMappedReg())
 	return false;  // Only word access allowed to memory mapped regs.
 
       auto& lwd = lastWriteData_.at(localHartId);
@@ -469,29 +458,27 @@ namespace WdRiscv
     template <typename T>
     bool poke(size_t address, T value)
     {
-      PageAttribs attrib = getAttrib(address);
-      if (not attrib.isMapped())
+      Pma pma1 = pmaMgr_.getPma(address);
+      if (not pma1.isMapped())
 	return false;
 
-      size_t pageEnd = getPageStartAddr(address) + pageSize_;
-      if (address + sizeof(T) > pageEnd)
+      if (address & (sizeof(T) - 1))  // If address is misaligned
 	{
-	  // Write crosses page boundary: Check next page.
-	  PageAttribs attrib2 = getAttrib(address + sizeof(T));
-	  if (not attrib2.isMapped())
+          Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
+          if (not pma2.isMapped())
 	    return false;
 	}
 
       // Memory mapped region accessible only with word-size poke.
       if constexpr (sizeof(T) == 4)
         {
-	  if (attrib.isMemMappedReg())
+	  if (pma1.isMemMappedReg())
 	    {
 	      if ((address & 3) != 0)
 		return false;  // Address must be word-aligned.
 	    }
 	}
-      else if (attrib.isMemMappedReg())
+      else if (pma1.isMemMappedReg())
 	return false;
 
       *(reinterpret_cast<T*>(data_ + address)) = value;
@@ -501,11 +488,11 @@ namespace WdRiscv
     /// Same as writeByte but effects are not record in last-write info.
     bool pokeByte(size_t address, uint8_t value)
     {
-      PageAttribs attrib = getAttrib(address);
-      if (not attrib.isMapped())
+      Pma pma = pmaMgr_.getPma(address);
+      if (not pma.isMapped())
 	return false;
 
-      if (attrib.isMemMappedReg())
+      if (pma.isMemMappedReg())
 	return false;  // Only word access allowed to memory mapped regs.
 
       data_[address] = value;
@@ -664,7 +651,7 @@ namespace WdRiscv
 
     /// Return true if given address is in a readable page.
     bool isAddrReadable(size_t addr) const
-    { return getAttrib(addr).isRead(); }
+    { Pma pma = pmaMgr_.getPma(addr); return pma.isRead(); }
 
     /// Return true if page of given address is in data closed coupled
     /// memory.

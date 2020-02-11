@@ -635,8 +635,8 @@ Memory::copy(const Memory& other)
 bool
 Memory::writeByteNoAccessCheck(size_t addr, uint8_t value)
 {
-  PageAttribs attrib = getAttrib(addr);
-  if (not attrib.isMapped())
+  Pma pma = pmaMgr_.getPma(addr);
+  if (not pma.isMapped())
     return false;
 
   // Perform masking for memory mapped registers.
