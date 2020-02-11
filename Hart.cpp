@@ -1769,47 +1769,59 @@ Hart<URV>::configMemoryFetch(const std::vector< std::pair<URV,URV> >& windows)
 {
   using std::cerr;
 
-  if (windows.empty())
+  size_t regSize = regionSize(), memSize = memorySize();
+  if (windows.empty() or memSize == 0 or regSize == 0)
     return true;
 
   unsigned errors = 0;
 
-  if (memory_.size() == 0)
-    return true;
-
   // Mark all pages in non-iccm regions as non executable.
-  size_t pageSize = memory_.pageSize();
-  for (size_t addr = 0; addr < memory_.size(); addr += pageSize)
+  for (size_t start = 0; start < memSize; start += regSize)
     {
-      size_t region = memory_.getRegionIndex(addr);
+      size_t end = std::min(start + regSize, memSize);
+      size_t region = start / regSize;
       if (not regionHasLocalInstMem_.at(region))
-	memory_.setExecAccess(addr, false);
+        {
+          Pma::Attrib attr = Pma::Attrib(Pma::Exec);
+          memory_.pmaMgr_.disable(start, end - 1, attr);
+        }
     }
 
-  for (auto& window : windows)
+  // Mark pages in configuration windows as executable except when
+  // they fall in iccm regions.
+  for (auto window : windows)
     {
       if (window.first > window.second)
 	{
-	  cerr << "Invalid memory range in instruction access configuration: 0x"
+	  cerr << "Invalid memory range in inst fetch configuration: 0x"
 	       << std::hex << window.first << " to 0x" << window.second
 	       << '\n' << std::dec;
 	  errors++;
+          continue;
 	}
 
+      // Clip window to memory size.
       size_t addr = window.first, end = window.second;
-      if (end > memory_.size())
-	end = memory_.size();
+      addr = std::min(memorySize(), addr);
 
-      for ( ; addr <= end; addr += pageSize )
-	{
-	  size_t region = memory_.getRegionIndex(addr);
-	  if (not regionHasLocalInstMem_.at(region))
-	    memory_.setExecAccess(addr, true);
+      // Clip window against regions with iccm. Mark what remains as
+      // accessible.
+      while (addr < end)
+        {
+          size_t region = addr / regSize;
+          if (regionHasLocalInstMem_.at(region))
+            {
+              addr += regSize;
+              continue;
+            }
+
+          Pma::Attrib attr = Pma::Attrib(Pma::Exec);
+          size_t addr2 = std::min(addr + regSize, end);
+          memory_.pmaMgr_.enable(addr, addr2 - 1, attr);
+          if (addr2 == end)
+            break;
+          addr = addr2;
 	}
-
-      size_t region = memory_.getRegionIndex(end);
-      if (not regionHasLocalInstMem_.at(region))
-	memory_.setExecAccess(end, true);
     }
 
   return errors == 0;
@@ -1822,33 +1834,28 @@ Hart<URV>::configMemoryDataAccess(const std::vector< std::pair<URV,URV> >& windo
 {
   using std::cerr;
 
-  if (windows.empty())
+  size_t regSize = regionSize(), memSize = memorySize();
+  if (windows.empty() or memSize == 0 or regSize == 0)
     return true;
 
   unsigned errors = 0;
 
-  if (memory_.size() == 0)
-    return true;
-
-  // Mark all pages in non-dccm/pic regions as non accessible.
-  size_t pageSize = memory_.pageSize();
-  for (size_t addr = 0; addr < memory_.size(); addr += pageSize)
+  // Mark memory in non-dccm/pic regions as non-read non-write.
+  for (size_t start = 0; start < memSize; start += regSize)
     {
-      size_t region = memory_.getRegionIndex(addr);
+      size_t end = std::min(start + regSize, memSize);
+      size_t region = start / regSize;
       if (not regionHasLocalDataMem_.at(region))
-	{
-	  memory_.setWriteAccess(addr, false);
-	  memory_.setReadAccess(addr, false);
-
+        {
           Pma::Attrib attr = Pma::Attrib(Pma::Read | Pma::Write);
-          memory_.pmaMgr_.disable(addr, addr + pageSize - 1, attr);
-	}
+          memory_.pmaMgr_.disable(start, end - 1, attr);
+        }
     }
   
 
   // Mark pages in configuration windows as accessible except when
   // they fall in dccm/pic regions.
-  for (auto& window : windows)
+  for (auto window : windows)
     {
       if (window.first > window.second)
 	{
@@ -1856,30 +1863,30 @@ Hart<URV>::configMemoryDataAccess(const std::vector< std::pair<URV,URV> >& windo
 	       << std::hex << window.first << " to 0x" << window.second
 	       << '\n' << std::dec;
 	  errors++;
+          continue;
 	}
 
+      // Clip window to memory size.
       size_t addr = window.first, end = window.second;
-      if (end > memory_.size())
-	end = memory_.size();
+      addr = std::min(memorySize(), addr);
 
-      for ( ; addr <= end; addr += pageSize )
-	{
-	  size_t region = memory_.getRegionIndex(addr);
-	  if (not regionHasLocalDataMem_.at(region))
-	    {
-	      memory_.setWriteAccess(addr, true);
-	      memory_.setReadAccess(addr, true);
+      // Clip window against regions with dccm/pic. Mark what remains
+      // as accessible.
+      while (addr < end)
+        {
+          size_t region = addr / regSize;
+          if (regionHasLocalDataMem_.at(region))
+            {
+              addr += regSize;
+              continue;
+            }
 
-              Pma::Attrib attr = Pma::Attrib(Pma::Read | Pma::Write);
-              memory_.pmaMgr_.enable(addr, addr + pageSize - 1, attr);
-	    }
-	}
-
-      size_t region = memory_.getRegionIndex(end);
-      if (not regionHasLocalDataMem_.at(region))
-	{
-	  memory_.setWriteAccess(end, true);
-	  memory_.setReadAccess(end, true);
+          Pma::Attrib attr = Pma::Attrib(Pma::Read | Pma::Write);
+          size_t addr2 = std::min(addr + regSize, end);
+          memory_.pmaMgr_.enable(addr, addr2 - 1, attr);
+          if (addr2 == end)
+            break;
+          addr = addr2;
 	}
     }
 

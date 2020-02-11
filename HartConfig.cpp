@@ -757,11 +757,6 @@ HartConfig::applyMemoryConfig(Hart<URV>& hart, bool iccmRw, bool /*verbose*/) co
   if (not applyDccmConfig(hart, *config_))
     errors++;
 
-#if 0
-  if (not applyPicConfig(hart, *config_))
-    errors++;
-#endif
-
   if (not applyMemMappedRegConfig(hart, *config_))
     errors++;
 

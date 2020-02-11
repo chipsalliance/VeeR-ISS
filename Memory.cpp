@@ -82,18 +82,9 @@ Memory::Memory(size_t size, size_t pageSize, size_t regionSize)
   // Mark all regions as non-configured.
   regionConfigured_.resize(regionCount_);
 
-  attribs_.resize(pageCount_);
-
-  // Make whole memory as mapped, writable, allowing data and inst.
-  // Some of the pages will be later reconfigured when the user
-  // supplied configuration file is processed.
-  for (size_t i = 0; i < pageCount_; ++i)
-    {
-      attribs_.at(i).setAll(true);
-      attribs_.at(i).setIccm(false);
-      attribs_.at(i).setDccm(false);
-      attribs_.at(i).setMemMappedReg(false);
-    }
+  // Mark all regions as having neither iccm or dccm/mem-mappped-reg.
+  regionHasLocalInst_.resize(regionCount_);
+  regionHasLocalData_.resize(regionCount_);
 }
 
 
@@ -698,42 +689,38 @@ Memory::checkCcmOverlap(const std::string& tag, size_t addr, size_t size,
       return false;
     }
 
+  if (iccm)
+    regionHasLocalInst_.at(region) = true;
+
+  if (dccm or pic)
+    regionHasLocalData_.at(region) = true;
+
   // If a region is ever configured, then only the configured parts
   // are available (accessible).
   if (not regionConfigured_.at(region))
     {
       // Region never configured. Make it all inaccessible.
       regionConfigured_.at(region) = true;
-      size_t ix0 = getPageIx(region*regionSize_);
-      size_t ix1 = ix0 + getPageIx(regionSize_);
-      for (size_t ix = ix0; ix < ix1; ++ix)
-	{
-	  auto& attrib = attribs_.at(ix);
-	  attrib.setAll(false);
-	}
-
       size_t start = region*regionSize();
       pmaMgr_.setAttribute(start, start + regionSize() - 1, Pma::Attrib::None);
+
       return true;  // No overlap.
     }
 
-  // Check area overlap.
-  size_t ix0 = getPageIx(addr);
-  size_t ix1 = getPageIx(addr + size);
-  for (size_t ix = ix0; ix < ix1; ++ix)
+  if (iccm or dccm or pic)
     {
-      auto& attrib = attribs_.at(ix);
-      if (attrib.isMapped())
-	{
-	  if ((iccm and not attrib.isIccm()) or
-	      (dccm and not attrib.isDccm()) or
-	      (pic  and not attrib.isMemMappedReg()))
-	    {
-	      std::cerr << tag << " area at address " << addr << " overlaps"
+      // Check area overlap.
+      size_t end = addr + size;
+      for (size_t aa = addr; aa < end; aa += pageSize())
+        {
+          Pma pma = pmaMgr_.getPma(aa);
+          if (pma.isDccm() or pma.isIccm() or pma.isMemMappedReg())
+            {
+              std::cerr << tag << " area at address " << addr << " overlaps"
 			<< " a previously defined area.\n";
-	      return false;
-	    }
-	}
+              return false;
+            }
+        }
     }
 
   return true;
@@ -747,17 +734,6 @@ Memory::defineIccm(size_t addr, size_t size)
     return false;
 
   checkCcmOverlap("ICCM", addr, size, true, false, false);
-
-  size_t ix = getPageIx(addr);
-
-  // Set attributes of pages in iccm
-  size_t count = size/pageSize_;  // Count of pages in iccm
-  for (size_t i = 0; i < count; ++i)
-    {
-      auto& attrib = attribs_.at(ix + i);
-      attrib.setExec(true);
-      attrib.setIccm(true);
-    }
 
   // Mark as excutable and iccm.
   Pma::Attrib attrib = Pma::Attrib(Pma::Exec | Pma::Iccm);
@@ -775,18 +751,6 @@ Memory::defineDccm(size_t addr, size_t size)
 
   checkCcmOverlap("DCCM", addr, size, false, true, false);
 
-  size_t ix = getPageIx(addr);
-
-  // Set attributes of pages in dccm
-  size_t count = size/pageSize_;  // Count of pages in iccm
-  for (size_t i = 0; i < count; ++i)
-    {
-      auto& attrib = attribs_.at(ix + i);
-      attrib.setWrite(true);
-      attrib.setRead(true);
-      attrib.setDccm(true);
-    }
-
   // Mark as read/write/dccm.
   Pma::Attrib attrib = Pma::Attrib(Pma::Read | Pma::Write | Pma::Dccm);
   pmaMgr_.setAttribute(addr, addr + size - 1, attrib);
@@ -802,18 +766,6 @@ Memory::defineMemoryMappedRegisterArea(size_t addr, size_t size)
     return false;
 
   checkCcmOverlap("PIC memory", addr, size, false, false, true);
-
-  size_t pageIx = getPageIx(addr);
-
-  // Set attributes of memory-mapped-register pages
-  size_t count = size / pageSize_;  // page count
-  for (size_t i = 0; i < count; ++i)
-    {
-      auto& attrib = attribs_.at(pageIx++);
-      attrib.setRead(true);
-      attrib.setWrite(true);
-      attrib.setMemMappedReg(true);
-    }
 
   // Mark as read/write/memory-mapped.
   Pma::Attrib attrib = Pma::Attrib(Pma::Read | Pma::Write | Pma::MemMapped);
@@ -876,38 +828,28 @@ Memory::finishCcmConfig(bool iccmRw)
       if (not regionConfigured_.at(region))
 	continue;   // Region does not have DCCM, PIC, or ICCM.
 
-      bool hasData = false;  // True if region has DCCM/PIC section(s).
-      bool hasInst = false;  // True if region has ICCM section(s).
+      // True if region has DCCM/PIC section(s).
+      bool hasData = regionHasLocalData_.at(region);
 
-      size_t addr = region * regionSize_;
-      size_t pageCount = regionSize_ / pageSize_;
-
-      size_t pageIx = getPageIx(addr);
-      for (size_t i = 0; i < pageCount; ++i, ++pageIx)
-	{
-	  PageAttribs attrib = attribs_.at(pageIx);
-	  hasData = hasData or attrib.isWrite();
-	  hasInst = hasInst or attrib.isExec();
-	}
+      // True if region has ICCM section(s).
+      bool hasInst = regionHasLocalInst_.at(region);
 
       if (hasInst and hasData)
 	{
 	  // Make ICCM pages non-read and non-write. Make DCCM pages
 	  // non-exec.
-	  size_t pageIx = getPageIx(addr);
-	  for (size_t i = 0; i < pageCount; ++i, ++pageIx)
+          size_t regionPageCount = regionSize_ / pageSize_;
+	  for (size_t i = 0; i < regionPageCount; ++i)
 	    {
-	      PageAttribs& attrib = attribs_.at(pageIx);
-	      if (attrib.isExec())
+              size_t start = region*regionSize() + i*pageSize_;
+              Pma pma = pmaMgr_.getPma(start);
+	      if (pma.isExec())
 		{
                   if (not iccmRw)
-                    {
-                      attrib.setWrite(false);
-                      attrib.setRead(false);
-                    }
+                    pmaMgr_.disable(start, start + pageSize_ - 1, Pma::Attrib::ReadWrite);
 		}
-	      else if (attrib.isWrite())
-		attrib.setExec(false);
+	      else if (pma.isWrite())
+                pmaMgr_.disable(start, start + pageSize_ - 1, Pma::Attrib::Exec);
 	    }
 
 	  continue;
@@ -915,25 +857,12 @@ Memory::finishCcmConfig(bool iccmRw)
 
       if (hasInst)
 	{
-	  size_t pageIx = getPageIx(addr);
-	  for (size_t i = 0; i < pageCount; ++i, ++pageIx)
-	    {
-	      auto& attrib = attribs_.at(pageIx);
-	      attrib.setWrite(true);
-	      attrib.setRead(true);
-	    }
           size_t start = region*regionSize();
           pmaMgr_.enable(start, start + regionSize() - 1, Pma::ReadWrite);
 	}
 
       if (hasData)
 	{
-	  size_t pageIx = getPageIx(addr);
-	  for (size_t i = 0; i < pageCount; ++i, ++pageIx)
-	    {
-	      auto& attrib = attribs_.at(pageIx);
-	      attrib.setExec(true);
-	    }
           size_t start = region*regionSize();
           pmaMgr_.enable(start, start + regionSize() - 1, Pma::Exec);
 	}

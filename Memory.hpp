@@ -555,13 +555,6 @@ namespace WdRiscv
     size_t getPageIx(size_t addr) const
     { return addr >> pageShift_; }
 
-    /// Return the attribute of the page containing given address.
-    PageAttribs getAttrib(size_t addr) const
-    {
-      size_t ix = getPageIx(addr);
-      return ix < attribs_.size() ? attribs_[ix] : PageAttribs();
-    }
-
     /// Return start address of page containing given address.
     size_t getPageStartAddr(size_t addr) const
     { return (addr >> pageShift_) << pageShift_; }
@@ -685,36 +678,6 @@ namespace WdRiscv
       return true;
     }
 
-    /// Set the write-access of the page containing the given address
-    /// to the given flag. No-op if address is out of bounds.
-    void setWriteAccess(size_t addr, bool value)
-    {
-      size_t ix = getPageIx(addr);
-      if (ix >= attribs_.size())
-	return;
-      attribs_[ix].setWrite(value);
-    }
-
-    /// Set the read-access of the page containing the given address
-    /// to the given flag. No-op if address is out of bounds.
-    void setReadAccess(size_t addr, bool value)
-    {
-      size_t ix = getPageIx(addr);
-      if (ix >= attribs_.size())
-	return;
-      attribs_[ix].setRead(value);
-    }
-
-    /// Set the execute flag of the page containing the given address
-    /// to the given flag. No-op if address is out of bounds.
-    void setExecAccess(size_t addr, bool value)
-    {
-      size_t ix = getPageIx(addr);
-      if (ix >= attribs_.size())
-	return;
-      attribs_[ix].setExec(value);
-    }
-
     /// Track LR instructin resrvations.
     struct Reservation
     {
@@ -806,6 +769,8 @@ namespace WdRiscv
     size_t regionCount_    = 16;
     size_t regionSize_     = 256*1024*1024;
     std::vector<bool> regionConfigured_; // One per region.
+    std::vector<bool> regionHasLocalInst_; // One per region.
+    std::vector<bool> regionHasLocalData_; // One per region.
 
     size_t pageCount_     = 1024*1024; // Should be derived from page size.
     size_t pageSize_      = 4*1024;    // Must be a power of 2.
@@ -815,9 +780,6 @@ namespace WdRiscv
 
     std::mutex amoMutex_;
     std::mutex lrMutex_;
-
-    // Attributes are assigned to pages.
-    std::vector<PageAttribs> attribs_;      // One entry per page.
 
     bool checkUnmappedElf_ = true;
 
