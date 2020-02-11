@@ -40,6 +40,7 @@ namespace WdRiscv
        Idempotent = 8, Atomic = 16, Iccm = 32,
        Dccm = 64, MemMapped = 128, Cached = 256,
        Aligned = 1024,
+       ReadWrite = Read | Write,
        Mapped = Exec | Read | Write,
        Default = Mapped | Idempotent | Atomic
       };

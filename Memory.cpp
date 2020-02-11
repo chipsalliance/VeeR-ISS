@@ -711,6 +711,9 @@ Memory::checkCcmOverlap(const std::string& tag, size_t addr, size_t size,
 	  auto& attrib = attribs_.at(ix);
 	  attrib.setAll(false);
 	}
+
+      size_t start = region*regionSize();
+      pmaMgr_.setAttribute(start, start + regionSize() - 1, Pma::Attrib::None);
       return true;  // No overlap.
     }
 
@@ -919,6 +922,8 @@ Memory::finishCcmConfig(bool iccmRw)
 	      attrib.setWrite(true);
 	      attrib.setRead(true);
 	    }
+          size_t start = region*regionSize();
+          pmaMgr_.enable(start, start + regionSize() - 1, Pma::ReadWrite);
 	}
 
       if (hasData)
@@ -929,6 +934,8 @@ Memory::finishCcmConfig(bool iccmRw)
 	      auto& attrib = attribs_.at(pageIx);
 	      attrib.setExec(true);
 	    }
+          size_t start = region*regionSize();
+          pmaMgr_.enable(start, start + regionSize() - 1, Pma::Exec);
 	}
     }
 }

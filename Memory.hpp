@@ -173,9 +173,8 @@ namespace WdRiscv
     template <typename T>
     bool read(size_t address, T& value) const
     {
-      PageAttribs attrib = getAttrib(address);
       Pma pma1 = pmaMgr_.getPma(address);
-      if (not attrib.isRead())
+      if (not pma1.isRead())
 	return false;
 
 #ifndef FAST_SLOPPY
@@ -204,12 +203,11 @@ namespace WdRiscv
     /// success.  Return false if address is out of bounds.
     bool readByte(size_t address, uint8_t& value) const
     {
-      PageAttribs attrib = getAttrib(address);
-      if (not attrib.isRead())
+      Pma pma = pmaMgr_.getPma(address);
+      if (not pma.isRead())
 	return false;
 
 #ifndef FAST_SLOPPY
-      Pma pma = pmaMgr_.getPma(address);
       if (pma.isMemMappedReg())
 	return false; // Only word access allowed to memory mapped regs.
 #endif
@@ -238,22 +236,15 @@ namespace WdRiscv
     /// target address is not in instruction memory.
     bool readInstHalfWord(size_t address, uint16_t& value) const
     {
-      PageAttribs attrib = getAttrib(address);
-      if (attrib.isExec())
+      Pma pma = pmaMgr_.getPma(address);
+      if (pma.isExec())
 	{
 	  if (address & 1)
 	    {
-	      size_t page = getPageStartAddr(address);
-	      size_t page2 = getPageStartAddr(address + 1);
-	      if (page != page2)
-		{
-		  // Instruction crosses page boundary: Check next page.
-		  PageAttribs attrib2 = getAttrib(address + 1);
-		  if (not attrib2.isExec())
-		    return false;
-		  if (attrib.isIccm() != attrib2.isIccm())
-		    return false;  // Cannot cross an ICCM boundary.
-		}
+              // Misaligned address: Check next address.
+              Pma pma2 = pmaMgr_.getPma(address + 1);
+	      if (pma != pma2)
+                return false;  // Cannot cross an ICCM boundary.
 	    }
 
 	  value = *(reinterpret_cast<const uint16_t*>(data_ + address));
@@ -267,22 +258,15 @@ namespace WdRiscv
     /// target address is not in instruction memory.
     bool readInstWord(size_t address, uint32_t& value) const
     {
-      PageAttribs attrib = getAttrib(address);
-      if (attrib.isExec())
+      Pma pma = pmaMgr_.getPma(address);
+      if (pma.isExec())
 	{
 	  if (address & 3)
 	    {
-	      size_t page = getPageStartAddr(address);
-	      size_t page2 = getPageStartAddr(address + 3);
-	      if (page != page2)
-		{
-		  // Instruction crosses page boundary: Check next page.
-		  PageAttribs attrib2 = getAttrib(address + 3);
-		  if (not attrib2.isExec())
-		    return false;
-		  if (attrib.isIccm() != attrib2.isIccm())
-		    return false;  // Cannot cross a ICCM boundary.
-		}
+
+	      Pma pma2 = pmaMgr_.getPma(address + 3);
+	      if (pma != pma2)
+                return false;
 	    }
 
 	  value = *(reinterpret_cast<const uint32_t*>(data_ + address));
