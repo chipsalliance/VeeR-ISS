@@ -55,7 +55,7 @@ namespace WdRiscv
     DecodedInst(uint64_t addr, uint32_t inst, const InstEntry* entry,
 		uint32_t op0, uint32_t op1, uint32_t op2, uint32_t op3)
       : addr_(addr), inst_(inst), size_(instructionSize(inst)), entry_(entry),
-	op0_(op0), op1_(op1), op2_(op2), op3_(op3)
+	op0_(op0), op1_(op1), op2_(op2), op3_(op3), valid_(entry != nullptr)
     { values_[0] = values_[1] = values_[2] = values_[3] = 0; }
 
     /// Return instruction size in bytes.
@@ -130,11 +130,11 @@ namespace WdRiscv
 
     /// Return true if this object is valid.
     bool isValid() const
-    { return entry_ != nullptr; }
+    { return valid_; }
 
     /// Make invalid.
     void invalidate()
-    { entry_ = nullptr; }
+    { valid_ = false; }
 
     /// Return associated instruction table information.
     const InstEntry* instEntry() const
@@ -185,7 +185,7 @@ namespace WdRiscv
     { inst_ = inst; size_ = instructionSize(inst); }
 
     void setEntry(const InstEntry* e)
-    { entry_ = e; }
+    { entry_ = e; if (not e) valid_ = false; }
 
     void setOp0(uint32_t op0)
     { op0_ = op0; }
@@ -207,6 +207,7 @@ namespace WdRiscv
       entry_ = entry;
       op0_ = op0; op1_ = op1; op2_ = op2; op3_ = op3;
       size_ = instructionSize(inst);
+      valid_ = entry != nullptr;
     }
 
   private:
@@ -221,6 +222,7 @@ namespace WdRiscv
     uint32_t op3_;    // 4th operand (typically a register number)
 
     uint64_t values_[4];  // Values of operands.
+    bool valid_;
   };
 
 
