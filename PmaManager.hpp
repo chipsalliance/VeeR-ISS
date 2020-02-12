@@ -45,8 +45,8 @@ namespace WdRiscv
        Default = Mapped | Idempotent | Atomic
       };
 
-    /// Default constructor: All access allowed. No-dccm, no-iccm,
-    /// no-mmr, atomic.
+    /// Default constructor: No access allowed. No-dccm, no-iccm,
+    /// no-mmr, no-atomic.
     Pma(Attrib a = None)
       : attrib_(a), word_(false)
     { }
@@ -132,8 +132,11 @@ namespace WdRiscv
     /// Return the physical memory attribute associated with the
     /// word-aligned word designated by the given address. Return an
     /// unmapped attribute if the given address is out of memory
-    /// range. Internally we associate attributes with pages or
-    /// with words for the areas
+    /// range. Internally we associate a pma object with each page of
+    /// a regions where the first/last address is aligned with the
+    /// first/last address of a page. For a region where the first/last
+    /// address is not page-aligned we associate a pma object with
+    /// each word before/after the first/last page aligned address.
     Pma getPma(uint64_t addr) const
     {
       uint64_t ix = getPageIx(addr);
@@ -160,17 +163,17 @@ namespace WdRiscv
     void setAttribute(uint64_t addr0, uint64_t addr1, Pma::Attrib attrib);
 
     /// Return start address of page containing given address.
-    size_t getPageStartAddr(size_t addr) const
+    uint64_t getPageStartAddr(uint64_t addr) const
     { return (addr >> pageShift_) << pageShift_; }
 
     /// Associate a mask with the word-aligned word at the given address.
-    void setMemMappedMask(size_t addr, uint32_t mask)
+    void setMemMappedMask(uint64_t addr, uint32_t mask)
     { addr = (addr >> 2) << 2; memMappedMasks_[addr] = mask; }
 
     /// Return mask associated with the word-aligned word at the given
     /// address.  Return 0xffffffff if no mask was ever associated
     /// with given address.
-    uint32_t getMemMappedMask(size_t addr) const
+    uint32_t getMemMappedMask(uint64_t addr) const
     {
       addr = (addr >> 2) << 2;
       if (not memMappedMasks_.count(addr))
@@ -185,7 +188,7 @@ namespace WdRiscv
     {
       for (auto kv : memMappedMasks_)
         {
-          size_t addr = kv.first;
+          uint64_t addr = kv.first;
           uint32_t* wordAddr = reinterpret_cast<uint32_t*>(data + addr);
           *wordAddr = 0;
         }
@@ -215,10 +218,10 @@ namespace WdRiscv
   private:
 
     std::vector<Pma> pagePmas_;
-    std::unordered_map<size_t, Pma> wordPmas_; // Map word index to pma.
+    std::unordered_map<uint64_t, Pma> wordPmas_; // Map word index to pma.
     uint64_t memSize_;
     uint64_t pageSize_ = 4*1024;
     unsigned pageShift_ = 12;
-    std::unordered_map<size_t, uint32_t> memMappedMasks_;
+    std::unordered_map<uint64_t, uint32_t> memMappedMasks_;
   };
 }

@@ -1861,6 +1861,8 @@ namespace WdRiscv
 
     uint64_t alarmInterval_ = 0; // Ext. timer interrupt interval.
     uint64_t alarmCounter_ = 0;  // Ext. timer interrupt when this reaches 0.
+
+    bool pmpEnabled_ = false;
   };
 }
 
