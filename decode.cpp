@@ -1171,6 +1171,8 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	      return instTable_.getEntry(InstId::rori);
             if (top5 == 0xd)
               return instTable_.getEntry(InstId::grevi);
+            if (top5 == 0xd)
+              return instTable_.getEntry(InstId::grevi);
 	  }
 	else if (funct3 == 6)  return instTable_.getEntry(InstId::ori);
 	else if (funct3 == 7)  return instTable_.getEntry(InstId::andi);
