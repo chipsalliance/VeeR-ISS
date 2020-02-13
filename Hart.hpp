@@ -109,7 +109,7 @@ namespace WdRiscv
     typedef typename std::make_signed_t<URV> SRV;
 
     /// Constructor: Define a hart with the given integer register
-    /// cont, the givel local hart id (id within core) and associate
+    /// count, the given local hart id (id within core) and associate
     /// it with the given memory.
     Hart(unsigned localHartId, Memory& memory, unsigned intRegCount);
 
@@ -266,9 +266,9 @@ namespace WdRiscv
     /// read-write.
     bool configMachineModePerfCounters(unsigned n);
 
-    /// Set the maximum event id that can be written to the mhpmevent
+    /// Set the maximum event id that can be written to the MHPMEVENT
     /// registers. Larger values are replaced by this max-value before
-    /// being written to the mhpmevent registers. Return true on
+    /// being written to the MHPMEVENT registers. Return true on
     /// success and false on failure.
     void configMachineModeMaxPerfEvent(URV maxId)
     { csRegs_.setMaxEventId(maxId); }
@@ -422,7 +422,7 @@ namespace WdRiscv
     /// tokens each consisting of two hexadecimal digits.
     bool loadHexFile(const std::string& file);
 
-    /// Load the given ELF file and place ints contents in memory.
+    /// Load the given ELF file and place its contents in memory.
     /// Return true on success. Return false if file does not exists,
     /// cannot be opened or contains malformed data. On success, set
     /// entryPoint to the program entry-point of the loaded file. If
@@ -438,7 +438,7 @@ namespace WdRiscv
     bool findElfSymbol(const std::string& symbol, ElfSymbol& value) const
     { return memory_.findElfSymbol(symbol, value); }
 
-    /// Locate the ELF function cotaining the give address returning true
+    /// Locate the ELF function containing the give address returning true
     /// on success and false on failure.  If successful set name to the
     /// corresponding function name and symbol to the corresponding symbol
     /// value.
@@ -685,37 +685,37 @@ namespace WdRiscv
     { fastInterrupts_ = b; }
 
     /// Enable/disable the zba (bit manipulation base) extension. When
-    /// disbaled all the instructions in zba extension result in an
+    /// disabled all the instructions in zba extension result in an
     /// illegal instruction exception.
     void enableRvzba(bool flag)
     { rvzba_ = flag; }
 
     /// Enable/disable the zbb (bit manipulation base) extension. When
-    /// disbaled all the instructions in zbb extension result in an
+    /// disabled all the instructions in zbb extension result in an
     /// illegal instruction exception.
     void enableRvzbb(bool flag)
     { rvzbb_ = flag; }
 
     /// Enable/disable the zbc (bit manipulation carryless multiply)
-    /// extension. When disbaled all the instructions in zbc extension
+    /// extension. When disabled all the instructions in zbc extension
     /// result in an illegal instruction exception.
     void enableRvzbc(bool flag)
     { rvzbc_ = flag; }
 
     /// Enable/disable the zbe (bit manipulation) extension. When
-    /// disbaled all the instructions in zbe extension result in an
+    /// disabled all the instructions in zbe extension result in an
     /// illegal instruction exception.
     void enableRvzbe(bool flag)
     { rvzbe_ = flag; }
 
     /// Enable/disable the zbf (bit manipulation) extension. When
-    /// disbaled all the instructions in zbf extension result in an
+    /// disabled all the instructions in zbf extension result in an
     /// illegal instruction exception.
     void enableRvzbf(bool flag)
     { rvzbf_ = flag; }
 
     /// Enable/disable the zbs (bit manipulation single)
-    /// extension. When disbaled all the instructions in zbs extension
+    /// extension. When disabled all the instructions in zbs extension
     /// result in an illegal instruction exception.
     void enableRvzbs(bool flag)
     { rvzbs_ = flag; }
@@ -880,7 +880,7 @@ namespace WdRiscv
     bool isRvzbs() const
     { return rvzbs_; }
 
-    /// Return true if current program is considered finihsed (either
+    /// Return true if current program is considered finished (either
     /// reached stop address or executed exit limit).
     bool hasTargetProgramFinished() const
     { return targetProgFinished_; }
@@ -972,19 +972,19 @@ namespace WdRiscv
 
     /// Rollback destination register of most recent dev/rem
     /// instruction.  Return true on success and false on failure (no
-    /// unrolled div/rmv inst). This is for the test-bench.
+    /// unrolled div/rem inst). This is for the test-bench.
     bool cancelLastDiv();
 
     /// Cancel load reservation held by this hart (if any).
     void cancelLr()
     { memory_.invalidateLr(localHartId_); }
 
-    /// Set linuxAddr to the simulator memory address corresponding to
+    /// Set simAddr to the simulator memory address corresponding to
     /// the RISCV memory address returning true on success and false
-    /// if riscvAddr is out of bounds (in which case linuxAddr is left
+    /// if riscvAddr is out of bounds (in which case simAddr is left
     /// unmodified).
-    bool getSimMemAddr(size_t riscvAddr, size_t& linuxAddr)
-    { return memory_.getSimMemAddr(riscvAddr, linuxAddr); }
+    bool getSimMemAddr(size_t riscvAddr, size_t& simAddr)
+    { return memory_.getSimMemAddr(riscvAddr, simAddr); }
 
     /// Report the files opened by the target RISCV program during
     /// current run.
@@ -1142,7 +1142,7 @@ namespace WdRiscv
     /// Helper to sb, sh, sw ... Sore type should be uint8_t, uint16_t
     /// etc... for sb, sh, etc...
     /// Return true if store is successful. Return false if an exception
-    /// or a trigger is encoutered.
+    /// or a trigger is encountered.
     template<typename STORE_TYPE>
     bool store(unsigned rs1, URV base, URV addr, STORE_TYPE value);
 
@@ -1353,8 +1353,8 @@ namespace WdRiscv
     bool isIdempotentRegion(size_t addr) const;
 
     /// Check address associated with an atomic memory operation (AMO)
-    /// instruction. Return true if AMO accsess is allowed. Return false
-    /// trigerring an exception if address is misaligned or if it is out
+    /// instruction. Return true if AMO access is allowed. Return false
+    /// triggering an exception if address is misaligned or if it is out
     /// of DCCM range in DCCM-only mode.
     ExceptionCause validateAmoAddr(uint32_t rs1, URV addr, unsigned accessSize,
                                    SecondaryCause& secCause);
@@ -1375,29 +1375,29 @@ namespace WdRiscv
     /// store.
     void invalidateDecodeCache(URV addr, unsigned storeSize);
 
-    /// Invalidate wholde cache.
+    /// Invalidate whole cache.
     void invalidateDecodeCache();
 
-    /// Update stack checker paramters after a write/poke to a CSR.
+    /// Update stack checker parameters after a write/poke to a CSR.
     void updateStackChecker();
 
     /// Enable disable wide load/store mode (64-bit on 32-bit machine).
     void enableWideLdStMode(bool flag)
     { wideLdSt_ = flag; }
 
-    /// Helper to shift/bit execute insrtuction with immediate
+    /// Helper to shift/bit execute instruction with immediate
     /// operands: Signal an illegal instruction if immediate value is
     /// greater than XLEN-1 returning false; otherwise return true.
     bool checkShiftImmediate(URV imm);
 
-    /// Helper to the run mehtods: Log (on the standard error) the
+    /// Helper to the run methods: Log (on the standard error) the
     /// cause of a stop signaled with an exception. Return true if
     /// program finished successfully, return false otherwise.  If
     /// traceFile is non-null, then trace the instruction that caused
     /// the stop.
     bool logStop(const CoreException& ce, uint64_t instCount, FILE* traceFile);
 
-    /// Return true if minstret is enabled (not inbibited by mcountinhibit).
+    /// Return true if minstret is enabled (not inhibited by mcountinhibit).
     bool minstretEnabled() const
     { return prevPerfControl_ & 0x4; }
 
@@ -1763,7 +1763,7 @@ namespace WdRiscv
     uint64_t instCounter_ = 0;   // Absolute retired instruction count.
     uint64_t instCountLim_ = ~uint64_t(0);
     uint64_t exceptionCount_ = 0;
-    uint64_t interruptCount_ = 0;   // Including non-maskabel intrrupts.
+    uint64_t interruptCount_ = 0;   // Including non-maskable interrupts.
     uint64_t nmiCount_ = 0;
     uint64_t consecutiveIllegalCount_ = 0;
     uint64_t counterAtLastIllegal_ = 0;
@@ -1778,8 +1778,8 @@ namespace WdRiscv
     bool enableCounters_ = false;   // Enable performance monitors.
     bool enableTriggers_ = false;   // Enable debug triggers.
     bool enableGdb_ = false;        // Enable gdb mode.
-    int gdbTcpPort_ = -1;        // Enable gdb mode.
-    bool enableCsrTrace_ = true;    // Flase in fast (simpleRun) mode.
+    int gdbTcpPort_ = -1;           // Enable gdb mode.
+    bool enableCsrTrace_ = true;    // False in fast (simpleRun) mode.
     bool abiNames_ = false;         // Use ABI register names when true.
     bool newlib_ = false;           // Enable newlib system calls.
     bool linux_ = false;            // Enable linux system calls.
@@ -1856,7 +1856,7 @@ namespace WdRiscv
 
     // Following is for test-bench support. It allow us to cancel div/rem
     bool hasLastDiv_ = false;
-    URV priorDivRdVal_ = 0;  // Prior value of most recent div/rem dest regiser.
+    URV priorDivRdVal_ = 0;  // Prior value of most recent div/rem dest register.
     URV lastDivRd_ = 0;  // Target register of most recent div/rem instruction.
 
     uint64_t alarmInterval_ = 0; // Ext. timer interrupt interval.
