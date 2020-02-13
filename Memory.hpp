@@ -173,11 +173,14 @@ namespace WdRiscv
     template <typename T>
     bool read(size_t address, T& value) const
     {
+#ifdef FAST_SLOPPY
+      if (address + sizeof(T) > size_)
+        return false;
+#else
       Pma pma1 = pmaMgr_.getPma(address);
       if (not pma1.isRead())
 	return false;
 
-#ifndef FAST_SLOPPY
       if (address & (sizeof(T) - 1))  // If address is misaligned
 	{
           Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
@@ -194,7 +197,6 @@ namespace WdRiscv
             return false;
         }
 #endif
-
       value = *(reinterpret_cast<const T*>(data_ + address));
       return true;
     }
@@ -203,11 +205,14 @@ namespace WdRiscv
     /// success.  Return false if address is out of bounds.
     bool readByte(size_t address, uint8_t& value) const
     {
+#ifdef FAST_SLOPPY
+      if (address >= size_)
+        return false;
+#else
       Pma pma = pmaMgr_.getPma(address);
       if (not pma.isRead())
 	return false;
 
-#ifndef FAST_SLOPPY
       if (pma.isMemMappedReg())
 	return false; // Only word access allowed to memory mapped regs.
 #endif
@@ -316,11 +321,15 @@ namespace WdRiscv
     template <typename T>
     bool write(unsigned localHartId, size_t address, T value)
     {
+#ifdef FAST_SLOPPY
+      if (address + sizeof(T) > size_)
+        return false;
+      localHartId = localHartId; // Avoid unused var warning.
+#else
       Pma pma1 = pmaMgr_.getPma(address);
       if (not pma1.isWrite())
 	return false;
 
-#ifndef FAST_SLOPPY
       if (address & (sizeof(T) - 1))  // If address is misaligned
 	{
           Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
@@ -342,8 +351,6 @@ namespace WdRiscv
       lwd.size_ = sizeof(T);
       lwd.addr_ = address;
       lwd.value_ = value;
-#else
-      localHartId = localHartId; // Avoid unused var warning.
 #endif
 
       *(reinterpret_cast<T*>(data_ + address)) = value;
@@ -354,6 +361,11 @@ namespace WdRiscv
     /// false if address is out of bounds or is not writable.
     bool writeByte(unsigned localHartId, size_t address, uint8_t value)
     {
+#ifdef FAST_SLOPPY
+      if (address >= size_)
+        return false;
+      localHartId = localHartId; // Avoid unused var warning.
+#else
       Pma pma = pmaMgr_.getPma(address);
       if (not pma.isWrite())
 	return false;
@@ -363,12 +375,12 @@ namespace WdRiscv
 
       auto& lwd = lastWriteData_.at(localHartId);
       lwd.prevValue_ = *(data_ + address);
-
-      data_[address] = value;
-
       lwd.size_ = 1;
       lwd.addr_ = address;
       lwd.value_ = value;
+#endif
+
+      data_[address] = value;
       return true;
     }
 

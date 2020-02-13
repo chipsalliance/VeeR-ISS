@@ -134,8 +134,8 @@ namespace WdRiscv
     };
 
   /// Privilige mode.
-  enum class PrivilegeMode { User = 0, Reserved = 2, Supervisor = 1,
-			     Machine = 3 };
+  enum class PrivilegeMode : unsigned { User = 0, Reserved = 2, Supervisor = 1,
+                                        Machine = 3 };
 
   /// Control and status register number.
   enum class CsrNumber

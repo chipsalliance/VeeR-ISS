@@ -1799,7 +1799,10 @@ namespace WdRiscv
     unsigned maxLoadQueueSize_ = 16;
     bool loadQueueEnabled_ = false;
 
-    PrivilegeMode privMode_ = PrivilegeMode::Machine; // Privilege mode.
+    PrivilegeMode privMode_ = PrivilegeMode::Machine;   // Privilege mode.
+    PrivilegeMode mstatusMpp_ = PrivilegeMode::Machine; // Cached mstatus.mpp.
+    bool mstatusMprv_ = false;                          // Cached mstatus.mprv.
+
     bool debugMode_ = false;         // True on debug mode.
     bool debugStepMode_ = false;     // True in debug step mode.
     bool dcsrStepIe_ = false;        // True if stepie bit set in dcsr.

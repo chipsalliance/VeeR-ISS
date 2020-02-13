@@ -1382,6 +1382,15 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
         }
     }
 
+  // Physical memory protection.
+  if (pmpEnabled_)
+    {
+      // TODO FIX : Determine secondary cause.
+      Pmp pmp = pmpManager_.getPmp(addr);
+      if (not pmp.isRead(privMode_, mstatusMpp_, mstatusMprv_))
+        return ExceptionCause::LOAD_ACC_FAULT;
+    }
+
   // DCCM unmapped or out of MPU range
   bool isReadable = memory_.isAddrReadable(addr);
   if (not isReadable)
@@ -2193,6 +2202,7 @@ Hart<URV>::initiateTrap(bool interrupt, URV cause, URV pcToSave, URV info,
   if (nextMode == PrivilegeMode::Machine)
     {
       msf.bits_.MPP = unsigned(origMode);
+      mstatusMpp_ = origMode;
       msf.bits_.MPIE = msf.bits_.MIE;
       msf.bits_.MIE = 0;
     }
@@ -2285,6 +2295,7 @@ Hart<URV>::undelegatedInterrupt(URV cause, URV pcToSave, URV nextPc)
   MstatusFields<URV> msf(status);
 
   msf.bits_.MPP = unsigned(origMode);
+  mstatusMpp_ = origMode;
   msf.bits_.MPIE = msf.bits_.MIE;
   msf.bits_.MIE = 0;
 
@@ -2480,6 +2491,16 @@ Hart<URV>::pokeCsr(CsrNumber csr, URV val)
     updateStackChecker();
   else if (csr == CsrNumber::MDBAC)
     enableWideLdStMode(true);
+
+  // Update cached values of MSTATUS MPP and MPRV.
+  if (csr == CsrNumber::MSTATUS)
+    {
+      URV csrVal = 0;
+      peekCsr(csr, csrVal);
+      MstatusFields<URV> msf(csrVal);
+      mstatusMpp_ = PrivilegeMode(msf.bits_.MPP);
+      mstatusMprv_ = msf.bits_.MPRV;
+    }
 
   return true;
 }
@@ -6373,7 +6394,8 @@ Hart<URV>::execMret(const DecodedInst*)
   MstatusFields<URV> fields(value);
   PrivilegeMode savedMode = PrivilegeMode(fields.bits_.MPP);
   fields.bits_.MIE = fields.bits_.MPIE;
-  fields.bits_.MPP = 0;
+  fields.bits_.MPP = unsigned(PrivilegeMode::User);
+  mstatusMpp_ = PrivilegeMode::User;
   fields.bits_.MPIE = 1;
 
   // ... and putting it back
@@ -6565,6 +6587,15 @@ Hart<URV>::doCsrWrite(CsrNumber csr, URV csrVal, unsigned intReg,
     updateStackChecker();
   else if (csr == CsrNumber::MDBAC)
     enableWideLdStMode(true);
+  else if (csr == CsrNumber::MSTATUS)
+    {
+      // Update cached values of MSTATUS MPP and MPRV.
+      URV csrVal = 0;
+      peekCsr(csr, csrVal);
+      MstatusFields<URV> msf(csrVal);
+      mstatusMpp_ = PrivilegeMode(msf.bits_.MPP);
+      mstatusMprv_ = msf.bits_.MPRV;
+    }
 
   // Csr was written. If it was minstret, compensate for
   // auto-increment that will be done by run, runUntilAddress or

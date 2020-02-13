@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <vector>
 #include <unordered_map>
+#include "CsRegs.hpp"
 
 namespace WdRiscv
 {
@@ -42,35 +43,49 @@ namespace WdRiscv
 
     /// Default constructor: No access allowed.
     Pmp(Mode m = None)
-      : mode_(m), word_(false)
+      : mode_(m), locked_(false), red_(false), word_(false)
     { }
 
     /// Return true if read (i.e. load instructions) access allowed 
-    bool isRead() const
-    { return mode_ & Read; }
+    bool isRead(PrivilegeMode mode, PrivilegeMode prevMode, bool mprv) const
+    {
+      bool check = (mode != PrivilegeMode::Machine or locked_ or
+                    (mprv and prevMode != PrivilegeMode::Machine));
+      return check ? mode_ & Read : true;
+    }
 
     /// Return true if write (i.e. store instructions) access allowed.
-    bool isWrite() const
-    { return mode_ & Write; }
+    bool isWrite(PrivilegeMode mode, PrivilegeMode prevMode, bool mprv) const
+    {
+      bool check = (mode != PrivilegeMode::Machine or locked_ or
+                    (mprv and prevMode != PrivilegeMode::Machine));
+      return check ? mode_ & Write : true;
+    }
 
     /// Return true if instruction fecth is allowed.
-    bool isExec() const
-    { return mode_ & Exec; }
+    bool isExec(PrivilegeMode mode, PrivilegeMode prevMode, bool mprv) const
+    {
+      bool check = (mode != PrivilegeMode::Machine or locked_ or
+                    (mprv and prevMode != PrivilegeMode::Machine));
+      return check ? mode_ & Exec : true;
+    }
 
     /// Return true if this object has the mode attributes as the
     /// given object.
     bool operator== (const Pmp& other) const
-    { return mode_ == other.mode_; }
+    { return mode_ == other.mode_ and red_ == other.red_; }
 
     /// Return true if this object has different attributes from those
     /// of the given object.
     bool operator!= (const Pmp& other) const
-    { return mode_ != other.mode_; }
+    { return mode_ != other.mode_ or red_ != other.red_; }
 
   private:
 
     uint8_t mode_ = 0;
-    bool word_ = false;     // True if word granularity otherwise page.
+    bool locked_ : 1;
+    bool red_    : 1;
+    bool word_   : 1;
   } __attribute__((packed));
 
 
