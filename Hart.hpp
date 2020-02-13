@@ -32,6 +32,7 @@
 #include "InstProfile.hpp"
 #include "DecodedInst.hpp"
 #include "Syscall.hpp"
+#include "PmpManager.hpp"
 
 namespace WdRiscv
 {
@@ -1862,7 +1863,10 @@ namespace WdRiscv
     uint64_t alarmInterval_ = 0; // Ext. timer interrupt interval.
     uint64_t alarmCounter_ = 0;  // Ext. timer interrupt when this reaches 0.
 
-    bool pmpEnabled_ = false;
+    // Physical memory protection.
+    bool pmpEnabled_ = false; // True if one or more pmp register defined.
+    bool pmpCheck_ = false; // True if memory access protection is being checked.
+    PmpManager pmpManager_;
   };
 }
 

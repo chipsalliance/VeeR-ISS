@@ -117,7 +117,8 @@ union Uint64DoubleUnion
 template <typename URV>
 Hart<URV>::Hart(unsigned localHartId, Memory& memory, unsigned intRegCount)
   : localHartId_(localHartId), memory_(memory), intRegs_(intRegCount),
-    fpRegs_(32), syscall_(*this)
+    fpRegs_(32), syscall_(*this),
+    pmpManager_(memory.size(), memory.pageSize())
 {
   regionHasLocalMem_.resize(16);
   regionHasLocalDataMem_.resize(16);
