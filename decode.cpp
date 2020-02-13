@@ -1103,13 +1103,6 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 		op2 = amt;
 		return instTable_.getEntry(InstId::sbclri);
 	      }
-            else if (top5 == 0x0a)
-              {
-                if (amt == 0x04)
-                  return instTable_.getEntry(InstId::sext_b);
-                else if (amt == 0x05)
-                  return instTable_.getEntry(InstId::sext_h);
-              }
 	    else if (top5 == 0x0c)
 	      {
 		if (amt == 0)
@@ -1118,6 +1111,10 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 		  return instTable_.getEntry(InstId::ctz);
 		else if (amt == 2)
 		  return instTable_.getEntry(InstId::pcnt);
+                if (amt == 0x04)
+                  return instTable_.getEntry(InstId::sext_b);
+                else if (amt == 0x05)
+                  return instTable_.getEntry(InstId::sext_h);
                 else if (amt == 0x10)
                   return instTable_.getEntry(InstId::crc32_b);
                 else if (amt == 0x11)
@@ -1140,8 +1137,6 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 		op2 = amt;
                 if (funct3 == 1)
                   return instTable_.getEntry(InstId::sbinvi);
-                else if (funct3 == 5)
-                  return instTable_.getEntry(InstId::grevi);
 	      }
 	  }
 	else if (funct3 == 2)  return instTable_.getEntry(InstId::slti);
@@ -1174,6 +1169,8 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	      return instTable_.getEntry(InstId::sbexti);
 	    if (top5 == 0xc)
 	      return instTable_.getEntry(InstId::rori);
+            if (top5 == 0xd)
+              return instTable_.getEntry(InstId::grevi);
 	  }
 	else if (funct3 == 6)  return instTable_.getEntry(InstId::ori);
 	else if (funct3 == 7)  return instTable_.getEntry(InstId::andi);
