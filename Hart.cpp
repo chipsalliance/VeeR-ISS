@@ -11523,7 +11523,7 @@ Hart<URV>::execClmulh(const DecodedInst* di)
   URV v2 = intRegs_.read(di->op2());
 
   URV x = 0;
-  for (unsigned i = 0; i < mxlen_; ++i)
+  for (unsigned i = 1; i < mxlen_; ++i)
     if ((v2 >> i) & 1)
       x ^= v1 >> (mxlen_ - i);
 
