@@ -4778,7 +4778,12 @@ Hart<URV>::execute(const DecodedInst* di)
      &&crc32c_b,
      &&crc32c_h,
      &&crc32c_w,
-     &&crc32c_d
+     &&crc32c_d,
+
+     // zbm
+     &&bmator,
+     &&bmatxor,
+     &&bmatflip
     };
 
   const InstEntry* entry = di->instEntry();
@@ -5877,6 +5882,18 @@ Hart<URV>::execute(const DecodedInst* di)
 
  crc32c_d:
   execCrc32c_d(di);
+  return;
+
+ bmator:
+  execBmator(di);
+  return;
+
+ bmatxor:
+  execBmatxor(di);
+  return;
+
+ bmatflip:
+  execBmatflip(di);
   return;
 }
 
@@ -11925,6 +11942,101 @@ Hart<URV>::execCrc32c_d(const DecodedInst* di)
     }
   URV value = crc32c(intRegs_.read(di->op1()), 64);
   intRegs_.write(di->op0(), value);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execBmator(const DecodedInst* di)
+{
+  if (not isRvzbm() or not isRv64())
+    {
+      illegalInst();
+      return;
+    }
+
+  uint8_t u[8]; // rows of rs1
+  uint8_t v[8]; // cols of rs2
+
+  uint64_t rs1 = intRegs_.read(di->op1());
+  uint64_t rs2 = intRegs_.read(di->op2());
+
+  uint64_t rs2t = rs2;
+  rs2t = shuffle64(rs2t, 31);
+  rs2t = shuffle64(rs2t, 31);
+  rs2t = shuffle64(rs2t, 31);
+
+  for (int i = 0; i < 8; i++)
+    {
+      u[i] = rs1 >> (i*8);
+      v[i] = rs2t >> (i*8);
+    }
+
+  uint64_t x = 0;
+  for (int i = 0; i < 64; i++)
+    {
+      if (__builtin_popcount(u[i / 8] & v[i % 8]) & 1)
+        x |= 1LL << i;
+    }
+
+  intRegs_.write(di->op0(), x);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execBmatxor(const DecodedInst* di)
+{
+  if (not isRvzbm() or not isRv64())
+    {
+      illegalInst();
+      return;
+    }
+
+  uint8_t u[8]; // rows of rs1
+  uint8_t v[8]; // cols of rs2
+
+  uint64_t rs1 = intRegs_.read(di->op1());
+  uint64_t rs2 = intRegs_.read(di->op2());
+
+  uint64_t rs2t = rs2;
+  rs2t = shuffle64(rs2t, 31);
+  rs2t = shuffle64(rs2t, 31);
+  rs2t = shuffle64(rs2t, 31);
+
+  for (int i = 0; i < 8; i++)
+    {
+      u[i] = rs1 >> (i*8);
+      v[i] = rs2t >> (i*8);
+    }
+
+  uint64_t x = 0;
+  for (int i = 0; i < 64; i++)
+    {
+      if (__builtin_popcount(u[i / 8] & v[i % 8]) & 1)
+        x ^= 1LL << i;
+    }
+
+  intRegs_.write(di->op0(), x);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execBmatflip(const DecodedInst* di)
+{
+  if (not isRvzbm() or not isRv64())
+    {
+      illegalInst();
+      return;
+    }
+
+  uint64_t rs1 = intRegs_.read(di->op1());
+  rs1 = shuffle64(rs1, 31);
+  rs1 = shuffle64(rs1, 31);
+  rs1 = shuffle64(rs1, 31);
+
+  intRegs_.write(di->op0(), rs1);
 }
 
 

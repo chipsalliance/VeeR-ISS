@@ -1740,6 +1740,23 @@ InstTable::setupInstVec()
       { "crc32c_d", InstId::crc32c_d, 0x61B01013, 0xfff0707f,
         InstType::Zbr,
 	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask },
+
+      { "bmator", InstId::bmator, 0x08003033, top7Funct3Low7Mask,
+        InstType::Zbm,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "bmatxor", InstId::bmatxor, 0x48003033, top7Funct3Low7Mask,
+        InstType::Zbm,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "bmatflip", InstId::bmatflip, 0x60301013, 0xfff0707f,
+        InstType::Zbm,
+	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask }
 
     };

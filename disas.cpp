@@ -1632,6 +1632,17 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printRdRs1(*this, out, "crc32c.d", di);
       break;
 
+    case InstId::bmator:
+      printRdRs1Rs2(*this, out, "bmator", di);
+      break;
+
+    case InstId::bmatxor:
+      printRdRs1Rs2(*this, out, "bmatxor", di);
+      break;
+
+    case InstId::bmatflip:
+      printRdRs1(*this, out, "bmatflip", di);
+      break;
 
     default:
       out << "illegal";

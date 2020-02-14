@@ -715,6 +715,12 @@ namespace WdRiscv
     void enableRvzbf(bool flag)
     { rvzbf_ = flag; }
 
+    /// Enable/disable the zbm (bit manipulation matrix)
+    /// extension. When disabled all the instructions in zbm extension
+    /// result in an illegal instruction exception.
+    void enableRvzbm(bool flag)
+    { rvzbm_ = flag; }
+
     /// Enable/disable the zbs (bit manipulation single)
     /// extension. When disabled all the instructions in zbs extension
     /// result in an illegal instruction exception.
@@ -882,6 +888,10 @@ namespace WdRiscv
     /// Return true if zbf extension is enabled in this hart.
     bool isRvzbf() const
     { return rvzbf_; }
+
+    /// Return true if zbm extension is enabled in this hart.
+    bool isRvzbm() const
+    { return rvzbm_; }
 
     /// Return true if zbs extension is enabled in this hart.
     bool isRvzbs() const
@@ -1683,6 +1693,10 @@ namespace WdRiscv
     void execCrc32c_w(const DecodedInst*);
     void execCrc32c_d(const DecodedInst*);
 
+    void execBmator(const DecodedInst*);
+    void execBmatxor(const DecodedInst*);
+    void execBmatflip(const DecodedInst*);
+
   private:
 
     // We model store buffer in order to undo store effects after an
@@ -1763,6 +1777,7 @@ namespace WdRiscv
     bool rvzbc_ = false;         // True if extension zbc enabled.
     bool rvzbe_ = false;         // True if extension zbe enabled.
     bool rvzbf_ = false;         // True if extension zbf enabled.
+    bool rvzbm_ = false;         // True if extension zbm enabled.
     bool rvzbs_ = false;         // True if extension zbs enabled.
     bool rvzbr_ = false;         // True if extension zbr enabled.
     URV pc_ = 0;                 // Program counter. Incremented by instr fetch.
