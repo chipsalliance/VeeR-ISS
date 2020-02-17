@@ -2564,6 +2564,9 @@ Hart<URV>::pokeCsr(CsrNumber csr, URV val)
     updateStackChecker();
   else if (csr == CsrNumber::MDBAC)
     enableWideLdStMode(true);
+  else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
+           (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
+    updateMemoryProtection();
 
   // Update cached values of MSTATUS MPP and MPRV.
   if (csr == CsrNumber::MSTATUS)
@@ -6669,6 +6672,9 @@ Hart<URV>::doCsrWrite(CsrNumber csr, URV csrVal, unsigned intReg,
       mstatusMpp_ = PrivilegeMode(msf.bits_.MPP);
       mstatusMprv_ = msf.bits_.MPRV;
     }
+  else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
+           (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
+    updateMemoryProtection();
 
   // Csr was written. If it was minstret, compensate for
   // auto-increment that will be done by run, runUntilAddress or
