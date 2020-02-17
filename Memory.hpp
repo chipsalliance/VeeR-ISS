@@ -300,14 +300,11 @@ namespace WdRiscv
       // Memory mapped region accessible only with word-size write.
       if (pma1.isMemMappedReg())
         {
-          if constexpr (sizeof(T) == 4)
-            {
-              if ((address & 3) != 0)
-                return false;
-              value = doRegisterMasking(address, value);
-            }
-          else
+          if constexpr (sizeof(T) != 4)
             return false;
+          if ((address & 3) != 0)
+            return false;
+          value = doRegisterMasking(address, value);
         }
 
       return true;
@@ -338,13 +335,12 @@ namespace WdRiscv
 	}
 
       // Memory mapped region accessible only with word-size write.
-      if constexpr (sizeof(T) == 4)
+      if (pma1.isMemMappedReg())
         {
-	  if (pma1.isMemMappedReg())
-	    return writeRegister(localHartId, address, value);
+          if constexpr (sizeof(T) != 4)
+            return false;
+          return writeRegister(localHartId, address, value);
 	}
-      else if (pma1.isMemMappedReg())
-	return false;
 
       auto& lwd = lastWriteData_.at(localHartId);
       lwd.prevValue_ = *(reinterpret_cast<T*>(data_ + address));
@@ -482,16 +478,14 @@ namespace WdRiscv
 	}
 
       // Memory mapped region accessible only with word-size poke.
-      if constexpr (sizeof(T) == 4)
+      if (pma1.isMemMappedReg())
         {
-	  if (pma1.isMemMappedReg())
-	    {
-	      if ((address & 3) != 0)
-		return false;  // Address must be word-aligned.
-	    }
-	}
-      else if (pma1.isMemMappedReg())
-	return false;
+          if constexpr (sizeof(T) != 4)
+            return false;
+          if ((address & 3) != 0)
+            return false;  // Address must be word-aligned.
+          value = doRegisterMasking(address, value);
+        }
 
       *(reinterpret_cast<T*>(data_ + address)) = value;
       return true;
