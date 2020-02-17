@@ -11987,7 +11987,7 @@ Hart<URV>::execBmator(const DecodedInst* di)
   uint64_t x = 0;
   for (int i = 0; i < 64; i++)
     {
-      if (__builtin_popcount(u[i / 8] & v[i % 8]) & 1)
+      if ((u[i / 8] & v[i % 8]) != 0)
         x |= 1LL << i;
     }
 
