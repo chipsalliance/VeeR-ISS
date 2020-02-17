@@ -1012,8 +1012,17 @@ namespace WdRiscv
     /// after the countdown. Otherwise, return true after resetting
     /// the counter and setting the external timer bit in the MIP
     /// (interrupt pending) CSR.
-    /// 
     bool doAlarmCountdown();
+
+    /// Return the 8-bit content of the pmpconfig register
+    /// corresponding to the given pmp entry (0 to 15). Return 0 if
+    /// entry is out of bounds or if the corresponding pmpconfig
+    /// register is not defined.
+    unsigned getPmpConfig(unsigned pmpIx);
+
+    /// Update the physical memory protection manager. This is called
+    /// on reset or whenever a pmp address/config register is updated.
+    void updateMemoryProtection();
 
     /// Helper to run method: Run until toHost is written or until
     /// exit is called.
@@ -1868,7 +1877,6 @@ namespace WdRiscv
 
     // Physical memory protection.
     bool pmpEnabled_ = false; // True if one or more pmp register defined.
-    bool pmpCheck_ = false; // True if memory access protection is being checked.
     PmpManager pmpManager_;
   };
 }

@@ -38,88 +38,24 @@ PmpManager::PmpManager(uint64_t memSize, uint64_t pageSize)
   uint64_t pageCount = memSize_ / pageSize_;
   assert(pageCount * pageSize_ == memSize_);
 
-  // Whole memory is intially set for instruction/data/atomic access.
-  // No iccm/dccm/mmr/io.
-  pagePmps_.resize(pageCount, Pmp::Default);
+  // Mark memory as no access (machine mode still has access because
+  // it is not checked).
+  pagePmps_.resize(pageCount, Pmp::None);
 }
 
 
 void
-PmpManager::enable(uint64_t a0, uint64_t a1, Pmp::Mode mode)
+PmpManager::reset()
 {
-  a0 = (a0 >> 2) << 2;   // Make word aligned.
-  a1 = (a1 >> 2) << 2;   // Make word aligned.
-
-  unsigned mask = mode;
-
-  while (a0 <= a1)
-    {
-      uint64_t p0 = getPageStartAddr(a0);
-      uint64_t p1 = getPageStartAddr(a1);
-      bool doWord = (a0 != p0) or (p0 == p1 and (a1 - a0 + 4 != pageSize_));
-      Pmp pmp = getPmp(a0);
-      doWord = doWord or pmp.word_;
-      if (doWord)
-        {
-          fracture(a0);
-          uint64_t last = std::min(a1, p0 + pageSize_ - 4);
-          for ( ; a0 <= last; a0 += 4)
-            {
-              pmp = getPmp(a0);
-              pmp.mode_ = pmp.mode_ | mask;
-              wordPmps_[a0>>2] = pmp;
-            }
-        }
-      else
-        {
-          pmp.mode_ = pmp.mode_ | mask;
-          uint64_t pageIx = getPageIx(p0);
-          pagePmps_[pageIx] = pmp;
-          a0 += pageSize_;
-        }
-    }
+  for (auto& entry : pagePmps_)
+    entry = Pmp(Pmp::None);
+  wordPmps_.clear();
 }
 
 
 void
-PmpManager::disable(uint64_t a0, uint64_t a1, Pmp::Mode mode)
-{
-  a0 = (a0 >> 2) << 2;   // Make word aligned.
-  a1 = (a1 >> 2) << 2;   // Make word aligned.
-
-  unsigned mask = ~mode;
-
-  while (a0 <= a1)
-    {
-      uint64_t p0 = getPageStartAddr(a0);
-      uint64_t p1 = getPageStartAddr(a1);
-      bool doWord = (a0 != p0) or (p0 == p1 and (a1 - a0 + 4 != pageSize_));
-      Pmp pmp = getPmp(a0);
-      doWord = doWord or pmp.word_;
-      if (doWord)
-        {
-          fracture(a0);
-          uint64_t last = std::min(a1, p0 + pageSize_ - 4);
-          for ( ; a0 <= last; a0 += 4)
-            {
-              pmp = getPmp(a0);
-              pmp.mode_ = pmp.mode_ & mask;
-              wordPmps_[a0>>2] = pmp;
-            }
-        }
-      else
-        {
-          pmp.mode_ = pmp.mode_ & mask;
-          uint64_t pageIx = getPageIx(p0);
-          pagePmps_[pageIx] = pmp;
-          a0 += pageSize_;
-        }
-    }
-}
-
-
-void
-PmpManager::setMode(uint64_t a0, uint64_t a1, Pmp::Mode mode)
+PmpManager::setMode(uint64_t a0, uint64_t a1, Pmp::Mode mode, unsigned pmpIx,
+                    bool lock)
 {
   a0 = (a0 >> 2) << 2;   // Make word aligned.
   a1 = (a1 >> 2) << 2;   // Make word aligned.
@@ -128,13 +64,16 @@ PmpManager::setMode(uint64_t a0, uint64_t a1, Pmp::Mode mode)
     {
       uint64_t p0 = getPageStartAddr(a0);
       uint64_t p1 = getPageStartAddr(a1);
+
       bool doWord = (a0 != p0) or (p0 == p1 and (a1 - a0 + 4 != pageSize_));
-      Pmp pmp = getPmp(a0);
-      doWord = doWord or pmp.word_;
+      Pmp prev = getPmp(a0);
+      doWord = doWord or prev.word_;
+
+      Pmp pmp(mode, pmpIx, lock);
+
       if (doWord)
         {
           fracture(a0);
-          Pmp pmp(mode);
           pmp.word_ = true;
           uint64_t last = std::min(a1, p0 + pageSize_ - 4);
           for ( ; a0 <= last; a0 += 4)
@@ -143,7 +82,7 @@ PmpManager::setMode(uint64_t a0, uint64_t a1, Pmp::Mode mode)
       else
         {
           uint64_t pageIx = getPageIx(p0);
-          pagePmps_[pageIx] = Pmp(mode);
+          pagePmps_[pageIx] = pmp;
           a0 += pageSize_;
         }
     }

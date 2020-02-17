@@ -36,7 +36,7 @@ namespace WdRiscv
 
     enum Attrib
       {
-       None = 0, Exec = 1, Read = 2, Write = 4,
+       None = 0, Read = 1, Write = 2, Exec = 4,
        Idempotent = 8, Atomic = 16, Iccm = 32,
        Dccm = 64, MemMapped = 128, Cached = 256,
        Aligned = 1024,

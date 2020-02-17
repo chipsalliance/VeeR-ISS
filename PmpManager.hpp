@@ -37,20 +37,21 @@ namespace WdRiscv
 
     enum Mode
       {
-       None = 0, Exec = 1, Read = 2, Write = 4, ReadWrite = Read | Write,
-       Default = Exec | Read | Write
+       None = 0, Read = 1, Write = 2, Exec = 4, ReadWrite = Read | Write,
+       Default = Read | Write | Exec
       };
 
     /// Default constructor: No access allowed.
-    Pmp(Mode m = None)
-      : mode_(m), locked_(false), red_(false), word_(false)
+    Pmp(Mode m = None, unsigned pmpIx = 0, bool locked = false)
+      : mode_(m), locked_(locked), pmpFree_(false), pmpIx_(pmpIx), word_(false)
     { }
 
     /// Return true if read (i.e. load instructions) access allowed 
     bool isRead(PrivilegeMode mode, PrivilegeMode prevMode, bool mprv) const
     {
-      bool check = (mode != PrivilegeMode::Machine or locked_ or
-                    (mprv and prevMode != PrivilegeMode::Machine));
+      if (mprv)
+        mode = prevMode;
+      bool check = (mode != PrivilegeMode::Machine) or locked_ or pmpFree_;
       return check ? mode_ & Read : true;
     }
 
@@ -73,19 +74,20 @@ namespace WdRiscv
     /// Return true if this object has the mode attributes as the
     /// given object.
     bool operator== (const Pmp& other) const
-    { return mode_ == other.mode_ and red_ == other.red_; }
+    { return mode_ == other.mode_ and pmpIx_ == other.pmpIx_; }
 
     /// Return true if this object has different attributes from those
     /// of the given object.
     bool operator!= (const Pmp& other) const
-    { return mode_ != other.mode_ or red_ != other.red_; }
+    { return mode_ != other.pmpIx_ or pmpIx_ != other.pmpIx_; }
 
   private:
 
     uint8_t mode_ = 0;
-    bool locked_ : 1;
-    bool red_    : 1;
-    bool word_   : 1;
+    bool locked_    : 1;
+    bool pmpFree_   : 1;  // Not covered by any pmp register.
+    unsigned pmpIx_ : 5;  // Index of corresponding pmp register.
+    bool word_      : 1;
   } __attribute__((packed));
 
 
@@ -99,7 +101,13 @@ namespace WdRiscv
 
     friend class Memory;
 
+    /// Constructor. Mark all memory as no access to user/supervisor
+    /// (machine mode does access since it is not checked).
     PmpManager(uint64_t memorySize, uint64_t pageSize);
+
+    /// Reset: Mark all memory as no access to user/supervisor
+    /// (machine mode does have access because it is not checked).
+    void reset();
 
     /// Return the physical memory protection object (pmm) associated
     /// with the word-aligned word designated by the given
@@ -124,16 +132,10 @@ namespace WdRiscv
       return pmp;
     }
 
-    /// Enable given mode in word-aligned words overlapping given
-    /// region.
-    void enable(uint64_t addr0, uint64_t addr1, Pmp::Mode mode);
-
-    /// Disable given mode in word-aligned words overlapping given
-    /// region.
-    void disable(uint64_t addr0, uint64_t addr1, Pmp::Mode mode);
-
-    /// Set access mode of word-aligned words overlapping given region.
-    void setMode(uint64_t addr0, uint64_t addr1, Pmp::Mode mode);
+    /// Set access mode of word-aligned words overlapping given region
+    /// for user/supervisor.
+    void setMode(uint64_t addr0, uint64_t addr1, Pmp::Mode mode, unsigned pmpIx,
+                 bool locked);
 
     /// Return start address of page containing given address.
     uint64_t getPageStartAddr(uint64_t addr) const

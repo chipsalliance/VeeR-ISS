@@ -317,6 +317,8 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
         }
     }
 
+  updateMemoryProtection();
+
   alarmCounter_ = alarmInterval_;
 }
 
@@ -11086,6 +11088,117 @@ Hart<URV>::execSh3add(const DecodedInst* di)
 
   URV res = (v1 << 3) + v2;
   intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+unsigned
+Hart<URV>::getPmpConfig(unsigned pmpIx)
+{
+  if (pmpIx > 16)
+    return 0;
+
+  // Determine rank of config register corresponding to pmpIx.
+  unsigned cfgOffset = pmpIx / 4; // 0, 1, 2, or 3.
+
+  // Identify byte within config register.
+  unsigned byteIx = pmpIx % 4;
+
+  if (mxlen_ == 64)
+    {
+      cfgOffset = (cfgOffset / 2) * 2;  // 0 or 2
+      byteIx = pmpIx % 8;
+    }
+
+  CsrNumber csrn = CsrNumber(unsigned(CsrNumber::PMPCFG0) + cfgOffset);
+
+  URV val = 0;
+  if (csRegs_.peek(csrn, val))
+    return (val >> 8*byteIx) & 0xff;
+
+  return 0;
+}
+
+
+static
+Pmp::Mode
+getModeFromPmpconfigByte(uint8_t byte)
+{
+  unsigned m = 0;
+
+  if (byte & 1) m = Pmp::Read  | m;
+  if (byte & 2) m = Pmp::Write | m;
+  if (byte & 4) m = Pmp::Exec  | m;
+
+  return Pmp::Mode(m);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::updateMemoryProtection()
+{
+  if (not pmpEnabled_)
+    return;
+
+  pmpManager_.reset();
+
+  const unsigned count = 16;
+  std::vector<unsigned> configs(16, 0);
+
+  // Recover the contents of the pmpcfg registers into the configs vec.
+  for (unsigned i = 0; i < count; ++i)
+    configs[i] = getPmpConfig(i);
+
+  // Process the pmp entries
+  uint64_t addr = 0;  // Start address of most recent pmp entry.
+  uint64_t highest = 0;  // Highest covered address
+  unsigned num = unsigned(CsrNumber::PMPADDR0);
+  for (unsigned pmpIx = 0; pmpIx < count; ++pmpIx, ++num)
+    {
+      unsigned config = configs.at(pmpIx);
+      unsigned aField = (config >> 3) & 3;
+      bool lock = config & 0x80;
+
+      Pmp::Mode mode = getModeFromPmpconfigByte(config);
+
+      CsrNumber csrn = CsrNumber(num);
+      URV pmpVal = 0;
+      if (not peekCsr(csrn, pmpVal))
+        {
+          addr = 0;
+          continue;
+        }
+
+      if (aField == 0)
+        {
+          addr = pmpVal << 2;
+          continue;
+        }
+
+      if (aField == 1)    // TOR
+        {
+          uint64_t low = std::max(highest, addr);
+          addr = pmpVal << 2;
+          if (low < addr)
+            pmpManager_.setMode(low, addr - 1, mode, pmpIx, lock);
+          highest = std::max(addr, highest);
+          continue;
+        }
+
+      uint64_t size = 4;
+      if (aField == 3)
+        {
+          unsigned rzi = __builtin_ctz(~pmpVal); // right-mosts zero bit ix.
+          pmpVal = (pmpVal >> rzi) << rzi;
+          size = uint64_t(1) << (rzi + 2);
+        }
+
+      addr = pmpVal << 2;
+      uint64_t high = addr + size;
+      highest = std::max(highest, high);
+      pmpManager_.setMode(addr, high, mode, pmpIx, lock);
+    }
 }
 
 
