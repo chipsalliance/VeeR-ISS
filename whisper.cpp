@@ -601,7 +601,7 @@ applyZisaStrings(const std::vector<std::string>& zisa, Hart<URV>& hart)
 
   for (const auto& ext : zisa)
     {
-      if (ext == "zbb" or ext == "ba")
+      if (ext == "zba" or ext == "ba")
 	hart.enableRvzba(true);
       else if (ext == "zbb" or ext == "bb")
 	hart.enableRvzbb(true);
