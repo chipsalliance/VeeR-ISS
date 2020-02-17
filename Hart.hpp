@@ -1007,6 +1007,15 @@ namespace WdRiscv
 
   protected:
 
+    /// Helper to reset: Return count of implemented PMP registers.
+    /// If one pmp register is implemented, make sure they are all
+    /// implemented.
+    unsigned countImplementedPmpRegisters() const;
+
+    /// Helper to reset: Enable/disable extensions based on the bits
+    /// of the MISA CSR.
+    void processExtensions();
+
     /// Simulate a periodic external timer interrupt: Count-down the
     /// periodic counter. Return false if counter value is non-zero
     /// after the countdown. Otherwise, return true after resetting

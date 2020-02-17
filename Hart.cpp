@@ -198,32 +198,72 @@ Hart<URV>::getImplementedCsrs(std::vector<CsrNumber>& vec) const
 }
 
 
+
+template <typename URV>
+unsigned
+Hart<URV>::countImplementedPmpRegisters() const
+{
+  unsigned count = 0;
+
+  unsigned num = unsigned(CsrNumber::PMPADDR0);
+  for (unsigned ix = 0; ix < 16; ++ix, ++num)
+    {
+      CsrNumber csrn = CsrNumber(num);
+      const Csr<URV>* csr = csRegs_.getImplementedCsr(csrn);
+      if (csr)
+        count++;
+    }
+
+  if (count and count < 16)
+    std::cerr << "Warning: Some but not all PMPADDR CSRs are implemented\n";
+
+  unsigned cfgCount = 0;
+  if (mxlen_ == 32)
+    {
+      num = unsigned(CsrNumber::PMPCFG0);
+      for (unsigned ix = 0; ix < 4; ++ix, ++num)
+        {
+          CsrNumber csrn = CsrNumber(num);
+          const Csr<URV>* csr = csRegs_.getImplementedCsr(csrn);
+          if (csr)
+            cfgCount++;
+        }
+      if (count and cfgCount != 4)
+        std::cerr << "Warning: Physical memory protection enabled but not all "
+                  << "of the config register (PMPCFG) are implemented\n";
+    }
+  else
+    {
+      num = unsigned(CsrNumber::PMPCFG0);
+      for (unsigned ix = 0; ix < 2; ++ix, num += 2)
+        {
+          CsrNumber csrn = CsrNumber(num);
+          const Csr<URV>* csr = csRegs_.getImplementedCsr(csrn);
+          if (csr)
+            cfgCount++;
+        }
+      if (count and cfgCount != 2)
+        std::cerr << "Warning: Physical memory protection enabled but not all "
+                  << "of the config register (PMPCFG) are implemented\n";
+    }
+
+  return count;
+}
+      
+
+
 template <typename URV>
 void
-Hart<URV>::reset(bool resetMemoryMappedRegs)
+Hart<URV>::processExtensions()
 {
-  intRegs_.reset();
-  csRegs_.reset();
-
-  // Suppress resetting memory mapped register on initial resets sent
-  // by the test bench. Otherwise, initial resets obliterate memory
-  // mapped register data loaded from the ELF file.
-  if (resetMemoryMappedRegs)
-    memory_.resetMemoryMappedRegisters();
-  memory_.invalidateLr(localHartId_);
-
-  clearTraceData();
-  clearPendingNmi();
-
-  loadQueue_.clear();
-
-  pc_ = resetPc_;
-  currPc_ = resetPc_;
-
-  // Enable extension if corresponding bits are set in the MISA CSR.
   // D requires F and is enabled only if F is enabled.
-  rvm_ = false;
+  rva_ = false;
   rvc_ = false;
+  rvd_ = false;
+  rvf_ = false;
+  rvm_ = false;
+  rvs_ = false;
+  rvu_ = false;
 
   URV value = 0;
   if (peekCsr(CsrNumber::MISA, value))
@@ -281,8 +321,39 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
 		      << "-- ignored\n";
 	}
     }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::reset(bool resetMemoryMappedRegs)
+{
+  intRegs_.reset();
+  csRegs_.reset();
+
+  // Suppress resetting memory mapped register on initial resets sent
+  // by the test bench. Otherwise, initial resets obliterate memory
+  // mapped register data loaded from the ELF file.
+  if (resetMemoryMappedRegs)
+    memory_.resetMemoryMappedRegisters();
+  memory_.invalidateLr(localHartId_);
+
+  clearTraceData();
+  clearPendingNmi();
+
+  loadQueue_.clear();
+
+  pc_ = resetPc_;
+  currPc_ = resetPc_;
+
+  // Enable extensions if corresponding bits are set in the MISA CSR.
+  processExtensions();
   
+  // Enable/disable physical memory protection.
+  pmpEnabled_ = countImplementedPmpRegisters() != 0;
+
   perfControl_ = ~uint32_t(0);
+  URV value = 0;
   if (peekCsr(CsrNumber::MCOUNTINHIBIT, value))
     perfControl_ = ~value;
 
