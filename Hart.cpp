@@ -11168,35 +11168,6 @@ Hart<URV>::execSh3add(const DecodedInst* di)
 }
 
 
-template <typename URV>
-unsigned
-Hart<URV>::getPmpConfig(unsigned pmpIx)
-{
-  if (pmpIx > 16)
-    return 0;
-
-  // Determine rank of config register corresponding to pmpIx.
-  unsigned cfgOffset = pmpIx / 4; // 0, 1, 2, or 3.
-
-  // Identify byte within config register.
-  unsigned byteIx = pmpIx % 4;
-
-  if (mxlen_ == 64)
-    {
-      cfgOffset = (cfgOffset / 2) * 2;  // 0 or 2
-      byteIx = pmpIx % 8;
-    }
-
-  CsrNumber csrn = CsrNumber(unsigned(CsrNumber::PMPCFG0) + cfgOffset);
-
-  URV val = 0;
-  if (csRegs_.peek(csrn, val))
-    return (val >> 8*byteIx) & 0xff;
-
-  return 0;
-}
-
-
 static
 Pmp::Mode
 getModeFromPmpconfigByte(uint8_t byte)
@@ -11223,23 +11194,19 @@ Hart<URV>::updateMemoryProtection()
   const unsigned count = 16;
   std::vector<unsigned> configs(16, 0);
 
-  // Recover the contents of the pmpcfg registers into the configs vec.
-  for (unsigned i = 0; i < count; ++i)
-    configs[i] = getPmpConfig(i);
-
   // Process the pmp entries
   uint64_t addr = 0;  // Start address of most recent pmp entry.
   uint64_t highest = 0;  // Highest covered address
   unsigned num = unsigned(CsrNumber::PMPADDR0);
   for (unsigned pmpIx = 0; pmpIx < count; ++pmpIx, ++num)
     {
-      unsigned config = configs.at(pmpIx);
+      CsrNumber csrn = CsrNumber(num);
+      unsigned config = csRegs_.getPmpConfigByteFromPmpAddr(csrn);
       unsigned aField = (config >> 3) & 3;
       bool lock = config & 0x80;
 
       Pmp::Mode mode = getModeFromPmpconfigByte(config);
 
-      CsrNumber csrn = CsrNumber(num);
       URV pmpVal = 0;
       if (not peekCsr(csrn, pmpVal))
         {

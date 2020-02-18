@@ -146,6 +146,10 @@ CsRegs<URV>::read(CsrNumber number, PrivilegeMode mode, URV& value) const
     }
 
   value = csr->read();
+
+  if (number >= CsrNumber::PMPADDR0 and number <= CsrNumber::PMPADDR15)
+    value = adjustPmpValue(number, value);
+
   return true;
 }
   
@@ -940,6 +944,9 @@ CsRegs<URV>::peek(CsrNumber number, URV& value) const
     }
 
   value = csr->read();
+  if (number >= CsrNumber::PMPADDR0 and number <= CsrNumber::PMPADDR15)
+    value = adjustPmpValue(number, value);
+
   return true;
 }
   
@@ -1098,6 +1105,57 @@ CsRegs<URV>::pokeTdata(CsrNumber number, URV value)
   return false;
 }
 
+
+
+template <typename URV>
+unsigned
+CsRegs<URV>::getPmpConfigByteFromPmpAddr(CsrNumber csrn) const
+{
+  if (csrn < CsrNumber::PMPADDR0 or csrn > CsrNumber::PMPADDR15)
+    return 0;
+
+  unsigned pmpIx = unsigned(csrn) - unsigned(CsrNumber::PMPADDR0);
+
+  // Determine rank of config register corresponding to pmpIx.
+  unsigned cfgOffset = pmpIx / 4; // 0, 1, 2, or 3.
+
+  // Identify byte within config register.
+  unsigned byteIx = pmpIx % 4;
+
+  if (xlen_ == 64)
+    {
+      cfgOffset = (cfgOffset / 2) * 2;  // 0 or 2
+      byteIx = pmpIx % 8;
+    }
+
+  CsrNumber cfgNum = CsrNumber(unsigned(CsrNumber::PMPCFG0) + cfgOffset);
+
+  URV val = 0;
+  if (peek(cfgNum, val))
+    return (val >> 8*byteIx) & 0xff;
+
+  return 0;
+}
+
+
+
+template <typename URV>
+URV
+CsRegs<URV>::adjustPmpValue(CsrNumber csrn, URV value) const
+{
+  if (csrn < CsrNumber::PMPADDR0 or csrn > CsrNumber::PMPADDR15)
+    return value;   // Not a PMPADDR CSR.
+
+  unsigned byte = getPmpConfigByteFromPmpAddr(csrn);
+
+  unsigned aField =(byte >> 3) & 3;
+  if (aField < 2)
+    value = value & ~pmpMask_;
+  else
+    value = value | pmpMask_;
+
+  return value;
+}
 
 
 template class WdRiscv::CsRegs<uint32_t>;

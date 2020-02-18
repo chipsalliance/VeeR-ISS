@@ -23,6 +23,7 @@
 #include <unordered_map>
 #include <string>
 #include <functional>
+#include <cassert>
 #include "Triggers.hpp"
 #include "PerfRegs.hpp"
 
@@ -948,6 +949,20 @@ namespace WdRiscv
 
   protected:
 
+    /// Set the current integer-register/CSR width.
+    void setXlen(unsigned xlen)
+    {
+      assert(xlen == 32 or xlen == 64);
+      assert(xlen <= 4*sizeof(URV));
+      xlen_ = xlen;
+    }
+
+    /// Return the byte of the PMPCFG register associated with the
+    /// given PMPADDR register. Return 0 if given PMPADDR register is
+    /// out of bounds or is not implemented or if corresponding PMPCFG
+    /// is not implemented.
+    unsigned getPmpConfigByteFromPmpAddr(CsrNumber csrn) const;
+
     /// Record given CSR number as a being written by the current
     /// instruction. Recorded numbers can be later retrieved by the
     /// getLastWrittenRegs method.
@@ -1011,8 +1026,14 @@ namespace WdRiscv
     bool mdseacLocked() const
     { return mdseacLocked_; }
 
+    /// Adjust the value of the PMPADDR register according to the
+    /// grain mask and the A field of the corresponding PMPCFG.
+    /// Return adjusted value.
+    URV adjustPmpValue(CsrNumber csrn, URV value) const;
+
   private:
 
+    unsigned xlen_ = 8*sizeof(URV);
     std::vector< Csr<URV> > regs_;
     std::unordered_map<std::string, CsrNumber> nameToNumber_;
 
@@ -1034,6 +1055,8 @@ namespace WdRiscv
     bool mdseacLocked_ = false; // Once written, MDSEAC persists until
                                 // MDEAU is written.
     URV maxEventId_ = ~URV(0);
+
+    URV pmpMask_ = 0;
   };
 
 
