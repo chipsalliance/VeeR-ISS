@@ -11434,7 +11434,7 @@ Hart<URV>::execBdep(const DecodedInst* di)
   for (unsigned i = 0, j = 0; i < mxlen_; ++i)
     if ((v2 >> i) & 1)
       {
-        if ((v1 >> i) & 1)
+        if ((v1 >> j) & 1)
           res |= URV(1) << i;
         j++;
       }
