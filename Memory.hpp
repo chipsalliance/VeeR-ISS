@@ -484,7 +484,7 @@ namespace WdRiscv
             return false;
           if ((address & 3) != 0)
             return false;  // Address must be word-aligned.
-          value = doRegisterMasking(address, value);
+          // value = doRegisterMasking(address, value);
         }
 
       *(reinterpret_cast<T*>(data_ + address)) = value;
