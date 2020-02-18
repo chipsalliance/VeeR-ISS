@@ -11262,6 +11262,7 @@ Hart<URV>::updateMemoryProtection()
 
       if (aField == 0)
         {
+          addr = (addr >> pmpG_) << pmpG_;  // Clear least sig G bits.
           addr = pmpVal << 2;
           continue;
         }
@@ -11269,6 +11270,7 @@ Hart<URV>::updateMemoryProtection()
       if (aField == 1)    // TOR
         {
           uint64_t low = std::max(highest, addr);
+          addr = (addr >> pmpG_) << pmpG_;  // Clear least sig G bits.
           addr = pmpVal << 2;
           if (low < addr)
             pmpManager_.setMode(low, addr - 1, mode, pmpIx, lock);
@@ -11279,9 +11281,9 @@ Hart<URV>::updateMemoryProtection()
       uint64_t size = 4;
       if (aField == 3)
         {
-          unsigned rzi = __builtin_ctz(~pmpVal); // right-mosts zero bit ix.
+          unsigned rzi = __builtin_ctz(~pmpVal); // rightmost-zero-bit ix.
           pmpVal = (pmpVal >> rzi) << rzi;
-          size = uint64_t(1) << (rzi + 2);
+          size = uint64_t(1) << (rzi + 3);
         }
 
       addr = pmpVal << 2;

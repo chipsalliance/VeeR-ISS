@@ -1153,7 +1153,7 @@ CsRegs<URV>::adjustPmpValue(CsrNumber csrn, URV value) const
 
   unsigned aField =(byte >> 3) & 3;
   if (aField < 2)
-    value = value & ~(pmpMask_ >> 1);
+    value = value & ~((pmpMask_ << 1) | 1);
   else
     value = value | pmpMask_;
 
