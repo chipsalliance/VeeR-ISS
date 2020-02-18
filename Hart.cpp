@@ -2695,6 +2695,52 @@ Hart<URV>::configMachineModePerfCounters(unsigned numCounters)
 
 
 template <typename URV>
+bool
+Hart<URV>::configMemoryProtectionGrainSize(uint64_t size)
+{
+  bool ok = true;
+
+  if (size < 4)
+    {
+      std::cerr << "Memory protectio grain size (" << size << ") is "
+                << "smaller than 4. Using 4.\n";
+      size = 4;
+      ok = false;
+    }
+
+  uint64_t log2Size = static_cast<uint64_t>(std::log2(size));
+  uint64_t powerOf2 = uint64_t(1) << log2Size;
+  if (size != powerOf2)
+    {
+      std::cerr << "Memory protection grain size (0x" << std::hex
+                << size << ") is not a power of 2. Using: 0x"
+                << powerOf2 << '\n';
+      size = powerOf2;
+      ok = false;
+    }
+
+  if (log2Size > 33)
+    {
+      std::cerr << "Memory protection grain size (0x" << std::hex
+                << size << ") is larger than 2 to the power 33. "
+                << "Using 2 to the power 33.\n";
+      size = uint64_t(1) << 33;
+      powerOf2 = size;
+      log2Size = 33;
+      ok = false;
+    }
+
+  pmpG_ = log2Size - 2;
+  uint64_t mask = 0;
+  if (pmpG_ >= 2)
+    mask = (uint64_t(1) << (pmpG_ - 1)) - 1;
+  csRegs_.setPmpMask(mask);
+
+  return ok;
+}
+
+
+template <typename URV>
 void
 formatInstTrace(FILE* out, uint64_t tag, unsigned hartId, URV currPc,
 		const char* opcode, char resource, URV addr,

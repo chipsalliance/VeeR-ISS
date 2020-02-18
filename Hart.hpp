@@ -1005,6 +1005,10 @@ namespace WdRiscv
     size_t regionSize() const
     { return memory_.regionSize(); }
 
+    /// Set the physical memory protection grain size (which must
+    /// be a power of 2 greater than or equal to 4).
+    bool configMemoryProtectionGrainSize(uint64_t size);
+
   protected:
 
     /// Helper to reset: Return count of implemented PMP registers.

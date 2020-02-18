@@ -1146,11 +1146,14 @@ CsRegs<URV>::adjustPmpValue(CsrNumber csrn, URV value) const
   if (csrn < CsrNumber::PMPADDR0 or csrn > CsrNumber::PMPADDR15)
     return value;   // Not a PMPADDR CSR.
 
+  if (pmpMask_ == 0)
+    return value;
+
   unsigned byte = getPmpConfigByteFromPmpAddr(csrn);
 
   unsigned aField =(byte >> 3) & 3;
   if (aField < 2)
-    value = value & ~pmpMask_;
+    value = value & ~(pmpMask_ >> 1);
   else
     value = value | pmpMask_;
 

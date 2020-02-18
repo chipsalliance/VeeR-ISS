@@ -1031,6 +1031,13 @@ namespace WdRiscv
     /// Return adjusted value.
     URV adjustPmpValue(CsrNumber csrn, URV value) const;
 
+    /// Set the physical memory protection PMADDR mask. The mask is
+    /// based on the grain size and affects how the least sig bits
+    /// of the PMPADDR registers are modified before being returned
+    /// an CSR read.
+    void setPmpMask(URV mask)
+    { pmpMask_ = mask; }
+
   private:
 
     unsigned xlen_ = 8*sizeof(URV);
