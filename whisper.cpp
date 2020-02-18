@@ -613,6 +613,8 @@ applyZisaStrings(const std::vector<std::string>& zisa, Hart<URV>& hart)
 	hart.enableRvzbf(true);
       else if (ext == "zbm" or ext == "bm")
 	hart.enableRvzbm(true);
+      else if (ext == "zbp" or ext == "bp")
+	hart.enableRvzbp(true);
       else if (ext == "zbs" or ext == "bs")
 	hart.enableRvzbs(true);
       else if (ext == "zbmini" or ext == "bmini")

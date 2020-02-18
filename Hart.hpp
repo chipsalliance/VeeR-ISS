@@ -721,6 +721,12 @@ namespace WdRiscv
     void enableRvzbm(bool flag)
     { rvzbm_ = flag; }
 
+    /// Enable/disable the zbp (bit manipulation permutation)
+    /// extension. When disabled all the instructions in zbp extension
+    /// result in an illegal instruction exception.
+    void enableRvzbp(bool flag)
+    { rvzbp_ = flag; }
+
     /// Enable/disable the zbs (bit manipulation single)
     /// extension. When disabled all the instructions in zbs extension
     /// result in an illegal instruction exception.
@@ -892,6 +898,10 @@ namespace WdRiscv
     /// Return true if zbm extension is enabled in this hart.
     bool isRvzbm() const
     { return rvzbm_; }
+
+    /// Return true if zbp extension is enabled in this hart.
+    bool isRvzbp() const
+    { return rvzbp_; }
 
     /// Return true if zbs extension is enabled in this hart.
     bool isRvzbs() const
@@ -1778,6 +1788,7 @@ namespace WdRiscv
     bool rvzbe_ = false;         // True if extension zbe enabled.
     bool rvzbf_ = false;         // True if extension zbf enabled.
     bool rvzbm_ = false;         // True if extension zbm enabled.
+    bool rvzbp_ = false;         // True if extension zbp enabled.
     bool rvzbs_ = false;         // True if extension zbs enabled.
     bool rvzbr_ = false;         // True if extension zbr enabled.
     URV pc_ = 0;                 // Program counter. Incremented by instr fetch.

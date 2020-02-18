@@ -10508,7 +10508,7 @@ template <typename URV>
 void
 Hart<URV>::execAndn(const DecodedInst* di)
 {
-  if (not isRvzbb())
+  if (not isRvzbb() or not isRvzbp())
     {
       illegalInst();
       return;
@@ -10525,7 +10525,7 @@ template <typename URV>
 void
 Hart<URV>::execOrn(const DecodedInst* di)
 {
-  if (not isRvzbb())
+  if (not isRvzbb() or not isRvzbp())
     {
       illegalInst();
       return;
@@ -10542,7 +10542,7 @@ template <typename URV>
 void
 Hart<URV>::execXnor(const DecodedInst* di)
 {
-  if (not isRvzbb())
+  if (not isRvzbb() or not isRvzbp())
     {
       illegalInst();
       return;
@@ -10705,7 +10705,7 @@ template <typename URV>
 void
 Hart<URV>::execRol(const DecodedInst* di)
 {
-  if (not isRvzbb())
+  if (not isRvzbb() or not isRvzbp())
     {
       illegalInst();
       return;
@@ -10725,7 +10725,7 @@ template <typename URV>
 void
 Hart<URV>::execRor(const DecodedInst* di)
 {
-  if (not isRvzbb())
+  if (not isRvzbb() or not isRvzbp())
     {
       illegalInst();
       return;
@@ -10745,7 +10745,7 @@ template <typename URV>
 void
 Hart<URV>::execRori(const DecodedInst* di)
 {
-  if (not isRvzbb())
+  if (not isRvzbb() or not isRvzbp())
     {
       illegalInst();
       return;
@@ -10768,7 +10768,7 @@ Hart<URV>::execRev8(const DecodedInst* di)
 {
   // Byte swap.
 
-  if (not isRvzbb())
+  if (not isRvzbb() or not isRvzbp())
     {
       illegalInst();
       return;
@@ -10791,7 +10791,7 @@ Hart<URV>::execRev(const DecodedInst* di)
 {
   // Bit reverse.
 
-  if (not isRvzbb())
+  if (not isRvzbb() or not isRvzbp())
     {
       illegalInst();
       return;
@@ -10822,7 +10822,7 @@ template <typename URV>
 void
 Hart<URV>::execPack(const DecodedInst* di)
 {
-  if (not isRvzbb())
+  if (not isRvzbb() or not isRvzbp())
     {
       illegalInst();
       return;
@@ -10973,7 +10973,7 @@ template <typename URV>
 void
 Hart<URV>::execPackh(const DecodedInst* di)
 {
-  if (not isRvzbb())
+  if (not isRvzbb() or not isRvzbp())
     {
       illegalInst();
       return;
@@ -10990,7 +10990,7 @@ template <typename URV>
 void
 Hart<URV>::execPacku(const DecodedInst* di)
 {
-  if (not isRvzbb())
+  if (not isRvzbb() or not isRvzbp())
     {
       illegalInst();
       return;
