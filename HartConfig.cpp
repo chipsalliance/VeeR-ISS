@@ -779,6 +779,13 @@ HartConfig::applyMemoryConfig(Hart<URV>& hart, bool iccmRw, bool /*verbose*/) co
 	  errors++;
     }
 
+  std::string tag = "physical_memory_protection_grain";
+  if (config_ -> count(tag))
+    {
+      uint64_t size = getJsonUnsigned<uint64_t>(tag, config_ -> at(tag));
+      hart.configMemoryProtectionGrain(size);
+    }
+
   return errors == 0;
 }
 

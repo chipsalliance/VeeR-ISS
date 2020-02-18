@@ -2696,13 +2696,13 @@ Hart<URV>::configMachineModePerfCounters(unsigned numCounters)
 
 template <typename URV>
 bool
-Hart<URV>::configMemoryProtectionGrainSize(uint64_t size)
+Hart<URV>::configMemoryProtectionGrain(uint64_t size)
 {
   bool ok = true;
 
   if (size < 4)
     {
-      std::cerr << "Memory protectio grain size (" << size << ") is "
+      std::cerr << "Memory protection grain size (" << size << ") is "
                 << "smaller than 4. Using 4.\n";
       size = 4;
       ok = false;
