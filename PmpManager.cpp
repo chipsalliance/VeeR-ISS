@@ -57,6 +57,9 @@ void
 PmpManager::setMode(uint64_t a0, uint64_t a1, Pmp::Mode mode, unsigned pmpIx,
                     bool lock)
 {
+  if (a1 >= memSize_)
+    a1 = memSize_ - 1;
+
   a0 = (a0 >> 2) << 2;   // Make word aligned.
   a1 = (a1 >> 2) << 2;   // Make word aligned.
 
@@ -82,7 +85,7 @@ PmpManager::setMode(uint64_t a0, uint64_t a1, Pmp::Mode mode, unsigned pmpIx,
       else
         {
           uint64_t pageIx = getPageIx(p0);
-          pagePmps_[pageIx] = pmp;
+          pagePmps_.at(pageIx) = pmp;
           a0 += pageSize_;
         }
     }

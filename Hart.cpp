@@ -11276,15 +11276,16 @@ Hart<URV>::updateMemoryProtection()
         }
 
       uint64_t size = 4;
+      uint64_t napot = pmpVal;  // Naturally aligned power of 2.
       if (aField == 3)
         {
           unsigned rzi = __builtin_ctz(~pmpVal); // rightmost-zero-bit ix.
-          pmpVal = (pmpVal >> rzi) << rzi;
+          napot = (napot >> rzi) << rzi; // Clear bits below rightmost zero bit.
           size = uint64_t(1) << (rzi + 3);
         }
 
-      addr = pmpVal << 2;
-      uint64_t high = addr + size;
+      addr = napot << 2;
+      uint64_t high = addr + size - 1;
       highest = std::max(highest, high);
       pmpManager_.setMode(addr, high, mode, pmpIx, lock);
     }
