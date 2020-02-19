@@ -2731,10 +2731,7 @@ Hart<URV>::configMemoryProtectionGrain(uint64_t size)
     }
 
   pmpG_ = log2Size - 2;
-  uint64_t mask = 0;
-  if (pmpG_ >= 2)
-    mask = (uint64_t(1) << (pmpG_ - 1)) - 1;
-  csRegs_.setPmpMask(mask);
+  csRegs_.setPmpG(pmpG_);
 
   return ok;
 }

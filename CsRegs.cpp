@@ -1146,16 +1146,28 @@ CsRegs<URV>::adjustPmpValue(CsrNumber csrn, URV value) const
   if (csrn < CsrNumber::PMPADDR0 or csrn > CsrNumber::PMPADDR15)
     return value;   // Not a PMPADDR CSR.
 
-  if (pmpMask_ == 0)
+  if (pmpG_ == 0)
     return value;
 
   unsigned byte = getPmpConfigByteFromPmpAddr(csrn);
 
   unsigned aField =(byte >> 3) & 3;
   if (aField < 2)
-    value = value & ~((pmpMask_ << 1) | 1);
+    {
+      // A field is OFF or TOR
+      if (pmpG_ >= 1)
+        value = (value >> pmpG_) << pmpG_; // Clear least sig G bits.
+    }
   else
-    value = value | pmpMask_;
+    {
+      // A field is NAPOT
+      if (pmpG_ >= 2)
+        {
+          unsigned width = 8*sizeof(URV);
+          URV mask = ~URV(0) >> (width - pmpG_ + 1);
+          value = value | mask; // Set to 1 least sig G-1 bits
+        }
+    }
 
   return value;
 }

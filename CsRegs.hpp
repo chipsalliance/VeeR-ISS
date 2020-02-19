@@ -1031,12 +1031,11 @@ namespace WdRiscv
     /// Return adjusted value.
     URV adjustPmpValue(CsrNumber csrn, URV value) const;
 
-    /// Set the physical memory protection PMADDR mask. The mask is
-    /// based on the grain size and affects how the least sig bits
-    /// of the PMPADDR registers are modified before being returned
-    /// an CSR read.
-    void setPmpMask(URV mask)
-    { pmpMask_ = mask; }
+    /// Set the physical memory protection G parameter. The grain size
+    /// is 2 to the power G+2.  The values returned by a read operation
+    /// of the PMPADDR registers are adjusted according to G.
+    void setPmpG(unsigned value)
+    { pmpG_ = value; }
 
   private:
 
@@ -1063,7 +1062,7 @@ namespace WdRiscv
                                 // MDEAU is written.
     URV maxEventId_ = ~URV(0);
 
-    URV pmpMask_ = 0;
+    URV pmpG_ = 0;  // PMP G value: ln2(pmpGrain) - 2
   };
 
 
