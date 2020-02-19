@@ -1031,6 +1031,10 @@ namespace WdRiscv
     /// Return adjusted value.
     URV adjustPmpValue(CsrNumber csrn, URV value) const;
 
+    /// Return true if given CSR number is a PMPADDR register and if
+    /// that register is locked.  Return false otherwise.
+    bool isPmpaddrLocked(CsrNumber csrn) const;
+
     /// Set the physical memory protection G parameter. The grain size
     /// is 2 to the power G+2.  The values returned by a read operation
     /// of the PMPADDR registers are adjusted according to G.

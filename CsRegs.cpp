@@ -168,6 +168,9 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
   if (csr->isDebug())
     return false; // Debug-mode register is not accessible by a CSR instruction.
 
+  if (isPmpaddrLocked(number))
+    return true;  // Writing a locked PMPADDR register has no effect.
+
   // fflags and frm are part of fcsr
   if (number == CsrNumber::FFLAGS or number == CsrNumber::FRM or
       number == CsrNumber::FCSR)
@@ -959,6 +962,9 @@ CsRegs<URV>::poke(CsrNumber number, URV value)
   if (not csr)
     return false;
 
+  if (isPmpaddrLocked(number))
+    return true;  // Writing a locked PMPADDR register has no effect.
+
   // fflags and frm are parts of fcsr
   if (number == CsrNumber::FFLAGS or number == CsrNumber::FRM or
       number == CsrNumber::FCSR)
@@ -1170,6 +1176,31 @@ CsRegs<URV>::adjustPmpValue(CsrNumber csrn, URV value) const
     }
 
   return value;
+}
+
+
+template <typename URV>
+bool
+CsRegs<URV>::isPmpaddrLocked(CsrNumber csrn) const
+{
+  if (csrn < CsrNumber::PMPADDR0 or csrn > CsrNumber::PMPADDR15)
+    return false;   // Not a PMPADDR CSR.
+
+  unsigned byte = getPmpConfigByteFromPmpAddr(csrn);
+  bool locked = byte & 0x80;
+  if (locked)
+    return true;
+
+  // If the next PMPADDR is top-of-range and is locked, then the
+  // current PMADDR is considered to be locked.
+  if (csrn >= CsrNumber::PMPADDR15)
+    return false;  // No next PMPADDR register.
+
+  CsrNumber csrn2 = CsrNumber(unsigned(csrn) + 1);
+  byte = getPmpConfigByteFromPmpAddr(csrn2);
+  locked = byte & 0x80;
+  bool tor = ((byte >> 3) & 3) == 1;
+  return locked and tor;
 }
 
 
