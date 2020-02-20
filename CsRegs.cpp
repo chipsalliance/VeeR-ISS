@@ -388,7 +388,7 @@ CsRegs<URV>::configMachineModePerfCounters(unsigned numCounters)
   if (errors == 0)
     {
       mPerfRegs_.config(numCounters);
-      tieMachinePerfCounters(mPerfRegs_.counters_);
+      tiePerfCounters(mPerfRegs_.counters_);
     }
 
   return errors == 0;
@@ -685,7 +685,7 @@ CsRegs<URV>::tieSharedCsrsTo(CsRegs<URV>& target)
 
 template <typename URV>
 void
-CsRegs<URV>::tieMachinePerfCounters(std::vector<uint64_t>& counters)
+CsRegs<URV>::tiePerfCounters(std::vector<uint64_t>& counters)
 {
   if constexpr (sizeof(URV) == 4)
     {
@@ -698,16 +698,23 @@ CsRegs<URV>::tieMachinePerfCounters(std::vector<uint64_t>& counters)
 	  unsigned ix = num - 3;
 	  if (ix >= counters.size())
 	    break;
-	  unsigned lowIx = ix +  unsigned(CsrNumber::MHPMCOUNTER3);
-	  Csr<URV>& csrLow = regs_.at(lowIx);
-	  URV* loc = reinterpret_cast<URV*>(&counters.at(ix));
-	  csrLow.tie(loc);
-
-	  loc++;
 
 	  unsigned highIx = ix +  unsigned(CsrNumber::MHPMCOUNTER3H);
 	  Csr<URV>& csrHigh = regs_.at(highIx);
-	  csrHigh.tie(loc);
+	  URV* low = reinterpret_cast<URV*>(&counters.at(ix));
+          URV* high = low + 1;
+	  csrHigh.tie(high);
+
+	  unsigned lowIx = ix +  unsigned(CsrNumber::MHPMCOUNTER3);
+	  Csr<URV>& csrLow = regs_.at(lowIx);
+	  csrLow.tie(low);
+
+          // Tie the user-mode performance counter to their
+          // machine-mode counterparts.
+          highIx = ix +  unsigned(CsrNumber::HPMCOUNTER3H);
+          regs_.at(highIx).tie(high);
+          lowIx = ix +  unsigned(CsrNumber::HPMCOUNTER3);
+          regs_.at(lowIx).tie(low);
 	}
     }
   else
@@ -721,6 +728,10 @@ CsRegs<URV>::tieMachinePerfCounters(std::vector<uint64_t>& counters)
 	  Csr<URV>& csr = regs_.at(csrIx);
 	  URV* loc = reinterpret_cast<URV*>(&counters.at(ix));
 	  csr.tie(loc);
+
+          // Tie user-mode perf register to corresponding machine mode reg.
+          csrIx = ix +  unsigned(CsrNumber::HPMCOUNTER3);
+          regs_.at(csrIx).tie(loc);
 	}
     }
 }

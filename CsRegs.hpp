@@ -1010,7 +1010,7 @@ namespace WdRiscv
     /// vector is changed the corresponding CSR value changes and
     /// vice-versa. This is done to avoid the overhead of CSR checking
     /// when incrementing performance counters.
-    void tieMachinePerfCounters(std::vector<uint64_t>& counters);
+    void tiePerfCounters(std::vector<uint64_t>& counters);
 
     /// Set the maximum performance counter event id. Ids larger than
     /// the max value are replaced by that max.
