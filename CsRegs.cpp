@@ -1197,27 +1197,24 @@ CsRegs<URV>::legalizePmpcfgValue(URV current, URV value) const
   URV legal = 0;
   for (unsigned i = 0; i < sizeof(value); ++i)
     {
-      uint8_t byte = (value >> (i*8)) & 0xff;
+      uint8_t cb = (current >> (i*8)) & 0xff;  // Current byte.
+      uint8_t nb = (value >> (i*8)) & 0xff;    // New byte.
 
-      if (byte >> 7)
-        {
-          // Field is locked.  Use byte from current value.
-          byte = (current >> (i*8)) & 0xff;
-        }
+      if (cb >> 7)
+        nb = cb; // Field is locked. Use byte from current value.
       else if (pmpG_ != 0)
         {
           // If G is >= 1 then NA4 is not selectable in the A field of
-          // the 1-byte configs in the pmpcfg value.
-
-          unsigned aField = (byte >> 3) & 3;
+          // the new byte.
+          unsigned aField = (nb >> 3) & 3;
           if (aField == 2)
             {
               aField = 3;
-              byte = byte | (aField << 3); // Change A field in byte to 3.
+              nb = nb | (aField << 3); // Change A field in new byte to 3.
             }
         }
 
-      legal = legal | (URV(byte) << i*8);
+      legal = legal | (URV(nb) << i*8);
     }
 
   return legal;
