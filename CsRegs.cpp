@@ -209,7 +209,11 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
 	}
     }
   else if (number >= CsrNumber::PMPCFG0 and number <= CsrNumber::PMPCFG3)
-    value = legalizePmpcfgValue(value);
+    {
+      URV prev = 0;
+      peek(number, prev);
+      value = legalizePmpcfgValue(prev, value);
+    }
 
   csr->write(value);
   recordWrite(number);
@@ -998,6 +1002,12 @@ CsRegs<URV>::poke(CsrNumber number, URV value)
 	  mask = mask << 2;
 	}
     }
+  else if (number >= CsrNumber::PMPCFG0 and number <= CsrNumber::PMPCFG3)
+    {
+      URV prev = 0;
+      peek(number, prev);
+      value = legalizePmpcfgValue(prev, value);
+    }
 
   csr->poke(value);
 
@@ -1182,25 +1192,29 @@ CsRegs<URV>::adjustPmpValue(CsrNumber csrn, URV value) const
 
 template <typename URV>
 URV
-CsRegs<URV>::legalizePmpcfgValue(URV value) const
+CsRegs<URV>::legalizePmpcfgValue(URV current, URV value) const
 {
-  if (pmpG_ == 0)
-    return value;
-
-  // If G is >= 1 then NA4 is not selectable in the A field of the
-  // 1-byte configs in the pmpcfg value.
-
   URV legal = 0;
   for (unsigned i = 0; i < sizeof(value); ++i)
     {
-      uint8_t byte = value & 0xff;
-      value = value >> 8;
+      uint8_t byte = (value >> (i*8)) & 0xff;
 
-      unsigned aField = (byte >> 3) & 3;
-      if (aField == 2)
+      if (byte >> 7)
         {
-          aField = 3;
-          byte = byte | (aField << 3); // Change A field in byte to 3.
+          // Field is locked.  Use byte from current value.
+          byte = (current >> (i*8)) & 0xff;
+        }
+      else if (pmpG_ != 0)
+        {
+          // If G is >= 1 then NA4 is not selectable in the A field of
+          // the 1-byte configs in the pmpcfg value.
+
+          unsigned aField = (byte >> 3) & 3;
+          if (aField == 2)
+            {
+              aField = 3;
+              byte = byte | (aField << 3); // Change A field in byte to 3.
+            }
         }
 
       legal = legal | (URV(byte) << i*8);
