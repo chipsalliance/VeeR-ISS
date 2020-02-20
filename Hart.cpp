@@ -1328,6 +1328,12 @@ bool
 Hart<URV>::misalignedAccessCausesException(URV addr, unsigned accessSize,
 					   SecondaryCause& secCause) const
 {
+  if (noMisalignedAccess_)
+    {
+      secCause = SecondaryCause::NONE;
+      return true;
+    }
+
   size_t addr2 = addr + accessSize - 1;
 
   // Crossing region boundary causes misaligned exception.

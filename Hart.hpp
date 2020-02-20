@@ -1971,6 +1971,8 @@ namespace WdRiscv
     uint64_t alarmInterval_ = 0; // Ext. timer interrupt interval.
     uint64_t alarmCounter_ = 0;  // Ext. timer interrupt when this reaches 0.
 
+    bool noMisalignedAccess_ = true;
+
     // Physical memory protection.
     bool pmpEnabled_ = false; // True if one or more pmp register defined.
     unsigned pmpG_ = 0;       // ln2(pmp_grain) - 2
