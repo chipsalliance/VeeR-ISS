@@ -196,8 +196,7 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
       unsigned counterIx = unsigned(number) - unsigned(CsrNumber::MHPMEVENT3);
       assignEventToCounter(value, counterIx);
     }
-
-  if (number == CsrNumber::MRAC)
+  else if (number == CsrNumber::MRAC)
     {
       // A value of 0b11 (io/cacheable) for the ith region is invalid:
       // Make it 0b10 (io/non-cacheable).
@@ -209,6 +208,8 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
 	  mask = mask << 2;
 	}
     }
+  else if (number >= CsrNumber::PMPCFG0 and number <= CsrNumber::PMPCFG3)
+    value = legalizePmpcfgValue(value);
 
   csr->write(value);
   recordWrite(number);
@@ -1177,6 +1178,36 @@ CsRegs<URV>::adjustPmpValue(CsrNumber csrn, URV value) const
 
   return value;
 }
+
+
+template <typename URV>
+URV
+CsRegs<URV>::legalizePmpcfgValue(URV value) const
+{
+  if (pmpG_ == 0)
+    return value;
+
+  // If G is >= 1 then NA4 is not selectable in the A field of the
+  // 1-byte configs in the pmpcfg value.
+
+  URV legal = 0;
+  for (unsigned i = 0; i < sizeof(value); ++i)
+    {
+      uint8_t byte = value & 0xff;
+      value = value >> 8;
+
+      unsigned aField = (byte >> 3) & 3;
+      if (aField == 2)
+        {
+          aField = 3;
+          byte = byte | (aField << 3); // Change A field in byte to 3.
+        }
+
+      legal = legal | (URV(byte) << i*8);
+    }
+
+  return legal;
+}  
 
 
 template <typename URV>

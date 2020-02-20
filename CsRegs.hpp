@@ -1031,6 +1031,11 @@ namespace WdRiscv
     /// Return adjusted value.
     URV adjustPmpValue(CsrNumber csrn, URV value) const;
 
+    /// Legalize the PMPCFG value before updating such a register:
+    /// If the grain factor G is greater than or equal to 1, then the
+    /// NA4 mode is not selectable in the A field.
+    URV legalizePmpcfgValue(URV value) const;
+
     /// Return true if given CSR number is a PMPADDR register and if
     /// that register is locked.  Return false otherwise.
     bool isPmpaddrLocked(CsrNumber csrn) const;
