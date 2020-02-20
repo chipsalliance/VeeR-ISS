@@ -11057,13 +11057,24 @@ template <typename URV>
 void
 Hart<URV>::execGrevi(const DecodedInst* di)
 {
-  if (not isRvzbp())
+  URV shamt = di->op2();
+
+  bool zbb = false;  // True if variant is also a zbb instruction.
+  if (isRv64())
+    zbb = shamt == 0x38 or shamt == 0x3f;  // rev8 and rev are also in zbb
+  else
+    zbb = shamt == 0x18 or shamt == 0x1f;  // rev8 and rev are also in zbb
+
+  bool illegal = not isRvzbb();
+  if (zbb)
+    illegal = not isRvzbb() and not isRvzbp();
+
+  if (illegal)
     {
       illegalInst();
       return;
     }
 
-  URV shamt = di->op2();
   if (not checkShiftImmediate(shamt))
     return;
 
@@ -11106,13 +11117,24 @@ template <typename URV>
 void
 Hart<URV>::execGorci(const DecodedInst* di)
 {
-  if (not isRvzbp())
+  URV shamt = di->op2();
+
+  bool zbb = false;  // True if variant is also a zbb instruction.
+  if (isRv64())
+    zbb = shamt == 0x7 or shamt == 0x30;  // orc.b and orc16 are also in zbb
+  else
+    zbb = shamt == 0x7 or shamt == 0x10;  // orc.b and orc16 are also in zbb
+
+  bool illegal = not isRvzbb();
+  if (zbb)
+    illegal = not isRvzbb() and not isRvzbp();
+
+  if (illegal)
     {
       illegalInst();
       return;
     }
 
-  URV shamt = di->op2();
   if (not checkShiftImmediate(shamt))
     return;
 
