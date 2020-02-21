@@ -12307,8 +12307,8 @@ Hart<URV>::updateMemoryProtection()
 
       addr = napot << 2;
       uint64_t high = addr + size - 1;
+      pmpManager_.setMode(highest + 1, high, mode, pmpIx, lock);
       highest = std::max(highest, high);
-      pmpManager_.setMode(addr, high, mode, pmpIx, lock);
     }
 }
 
