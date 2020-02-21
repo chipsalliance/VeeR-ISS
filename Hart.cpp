@@ -1553,7 +1553,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
   // Fault dictated by bench.
   if (forceAccessFail_)
     {
-      secCause = forcedCause_;  //  FORECED (7);  // Temporary.
+      secCause = forcedCause_;
       return ExceptionCause::LOAD_ACC_FAULT;
     }
 
