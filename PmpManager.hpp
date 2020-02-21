@@ -148,10 +148,14 @@ namespace WdRiscv
     void fracture(uint64_t addr)
     {
       uint64_t pageIx = getPageIx(addr);
+      if (pageIx > pagePmps_.size())
+        return;
+
       Pmp pmp = pagePmps_.at(pageIx);
       if (pmp.word_)
         return;
       pmp.word_= true;
+      pagePmps_.at(pageIx) = pmp;
 
       uint64_t words = pageSize_ / 4;
       uint64_t wordIx = (pageIx*pageSize_) >> 2;
