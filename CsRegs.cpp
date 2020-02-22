@@ -169,7 +169,10 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
     return false; // Debug-mode register is not accessible by a CSR instruction.
 
   if (isPmpaddrLocked(number))
-    return true;  // Writing a locked PMPADDR register has no effect.
+    {
+      recordWrite(number);
+      return true;  // Writing a locked PMPADDR register has no effect.
+    }
 
   // fflags and frm are part of fcsr
   if (number == CsrNumber::FFLAGS or number == CsrNumber::FRM or
