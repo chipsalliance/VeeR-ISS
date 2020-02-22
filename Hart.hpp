@@ -1009,6 +1009,11 @@ namespace WdRiscv
     /// be a power of 2 greater than or equal to 4).
     bool configMemoryProtectionGrain(uint64_t size);
 
+    /// Enable/diable misaligned access. If disabled then misaligned
+    /// ld/st will trigger an exception.
+    void enableMisalignedData(bool flag)
+    { misalDataOk_ = flag; }
+
   protected:
 
     /// Helper to reset: Return count of implemented PMP registers.
@@ -1888,7 +1893,7 @@ namespace WdRiscv
     uint64_t alarmInterval_ = 0; // Ext. timer interrupt interval.
     uint64_t alarmCounter_ = 0;  // Ext. timer interrupt when this reaches 0.
 
-    bool noMisalignedAccess_ = true;
+    bool misalDataOk_ = true;
 
     // Physical memory protection.
     bool pmpEnabled_ = false; // True if one or more pmp register defined.
