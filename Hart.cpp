@@ -1329,7 +1329,7 @@ bool
 Hart<URV>::misalignedAccessCausesException(URV addr, unsigned accessSize,
 					   SecondaryCause& secCause) const
 {
-  if (noMisalignedAccess_)
+  if (not misalDataOk_)
     {
       secCause = SecondaryCause::NONE;
       return true;
