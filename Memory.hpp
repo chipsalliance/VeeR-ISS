@@ -184,8 +184,15 @@ namespace WdRiscv
       if (address & (sizeof(T) - 1))  // If address is misaligned
 	{
           Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
+#if 1
+          if (pma1.isDccm() != pma2.isDccm() or
+              pma1.isMemMappedReg() != pma2.isMemMappedReg())
+            return false;
+#else
+          // This is compatible with PMA spec. Swerv cannot handle this
           if (pma1 != pma2)
             return false;
+#endif
 	}
 
       // Memory mapped region accessible only with word-size read.
