@@ -29,8 +29,9 @@ namespace WdRiscv
 
   enum class OperandType { IntReg, FpReg, CsReg, Imm, None };
   enum class OperandMode { Read, Write, ReadWrite, None };
-  enum class InstType { Load, Store, Multiply, Divide, Branch, Int, Fp, Csr,
-                        Atomic, Zba, Zbb, Zbc, Zbe, Zbf, Zbm, Zbp, Zbs, Zbr };
+  enum class InstType { Load, Store, Multiply, Divide, Branch, Int, Fp,
+                        Csr, Atomic, Zba, Zbb, Zbc, Zbe, Zbf, Zbm, Zbp,
+                        Zbs, Zbr };
 
   /// Return true if given instruction is a 4-byte instruction.
   inline bool
@@ -218,6 +219,10 @@ namespace WdRiscv
     bool isConditionalBranch() const
     { return isCond_; }
 
+    /// Return true if this is a bit manipulation instruction.
+    bool isBitManipulation() const
+    { return isBitManip_; }
+
     /// Return the data size in bytes of a load instruction. Return
     /// zero for a non-load instruction.
     unsigned loadSize() const
@@ -280,6 +285,7 @@ namespace WdRiscv
     bool isUns_ = false;       // True if source operands are unsigned.
     bool isCond_ = false;      // True if conditional branch.
     bool isRegBranch_ = false; // True if branch to register.
+    bool isBitManip_ = false;  // True if bit manipulation instruction.
   };
 
 

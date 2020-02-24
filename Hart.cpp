@@ -2997,7 +2997,7 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
       if (isDataAddressExternal(addr))
 	pregs.updateCounters(EventNumber::BusStore, prevPerfControl_);
     }
-  else if (info.type() == InstType::Zbb or info.type() == InstType::Zbs)
+  else if (info.isBitManipulation())
     {
       pregs.updateCounters(EventNumber::Bitmanip, prevPerfControl_);
     }

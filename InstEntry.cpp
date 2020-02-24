@@ -41,6 +41,7 @@ InstEntry::InstEntry(std::string name, InstId id,
   if (op2Type != OperandType::None) count++;
   if (op3Type != OperandType::None) count++;
   opCount_ = count;
+  isBitManip_ = type >= InstType::Zba and type <= InstType::Zbs;
 }
 
 
