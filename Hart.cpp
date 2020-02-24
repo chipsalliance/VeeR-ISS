@@ -11065,7 +11065,7 @@ Hart<URV>::execGrevi(const DecodedInst* di)
   else
     zbb = shamt == 0x18 or shamt == 0x1f;  // rev8 and rev are also in zbb
 
-  bool illegal = not isRvzbb();
+  bool illegal = not isRvzbp();
   if (zbb)
     illegal = not isRvzbb() and not isRvzbp();
 
@@ -11125,7 +11125,7 @@ Hart<URV>::execGorci(const DecodedInst* di)
   else
     zbb = shamt == 0x7 or shamt == 0x10;  // orc.b and orc16 are also in zbb
 
-  bool illegal = not isRvzbb();
+  bool illegal = not isRvzbp();
   if (zbb)
     illegal = not isRvzbb() and not isRvzbp();
 
