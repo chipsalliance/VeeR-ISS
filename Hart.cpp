@@ -7243,7 +7243,6 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
   // Physical memory protection.
   if (pmpEnabled_)
     {
-      // TODO FIX : Determine secondary cause.
       Pmp pmp = pmpManager_.getPmp(addr);
       if (not pmp.isWrite(privMode_, mstatusMpp_, mstatusMprv_))
         {
