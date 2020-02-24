@@ -2036,8 +2036,40 @@ Hart<URV>::fetchInst(URV addr, uint32_t& inst)
       return false;
     }
 
-  if (memory_.readInstWord(addr, inst))
-    return true;
+  if ((addr & 3) == 0)   // Word aligned
+    {
+      if (pmpEnabled_)
+        {
+          Pmp pmp = pmpManager_.getPmp(addr);
+          if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
+            {
+              auto secCause = SecondaryCause::INST_MEM_PROTECTION;
+              initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr, secCause);
+              return false;
+            }
+        }
+
+      if (memory_.readInstWord(addr, inst))
+        return true;
+
+      auto secCause = SecondaryCause::INST_MEM_PROTECTION;
+      size_t region = memory_.getRegionIndex(addr);
+      if (regionHasLocalInstMem_.at(region))
+	secCause = SecondaryCause::INST_LOCAL_UNMAPPED;
+      initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr, secCause);
+      return false;
+    }
+
+  if (pmpEnabled_)
+    {
+      Pmp pmp = pmpManager_.getPmp(addr);
+      if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
+        {
+          auto secCause = SecondaryCause::INST_MEM_PROTECTION;
+          initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr, secCause);
+          return false;
+        }
+    }
 
   uint16_t half;
   if (not memory_.readInstHalfWord(addr, half))
@@ -2053,6 +2085,24 @@ Hart<URV>::fetchInst(URV addr, uint32_t& inst)
   inst = half;
   if (isCompressedInst(inst))
     return true;
+
+  if (pmpEnabled_)
+    {
+      Pmp pmp = pmpManager_.getPmp(addr + 2);
+      if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
+        {
+          auto secCause = SecondaryCause::INST_MEM_PROTECTION;
+          initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr + 2, secCause);
+          return false;
+        }
+    }
+
+  uint16_t upperHalf;
+  if (memory_.readInstHalfWord(addr + 2, upperHalf))
+    {
+      inst = inst | (uint32_t(upperHalf) << 16);
+      return true;
+    }
 
   // 4-byte instruction: 4-byte fetch failed but 1st 2-byte fetch
   // succeeded. Problem must be in 2nd half of instruction.
@@ -7173,6 +7223,15 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
     {
       secCause = SecondaryCause::STORE_ACC_STACK_CHECK;
       return ExceptionCause::STORE_ACC_FAULT;
+    }
+
+  // Physical memory protection.
+  if (pmpEnabled_)
+    {
+      // TODO FIX : Determine secondary cause.
+      Pmp pmp = pmpManager_.getPmp(addr);
+      if (not pmp.isWrite(privMode_, mstatusMpp_, mstatusMprv_))
+        return ExceptionCause::STORE_ACC_FAULT;
     }
 
   // DCCM unmapped or out of MPU windows. Invalid PIC access handled later.
