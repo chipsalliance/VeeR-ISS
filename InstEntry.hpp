@@ -218,6 +218,10 @@ namespace WdRiscv
     bool isConditionalBranch() const
     { return isCond_; }
 
+    /// Return true if this is a bit manipulation instruction.
+    bool isBitManipulation() const
+    { return isBitManip_; }
+
     /// Return the data size in bytes of a load instruction. Return
     /// zero for a non-load instruction.
     unsigned loadSize() const
@@ -280,6 +284,7 @@ namespace WdRiscv
     bool isUns_ = false;       // True if source operands are unsigned.
     bool isCond_ = false;      // True if conditional branch.
     bool isRegBranch_ = false; // True if branch to register.
+    bool isBitManip_ = false;  // True if bit manipulation instruction.
   };
 
 
