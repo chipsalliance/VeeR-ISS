@@ -1370,6 +1370,19 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	    if      (funct3 == 1) return instTable_.getEntry(InstId::sbinv);
             else if (funct3 == 5) return instTable_.getEntry(InstId::grev);
 	  }
+        else if (funct7 & 2)
+          {
+            if ((funct7 & 3) == 3)
+              {
+                if (funct3 == 1)  return instTable_.getEntry(InstId::cmix);
+                if (funct3 == 5)  return instTable_.getEntry(InstId::cmov);
+              }
+            else if ((funct7 & 3) == 2)
+              {
+                if (funct3 == 1)  return instTable_.getEntry(InstId::fsl);
+                if (funct3 == 5)  return instTable_.getEntry(InstId::fsr);
+              }
+          }
       }
       return instTable_.getEntry(InstId::illegal);
 

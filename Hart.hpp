@@ -1729,6 +1729,11 @@ namespace WdRiscv
     void execBmatxor(const DecodedInst*);
     void execBmatflip(const DecodedInst*);
 
+    void execCmov(const DecodedInst*);
+    void execCmix(const DecodedInst*);
+    void execFsl(const DecodedInst*);
+    void execFsr(const DecodedInst*);
+
   private:
 
     // We model store buffer in order to undo store effects after an

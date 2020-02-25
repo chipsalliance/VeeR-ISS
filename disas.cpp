@@ -109,6 +109,42 @@ printRdRs1(const Hart<URV>& hart, std::ostream& stream, const char* inst,
 
 
 /// Helper to disassemble method. Print on the given stream given
+/// instruction which is of the form: inst rd, rs2, rs1, rs3
+template <typename URV>
+static
+void
+printRdRs2Rs1Rs3(const Hart<URV>& hart, std::ostream& stream, const char* inst,
+                 const DecodedInst& di)
+{
+  unsigned rd = di.op0(), rs1 = di.op1(), rs2 = di.op2(), rs3 = di.op3();
+
+  // Print instruction in a 9 character field.
+  stream << std::left << std::setw(9) << inst;
+
+  stream << hart.intRegName(rd) << ", " << hart.intRegName(rs2)
+         << ", " << hart.intRegName(rs1) << ", " << hart.intRegName(rs3);
+}
+
+
+/// Helper to disassemble method. Print on the given stream given
+/// instruction which is of the form: inst rd, rs1, rs3, rs2
+template <typename URV>
+static
+void
+printRdRs1Rs3Rs2(const Hart<URV>& hart, std::ostream& stream, const char* inst,
+                 const DecodedInst& di)
+{
+  unsigned rd = di.op0(), rs1 = di.op1(), rs2 = di.op2(), rs3 = di.op3();
+
+  // Print instruction in a 9 character field.
+  stream << std::left << std::setw(9) << inst;
+
+  stream << hart.intRegName(rd) << ", " << hart.intRegName(rs1)
+         << ", " << hart.intRegName(rs3) << ", " << hart.intRegName(rs2);
+}
+
+
+/// Helper to disassemble method. Print on the given stream given
 /// instruction which is of the form: csrinst rd, csrn, rs1
 template <typename URV>
 static
@@ -1642,6 +1678,22 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
 
     case InstId::bmatflip:
       printRdRs1(*this, out, "bmatflip", di);
+      break;
+
+    case InstId::cmov:
+      printRdRs2Rs1Rs3(*this, out, "cmov", di);
+      break;
+
+    case InstId::cmix:
+      printRdRs2Rs1Rs3(*this, out, "cmix", di);
+      break;
+
+    case InstId::fsl:
+      printRdRs1Rs3Rs2(*this, out, "fsl", di);
+      break;
+
+    case InstId::fsr:
+      printRdRs1Rs3Rs2(*this, out, "fsr", di);
       break;
 
     default:

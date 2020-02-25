@@ -341,6 +341,12 @@ namespace WdRiscv
      bmatxor,
      bmatflip,
 
-     maxId = bmatflip
+     // zbt
+     cmov,
+     cmix,
+     fsl,
+     fsr,
+
+     maxId = fsr
     };
 }

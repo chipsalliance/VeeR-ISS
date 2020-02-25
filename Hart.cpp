@@ -4942,7 +4942,13 @@ Hart<URV>::execute(const DecodedInst* di)
      // zbm
      &&bmator,
      &&bmatxor,
-     &&bmatflip
+     &&bmatflip,
+
+     // zbt
+     &&cmov,
+     &&cmix,
+     &&fsl,
+     &&fsr
     };
 
   const InstEntry* entry = di->instEntry();
@@ -6053,6 +6059,22 @@ Hart<URV>::execute(const DecodedInst* di)
 
  bmatflip:
   execBmatflip(di);
+  return;
+
+ cmov:
+  execCmov(di);
+  return;
+
+ cmix:
+  execCmix(di);
+  return;
+
+ fsl:
+  execFsl(di);
+  return;
+
+ fsr:
+  execFsr(di);
   return;
 }
 
@@ -12324,6 +12346,80 @@ Hart<URV>::execBmatflip(const DecodedInst* di)
   rs1 = shuffle64(rs1, 31);
 
   intRegs_.write(di->op0(), rs1);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execCmov(const DecodedInst* di)
+{
+  URV v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+  URV v3 = intRegs_.read(di->op3());
+
+  URV res = v2 ? v1 : v3;
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execCmix(const DecodedInst* di)
+{
+  URV v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+  URV v3 = intRegs_.read(di->op3());
+
+  URV res = (v1 & v2) | (v3 & ~v2);
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execFsl(const DecodedInst* di)
+{
+  URV v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+  URV v3 = intRegs_.read(di->op3());
+
+  unsigned shamt = v2 & (2*mxlen_ - 1);
+
+  URV aa = v1, bb = v3;
+
+  if (shamt >= mxlen_)
+    {
+      shamt -= mxlen_;
+      aa = v3;
+      bb = v1;
+    }
+
+  URV res = shamt ? (aa << shamt) | (bb >> (mxlen_ - shamt)) : aa;
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execFsr(const DecodedInst* di)
+{
+  URV v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+  URV v3 = intRegs_.read(di->op3());
+
+  unsigned shamt = v2 & (2*mxlen_ - 1);
+
+  URV aa = v1, bb = v3;
+
+  if (shamt >= mxlen_)
+    {
+      shamt -= mxlen_;
+      aa = v3;
+      bb = v1;
+    }
+
+  URV res = shamt ? (aa >> shamt) | (bb << (mxlen_ - shamt)) : aa;
+  intRegs_.write(di->op0(), res);
 }
 
 

@@ -41,7 +41,7 @@ InstEntry::InstEntry(std::string name, InstId id,
   if (op2Type != OperandType::None) count++;
   if (op3Type != OperandType::None) count++;
   opCount_ = count;
-  isBitManip_ = type >= InstType::Zba and type <= InstType::Zbs;
+  isBitManip_ = type >= InstType::Zba and type <= InstType::Zbt;
 }
 
 
@@ -1758,7 +1758,38 @@ InstTable::setupInstVec()
       { "bmatflip", InstId::bmatflip, 0x60301013, 0xfff0707f,
         InstType::Zbm,
 	OperandType::IntReg, OperandMode::Write, rdMask,
-	OperandType::IntReg, OperandMode::Read, rs1Mask }
+	OperandType::IntReg, OperandMode::Read, rs1Mask },
 
+      { "cmov", InstId::cmov, 0x6001033, 0x600707F,
+        InstType::Zbt,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+        OperandType::IntReg, OperandMode::Read, rs2Mask,
+        OperandType::IntReg, OperandMode::Read, rs3Mask
+      },
+
+      { "cmix", InstId::cmix, 0x6005033, 0xfff0707f,
+        InstType::Zbt,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+        OperandType::IntReg, OperandMode::Read, rs2Mask,
+        OperandType::IntReg, OperandMode::Read, rs3Mask
+      },
+
+      { "fsl", InstId::fsl, 0x040001013, 0xfff0707f,
+        InstType::Zbt,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+        OperandType::IntReg, OperandMode::Read, rs2Mask,
+        OperandType::IntReg, OperandMode::Read, rs3Mask
+      },
+
+      { "fsr", InstId::fsr, 0x04005013, 0xfff0707f,
+        InstType::Zbt,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+        OperandType::IntReg, OperandMode::Read, rs2Mask,
+        OperandType::IntReg, OperandMode::Read, rs3Mask
+      }
     };
 }
