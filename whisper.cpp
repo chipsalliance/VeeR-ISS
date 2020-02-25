@@ -240,7 +240,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 474;
+  unsigned subversion = 475;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -601,7 +601,7 @@ applyZisaStrings(const std::vector<std::string>& zisa, Hart<URV>& hart)
 
   for (const auto& ext : zisa)
     {
-      if (ext == "zbb" or ext == "ba")
+      if (ext == "zba" or ext == "ba")
 	hart.enableRvzba(true);
       else if (ext == "zbb" or ext == "bb")
 	hart.enableRvzbb(true);
@@ -611,6 +611,10 @@ applyZisaStrings(const std::vector<std::string>& zisa, Hart<URV>& hart)
 	hart.enableRvzbe(true);
       else if (ext == "zbf" or ext == "bf")
 	hart.enableRvzbf(true);
+      else if (ext == "zbm" or ext == "bm")
+	hart.enableRvzbm(true);
+      else if (ext == "zbp" or ext == "bp")
+	hart.enableRvzbp(true);
       else if (ext == "zbs" or ext == "bs")
 	hart.enableRvzbs(true);
       else if (ext == "zbmini" or ext == "bmini")

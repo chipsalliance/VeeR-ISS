@@ -715,11 +715,29 @@ namespace WdRiscv
     void enableRvzbf(bool flag)
     { rvzbf_ = flag; }
 
+    /// Enable/disable the zbm (bit manipulation matrix)
+    /// extension. When disabled all the instructions in zbm extension
+    /// result in an illegal instruction exception.
+    void enableRvzbm(bool flag)
+    { rvzbm_ = flag; }
+
+    /// Enable/disable the zbp (bit manipulation permutation)
+    /// extension. When disabled all the instructions in zbp extension
+    /// result in an illegal instruction exception.
+    void enableRvzbp(bool flag)
+    { rvzbp_ = flag; }
+
     /// Enable/disable the zbs (bit manipulation single)
     /// extension. When disabled all the instructions in zbs extension
     /// result in an illegal instruction exception.
     void enableRvzbs(bool flag)
     { rvzbs_ = flag; }
+
+    /// Enable/disable the zbr (bit manipulation crc)
+    /// extension. When disbaled all the instructions in zbr extension
+    /// result in an illegal instruction exception.
+    void enableRvzbr(bool flag)
+    { rvzbr_ = flag; }
 
     /// Put this hart in debug mode setting the DCSR cause field to
     /// the given cause.
@@ -877,11 +895,23 @@ namespace WdRiscv
     bool isRvzbf() const
     { return rvzbf_; }
 
+    /// Return true if zbm extension is enabled in this hart.
+    bool isRvzbm() const
+    { return rvzbm_; }
+
+    /// Return true if zbp extension is enabled in this hart.
+    bool isRvzbp() const
+    { return rvzbp_; }
+
     /// Return true if zbs extension is enabled in this hart.
     bool isRvzbs() const
     { return rvzbs_; }
 
-    /// Return true if current program is considered finished (either
+    /// Return true if zbr extension is enabled in this hart.
+    bool isRvzbr() const
+    { return rvzbr_; }
+
+    /// Return true if current program is considered finihsed (either
     /// reached stop address or executed exit limit).
     bool hasTargetProgramFinished() const
     { return targetProgFinished_; }
@@ -1641,7 +1671,24 @@ namespace WdRiscv
     void execRev8(const DecodedInst*);
     void execRev(const DecodedInst*);
     void execPack(const DecodedInst*);
-    void execOrc_b(const DecodedInst*);
+    void execAddwu(const DecodedInst*);
+    void execSubwu(const DecodedInst*);
+    void execAddiwu(const DecodedInst*);
+    void execSext_b(const DecodedInst*);
+    void execSext_h(const DecodedInst*);
+    void execAddu_w(const DecodedInst*);
+    void execSubu_w(const DecodedInst*);
+    void execSlliu_w(const DecodedInst*);
+    void execPackh(const DecodedInst*);
+    void execPacku(const DecodedInst*);
+    void execGrev(const DecodedInst*);
+    void execGrevi(const DecodedInst*);
+    void execGorc(const DecodedInst*);
+    void execGorci(const DecodedInst*);
+    void execShfl(const DecodedInst*);
+    void execShfli(const DecodedInst*);
+    void execUnshfl(const DecodedInst*);
+    void execUnshfli(const DecodedInst*);
 
     // Bit manipulation: zbs
     void execSbset(const DecodedInst*);
@@ -1665,6 +1712,22 @@ namespace WdRiscv
     void execSh1add(const DecodedInst*);
     void execSh2add(const DecodedInst*);
     void execSh3add(const DecodedInst*);
+    void execSh1addu_w(const DecodedInst*);
+    void execSh2addu_w(const DecodedInst*);
+    void execSh3addu_w(const DecodedInst*);
+
+    void execCrc32_b(const DecodedInst*);
+    void execCrc32_h(const DecodedInst*);
+    void execCrc32_w(const DecodedInst*);
+    void execCrc32_d(const DecodedInst*);
+    void execCrc32c_b(const DecodedInst*);
+    void execCrc32c_h(const DecodedInst*);
+    void execCrc32c_w(const DecodedInst*);
+    void execCrc32c_d(const DecodedInst*);
+
+    void execBmator(const DecodedInst*);
+    void execBmatxor(const DecodedInst*);
+    void execBmatflip(const DecodedInst*);
 
   private:
 
@@ -1746,7 +1809,10 @@ namespace WdRiscv
     bool rvzbc_ = false;         // True if extension zbc enabled.
     bool rvzbe_ = false;         // True if extension zbe enabled.
     bool rvzbf_ = false;         // True if extension zbf enabled.
+    bool rvzbm_ = false;         // True if extension zbm enabled.
+    bool rvzbp_ = false;         // True if extension zbp enabled.
     bool rvzbs_ = false;         // True if extension zbs enabled.
+    bool rvzbr_ = false;         // True if extension zbr enabled.
     URV pc_ = 0;                 // Program counter. Incremented by instr fetch.
     URV currPc_ = 0;             // Addr instr being executed (pc_ before fetch).
     URV resetPc_ = 0;            // Pc to use on reset.
