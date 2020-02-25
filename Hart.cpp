@@ -1549,7 +1549,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
   // Double ecc.
   if (forceAccessFail_)
     {
-      secCause = SecondaryCause::LOAD_ACC_DOUBLE_ECC;
+      secCause = SecondaryCause(7);  // Temporary.
       return ExceptionCause::LOAD_ACC_FAULT;
     }
 
@@ -12366,7 +12366,8 @@ Hart<URV>::updateMemoryProtection()
 
       addr = napot << 2;
       uint64_t high = addr + size - 1;
-      pmpManager_.setMode(highest + 1, high, mode, pmpIx, lock);
+      uint64_t low = std::max(highest + 1, addr);
+      pmpManager_.setMode(low, high, mode, pmpIx, lock);
       highest = std::max(highest, high);
     }
 }
