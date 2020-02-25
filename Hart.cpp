@@ -1550,7 +1550,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
   // Double ecc.
   if (forceAccessFail_)
     {
-      secCause = SecondaryCause::LOAD_ACC_DOUBLE_ECC;
+      secCause = SecondaryCause(7);  // Temporary.
       return ExceptionCause::LOAD_ACC_FAULT;
     }
 
