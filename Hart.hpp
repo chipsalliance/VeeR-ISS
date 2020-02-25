@@ -1733,6 +1733,7 @@ namespace WdRiscv
     void execCmix(const DecodedInst*);
     void execFsl(const DecodedInst*);
     void execFsr(const DecodedInst*);
+    void execFsri(const DecodedInst*);
 
   private:
 

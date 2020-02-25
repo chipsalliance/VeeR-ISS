@@ -1147,6 +1147,13 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	    unsigned imm = iform.uimmed();  // 12-bit immediate
 	    unsigned top5 = imm >> 7;
 	    unsigned shamt = imm & 0x7f;    // Shift amount (low 7 bits of imm)
+            if (shamt & 0x40)   // Bit 6 if shamt set.
+              {
+                op2 = top5;            // rs3 in op2
+                op3 = shamt & 0x3f;    // least sig 6-bits of immediate in op3
+                return instTable_.getEntry(InstId::fsri);
+              }
+                
 	    op2 = shamt;
 	    if (top5 == 0)
 	      return instTable_.getEntry(InstId::srli);

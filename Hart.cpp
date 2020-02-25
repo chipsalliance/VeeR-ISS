@@ -4948,7 +4948,8 @@ Hart<URV>::execute(const DecodedInst* di)
      &&cmov,
      &&cmix,
      &&fsl,
-     &&fsr
+     &&fsr,
+     &&fsri
     };
 
   const InstEntry* entry = di->instEntry();
@@ -6075,6 +6076,10 @@ Hart<URV>::execute(const DecodedInst* di)
 
  fsr:
   execFsr(di);
+  return;
+
+ fsri:
+  execFsri(di);
   return;
 }
 
@@ -12416,6 +12421,27 @@ Hart<URV>::execFsr(const DecodedInst* di)
       shamt -= mxlen_;
       aa = v3;
       bb = v1;
+    }
+
+  URV res = shamt ? (aa >> shamt) | (bb << (mxlen_ - shamt)) : aa;
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execFsri(const DecodedInst* di)
+{
+  URV aa = intRegs_.read(di->op1());
+  URV bb = intRegs_.read(di->op2());
+  URV imm = intRegs_.read(di->op3());
+
+  unsigned shamt = imm & (2*mxlen_ - 1);
+
+  if (shamt >= mxlen_)
+    {
+      shamt -= mxlen_;
+      std::swap(aa, bb);
     }
 
   URV res = shamt ? (aa >> shamt) | (bb << (mxlen_ - shamt)) : aa;

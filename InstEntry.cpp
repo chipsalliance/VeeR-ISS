@@ -1776,7 +1776,7 @@ InstTable::setupInstVec()
         OperandType::IntReg, OperandMode::Read, rs3Mask
       },
 
-      { "fsl", InstId::fsl, 0x040001013, 0xfff0707f,
+      { "fsl", InstId::fsl, 0x040001033, 0xfff0707f,
         InstType::Zbt,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
@@ -1784,12 +1784,21 @@ InstTable::setupInstVec()
         OperandType::IntReg, OperandMode::Read, rs3Mask
       },
 
-      { "fsr", InstId::fsr, 0x04005013, 0xfff0707f,
+      { "fsr", InstId::fsr, 0x04005033, 0xfff0707f,
         InstType::Zbt,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
         OperandType::IntReg, OperandMode::Read, rs2Mask,
         OperandType::IntReg, OperandMode::Read, rs3Mask
+      },
+
+      { "fsri", InstId::fsri, 0x04005013, 0xfff0707f,
+        InstType::Zbt,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+        OperandType::IntReg, OperandMode::Read, rs3Mask,
+        OperandType::IntReg, OperandMode::Read, 0x03f000000
       }
+
     };
 }

@@ -346,7 +346,8 @@ namespace WdRiscv
      cmix,
      fsl,
      fsr,
+     fsri,
 
-     maxId = fsr
+     maxId = fsri
     };
 }
