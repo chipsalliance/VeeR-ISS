@@ -12358,6 +12358,12 @@ template <typename URV>
 void
 Hart<URV>::execCmov(const DecodedInst* di)
 {
+  if (not isRvzbt())
+    {
+      illegalInst();
+      return;
+    }
+
   URV v1 = intRegs_.read(di->op1());
   URV v2 = intRegs_.read(di->op2());
   URV v3 = intRegs_.read(di->op3());
@@ -12371,6 +12377,12 @@ template <typename URV>
 void
 Hart<URV>::execCmix(const DecodedInst* di)
 {
+  if (not isRvzbt())
+    {
+      illegalInst();
+      return;
+    }
+
   URV v1 = intRegs_.read(di->op1());
   URV v2 = intRegs_.read(di->op2());
   URV v3 = intRegs_.read(di->op3());
@@ -12384,6 +12396,12 @@ template <typename URV>
 void
 Hart<URV>::execFsl(const DecodedInst* di)
 {
+  if (not isRvzbt())
+    {
+      illegalInst();
+      return;
+    }
+
   URV v1 = intRegs_.read(di->op1());
   URV v2 = intRegs_.read(di->op2());
   URV v3 = intRegs_.read(di->op3());
@@ -12408,6 +12426,12 @@ template <typename URV>
 void
 Hart<URV>::execFsr(const DecodedInst* di)
 {
+  if (not isRvzbt())
+    {
+      illegalInst();
+      return;
+    }
+
   URV v1 = intRegs_.read(di->op1());
   URV v2 = intRegs_.read(di->op2());
   URV v3 = intRegs_.read(di->op3());
@@ -12432,6 +12456,12 @@ template <typename URV>
 void
 Hart<URV>::execFsri(const DecodedInst* di)
 {
+  if (not isRvzbt())
+    {
+      illegalInst();
+      return;
+    }
+
   URV aa = intRegs_.read(di->op1());
   URV bb = intRegs_.read(di->op2());
   URV imm = intRegs_.read(di->op3());

@@ -727,17 +727,23 @@ namespace WdRiscv
     void enableRvzbp(bool flag)
     { rvzbp_ = flag; }
 
+    /// Enable/disable the zbr (bit manipulation crc)
+    /// extension. When disbaled all the instructions in zbr extension
+    /// result in an illegal instruction exception.
+    void enableRvzbr(bool flag)
+    { rvzbr_ = flag; }
+
     /// Enable/disable the zbs (bit manipulation single)
     /// extension. When disabled all the instructions in zbs extension
     /// result in an illegal instruction exception.
     void enableRvzbs(bool flag)
     { rvzbs_ = flag; }
 
-    /// Enable/disable the zbr (bit manipulation crc)
-    /// extension. When disbaled all the instructions in zbr extension
+    /// Enable/disable the zbt (bit manipulation ternary)
+    /// extension. When disabled all the instructions in zbt extension
     /// result in an illegal instruction exception.
-    void enableRvzbr(bool flag)
-    { rvzbr_ = flag; }
+    void enableRvzbt(bool flag)
+    { rvzbt_ = flag; }
 
     /// Put this hart in debug mode setting the DCSR cause field to
     /// the given cause.
@@ -903,13 +909,17 @@ namespace WdRiscv
     bool isRvzbp() const
     { return rvzbp_; }
 
+    /// Return true if zbr extension is enabled in this hart.
+    bool isRvzbr() const
+    { return rvzbr_; }
+
     /// Return true if zbs extension is enabled in this hart.
     bool isRvzbs() const
     { return rvzbs_; }
 
-    /// Return true if zbr extension is enabled in this hart.
-    bool isRvzbr() const
-    { return rvzbr_; }
+    /// Return true if zbt extension is enabled in this hart.
+    bool isRvzbt() const
+    { return rvzbt_; }
 
     /// Return true if current program is considered finihsed (either
     /// reached stop address or executed exit limit).
@@ -1817,8 +1827,9 @@ namespace WdRiscv
     bool rvzbf_ = false;         // True if extension zbf enabled.
     bool rvzbm_ = false;         // True if extension zbm enabled.
     bool rvzbp_ = false;         // True if extension zbp enabled.
-    bool rvzbs_ = false;         // True if extension zbs enabled.
     bool rvzbr_ = false;         // True if extension zbr enabled.
+    bool rvzbs_ = false;         // True if extension zbs enabled.
+    bool rvzbt_ = false;         // True if extension zbt enabled.
     URV pc_ = 0;                 // Program counter. Incremented by instr fetch.
     URV currPc_ = 0;             // Addr instr being executed (pc_ before fetch).
     URV resetPc_ = 0;            // Pc to use on reset.

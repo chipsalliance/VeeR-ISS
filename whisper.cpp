@@ -615,7 +615,11 @@ applyZisaStrings(const std::vector<std::string>& zisa, Hart<URV>& hart)
 	hart.enableRvzbm(true);
       else if (ext == "zbp" or ext == "bp")
 	hart.enableRvzbp(true);
+      else if (ext == "zbr" or ext == "br")
+	hart.enableRvzbs(true);
       else if (ext == "zbs" or ext == "bs")
+	hart.enableRvzbs(true);
+      else if (ext == "zbt" or ext == "bt")
 	hart.enableRvzbs(true);
       else if (ext == "zbmini" or ext == "bmini")
 	{
