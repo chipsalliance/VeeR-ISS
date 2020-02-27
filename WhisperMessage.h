@@ -29,7 +29,7 @@ enum WhisperMessageType { Peek, Poke, Step, Until, Change, ChangeCount,
 // updated.
 enum WhisperExceptionType { InstAccessFault, DataAccessFault,
 			    ImpreciseStoreFault, ImpreciseLoadFault,
-			    DataMemoryError, InstMemoryError,
+                            PreciseStoreFault, PreciseLoadFault, 
 			    NonMaskableInterrupt };
 
 

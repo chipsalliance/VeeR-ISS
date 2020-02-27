@@ -1486,7 +1486,10 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
       // TODO FIX : Determine secondary cause.
       Pmp pmp = pmpManager_.getPmp(addr);
       if (not pmp.isRead(privMode_, mstatusMpp_, mstatusMprv_))
-        return ExceptionCause::LOAD_ACC_FAULT;
+        {
+          secCause = SecondaryCause::LOAD_ACC_PMP;
+          return ExceptionCause::LOAD_ACC_FAULT;
+        }
     }
 
   // DCCM unmapped or out of MPU range
@@ -1536,10 +1539,10 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
 	}
     }
 
-  // Double ecc.
+  // Fault dictated by bench.
   if (forceAccessFail_)
     {
-      secCause = SecondaryCause(7);  // Temporary.
+      secCause = forcedCause_;  //  FORECED (7);  // Temporary.
       return ExceptionCause::LOAD_ACC_FAULT;
     }
 
@@ -4447,9 +4450,10 @@ Hart<URV>::singleStep(FILE* traceFile)
 
 template <typename URV>
 void
-Hart<URV>::postDataAccessFault(URV offset)
+Hart<URV>::postDataAccessFault(URV offset, SecondaryCause secCause)
 {
   forceAccessFail_ = true;
+  forcedCause_ = secCause;
   forceAccessFailOffset_ = offset;
   forceAccessFailMark_ = instCounter_;
 }
@@ -7035,7 +7039,10 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
       // TODO FIX : Determine secondary cause.
       Pmp pmp = pmpManager_.getPmp(addr);
       if (not pmp.isWrite(privMode_, mstatusMpp_, mstatusMprv_))
-        return ExceptionCause::STORE_ACC_FAULT;
+        {
+          secCause = SecondaryCause::STORE_ACC_PMP;
+          return ExceptionCause::STORE_ACC_FAULT;
+        }
     }
 
   // DCCM unmapped or out of MPU windows. Invalid PIC access handled later.
@@ -7079,7 +7086,7 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
   // Fault dictated by bench
   if (forceAccessFail_)
     {
-      secCause = SecondaryCause::STORE_ACC_DOUBLE_ECC;
+      secCause = forcedCause_;
       return ExceptionCause::STORE_ACC_FAULT;
     }
 

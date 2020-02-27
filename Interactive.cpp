@@ -845,11 +845,11 @@ Interactive<URV>::exceptionCommand(Hart<URV>& hart, const std::string& line,
       else if (tag == "data")
 	{
 	  if (tokens.size() == 2)
-	    hart.postDataAccessFault(0);
+	    hart.postDataAccessFault(0, SecondaryCause::LOAD_ACC_DOUBLE_ECC);
 	  else if (tokens.size() == 3)
 	    {
 	      if (parseCmdLineNumber("exception data offset", tokens.at(2), addr))
-		hart.postDataAccessFault(addr);
+		hart.postDataAccessFault(addr, SecondaryCause::LOAD_ACC_DOUBLE_ECC);
 	      else
 		bad = true;
 	    }
@@ -905,6 +905,36 @@ Interactive<URV>::exceptionCommand(Hart<URV>& hart, const std::string& line,
                 }
 	    }
 	}
+
+      else if (tag == "precise_load")
+        {
+	  if (tokens.size() == 2)
+	    hart.postDataAccessFault(0, SecondaryCause::LOAD_ACC_PRECISE);
+	  else if (tokens.size() == 3)
+	    {
+	      if (parseCmdLineNumber("exception precise_load offset", tokens.at(2), addr))
+		hart.postDataAccessFault(addr, SecondaryCause::LOAD_ACC_PRECISE);
+	      else
+		bad = true;
+	    }
+	  else
+	    bad = true;
+        }
+
+      else if (tag == "precise_store")
+        {
+	  if (tokens.size() == 2)
+            hart.postDataAccessFault(0, SecondaryCause::STORE_ACC_PRECISE);
+	  else if (tokens.size() == 3)
+	    {
+	      if (parseCmdLineNumber("exception precise_store offset", tokens.at(2), addr))
+		hart.postDataAccessFault(addr, SecondaryCause::STORE_ACC_PRECISE);
+	      else
+		bad = true;
+	    }
+	  else
+	    bad = true;
+        }
 
       else if (tag == "nmi")
 	{
