@@ -108,6 +108,8 @@ namespace WdRiscv
       LOAD_ACC_REGION_PREDICTION = 5,
       LOAD_ACC_PIC = 6,
       LOAD_ACC_AMO = 7,
+      LOAD_ACC_PMP = 8,
+      LOAD_ACC_PRECISE = 9,
 
       // Cause = STORE_ADDR_MISAL
       STORE_MISAL_REGION_CROSS = 0,
@@ -122,6 +124,8 @@ namespace WdRiscv
       STORE_ACC_REGION_PREDICTION = 5,
       STORE_ACC_PIC = 6,
       STORE_ACC_AMO = 7,
+      STORE_ACC_PMP = 8,
+      STORE_ACC_PRECISE = 9,
 
       MAX_CAUSE = STORE_ACC_AMO
     };
