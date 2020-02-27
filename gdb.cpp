@@ -34,10 +34,7 @@ static
 int
 putDebugChar(char c, int fd)
 {
-  if (fd == -1)
-    return putchar(c);
-  else
-    return send(fd, &c, sizeof(uint8_t),0);
+  return write(fd, &c, sizeof(uint8_t));
 }
 
 
@@ -45,15 +42,10 @@ static
 uint8_t
 getDebugChar(int fd)
 {
-  if (fd==-1)
-    return static_cast<uint8_t>(getchar());
-  else
-    {
-      uint8_t res;
-      if (read(fd, &res, sizeof(res)) == sizeof(res))
-        return res;
-      return uint8_t(-1); // TODO throw exception?
-    }
+  uint8_t res;
+  if (read(fd, &res, sizeof(res)) == sizeof(res))
+    return res;
+  return uint8_t(-1); // TODO throw exception?
 }
 
 
@@ -216,17 +208,17 @@ sendPacketToGdb(const std::string& data, int fd)
 
   while (true)
     {
-      putDebugChar('$',fd);
+      putDebugChar('$', fd);
       unsigned char checksum = 0;
       for (unsigned char c : data)
 	{
-	  putDebugChar(c,fd);
+	  putDebugChar(c, fd);
 	  checksum = static_cast<uint8_t>(checksum + c);
 	}
 
-      putDebugChar('#',fd);
-      putDebugChar(hexDigit[checksum >> 4],fd);
-      putDebugChar(hexDigit[checksum & 0xf],fd);
+      putDebugChar('#', fd);
+      putDebugChar(hexDigit[checksum >> 4], fd);
+      putDebugChar(hexDigit[checksum & 0xf], fd);
       fflush(stdout);
 
       // std::cerr << "Send to gdb: " << data << '\n';
@@ -389,7 +381,7 @@ notifyGdbAfterStop(WdRiscv::Hart<URV>& hart, int fd)
   hart.peekIntReg(spNum, spVal);
   reply << (boost::format("%02x") % spNum) << ':'
 	<< littleEndianIntToHex(spVal) << ';';
-  sendPacketToGdb(reply.str(),fd);
+  sendPacketToGdb(reply.str(), fd);
 
   return signalNum;
 }
@@ -597,7 +589,7 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
 
 	case 's':
 	  hart.singleStep(nullptr);
-	  notifyGdbAfterStop(hart,fd);
+	  notifyGdbAfterStop(hart, fd);
 	  continue;
 	  break;
 
@@ -653,7 +645,7 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
 	}
 
       // Reply to the request
-      sendPacketToGdb(reply.str(),fd);
+      sendPacketToGdb(reply.str(), fd);
 
       if (gotQuit)
 	exit(0);

@@ -1931,7 +1931,7 @@ namespace WdRiscv
     bool amoAq_ = false;
     bool amoRl_ = false;
 
-    int gdbSocket_ = -1;
+    int gdbInputFd_ = -1;  // Input file descriptor when running in gdb mode.
 
     InstTable instTable_;
     std::vector<InstProfile> instProfileVec_; // Instruction frequency

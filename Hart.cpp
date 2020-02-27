@@ -27,6 +27,7 @@
 #include <boost/format.hpp>
 #include <emmintrin.h>
 #include <sys/time.h>
+#include <poll.h>
 
 // On pure 32-bit machines, use boost for 128-bit integer type.
 #if __x86_64__
@@ -3763,6 +3764,20 @@ Hart<URV>::logStop(const CoreException& ce, uint64_t counter, FILE* traceFile)
 }
 
 
+static
+bool
+isInputPending(int fd)
+{
+  struct pollfd pfds[1];
+  pfds[0].fd = fd;
+  pfds[0].events = POLLIN;
+  pfds[0].revents = 0;
+  if (poll(pfds, 1, 0) == 1)
+    return pfds[0].revents & POLLIN;
+  return false;
+}
+
+
 template <typename URV>
 bool
 Hart<URV>::untilAddress(URV address, FILE* traceFile)
@@ -3778,8 +3793,11 @@ Hart<URV>::untilAddress(URV address, FILE* traceFile)
   bool success = true;
   bool doStats = instFreq_ or enableCounters_;
 
+  // Check for gdb break every 1000000 instructions.
+  unsigned gdbCount = 0, gdbLimit = 1000000;
+
   if (enableGdb_)
-    handleExceptionForGdb(*this, gdbSocket_);
+    handleExceptionForGdb(*this, gdbInputFd_);
 
   uint32_t inst = 0;
 
@@ -3787,6 +3805,16 @@ Hart<URV>::untilAddress(URV address, FILE* traceFile)
     {
       if (kbdInterrupt)
         break;
+
+      if (enableGdb_ and ++gdbCount >= gdbLimit)
+        {
+          gdbCount = 0;
+          if (isInputPending(gdbInputFd_))
+            {
+              handleExceptionForGdb(*this, gdbInputFd_);
+              continue;
+            }
+        }
 
       if (alarmCounter_ and doAlarmCountdown())
         if (processExternalInterrupt(traceFile, instStr))
@@ -4053,9 +4081,9 @@ Hart<URV>::openTcpForGdb()
   succ = succ and listen(gdbFd, 3) >= 0;
   if (succ)
     {
-      gdbSocket_ = accept(gdbFd, (struct sockaddr*) &address,
-                          (socklen_t*) &addrlen);
-      succ = gdbSocket_ >= 0;
+      gdbInputFd_ = accept(gdbFd, (struct sockaddr*) &address,
+                           (socklen_t*) &addrlen);
+      succ = gdbInputFd_ >= 0;
     }
   return succ;
 
@@ -4077,8 +4105,8 @@ Hart<URV>::run(FILE* file)
              enableCounters_ or enableGdb_ or hasWideLdSt or alarmInterval_);
   if (gdbTcpPort_ >= 0)
     openTcpForGdb();
-  else
-    assert(gdbSocket_ < 0);
+  else if (enableGdb_)
+    gdbInputFd_ = STDIN_FILENO;
 
   if (complex)
     return runUntilAddress(stopAddr, file); 
@@ -6669,7 +6697,7 @@ Hart<URV>::execEbreak(const DecodedInst*)
   if (enableGdb_)
     {
       pc_ = currPc_;
-      handleExceptionForGdb(*this, gdbSocket_);
+      handleExceptionForGdb(*this, gdbInputFd_);
       return;
     }
 
