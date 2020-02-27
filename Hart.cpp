@@ -347,6 +347,8 @@ template <typename URV>
 void
 Hart<URV>::reset(bool resetMemoryMappedRegs)
 {
+  privMode_ = PrivilegeMode::Machine;
+
   intRegs_.reset();
   csRegs_.reset();
 
@@ -406,6 +408,14 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
           hartStarted_ = ((URV(1) << localHartId_) & value) != 0;
         }
     }
+
+  // Update cached values of mstatus.mpp and mstatus.mprv.
+  URV csrVal = 0;
+  peekCsr(CsrNumber::MSTATUS, csrVal);
+  MstatusFields<URV> msf(csrVal);
+  mstatusMpp_ = PrivilegeMode(msf.bits_.MPP);
+  mstatusMprv_ = msf.bits_.MPRV;
+
 
   updateMemoryProtection();
 
