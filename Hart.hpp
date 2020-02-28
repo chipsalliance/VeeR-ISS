@@ -1325,10 +1325,15 @@ namespace WdRiscv
     /// bits are not defined (may contain arbitrary values).
     bool fetchInst(URV address, uint32_t& instr);
 
-    /// Fetch an instruction given that a trigger has tripped. Return
-    /// true on success. Return false on a a fail in which case either
-    /// a trigger exception is initiated (as opposed to an
-    /// instruction-fail exception).
+    /// Heler to the run methods: Fetch an instruction taking debug triggers
+    /// into consideration. Return true if successful. Return false if
+    /// instruction fetch fails (an exception is signaled in that case).
+    bool fetchInstWithTrigger(URV address, uint32_t& inst, FILE* trace);
+
+    /// Helper to fetchInstWithTrigger. Fetch an instruction given
+    /// that a trigger has tripped. Return true on success. Return
+    /// false on a a fail in which case either a trigger exception is
+    /// initiated (as opposed to an instruction-fail exception).
     bool fetchInstPostTrigger(URV address, uint32_t& inst, FILE* trace);
 
     /// Write trace information about the given instruction to the

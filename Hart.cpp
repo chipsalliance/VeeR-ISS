@@ -3778,6 +3778,53 @@ isInputPending(int fd)
 }
 
 
+
+template <typename URV>
+inline
+bool
+Hart<URV>::fetchInstWithTrigger(URV addr, uint32_t& inst, FILE* file)
+{
+  // Process pre-execute address trigger and fetch instruction.
+  bool hasTrig = hasActiveInstTrigger();
+  triggerTripped_ = hasTrig && instAddrTriggerHit(addr,
+                                                  TriggerTiming::Before,
+                                                  isInterruptEnabled());
+  // Fetch instruction.
+  bool fetchOk = true;
+  if (triggerTripped_)
+    {
+      if (not fetchInstPostTrigger(pc_, inst, file))
+        {
+          ++cycleCount_;
+          return false;  // Next instruction in trap handler.
+        }
+    }
+  else
+    fetchOk = fetchInst(pc_, inst);
+  if (not fetchOk)
+    {
+      ++cycleCount_;
+      if (file)
+        {
+          std::string instStr;
+          printInstTrace(inst, instCounter_, instStr, file);
+        }
+
+      if (dcsrStep_)
+        enterDebugMode(DebugModeCause::STEP, pc_);
+
+      return false;  // Next instruction in trap handler.
+    }
+
+  // Process pre-execute opcode trigger.
+  if (hasTrig and instOpcodeTriggerHit(inst, TriggerTiming::Before,
+                                       isInterruptEnabled()))
+    triggerTripped_ = true;
+
+  return true;
+}
+
+
 template <typename URV>
 bool
 Hart<URV>::untilAddress(URV address, FILE* traceFile)
@@ -3829,35 +3876,8 @@ Hart<URV>::untilAddress(URV address, FILE* traceFile)
 
 	  ++instCounter_;
 
-	  // Process pre-execute address trigger and fetch instruction.
-	  bool hasTrig = hasActiveInstTrigger();
-	  triggerTripped_ = hasTrig && instAddrTriggerHit(pc_,
-							  TriggerTiming::Before,
-							  isInterruptEnabled());
-	  // Fetch instruction.
-	  bool fetchOk = true;
-	  if (triggerTripped_)
-	    {
-	      if (not fetchInstPostTrigger(pc_, inst, traceFile))
-		{
-		  ++cycleCount_;
-		  continue;  // Next instruction in trap handler.
-		}
-	    }
-	  else
-	    fetchOk = fetchInst(pc_, inst);
-	  if (not fetchOk)
-	    {
-	      ++cycleCount_;
-	      if (traceFile)
-		printInstTrace(inst, instCounter_, instStr, traceFile);
-	      continue;  // Next instruction in trap handler.
-	    }
-
-	  // Process pre-execute opcode trigger.
-	  if (hasTrig and instOpcodeTriggerHit(inst, TriggerTiming::Before,
-					       isInterruptEnabled()))
-	    triggerTripped_ = true;
+          if (not fetchInstWithTrigger(pc_, inst, traceFile))
+            continue;  // Next instruction in trap handler.
 
 	  // Decode unless match in decode cache.
 	  uint32_t ix = (pc_ >> 1) & decodeCacheMask_;
@@ -3888,8 +3908,7 @@ Hart<URV>::untilAddress(URV address, FILE* traceFile)
 	  if (triggerTripped_)
 	    {
 	      undoForTrigger();
-	      if (takeTriggerAction(traceFile, currPc_, currPc_,
-				    instCounter_, true))
+	      if (takeTriggerAction(traceFile, currPc_, currPc_, instCounter_, true))
 		return true;
 	      continue;
 	    }
@@ -4295,37 +4314,8 @@ Hart<URV>::singleStep(FILE* traceFile)
       if (processExternalInterrupt(traceFile, instStr))
 	return;  // Next instruction in interrupt handler.
 
-      // Process pre-execute address trigger and fetch instruction.
-      bool hasTrig = hasActiveInstTrigger();
-      triggerTripped_ = hasTrig && instAddrTriggerHit(pc_,
-						      TriggerTiming::Before,
-						      isInterruptEnabled());
-      // Fetch instruction.
-      bool fetchOk = true;
-      if (triggerTripped_)
-	{
-	  if (not fetchInstPostTrigger(pc_, inst, traceFile))
-	    {
-	      ++cycleCount_;
-	      return;
-	    }
-	}
-      else
-	fetchOk = fetchInst(pc_, inst);
-      if (not fetchOk)
-	{
-	  ++cycleCount_;
-	  if (traceFile)
-	    printInstTrace(inst, instCounter_, instStr, traceFile);
-	  if (dcsrStep_)
-	    enterDebugMode(DebugModeCause::STEP, pc_);
-	  return; // Next instruction in trap handler
-	}
-
-      // Process pre-execute opcode trigger.
-      if (hasTrig and instOpcodeTriggerHit(inst, TriggerTiming::Before,
-					   isInterruptEnabled()))
-	triggerTripped_ = true;
+      if (not fetchInstWithTrigger(pc_, inst, traceFile))
+        return;
 
       DecodedInst di;
       decode(pc_, inst, di);
