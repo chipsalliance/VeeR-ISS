@@ -3799,8 +3799,6 @@ Hart<URV>::untilAddress(URV address, FILE* traceFile)
   if (enableGdb_)
     handleExceptionForGdb(*this, gdbInputFd_);
 
-  uint32_t inst = 0;
-
   while (pc_ != address and instCounter_ < limit)
     {
       if (kbdInterrupt)
@@ -3820,10 +3818,9 @@ Hart<URV>::untilAddress(URV address, FILE* traceFile)
         if (processExternalInterrupt(traceFile, instStr))
           continue;
 
-      inst = 0;
-
       try
 	{
+          uint32_t inst = 0;
 	  currPc_ = pc_;
 
 	  ldStAddrValid_ = false;
@@ -3870,7 +3867,7 @@ Hart<URV>::untilAddress(URV address, FILE* traceFile)
 
 	  bool doingWide = wideLdSt_;
 
-	  // Execute.
+          // Increment pc and execute instruction
 	  pc_ += di->instSize();
 	  execute(di);
 
