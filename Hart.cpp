@@ -3837,7 +3837,6 @@ Hart<URV>::untilAddress(URV address, FILE* traceFile)
   clearTraceData();
 
   uint64_t limit = instCountLim_;
-  bool success = true;
   bool doStats = instFreq_ or enableCounters_;
 
   // Check for gdb break every 1000000 instructions.
@@ -3918,11 +3917,9 @@ Hart<URV>::untilAddress(URV address, FILE* traceFile)
 
           if (minstretEnabled())
             ++retiredInsts_;
+
 	  if (doStats)
 	    accumulateInstructionStats(*di);
-
-	  bool icountHit = (enableTriggers_ and isInterruptEnabled() and
-			    icountTriggerHit());
 
 	  if (trace)
 	    {
@@ -3931,6 +3928,8 @@ Hart<URV>::untilAddress(URV address, FILE* traceFile)
 	      clearTraceData();
 	    }
 
+	  bool icountHit = (enableTriggers_ and isInterruptEnabled() and
+			    icountTriggerHit());
 	  if (icountHit)
 	    if (takeTriggerAction(traceFile, pc_, pc_, instCounter_, false))
 	      return true;
@@ -3938,12 +3937,11 @@ Hart<URV>::untilAddress(URV address, FILE* traceFile)
 	}
       catch (const CoreException& ce)
 	{
-	  success = logStop(ce, instCounter_, traceFile);
-	  break;
+	  return logStop(ce, instCounter_, traceFile);
 	}
     }
 
-  return success;
+  return true;
 }
 
 
@@ -4340,7 +4338,7 @@ Hart<URV>::singleStep(FILE* traceFile)
 	  if (doStats)
 	    accumulateInstructionStats(di);
 	  if (traceFile)
-	    printInstTrace(inst, instCounter_, instStr, traceFile);
+	    printInstTrace(di, instCounter_, instStr, traceFile);
 	  if (dcsrStep_ and not ebreakInstDebug_)
 	    enterDebugMode(DebugModeCause::STEP, pc_);
 	  return;
@@ -4356,9 +4354,8 @@ Hart<URV>::singleStep(FILE* traceFile)
       if (doingWide)
 	enableWideLdStMode(false);
 
-      if (not ebreakInstDebug_)
-        if (minstretEnabled())
-          ++retiredInsts_;
+      if (minstretEnabled() and not ebreakInstDebug_)
+        ++retiredInsts_;
 
       if (doStats)
 	accumulateInstructionStats(di);
