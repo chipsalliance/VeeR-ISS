@@ -2026,7 +2026,7 @@ Hart<URV>::fetchInst(URV addr, uint32_t& inst)
       readInst(addr, inst);
       URV info = pc_ + forceFetchFailOffset_;
       auto cause = ExceptionCause::INST_ACC_FAULT;
-      auto secCause = SecondaryCause::INST_BUS_ERROR;
+      auto secCause = SecondaryCause::INST_PRECISE;
       if (memory_.isAddrInIccm(addr))
 	secCause = SecondaryCause::INST_DOUBLE_ECC;
       initiateException(cause, pc_, info, secCause);
@@ -2046,7 +2046,7 @@ Hart<URV>::fetchInst(URV addr, uint32_t& inst)
           Pmp pmp = pmpManager_.getPmp(addr);
           if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
             {
-              auto secCause = SecondaryCause::INST_MEM_PROTECTION;
+              auto secCause = SecondaryCause::INST_PMP;
               initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr, secCause);
               return false;
             }
@@ -6755,7 +6755,7 @@ Hart<URV>::execEbreak(const DecodedInst*)
   URV trapInfo = currPc_;  // Goes into MTVAL.
 
   auto cause = ExceptionCause::BREAKP;
-  auto secCause = SecondaryCause::NONE;
+  auto secCause = SecondaryCause::BREAKP;
   initiateException(cause, savedPc, trapInfo, secCause);
 }
 
