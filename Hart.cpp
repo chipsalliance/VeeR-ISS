@@ -2068,7 +2068,7 @@ Hart<URV>::fetchInst(URV addr, uint32_t& inst)
       Pmp pmp = pmpManager_.getPmp(addr);
       if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
         {
-          auto secCause = SecondaryCause::INST_MEM_PROTECTION;
+          auto secCause = SecondaryCause::INST_PMP;
           initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr, secCause);
           return false;
         }
