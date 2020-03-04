@@ -4109,19 +4109,18 @@ template <typename URV>
 bool
 Hart<URV>::run(FILE* file)
 {
-  // To run fast, this method does not do much besides
-  // straight-forward execution. If any option is turned on, we switch
-  // to runUntilAdress which supports all features.
-  URV stopAddr = stopAddrValid_? stopAddr_ : ~URV(0); // ~URV(0): No-stop PC.
-  bool hasWideLdSt = csRegs_.isImplemented(CsrNumber::MDBAC);
-  bool complex = stopAddrValid_ and not toHostValid_;
-  complex = (complex or file or instFreq_ or enableTriggers_ or
-             enableCounters_ or enableGdb_ or hasWideLdSt or alarmInterval_);
   if (gdbTcpPort_ >= 0)
     openTcpForGdb();
   else if (enableGdb_)
     gdbInputFd_ = STDIN_FILENO;
 
+  // To run fast, this method does not do much besides
+  // straight-forward execution. If any option is turned on, we switch
+  // to runUntilAdress which supports all features.
+  URV stopAddr = stopAddrValid_? stopAddr_ : ~URV(0); // ~URV(0): No-stop PC.
+  bool hasWideLdSt = csRegs_.isImplemented(CsrNumber::MDBAC);
+  bool complex = (stopAddrValid_ or instFreq_ or enableTriggers_ or enableGdb_
+                  or enableCounters_ or alarmInterval_ or file or hasWideLdSt);
   if (complex)
     return runUntilAddress(stopAddr, file); 
 
