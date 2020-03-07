@@ -12322,14 +12322,15 @@ Hart<URV>::updateMemoryProtection()
   pmpManager_.reset();
 
   const unsigned count = 16;
-  std::vector<unsigned> configs(16, 0);
 
-  // Process the pmp entries
-  uint64_t addr = 0;  // Start address of most recent pmp entry.
-  uint64_t highest = 0;  // Highest covered address
-  unsigned num = unsigned(CsrNumber::PMPADDR0);
-  for (unsigned pmpIx = 0; pmpIx < count; ++pmpIx, ++num)
+  // Process the pmp entries in reverse order (since they are supposed to
+  // be checked in first to last priority). Apply memory protection to
+  // the range defined by each entry allowing lower numbered entries to
+  // over-ride higher numberd ones.
+  unsigned num = unsigned(CsrNumber::PMPADDR15);
+  for (unsigned ix = 0; ix < count; ++ix, --num)
     {
+      unsigned pmpIx = count - ix - 1;
       CsrNumber csrn = CsrNumber(num);
       unsigned config = csRegs_.getPmpConfigByteFromPmpAddr(csrn);
       unsigned aField = (config >> 3) & 3;
@@ -12340,25 +12341,32 @@ Hart<URV>::updateMemoryProtection()
       URV pmpVal = 0;
       if (not peekCsr(csrn, pmpVal))
         {
-          addr = 0;
+          // Should not happen
+          assert(0 && "Unimplemented PMPADDR register");
           continue;
         }
 
       if (aField == 0)
-        {
-          addr = (addr >> pmpG_) << pmpG_;  // Clear least sig G bits.
-          addr = pmpVal << 2;
-          continue;
-        }
+        continue;   // Entry is off.
 
       if (aField == 1)    // TOR
         {
-          uint64_t low = std::max(highest, addr);
-          addr = (addr >> pmpG_) << pmpG_;  // Clear least sig G bits.
-          addr = pmpVal << 2;
-          if (low < addr)
-            pmpManager_.setMode(low, addr - 1, mode, pmpIx, lock);
-          highest = std::max(addr, highest);
+          uint64_t low = 0;
+          if (pmpIx > 0)
+            {
+              URV prevVal = 0;
+              CsrNumber lowerCsrn = CsrNumber(num - 1);
+              peekCsr(lowerCsrn, prevVal);
+              low = prevVal;
+              low = (low >> pmpG_) << pmpG_;  // Clear least sig G bits.
+              low = low << 2;
+            }
+              
+          uint64_t high = pmpVal;
+          high = (high >> pmpG_) << pmpG_;
+          high = high << 2;
+          if (low < high)
+            pmpManager_.setMode(low, high - 1, mode, pmpIx, lock);
           continue;
         }
 
@@ -12371,11 +12379,11 @@ Hart<URV>::updateMemoryProtection()
           size = uint64_t(1) << (rzi + 3);
         }
 
-      addr = napot << 2;
-      uint64_t high = addr + size - 1;
-      uint64_t low = std::max(highest + 1, addr);
-      pmpManager_.setMode(low, high, mode, pmpIx, lock);
-      highest = std::max(highest, high);
+      uint64_t low = napot;
+      low = (low >> pmpG_) << pmpG_;
+      low = low << 2;
+      uint64_t high = low + size;
+      pmpManager_.setMode(low, high - 1, mode, pmpIx, lock);
     }
 }
 
