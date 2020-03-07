@@ -3837,7 +3837,6 @@ isInputPending(int fd)
 }
 
 
-
 template <typename URV>
 inline
 bool
@@ -12389,7 +12388,6 @@ Hart<URV>::updateMemoryProtection()
           size = uint64_t(1) << (rzi + 3);
         }
 
-<<<<<<< HEAD
       uint64_t low = napot;
       low = (low >> pmpG_) << pmpG_;
       low = low << 2;
@@ -12574,13 +12572,6 @@ Hart<URV>::execFsri(const DecodedInst* di)
     {
       shamt -= mxlen_;
       std::swap(aa, bb);
-=======
-      addr = napot << 2;
-      uint64_t high = addr + size - 1;
-      uint64_t low = std::max(highest + 1, addr);
-      pmpManager_.setMode(low, high, mode, pmpIx, lock);
-      highest = std::max(highest, high);
->>>>>>> Temporarily set mscause to 7 for precise data bus error. Fixed bug in physical memory protection.
     }
 
   URV res = shamt ? (aa >> shamt) | (bb << (mxlen_ - shamt)) : aa;
