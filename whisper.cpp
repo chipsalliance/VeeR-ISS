@@ -461,7 +461,7 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
       // Parse command line options.
       po::variables_map varMap;
       po::command_line_parser parser(argc, argv);
-      auto parsed = parser.options(desc).positional(pdesc).allow_unregistered().run();
+      auto parsed = parser.options(desc).positional(pdesc).run();
       po::store(parsed, varMap);
       po::notify(varMap);
 
