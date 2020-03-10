@@ -1335,6 +1335,12 @@ bool
 Hart<URV>::misalignedAccessCausesException(URV addr, unsigned accessSize,
 					   SecondaryCause& secCause) const
 {
+  if (not misalDataOk_)
+    {
+      secCause = SecondaryCause::NONE;
+      return true;
+    }
+
   size_t addr2 = addr + accessSize - 1;
 
   // Crossing region boundary causes misaligned exception.
@@ -1497,7 +1503,10 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
       // TODO FIX : Determine secondary cause.
       Pmp pmp = pmpManager_.getPmp(addr);
       if (not pmp.isRead(privMode_, mstatusMpp_, mstatusMprv_))
-        return ExceptionCause::LOAD_ACC_FAULT;
+        {
+          secCause = SecondaryCause::LOAD_ACC_PMP;
+          return ExceptionCause::LOAD_ACC_FAULT;
+        }
     }
 
   // DCCM unmapped or out of MPU range
@@ -1547,10 +1556,10 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
 	}
     }
 
-  // Double ecc.
+  // Fault dictated by bench.
   if (forceAccessFail_)
     {
-      secCause = SecondaryCause::LOAD_ACC_DOUBLE_ECC;
+      secCause = forcedCause_;
       return ExceptionCause::LOAD_ACC_FAULT;
     }
 
@@ -2024,7 +2033,7 @@ Hart<URV>::fetchInst(URV addr, uint32_t& inst)
       readInst(addr, inst);
       URV info = pc_ + forceFetchFailOffset_;
       auto cause = ExceptionCause::INST_ACC_FAULT;
-      auto secCause = SecondaryCause::INST_BUS_ERROR;
+      auto secCause = SecondaryCause::INST_PRECISE;
       if (memory_.isAddrInIccm(addr))
 	secCause = SecondaryCause::INST_DOUBLE_ECC;
       initiateException(cause, pc_, info, secCause);
@@ -2037,8 +2046,40 @@ Hart<URV>::fetchInst(URV addr, uint32_t& inst)
       return false;
     }
 
-  if (memory_.readInstWord(addr, inst))
-    return true;
+  if ((addr & 3) == 0)   // Word aligned
+    {
+      if (pmpEnabled_)
+        {
+          Pmp pmp = pmpManager_.getPmp(addr);
+          if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
+            {
+              auto secCause = SecondaryCause::INST_PMP;
+              initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr, secCause);
+              return false;
+            }
+        }
+
+      if (memory_.readInstWord(addr, inst))
+        return true;
+
+      auto secCause = SecondaryCause::INST_MEM_PROTECTION;
+      size_t region = memory_.getRegionIndex(addr);
+      if (regionHasLocalInstMem_.at(region))
+	secCause = SecondaryCause::INST_LOCAL_UNMAPPED;
+      initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr, secCause);
+      return false;
+    }
+
+  if (pmpEnabled_)
+    {
+      Pmp pmp = pmpManager_.getPmp(addr);
+      if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
+        {
+          auto secCause = SecondaryCause::INST_PMP;
+          initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr, secCause);
+          return false;
+        }
+    }
 
   uint16_t half;
   if (not memory_.readInstHalfWord(addr, half))
@@ -2054,6 +2095,24 @@ Hart<URV>::fetchInst(URV addr, uint32_t& inst)
   inst = half;
   if (isCompressedInst(inst))
     return true;
+
+  if (pmpEnabled_)
+    {
+      Pmp pmp = pmpManager_.getPmp(addr + 2);
+      if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
+        {
+          auto secCause = SecondaryCause::INST_MEM_PROTECTION;
+          initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr + 2, secCause);
+          return false;
+        }
+    }
+
+  uint16_t upperHalf;
+  if (memory_.readInstHalfWord(addr + 2, upperHalf))
+    {
+      inst = inst | (uint32_t(upperHalf) << 16);
+      return true;
+    }
 
   // 4-byte instruction: 4-byte fetch failed but 1st 2-byte fetch
   // succeeded. Problem must be in 2nd half of instruction.
@@ -3784,7 +3843,6 @@ isInputPending(int fd)
 }
 
 
-
 template <typename URV>
 inline
 bool
@@ -4418,9 +4476,10 @@ Hart<URV>::singleStep(FILE* traceFile)
 
 template <typename URV>
 void
-Hart<URV>::postDataAccessFault(URV offset)
+Hart<URV>::postDataAccessFault(URV offset, SecondaryCause secCause)
 {
   forceAccessFail_ = true;
+  forcedCause_ = secCause;
   forceAccessFailOffset_ = offset;
   forceAccessFailMark_ = instCounter_;
 }
@@ -6712,7 +6771,7 @@ Hart<URV>::execEbreak(const DecodedInst*)
   URV trapInfo = currPc_;  // Goes into MTVAL.
 
   auto cause = ExceptionCause::BREAKP;
-  auto secCause = SecondaryCause::NONE;
+  auto secCause = SecondaryCause::BREAKP;
   initiateException(cause, savedPc, trapInfo, secCause);
 }
 
@@ -7186,6 +7245,17 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
       return ExceptionCause::STORE_ACC_FAULT;
     }
 
+  // Physical memory protection.
+  if (pmpEnabled_)
+    {
+      Pmp pmp = pmpManager_.getPmp(addr);
+      if (not pmp.isWrite(privMode_, mstatusMpp_, mstatusMprv_))
+        {
+          secCause = SecondaryCause::STORE_ACC_PMP;
+          return ExceptionCause::STORE_ACC_FAULT;
+        }
+    }
+
   // DCCM unmapped or out of MPU windows. Invalid PIC access handled later.
   bool writeOk = memory_.checkWrite(addr, storeVal);
   if (not writeOk and not memory_.isAddrInMappedRegs(addr))
@@ -7227,7 +7297,7 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
   // Fault dictated by bench
   if (forceAccessFail_)
     {
-      secCause = SecondaryCause::STORE_ACC_DOUBLE_ECC;
+      secCause = forcedCause_;
       return ExceptionCause::STORE_ACC_FAULT;
     }
 

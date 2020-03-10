@@ -621,7 +621,7 @@ namespace WdRiscv
     /// the subsequent singleStep invocation executing a load/store
     /// instruction or take an NMI (double-bit-ecc) within the
     /// subsequent interrupt if fast-interrupt is enabled.
-    void postDataAccessFault(URV offset);
+    void postDataAccessFault(URV offset, SecondaryCause cause);
 
     /// Enable printing of load/store data address in instruction
     /// trace mode.
@@ -1056,6 +1056,11 @@ namespace WdRiscv
     /// Enable supervisor mode.
     void enableSupervisorMode(bool flag)
     { csRegs_.enableSupervisorMode(flag); }
+
+    /// Enable/diable misaligned access. If disabled then misaligned
+    /// ld/st will trigger an exception.
+    void enableMisalignedData(bool flag)
+    { misalDataOk_ = flag; }
 
   protected:
 
@@ -1889,6 +1894,7 @@ namespace WdRiscv
     bool forceAccessFail_ = false;  // Force load/store access fault.
     bool forceFetchFail_ = false;   // Force fetch access fault.
     bool fastInterrupts_ = false;
+    SecondaryCause forcedCause_ = SecondaryCause::NONE;
     URV forceAccessFailOffset_ = 0;
     URV forceFetchFailOffset_ = 0;
     uint64_t forceAccessFailMark_ = 0; // Instruction at which forced fail is seen.
@@ -1983,6 +1989,8 @@ namespace WdRiscv
 
     uint64_t alarmInterval_ = 0; // Ext. timer interrupt interval.
     uint64_t alarmCounter_ = 0;  // Ext. timer interrupt when this reaches 0.
+
+    bool misalDataOk_ = true;
 
     // Physical memory protection.
     bool pmpEnabled_ = false; // True if one or more pmp register defined.
