@@ -659,7 +659,7 @@ Server<URV>::exceptionCommand(const WhisperMessage& req,
       break;
 
     case DataAccessFault:
-      hart.postDataAccessFault(addr);
+      hart.postDataAccessFault(addr, SecondaryCause::LOAD_ACC_DOUBLE_ECC);
       oss << "exception data " << addr;
       break;
 
@@ -689,13 +689,15 @@ Server<URV>::exceptionCommand(const WhisperMessage& req,
       oss << "exception nmi 0x" << std::hex << addr << std::dec;
       break;
 
-    case DataMemoryError:
-      oss << "exception memory_data 0x" << std::hex << addr << std::dec;
+    case PreciseLoadFault:
+      oss << "exception precise_load 0x" << std::hex << addr << std::dec;
+      hart.postDataAccessFault(addr, SecondaryCause::LOAD_ACC_PRECISE);
       ok = false;
       break;
 
-    case InstMemoryError:
-      oss << "exception memory_inst 0x" << std::hex << addr << std::dec;
+    case PreciseStoreFault:
+      hart.postDataAccessFault(addr, SecondaryCause::STORE_ACC_PRECISE);
+      oss << "exception precise_store 0x" << std::hex << addr << std::dec;
       ok = false;
       break;
 

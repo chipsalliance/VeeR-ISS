@@ -786,6 +786,13 @@ HartConfig::applyMemoryConfig(Hart<URV>& hart, bool iccmRw, bool /*verbose*/) co
       hart.configMemoryProtectionGrain(size);
     }
 
+  tag = "enable_misaligned_data";
+  if (config_ -> count(tag))
+    {
+      bool misal = getJsonBoolean(tag, config_ ->at(tag));
+      hart.enableMisalignedData(misal);
+    }
+
   return errors == 0;
 }
 
