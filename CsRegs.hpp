@@ -1048,6 +1048,17 @@ namespace WdRiscv
     void setPmpG(unsigned value)
     { pmpG_ = value; }
 
+    /// Enable user mode.
+    void enableUserMode(bool flag)
+    { userModeEnabled_ = flag; }
+
+    /// Enable supervisor mode.
+    void enableSupervisorMode(bool flag)
+    { supervisorModeEnabled_ = flag; }
+
+    /// Return a legal mstatus value (chanign mpp if necessary).
+    URV legalizeMstatusValue(URV value) const;
+
   private:
 
     unsigned xlen_ = 8*sizeof(URV);
@@ -1074,6 +1085,9 @@ namespace WdRiscv
     URV maxEventId_ = ~URV(0);
 
     URV pmpG_ = 0;  // PMP G value: ln2(pmpGrain) - 2
+
+    bool userModeEnabled_ = false;
+    bool supervisorModeEnabled_ = false;
   };
 
 

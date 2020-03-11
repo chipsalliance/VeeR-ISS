@@ -152,7 +152,30 @@ CsRegs<URV>::read(CsrNumber number, PrivilegeMode mode, URV& value) const
 
   return true;
 }
-  
+
+
+template <typename URV>
+URV
+CsRegs<URV>::legalizeMstatusValue(URV value) const
+{
+  MstatusFields<URV> fields(value);
+  PrivilegeMode mode = PrivilegeMode(fields.bits_.MPP);
+  if (mode == PrivilegeMode::Machine)
+    return value;
+
+  if (mode == PrivilegeMode::Supervisor and not supervisorModeEnabled_)
+    mode = PrivilegeMode::User;
+
+  if (mode == PrivilegeMode::Reserved)
+    mode = PrivilegeMode::User;
+
+  if (mode == PrivilegeMode::User and not userModeEnabled_)
+    mode = PrivilegeMode::Machine;
+
+  fields.bits_.MPP = unsigned(mode);
+  return fields.value_;
+}
+
 
 template <typename URV>
 bool
@@ -169,7 +192,10 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
     return false; // Debug-mode register is not accessible by a CSR instruction.
 
   if (isPmpaddrLocked(number))
-    return true;  // Writing a locked PMPADDR register has no effect.
+    {
+      recordWrite(number);
+      return true;  // Writing a locked PMPADDR register has no effect.
+    }
 
   // fflags and frm are part of fcsr
   if (number == CsrNumber::FFLAGS or number == CsrNumber::FRM or
@@ -214,6 +240,8 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
       peek(number, prev);
       value = legalizePmpcfgValue(prev, value);
     }
+  else if (number == CsrNumber::MSTATUS)
+    value = legalizeMstatusValue(value);
 
   csr->write(value);
   recordWrite(number);
@@ -1019,6 +1047,8 @@ CsRegs<URV>::poke(CsrNumber number, URV value)
       peek(number, prev);
       value = legalizePmpcfgValue(prev, value);
     }
+  else if (number == CsrNumber::MSTATUS)
+    value = legalizeMstatusValue(value);
 
   csr->poke(value);
 

@@ -1049,6 +1049,14 @@ namespace WdRiscv
     /// be a power of 2 greater than or equal to 4).
     bool configMemoryProtectionGrain(uint64_t size);
 
+    /// Enable user mode.
+    void enableUserMode(bool flag)
+    { csRegs_.enableUserMode(flag); }
+
+    /// Enable supervisor mode.
+    void enableSupervisorMode(bool flag)
+    { csRegs_.enableSupervisorMode(flag); }
+
   protected:
 
     /// Helper to reset: Return count of implemented PMP registers.
