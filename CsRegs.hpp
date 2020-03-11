@@ -98,7 +98,7 @@ namespace WdRiscv
       TRIGGER_HIT = 1,
 
       // Cause = LOAD_ADDR_MISAL
-      LOAD_MISAL_REGION_CROSS = 0xa,
+      LOAD_MISAL_REGION_CROSS = 2,
       LOAD_MISAL_IO = 1,
 
       // Cause = LOAD_ACC_FAULT
@@ -114,7 +114,7 @@ namespace WdRiscv
       LOAD_ACC_PRECISE = 9,  // precise bus error
 
       // Cause = STORE_ADDR_MISAL
-      STORE_MISAL_REGION_CROSS = 0xa,
+      STORE_MISAL_REGION_CROSS = 0x2,
       STORE_MISAL_IO = 1,
 
       // Cause = STORE_ACC_FAULT
