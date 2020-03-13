@@ -1661,6 +1661,17 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
       if (loadQueueEnabled_)
 	putInLoadQueue(ldSize, addr, rd, prevRdVal);
 
+      if (hasActiveTrigger())
+        {
+          TriggerTiming timing = TriggerTiming::Before;
+          bool isLoad = true;
+          if (ldStDataTriggerHit(uval, timing, isLoad, isInterruptEnabled()))
+            {
+              triggerTripped_ = true;
+              return false;
+            }
+        }
+
       intRegs_.write(rd, value);
       return true;  // Success.
     }

@@ -189,8 +189,11 @@ namespace WdRiscv
 	  // attempted, we turn off the exec.
 	  if (Select(data1_.mcontrol_.select_) == Select::MatchData)
 	    {
+#if 0
+              // This needs to be be controlled by a config parameter.
 	      if (data1_.mcontrol_.load_)
 		data1_.mcontrol_.load_ = false;
+#endif
 	      if (data1_.mcontrol_.execute_)
 		data1_.mcontrol_.execute_ = false;
 	    }
