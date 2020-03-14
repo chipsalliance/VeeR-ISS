@@ -1618,7 +1618,7 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
   if (hasActiveTrigger())
     {
       if (ldStAddrTriggerHit(addr, TriggerTiming::Before, true /*isLoad*/,
-			     isInterruptEnabled()))
+                             privMode_, isInterruptEnabled()))
 	triggerTripped_ = true;
       if (triggerTripped_)
 	return false;
@@ -1665,7 +1665,8 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
         {
           TriggerTiming timing = TriggerTiming::Before;
           bool isLoad = true;
-          if (ldStDataTriggerHit(uval, timing, isLoad, isInterruptEnabled()))
+          if (ldStDataTriggerHit(uval, timing, isLoad, privMode_,
+                                 isInterruptEnabled()))
             {
               triggerTripped_ = true;
               return false;
@@ -1747,7 +1748,8 @@ Hart<URV>::store(unsigned rs1, URV base, URV addr, STORE_TYPE storeVal)
   bool hasTrig = hasActiveTrigger();
   TriggerTiming timing = TriggerTiming::Before;
   bool isLd = false;  // Not a load.
-  if (hasTrig and ldStAddrTriggerHit(addr, timing, isLd, isInterruptEnabled()))
+  if (hasTrig and ldStAddrTriggerHit(addr, timing, isLd, privMode_,
+                                     isInterruptEnabled()))
     triggerTripped_ = true;
 
   // Determine if a store exception is possible.
@@ -1758,7 +1760,8 @@ Hart<URV>::store(unsigned rs1, URV base, URV addr, STORE_TYPE storeVal)
 
   // Consider store-data  trigger
   if (hasTrig and cause == ExceptionCause::NONE)
-    if (ldStDataTriggerHit(maskedVal, timing, isLd, isInterruptEnabled()))
+    if (ldStDataTriggerHit(maskedVal, timing, isLd, privMode_,
+                           isInterruptEnabled()))
       triggerTripped_ = true;
   if (triggerTripped_)
     return false;
@@ -3861,9 +3864,9 @@ Hart<URV>::fetchInstWithTrigger(URV addr, uint32_t& inst, FILE* file)
 {
   // Process pre-execute address trigger and fetch instruction.
   bool hasTrig = hasActiveInstTrigger();
-  triggerTripped_ = hasTrig && instAddrTriggerHit(addr,
-                                                  TriggerTiming::Before,
-                                                  isInterruptEnabled());
+  triggerTripped_ = (hasTrig and
+                     instAddrTriggerHit(addr, TriggerTiming::Before,
+                                        privMode_, isInterruptEnabled()));
   // Fetch instruction.
   bool fetchOk = true;
   if (triggerTripped_)
@@ -3893,6 +3896,7 @@ Hart<URV>::fetchInstWithTrigger(URV addr, uint32_t& inst, FILE* file)
 
   // Process pre-execute opcode trigger.
   if (hasTrig and instOpcodeTriggerHit(inst, TriggerTiming::Before,
+                                       privMode_,
                                        isInterruptEnabled()))
     triggerTripped_ = true;
 
@@ -4003,8 +4007,8 @@ Hart<URV>::untilAddress(URV address, FILE* traceFile)
 	      clearTraceData();
 	    }
 
-	  bool icountHit = (enableTriggers_ and isInterruptEnabled() and
-			    icountTriggerHit());
+	  bool icountHit = (enableTriggers_ and
+			    icountTriggerHit(privMode_, isInterruptEnabled()));
 	  if (icountHit)
 	    if (takeTriggerAction(traceFile, pc_, pc_, instCounter_, false))
 	      return true;
@@ -4459,8 +4463,8 @@ Hart<URV>::singleStep(FILE* traceFile)
 	    invalidateInLoadQueue(regIx, entry->isDivide());
 	}
 
-      bool icountHit = (enableTriggers_ and isInterruptEnabled() and
-			icountTriggerHit());
+      bool icountHit = (enableTriggers_ and 
+			icountTriggerHit(privMode_, isInterruptEnabled()));
       if (icountHit)
 	{
 	  takeTriggerAction(traceFile, pc_, pc_, instCounter_, false);
@@ -6646,7 +6650,7 @@ Hart<URV>::amoLoad32(uint32_t rs1, URV& value)
   if (hasActiveTrigger())
     {
       if (ldStAddrTriggerHit(addr, TriggerTiming::Before, false /*isLoad*/,
-			     isInterruptEnabled()))
+			     privMode_, isInterruptEnabled()))
 	triggerTripped_ = true;
     }
 
@@ -6690,7 +6694,7 @@ Hart<URV>::amoLoad64(uint32_t rs1, URV& value)
   if (hasActiveTrigger())
     {
       if (ldStAddrTriggerHit(addr, TriggerTiming::Before, false /*isLoad*/,
-			     isInterruptEnabled()))
+			     privMode_, isInterruptEnabled()))
 	triggerTripped_ = true;
     }
 
@@ -8075,7 +8079,7 @@ Hart<URV>::execFlw(const DecodedInst* di)
   if (hasActiveTrigger())
     {
       if (ldStAddrTriggerHit(addr, TriggerTiming::Before, true /*isLoad*/,
-			     isInterruptEnabled()))
+			     privMode_, isInterruptEnabled()))
 	triggerTripped_ = true;
       if (triggerTripped_)
 	return;
@@ -9069,7 +9073,7 @@ Hart<URV>::execFld(const DecodedInst* di)
   if (hasActiveTrigger())
     {
       if (ldStAddrTriggerHit(addr, TriggerTiming::Before, true /*isLoad*/,
-			     isInterruptEnabled()))
+			     privMode_, isInterruptEnabled()))
 	triggerTripped_ = true;
       if (triggerTripped_)
 	return;
@@ -10009,7 +10013,8 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1)
       typedef TriggerTiming Timing;
 
       bool isLd = true;
-      if (ldStAddrTriggerHit(addr, Timing::Before, isLd, isInterruptEnabled()))
+      if (ldStAddrTriggerHit(addr, Timing::Before, isLd,
+                             privMode_, isInterruptEnabled()))
 	triggerTripped_ = true;
       if (triggerTripped_)
 	return false;
@@ -10107,7 +10112,8 @@ Hart<URV>::storeConditional(unsigned rs1, URV addr, STORE_TYPE storeVal)
   TriggerTiming timing = TriggerTiming::Before;
   bool isLoad = false;
   if (hasTrig)
-    if (ldStAddrTriggerHit(addr, timing, isLoad, isInterruptEnabled()))
+    if (ldStAddrTriggerHit(addr, timing, isLoad, privMode_,
+                           isInterruptEnabled()))
       triggerTripped_ = true;
 
   // Misaligned store causes an exception.
@@ -10133,7 +10139,8 @@ Hart<URV>::storeConditional(unsigned rs1, URV addr, STORE_TYPE storeVal)
 
   // If no exception: consider store-data  trigger
   if (cause == ExceptionCause::NONE and hasTrig)
-    if (ldStDataTriggerHit(storeVal, timing, isLoad, isInterruptEnabled()))
+    if (ldStDataTriggerHit(storeVal, timing, isLoad, privMode_,
+                           isInterruptEnabled()))
       triggerTripped_ = true;
   if (triggerTripped_)
     return false;
