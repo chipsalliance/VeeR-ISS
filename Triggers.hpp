@@ -286,9 +286,9 @@ namespace WdRiscv
     bool isEnabled() const
     {
       if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
-	return data1_.mcontrol_.m_;
+	return data1_.mcontrol_.m_ or data1_.mcontrol_.s_ or data1_.mcontrol_.u_;
       if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
-	return data1_.icount_.m_;
+	return data1_.icount_.m_ or data1_.icount_.s_ or data1_.icount_.u_;
       return false;
     }
 
