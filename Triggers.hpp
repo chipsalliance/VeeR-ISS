@@ -22,6 +22,7 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include "PrivilegeMode.hpp"
 
 namespace WdRiscv
 {
@@ -189,8 +190,11 @@ namespace WdRiscv
 	  // attempted, we turn off the exec.
 	  if (Select(data1_.mcontrol_.select_) == Select::MatchData)
 	    {
+#if 0
+              // This needs to be be controlled by a config parameter.
 	      if (data1_.mcontrol_.load_)
 		data1_.mcontrol_.load_ = false;
+#endif
 	      if (data1_.mcontrol_.execute_)
 		data1_.mcontrol_.execute_ = false;
 	    }
@@ -282,9 +286,9 @@ namespace WdRiscv
     bool isEnabled() const
     {
       if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
-	return data1_.mcontrol_.m_;
+	return data1_.mcontrol_.m_ or data1_.mcontrol_.s_ or data1_.mcontrol_.u_;
       if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
-	return data1_.icount_.m_;
+	return data1_.icount_.m_ or data1_.icount_.s_ or data1_.icount_.u_;
       return false;
     }
 
@@ -319,33 +323,48 @@ namespace WdRiscv
     /// Return true if this trigger is enabled for loads (or stores if
     /// isLoad is false), for addresses, for the given timing and if
     /// it matches the given data address.  Return false otherwise.
-    bool matchLdStAddr(URV address, TriggerTiming timing, bool isLoad) const;
+    bool matchLdStAddr(URV address, TriggerTiming timing, bool isLoad,
+                       PrivilegeMode mode) const;
 
     /// Return true if this trigger is enabled for loads (or stores if
     /// isLoad is false), for data, for the given timing and if it
     /// matches the given value address.  Return false otherwise.
-    bool matchLdStData(URV value, TriggerTiming timing, bool isLoad) const;
+    bool matchLdStData(URV value, TriggerTiming timing, bool isLoad,
+                       PrivilegeMode mode) const;
 
     /// Return true if this trigger is enabled for instruction
     /// addresses (execution), for the given timing and if it matches
     /// the given address. Return false otherwise.
-    bool matchInstAddr(URV address, TriggerTiming timing) const;
+    bool matchInstAddr(URV address, TriggerTiming timing,
+                       PrivilegeMode mode) const;
 
     /// Return true if this trigger is enabled for instruction opcodes
     /// (execution), for the given timing and if it matches the given
     /// opcode.  Return false otherwise.
-    bool matchInstOpcode(URV opcode, TriggerTiming timing) const;
+    bool matchInstOpcode(URV opcode, TriggerTiming timing,
+                         PrivilegeMode mode) const;
 
     /// If this trigger is enabled and is of type icount, then make it
     /// count down returning true if its value becomes zero. Return
     /// false otherwise.
-    bool instCountdown()
+    bool instCountdown(PrivilegeMode mode)
     {
       if (TriggerType(data1_.data1_.type_) != TriggerType::InstCount)
 	return false;  // Not an icount trigger.
       Icount<URV>& icount = data1_.icount_;
-      if (not icount.m_)
+
+      if (mode == PrivilegeMode::Machine and not icount.m_)
 	return false;  // Trigger is not enabled.
+
+      if (mode == PrivilegeMode::Supervisor and not icount.s_)
+	return false;  // Trigger is not enabled.
+
+      if (mode == PrivilegeMode::User and not icount.u_)
+	return false;  // Trigger is not enabled.
+
+      if (mode == PrivilegeMode::Reserved)
+        return false;
+
       icount.count_--;
       return icount.count_ == 0;
     }
@@ -583,16 +602,20 @@ namespace WdRiscv
     /// the triggers in that chain. If the trigger action is
     /// contingent on interrupts being enabled (ie == true), then the
     /// trigger will not trip even if its condition is satisfied.
-    bool ldStAddrTriggerHit(URV address, TriggerTiming, bool isLoad, bool ie);
+    bool ldStAddrTriggerHit(URV address, TriggerTiming, bool isLoad,
+                            PrivilegeMode mode, bool ie);
 
     /// Similar to ldStAddrTriggerHit but for data match.
-    bool ldStDataTriggerHit(URV value, TriggerTiming, bool isLoad, bool ie);
+    bool ldStDataTriggerHit(URV value, TriggerTiming, bool isLoad,
+                            PrivilegeMode mode, bool ie);
 
     /// Similar to ldStAddrTriggerHit but for instruction address.
-    bool instAddrTriggerHit(URV address, TriggerTiming timing, bool ie);
+    bool instAddrTriggerHit(URV address, TriggerTiming timing,
+                            PrivilegeMode mode, bool ie);
 
     /// Similar to instAddrTriggerHit but for instruction opcode.
-    bool instOpcodeTriggerHit(URV opcode, TriggerTiming timing, bool ie);
+    bool instOpcodeTriggerHit(URV opcode, TriggerTiming timing,
+                              PrivilegeMode mode, bool ie);
 
     /// Make every active icount trigger count down unless it was
     /// written by the current instruction. If a count-down register
@@ -601,7 +624,7 @@ namespace WdRiscv
     /// interrupts are disabled), then consider the trigger as having
     /// tripped and set its hit bit to 1. Return true if any icount
     /// trigger trips; otherwise, return false.
-    bool icountTriggerHit(bool interruptEnabled);
+    bool icountTriggerHit(PrivilegeMode mode, bool interruptEnabled);
 
     /// Reset the given trigger with the given data1, data2, and data3
     /// values and corresponding write and poke masks. Values are applied

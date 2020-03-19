@@ -141,7 +141,8 @@ Triggers<URV>::updateChainHitBit(Trigger<URV>& trigger)
 template <typename URV>
 bool
 Triggers<URV>::ldStAddrTriggerHit(URV address, TriggerTiming timing,
-				  bool isLoad, bool interruptEnabled)
+				  bool isLoad, PrivilegeMode mode,
+                                  bool interruptEnabled)
 {
   bool hit = false;
   for (auto& trigger : triggers_)
@@ -149,7 +150,7 @@ Triggers<URV>::ldStAddrTriggerHit(URV address, TriggerTiming timing,
       if (not trigger.isEnterDebugOnHit() and not interruptEnabled)
 	continue;
 
-      if (not trigger.matchLdStAddr(address, timing, isLoad))
+      if (not trigger.matchLdStAddr(address, timing, isLoad, mode))
 	continue;
 
       trigger.setLocalHit(true);
@@ -164,7 +165,7 @@ Triggers<URV>::ldStAddrTriggerHit(URV address, TriggerTiming timing,
 template <typename URV>
 bool
 Triggers<URV>::ldStDataTriggerHit(URV value, TriggerTiming timing, bool isLoad,
-				  bool interruptEnabled)
+				  PrivilegeMode mode, bool interruptEnabled)
 {
   bool hit = false;
   for (auto& trigger : triggers_)
@@ -172,7 +173,7 @@ Triggers<URV>::ldStDataTriggerHit(URV value, TriggerTiming timing, bool isLoad,
       if (not trigger.isEnterDebugOnHit() and not interruptEnabled)
 	continue;
 
-      if (not trigger.matchLdStData(value, timing, isLoad))
+      if (not trigger.matchLdStData(value, timing, isLoad, mode))
 	continue;
 
       trigger.setLocalHit(true);
@@ -188,7 +189,7 @@ Triggers<URV>::ldStDataTriggerHit(URV value, TriggerTiming timing, bool isLoad,
 template <typename URV>
 bool
 Triggers<URV>::instAddrTriggerHit(URV address, TriggerTiming timing,
-				  bool interruptEnabled)
+                                  PrivilegeMode mode, bool interruptEnabled)
 {
   bool hit = false;
   for (auto& trigger : triggers_)
@@ -196,7 +197,7 @@ Triggers<URV>::instAddrTriggerHit(URV address, TriggerTiming timing,
       if (not trigger.isEnterDebugOnHit() and not interruptEnabled)
 	continue;
 
-      if (not trigger.matchInstAddr(address, timing))
+      if (not trigger.matchInstAddr(address, timing, mode))
 	continue;
 
       trigger.setLocalHit(true);
@@ -211,6 +212,7 @@ Triggers<URV>::instAddrTriggerHit(URV address, TriggerTiming timing,
 template <typename URV>
 bool
 Triggers<URV>::instOpcodeTriggerHit(URV opcode, TriggerTiming timing,
+                                    PrivilegeMode mode,
 				    bool interruptEnabled)
 {
   bool hit = false;
@@ -219,7 +221,7 @@ Triggers<URV>::instOpcodeTriggerHit(URV opcode, TriggerTiming timing,
       if (not trigger.isEnterDebugOnHit() and not interruptEnabled)
 	continue;
 
-      if (not trigger.matchInstOpcode(opcode, timing))
+      if (not trigger.matchInstOpcode(opcode, timing, mode))
 	continue;
 
       trigger.setLocalHit(true);
@@ -234,7 +236,7 @@ Triggers<URV>::instOpcodeTriggerHit(URV opcode, TriggerTiming timing,
 
 template <typename URV>
 bool
-Triggers<URV>::icountTriggerHit(bool interruptEnabled)
+Triggers<URV>::icountTriggerHit(PrivilegeMode mode, bool interruptEnabled)
 {
   bool hit = false;
 
@@ -246,7 +248,7 @@ Triggers<URV>::icountTriggerHit(bool interruptEnabled)
       if (trig.isModified())
 	continue; // Trigger was written by current instruction.
 
-      if (not trig.instCountdown())
+      if (not trig.instCountdown(mode))
 	continue;
 
       hit = true;
@@ -422,16 +424,27 @@ Triggers<URV>::defineChainBounds()
 
 template <typename URV>
 bool
-Trigger<URV>::matchLdStAddr(URV address, TriggerTiming timing, bool isLoad) const
+Trigger<URV>::matchLdStAddr(URV address, TriggerTiming timing, bool isLoad,
+                            PrivilegeMode mode) const
 {
   if (TriggerType(data1_.data1_.type_) != TriggerType::AddrData)
     return false;  // Not an address trigger.
 
-  if (not data1_.mcontrol_.m_)
+  const Mcontrol<URV>& ctl = data1_.mcontrol_;
+
+  if (mode == PrivilegeMode::Machine and not ctl.m_)
+    return false;  // Not enabled;
+
+  if (mode == PrivilegeMode::Supervisor and not ctl.s_)
+    return false;  // Not enabled;
+
+  if (mode == PrivilegeMode::User and not ctl.u_)
+    return false;  // Not enabled;
+
+  if (mode == PrivilegeMode::Reserved)
     return false;  // Not enabled;
 
   bool isStore = not isLoad;
-  const Mcontrol<URV>& ctl = data1_.mcontrol_;
 
   if (TriggerTiming(ctl.timing_) == timing and
       Select(ctl.select_) == Select::MatchAddress and
@@ -444,16 +457,27 @@ Trigger<URV>::matchLdStAddr(URV address, TriggerTiming timing, bool isLoad) cons
 
 template <typename URV>
 bool
-Trigger<URV>::matchLdStData(URV value, TriggerTiming timing, bool isLoad) const
+Trigger<URV>::matchLdStData(URV value, TriggerTiming timing, bool isLoad,
+                            PrivilegeMode mode) const
 {
   if (TriggerType(data1_.data1_.type_) != TriggerType::AddrData)
     return false;  // Not an address trigger.
 
-  if (not data1_.mcontrol_.m_)
+  const Mcontrol<URV>& ctl = data1_.mcontrol_;
+
+  if (mode == PrivilegeMode::Machine and not ctl.m_)
+    return false;  // Not enabled;
+
+  if (mode == PrivilegeMode::Supervisor and not ctl.s_)
+    return false;  // Not enabled;
+
+  if (mode == PrivilegeMode::User and not ctl.u_)
+    return false;  // Not enabled;
+
+  if (mode == PrivilegeMode::Reserved)
     return false;  // Not enabled;
 
   bool isStore = not isLoad;
-  const Mcontrol<URV>& ctl = data1_.mcontrol_;
 
   if (TriggerTiming(ctl.timing_) == timing and
       Select(ctl.select_) == Select::MatchData and
@@ -507,15 +531,25 @@ Trigger<URV>::doMatch(URV item) const
 
 template <typename URV>
 bool
-Trigger<URV>::matchInstAddr(URV address, TriggerTiming timing) const
+Trigger<URV>::matchInstAddr(URV address, TriggerTiming timing,
+                            PrivilegeMode mode) const
 {
   if (TriggerType(data1_.data1_.type_) != TriggerType::AddrData)
     return false;  // Not an address trigger.
 
-  if (not data1_.mcontrol_.m_)
+  const Mcontrol<URV>& ctl = data1_.mcontrol_;
+
+  if (mode == PrivilegeMode::Machine and not ctl.m_)
     return false;  // Not enabled;
 
-  const Mcontrol<URV>& ctl = data1_.mcontrol_;
+  if (mode == PrivilegeMode::Supervisor and not ctl.s_)
+    return false;  // Not enabled;
+
+  if (mode == PrivilegeMode::User and not ctl.u_)
+    return false;  // Not enabled;
+
+  if (mode == PrivilegeMode::Reserved)
+    return false;  // Not enabled;
 
   if (TriggerTiming(ctl.timing_) == timing and
       Select(ctl.select_) == Select::MatchAddress and
@@ -528,15 +562,25 @@ Trigger<URV>::matchInstAddr(URV address, TriggerTiming timing) const
 
 template <typename URV>
 bool
-Trigger<URV>::matchInstOpcode(URV opcode, TriggerTiming timing) const
+Trigger<URV>::matchInstOpcode(URV opcode, TriggerTiming timing,
+                              PrivilegeMode mode) const
 {
   if (TriggerType(data1_.data1_.type_) != TriggerType::AddrData)
     return false;  // Not an address trigger.
 
-  if (not data1_.mcontrol_.m_)
+  const Mcontrol<URV>& ctl = data1_.mcontrol_;
+
+  if (mode == PrivilegeMode::Machine and not ctl.m_)
     return false;  // Not enabled;
 
-  const Mcontrol<URV>& ctl = data1_.mcontrol_;
+  if (mode == PrivilegeMode::Supervisor and not ctl.s_)
+    return false;  // Not enabled;
+
+  if (mode == PrivilegeMode::User and not ctl.u_)
+    return false;  // Not enabled;
+
+  if (mode == PrivilegeMode::Reserved)
+    return false;  // Not enabled;
 
   if (TriggerTiming(ctl.timing_) == timing and
       Select(ctl.select_) == Select::MatchData and

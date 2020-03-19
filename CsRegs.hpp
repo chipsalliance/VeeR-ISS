@@ -140,10 +140,6 @@ namespace WdRiscv
       EBREAK = 1, TRIGGER = 2, DEBUGGER = 3, STEP = 4
     };
 
-  /// Privilige mode.
-  enum class PrivilegeMode : unsigned { User = 0, Reserved = 2, Supervisor = 1,
-                                        Machine = 3 };
-
   /// Control and status register number.
   enum class CsrNumber
     {
@@ -818,36 +814,40 @@ namespace WdRiscv
     /// load/store trigger that matches. If a matching load/store
     /// trigger causes its chain to trip, then set the hit bit of all
     /// the triggers in that chain.
-    bool ldStAddrTriggerHit(URV addr, TriggerTiming t, bool isLoad, bool ie)
+    bool ldStAddrTriggerHit(URV addr, TriggerTiming t, bool isLoad,
+                            PrivilegeMode mode, bool ie)
     {
-      bool hit = triggers_.ldStAddrTriggerHit(addr, t, isLoad, ie);
+      bool hit = triggers_.ldStAddrTriggerHit(addr, t, isLoad, mode, ie);
       if (hit)
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
       return hit;
     }
 
     /// Similar to ldStAddrTriggerHit but for data match.
-    bool ldStDataTriggerHit(URV addr, TriggerTiming t, bool isLoad, bool ie)
+    bool ldStDataTriggerHit(URV addr, TriggerTiming t, bool isLoad,
+                            PrivilegeMode mode, bool ie)
     {
-      bool hit = triggers_.ldStDataTriggerHit(addr, t, isLoad, ie);
+      bool hit = triggers_.ldStDataTriggerHit(addr, t, isLoad, mode, ie);
       if (hit)
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
       return hit;
     }
 
     /// Similar to ldStAddrTriggerHit but for instruction address.
-    bool instAddrTriggerHit(URV addr, TriggerTiming t, bool ie)
+    bool instAddrTriggerHit(URV addr, TriggerTiming t, PrivilegeMode mode,
+                            bool ie)
     {
-      bool hit = triggers_.instAddrTriggerHit(addr, t, ie);
+      bool hit = triggers_.instAddrTriggerHit(addr, t, mode, ie);
       if (hit)
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
       return hit;
     }
 
     /// Similar to instAddrTriggerHit but for instruction opcode.
-    bool instOpcodeTriggerHit(URV opcode, TriggerTiming t, bool ie)
+    bool instOpcodeTriggerHit(URV opcode, TriggerTiming t, PrivilegeMode mode,
+                              bool ie)
     {
-      bool hit = triggers_.instOpcodeTriggerHit(opcode, t, ie);
+      bool hit = triggers_.instOpcodeTriggerHit(opcode, t, mode, ie);
       if (hit)
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
       return hit;
@@ -858,9 +858,9 @@ namespace WdRiscv
     /// counted-down register if its value becomes zero. Return true
     /// if any counted-down register reaches zero; otherwise, return
     /// false.
-    bool icountTriggerHit(bool ie)
+    bool icountTriggerHit(PrivilegeMode mode, bool ie)
     {
-      bool hit = triggers_.icountTriggerHit(ie);
+      bool hit = triggers_.icountTriggerHit(mode, ie);
       if (hit)
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDTA1 changed.
       return hit;

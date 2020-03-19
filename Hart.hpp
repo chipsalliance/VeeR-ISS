@@ -1283,31 +1283,35 @@ namespace WdRiscv
     /// Return true if one or more load-address/store-address trigger
     /// has a hit on the given address and given timing
     /// (before/after). Set the hit bit of all the triggers that trip.
-    bool ldStAddrTriggerHit(URV addr, TriggerTiming t, bool isLoad, bool ie)
-    { return csRegs_.ldStAddrTriggerHit(addr, t, isLoad, ie); }
+    bool ldStAddrTriggerHit(URV addr, TriggerTiming t, bool isLoad,
+                            PrivilegeMode mode, bool ie)
+    { return csRegs_.ldStAddrTriggerHit(addr, t, isLoad, mode, ie); }
 
     /// Return true if one or more load-address/store-address trigger
     /// has a hit on the given data value and given timing
     /// (before/after). Set the hit bit of all the triggers that trip.
-    bool ldStDataTriggerHit(URV value, TriggerTiming t, bool isLoad, bool ie)
-    { return csRegs_.ldStDataTriggerHit(value, t, isLoad, ie); }
+    bool ldStDataTriggerHit(URV value, TriggerTiming t, bool isLoad,
+                            PrivilegeMode mode, bool ie)
+    { return csRegs_.ldStDataTriggerHit(value, t, isLoad, mode, ie); }
 
     /// Return true if one or more execution trigger has a hit on the
     /// given address and given timing (before/after). Set the hit bit
     /// of all the triggers that trip.
-    bool instAddrTriggerHit(URV addr, TriggerTiming t, bool ie)
-    { return csRegs_.instAddrTriggerHit(addr, t, ie); }
+    bool instAddrTriggerHit(URV addr, TriggerTiming t, PrivilegeMode mode,
+                            bool ie)
+    { return csRegs_.instAddrTriggerHit(addr, t, mode, ie); }
 
     /// Return true if one or more execution trigger has a hit on the
     /// given opcode value and given timing (before/after). Set the
     /// hit bit of all the triggers that trip.
-    bool instOpcodeTriggerHit(URV opcode, TriggerTiming t, bool ie)
-    { return csRegs_.instOpcodeTriggerHit(opcode, t, ie); }
+    bool instOpcodeTriggerHit(URV opcode, TriggerTiming t, PrivilegeMode mode,
+                              bool ie)
+    { return csRegs_.instOpcodeTriggerHit(opcode, t, mode, ie); }
 
     /// Make all active icount triggers count down, return true if
     /// any of them counts down to zero.
-    bool icountTriggerHit()
-    { return csRegs_.icountTriggerHit(isInterruptEnabled()); }
+    bool icountTriggerHit(PrivilegeMode mode, bool ie)
+    { return csRegs_.icountTriggerHit(mode, ie); }
 
     /// Return true if this hart has one or more active debug
     /// triggers.
