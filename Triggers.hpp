@@ -185,18 +185,21 @@ namespace WdRiscv
       data1_.value_ = (x & mask) | (data1_.value_ & ~mask);
       if (TriggerType(data1_.mcontrol_.type_) == TriggerType::AddrData)
 	{
-	  // ECHX1: We do not support load-data: If it is attempted, we
-	  // turn off the load. We do no support exec-opcode, if it is
-	  // attempted, we turn off the exec.
+	  // If load-data is not enabled, then turn it off when
+	  // attempted. If exec-opcode is not enabled, then turn it
+	  // off when attempted.
 	  if (Select(data1_.mcontrol_.select_) == Select::MatchData)
 	    {
-#if 0
-              // This needs to be be controlled by a config parameter.
-	      if (data1_.mcontrol_.load_)
-		data1_.mcontrol_.load_ = false;
-#endif
-	      if (data1_.mcontrol_.execute_)
-		data1_.mcontrol_.execute_ = false;
+              if (not enableLoadData_)
+                {
+                  if (data1_.mcontrol_.load_)
+                    data1_.mcontrol_.load_ = false;
+                }
+              if (not enableExecOpcode_)
+                {
+                  if (data1_.mcontrol_.execute_)
+                    data1_.mcontrol_.execute_ = false;
+                }
 	    }
 
 	  // ECHX1: Clearing dmode bit clears action field.
@@ -436,6 +439,14 @@ namespace WdRiscv
       return Action::RaiseBreak;
     }
 
+    /// Enable load-data triggerring (disabled by default).
+    void enableLoadData(bool flag)
+    { enableLoadData_ = flag; }
+
+    /// Enable exec-opcode triggering (disabled by default).
+    void enableExecOpcode(bool flag)
+    { enableExecOpcode_ = flag; }
+
   protected:
 
     void updateCompareMask()
@@ -520,6 +531,8 @@ namespace WdRiscv
     bool modified_ = false;
 
     size_t chainBegin_ = 0, chainEnd_ = 0;
+    bool enableLoadData_ = false;
+    bool enableExecOpcode_ = false;
   };
 
 
@@ -706,6 +719,14 @@ namespace WdRiscv
     /// by odd) triggers.
     void setEvenOddChaining(bool flag)
     { chainPairs_ = flag; }
+
+    /// Enable load-data triggerring (disabled by default).
+    void enableLoadData(bool flag)
+    { for ( auto& trig : triggers_) trig.enableLoadData(flag); }
+
+    /// Enable exec-opcode triggering (disabled by default).
+    void enableExecOpcode(bool flag)
+    { for ( auto& trig : triggers_) trig.enableExecOpcode(flag); }
 
     /// Reset all triggers.
     void reset();

@@ -772,6 +772,14 @@ namespace WdRiscv
       return csr->isImplemented() ? csr : nullptr;
     }
 
+    /// Enable/disable load-data debug triggerring (disabled by default).
+    void configLoadDataTrigger(bool flag)
+    { triggers_.enableLoadData(flag); }
+
+    /// Enable/disable exec-opcode triggering (disabled by default).
+    void configExecOpcodeTrigger(bool flag)
+    { triggers_.enableExecOpcode(flag); }
+
     /// Restrict chaining only to pairs of consecutive (even-numbered followed
     /// by odd) triggers.
     void configEvenOddTriggerChaining(bool flag)

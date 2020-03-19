@@ -254,6 +254,14 @@ namespace WdRiscv
 				   wm1, wm2, wm3, pm1, pm2, pm3);
     }
 
+    /// Enable/disable load-data debug triggerring (disabled by default).
+    void configLoadDataTrigger(bool flag)
+    { csRegs_.configLoadDataTrigger(flag); }
+
+    /// Enable/disable exec-opcode triggering (disabled by default).
+    void configExecOpcodeTrigger(bool flag)
+    { csRegs_.configExecOpcodeTrigger(flag); }
+
     /// Restrict chaining only to pairs of consecutive (even-numbered followed
     /// by odd) triggers.
     void configEvenOddTriggerChaining(bool flag)

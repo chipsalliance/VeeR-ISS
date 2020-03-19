@@ -985,6 +985,20 @@ HartConfig::applyConfig(Hart<URV>& hart, bool verbose) const
       hart.configEvenOddTriggerChaining(chainPairs);
     }
 
+  tag = "load_data_trigger";
+  if (config_ -> count(tag))
+    {
+      bool flag = getJsonBoolean(tag, config_ -> at(tag));
+      hart.configLoadDataTrigger(flag);
+    }
+
+  tag = "exec_opcode_trigger";
+  if (config_ -> count(tag))
+    {
+      bool flag = getJsonBoolean(tag, config_ -> at(tag));
+      hart.configExecOpcodeTrigger(flag);
+    }
+
   unsigned errors = 0;
 
   tag = "num_mmode_perf_regs";
