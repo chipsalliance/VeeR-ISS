@@ -442,7 +442,8 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
 	("fastext", po::bool_switch(&args.fastExt),
 	 "Enable fast external interrupt dispatch.")
 	("unmappedelfok", po::bool_switch(&args.unmappedElfOk),
-	 "Enable checking fast external interrupt dispatch.")
+	 "Do not flag as error ELF file sections targeting unmapped "
+         " memory.")
 	("alarm", po::value<std::string>(),
 	 "External interrupt period in micro-seconds: Convert arg to an "
          "instruction count, n, assuming a 1ghz clock, and force an external "
