@@ -2115,7 +2115,7 @@ Hart<URV>::fetchInst(URV addr, uint32_t& inst)
       Pmp pmp = pmpManager_.getPmp(addr + 2);
       if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
         {
-          auto secCause = SecondaryCause::INST_MEM_PROTECTION;
+          auto secCause = SecondaryCause::INST_PMP;
           initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr + 2, secCause);
           return false;
         }
@@ -3955,7 +3955,10 @@ Hart<URV>::untilAddress(URV address, FILE* traceFile)
 	  ++instCounter_;
 
           if (not fetchInstWithTrigger(pc_, inst, traceFile))
-            continue;  // Next instruction in trap handler.
+            {
+	      clearTraceData();
+              continue;  // Next instruction in trap handler.
+            }
 
 	  // Decode unless match in decode cache.
 	  uint32_t ix = (pc_ >> 1) & decodeCacheMask_;
