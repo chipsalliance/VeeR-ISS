@@ -1194,6 +1194,13 @@ Hart<URV>::reportInstructionFrequency(FILE* file) const
 	  fprintf(file, "  +imm  min:%d max:%d\n", prof.minImm_, prof.maxImm_);
 	  printSignedHisto("+hist ", prof.immHisto_, file);
 	}
+
+      if (prof.user_)
+        fprintf(file, "  +user %ld\n", prof.user_);
+      if (prof.supervisor_)
+        fprintf(file, "  +supervisor %ld\n", prof.supervisor_);
+      if (prof.machine_)
+        fprintf(file, "  +machine %ld\n", prof.machine_);
     }
 }
 
@@ -3338,6 +3345,12 @@ Hart<URV>::accumulateInstructionStats(const DecodedInst& di)
   InstProfile& prof = instProfileVec_.at(size_t(id));
 
   prof.freq_++;
+  if (lastPriv_ == PrivilegeMode::User)
+    prof.user_++;
+  else if (lastPriv_ == PrivilegeMode::Supervisor)
+    prof.supervisor_++;
+  else if (lastPriv_ == PrivilegeMode::Machine)
+    prof.machine_++;
 
   bool hasRd = false;
 
@@ -3969,6 +3982,7 @@ Hart<URV>::untilAddress(URV address, FILE* traceFile)
 
           // Increment pc and execute instruction
 	  pc_ += di->instSize();
+          lastPriv_ = privMode_;
 	  execute(di);
 
 	  ++cycleCount_;
@@ -4402,6 +4416,7 @@ Hart<URV>::singleStep(FILE* traceFile)
 
       // Increment pc and execute instruction
       pc_ += di.instSize();
+      lastPriv_ = privMode_;
       execute(&di);
 
       ++cycleCount_;

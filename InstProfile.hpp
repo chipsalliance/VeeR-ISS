@@ -29,7 +29,10 @@ namespace WdRiscv
   struct InstProfile
   {
     InstId id_ = InstId::illegal;
-    uint64_t freq_ = 0;  // Number of times instruction was executed
+    uint64_t freq_ = 0;       // Number of times instruction was executed
+    uint64_t user_ = 0;       // Number of times exeuted in user mode.
+    uint64_t supervisor_ = 0; // Number of times exeuted in supervisor mode.
+    uint64_t machine_ = 0;    // Number of times exeuted in machine mode.
 
     // One entry per integer register: Count of times register was used
     // by instruction as rd.

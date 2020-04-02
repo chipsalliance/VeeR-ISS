@@ -1936,6 +1936,8 @@ namespace WdRiscv
     bool loadQueueEnabled_ = false;
 
     PrivilegeMode privMode_ = PrivilegeMode::Machine;   // Privilege mode.
+
+    PrivilegeMode lastPriv_ = PrivilegeMode::Machine;   // Before current inst.
     PrivilegeMode mstatusMpp_ = PrivilegeMode::Machine; // Cached mstatus.mpp.
     bool mstatusMprv_ = false;                          // Cached mstatus.mprv.
 
