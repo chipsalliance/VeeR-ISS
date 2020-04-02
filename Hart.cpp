@@ -1500,8 +1500,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
   // Physical memory protection.
   if (pmpEnabled_)
     {
-      // TODO FIX : Determine secondary cause.
-      Pmp pmp = pmpManager_.getPmp(addr);
+      Pmp pmp = pmpManager_.accessPmp(addr);
       if (not pmp.isRead(privMode_, mstatusMpp_, mstatusMprv_))
         {
           secCause = SecondaryCause::LOAD_ACC_PMP;
@@ -2064,7 +2063,7 @@ Hart<URV>::fetchInst(URV addr, uint32_t& inst)
     {
       if (pmpEnabled_)
         {
-          Pmp pmp = pmpManager_.getPmp(addr);
+          Pmp pmp = pmpManager_.accessPmp(addr);
           if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
             {
               auto secCause = SecondaryCause::INST_PMP;
@@ -2086,7 +2085,7 @@ Hart<URV>::fetchInst(URV addr, uint32_t& inst)
 
   if (pmpEnabled_)
     {
-      Pmp pmp = pmpManager_.getPmp(addr);
+      Pmp pmp = pmpManager_.accessPmp(addr);
       if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
         {
           auto secCause = SecondaryCause::INST_PMP;
@@ -2112,7 +2111,7 @@ Hart<URV>::fetchInst(URV addr, uint32_t& inst)
 
   if (pmpEnabled_)
     {
-      Pmp pmp = pmpManager_.getPmp(addr + 2);
+      Pmp pmp = pmpManager_.accessPmp(addr + 2);
       if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
         {
           auto secCause = SecondaryCause::INST_PMP;
@@ -7266,7 +7265,7 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
   // Physical memory protection.
   if (pmpEnabled_)
     {
-      Pmp pmp = pmpManager_.getPmp(addr);
+      Pmp pmp = pmpManager_.accessPmp(addr);
       if (not pmp.isWrite(privMode_, mstatusMpp_, mstatusMprv_))
         {
           secCause = SecondaryCause::STORE_ACC_PMP;
@@ -12369,7 +12368,7 @@ Hart<URV>::updateMemoryProtection()
       unsigned pmpIx = count - ix - 1;
       CsrNumber csrn = CsrNumber(num);
       unsigned config = csRegs_.getPmpConfigByteFromPmpAddr(csrn);
-      unsigned aField = (config >> 3) & 3;
+      Pmp::Type type = Pmp::Type((config >> 3) & 3);
       bool lock = config & 0x80;
 
       Pmp::Mode mode = getModeFromPmpconfigByte(config);
@@ -12382,10 +12381,10 @@ Hart<URV>::updateMemoryProtection()
           continue;
         }
 
-      if (aField == 0)
+      if (type == Pmp::Type::Off)
         continue;   // Entry is off.
 
-      if (aField == 1)    // TOR
+      if (type == Pmp::Type::Tor)    // Top of range
         {
           uint64_t low = 0;
           if (pmpIx > 0)
@@ -12402,24 +12401,26 @@ Hart<URV>::updateMemoryProtection()
           high = (high >> pmpG_) << pmpG_;
           high = high << 2;
           if (low < high)
-            pmpManager_.setMode(low, high - 1, mode, pmpIx, lock);
+            pmpManager_.setMode(low, high - 1, type, mode, pmpIx, lock);
           continue;
         }
 
       uint64_t size = 4;
       uint64_t napot = pmpVal;  // Naturally aligned power of 2.
-      if (aField == 3)
+      if (type == Pmp::Type::Napot)  // Naturally algined power of 2.
         {
           unsigned rzi = __builtin_ctz(~pmpVal); // rightmost-zero-bit ix.
           napot = (napot >> rzi) << rzi; // Clear bits below rightmost zero bit.
           size = uint64_t(1) << (rzi + 3);
         }
+      else
+        assert(type == Pmp::Type::Na4);
 
       uint64_t low = napot;
       low = (low >> pmpG_) << pmpG_;
       low = low << 2;
       uint64_t high = low + size;
-      pmpManager_.setMode(low, high - 1, mode, pmpIx, lock);
+      pmpManager_.setMode(low, high - 1, type, mode, pmpIx, lock);
     }
 }
 

@@ -240,7 +240,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 484;
+  unsigned subversion = 485;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -394,7 +394,7 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
          "consoleio is not specified on the command line). Deafult: "
          "\"__whisper_console_io\".")
 	("maxinst,m", po::value<std::string>(),
-	 "Limit executed instruction count to limit.")
+	 "Limit executed instruction count to arg.")
 	("memorysize", po::value<std::string>(),
 	 "Memory size (must be a multiple of 4096).")
 	("interactive,i", po::bool_switch(&args.interactive),

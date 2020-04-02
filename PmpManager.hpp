@@ -35,6 +35,8 @@ namespace WdRiscv
 
     friend class PmpManager;
 
+    enum Type { Off = 0, Tor = 1, Na4 = 2, Napot = 3, _Count = 4 };
+
     enum Mode
       {
        None = 0, Read = 1, Write = 2, Exec = 4, ReadWrite = Read | Write,
@@ -42,8 +44,10 @@ namespace WdRiscv
       };
 
     /// Default constructor: No access allowed.
-    Pmp(Mode m = None, unsigned pmpIx = 0, bool locked = false)
-      : mode_(m), locked_(locked), pmpFree_(false), pmpIx_(pmpIx), word_(false)
+    Pmp(Mode m = None, unsigned pmpIx = 0, bool locked = false,
+        Type type = Type::Off)
+      : mode_(m), type_(type), locked_(locked), pmpFree_(false),
+        pmpIx_(pmpIx), word_(false)
     { }
 
     /// Return true if read (i.e. load instructions) access allowed 
@@ -81,9 +85,17 @@ namespace WdRiscv
     bool operator!= (const Pmp& other) const
     { return mode_ != other.pmpIx_ or pmpIx_ != other.pmpIx_; }
 
+  protected:
+
+    /// Return the index of the PMP entry from which this object was
+    /// created.
+    unsigned pmpIndex() const
+    { return pmpIx_; }
+
   private:
 
     uint8_t mode_ = 0;
+    Type type_    = Type::Off;
     bool locked_    : 1;
     bool pmpFree_   : 1;  // Not covered by any pmp register.
     unsigned pmpIx_ : 5;  // Index of corresponding pmp register.
@@ -105,17 +117,20 @@ namespace WdRiscv
     /// (machine mode does access since it is not checked).
     PmpManager(uint64_t memorySize, uint64_t pageSize);
 
+    /// Destructor.
+    ~PmpManager();
+
     /// Reset: Mark all memory as no access to user/supervisor
     /// (machine mode does have access because it is not checked).
     void reset();
 
-    /// Return the physical memory protection object (pmm) associated
+    /// Return the physical memory protection object (pmp) associated
     /// with the word-aligned word designated by the given
     /// address. Return a no-access object if the given address is out
     /// of memory range. Internally we associate a pmp object with
     /// each page of a region where the first/last address is aligned
     /// with the first/last address of a page. For a region where the
-    /// first/last address is not page-aligned we associate a pma
+    /// first/last address is not page-aligned we associate a pmp
     /// object with each word before/after the first/last page aligned
     /// address.
     Pmp getPmp(uint64_t addr) const
@@ -132,14 +147,38 @@ namespace WdRiscv
       return pmp;
     }
 
+    /// Similar to getPmp but it also updates the access count associated with
+    /// each PMP entry.
+    Pmp accessPmp(uint64_t addr) const
+    {
+      uint64_t ix = getPageIx(addr);
+      if (ix >= pagePmps_.size())
+        return Pmp();
+      Pmp pmp = pagePmps_[ix];
+      if (pmp.word_)
+        {
+          addr = (addr >> 2);  // Get word index.
+          pmp = wordPmps_.at(addr);
+        }
+      accessCount_.at(pmp.pmpIndex())++;
+      typeCount_.at(pmp.type_)++;
+      return pmp;
+    }
+
     /// Set access mode of word-aligned words overlapping given region
     /// for user/supervisor.
-    void setMode(uint64_t addr0, uint64_t addr1, Pmp::Mode mode, unsigned pmpIx,
-                 bool locked);
+    void setMode(uint64_t addr0, uint64_t addr1, Pmp::Type type, Pmp::Mode mode,
+                 unsigned pmpIx, bool locked);
 
     /// Return start address of page containing given address.
     uint64_t getPageStartAddr(uint64_t addr) const
     { return (addr >> pageShift_) << pageShift_; }
+
+    /// Print statistics on the given stream.
+    bool printStats(std::ostream& out) const;
+
+    /// Print statistics on the given file.
+    bool printStats(const std::string& path) const;
 
   private:
 
@@ -169,9 +208,11 @@ namespace WdRiscv
   private:
 
     std::vector<Pmp> pagePmps_;
-    std::unordered_map<uint64_t, Pmp> wordPmps_; // Map word index to pma.
+    std::unordered_map<uint64_t, Pmp> wordPmps_; // Map word index to pmp.
     uint64_t memSize_;
     uint64_t pageSize_ = 4*1024;
     unsigned pageShift_ = 12;
+    mutable std::vector<uint64_t> accessCount_;  // PMP entry access count.
+    mutable std::vector<uint64_t> typeCount_;  // PMP type access count.
   };
 }

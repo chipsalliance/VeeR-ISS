@@ -19,13 +19,15 @@
 #include <iostream>
 #include <cmath>
 #include <cassert>
+#include <fstream>
 #include "PmpManager.hpp"
 
 using namespace WdRiscv;
 
 
 PmpManager::PmpManager(uint64_t memSize, uint64_t pageSize)
-  : memSize_(memSize), pageSize_(pageSize)
+  : memSize_(memSize), pageSize_(pageSize), accessCount_(16),
+    typeCount_(Pmp::Type::_Count)
 {
   assert(memSize >= pageSize);
   assert(pageSize >= 64);
@@ -44,6 +46,12 @@ PmpManager::PmpManager(uint64_t memSize, uint64_t pageSize)
 }
 
 
+PmpManager::~PmpManager()
+{
+  printStats(std::cout);
+}
+
+
 void
 PmpManager::reset()
 {
@@ -54,8 +62,8 @@ PmpManager::reset()
 
 
 void
-PmpManager::setMode(uint64_t a0, uint64_t a1, Pmp::Mode mode, unsigned pmpIx,
-                    bool lock)
+PmpManager::setMode(uint64_t a0, uint64_t a1, Pmp::Type type, Pmp::Mode mode,
+                    unsigned pmpIx, bool lock)
 {
   if (a1 >= memSize_)
     a1 = memSize_ - 1;
@@ -72,7 +80,7 @@ PmpManager::setMode(uint64_t a0, uint64_t a1, Pmp::Mode mode, unsigned pmpIx,
       Pmp prev = getPmp(a0);
       doWord = doWord or prev.word_;
 
-      Pmp pmp(mode, pmpIx, lock);
+      Pmp pmp(mode, pmpIx, lock, type);
 
       if (doWord)
         {
@@ -89,4 +97,44 @@ PmpManager::setMode(uint64_t a0, uint64_t a1, Pmp::Mode mode, unsigned pmpIx,
           a0 += pageSize_;
         }
     }
+}
+
+
+bool
+PmpManager::printStats(std::ostream& out) const
+{
+  out << "PMP entry access count:\n";
+  for (size_t i = 0; i < accessCount_.size(); ++i)
+    out << "  entry " << i << ": " << accessCount_.at(i) << '\n';
+
+  out << "PMP type count:\n";
+  for (size_t i = 0; i < typeCount_.size(); ++i)
+    {
+      out << "  ";
+      switch(i)
+        {
+        case Pmp::Type::Off:   out << "OFF:   "; break;
+        case Pmp::Type::Tor:   out << "TOR:   "; break;
+        case Pmp::Type::Na4:   out << "NA4:   "; break;
+        case Pmp::Type::Napot: out << "NAPOT: "; break;
+        default:               out << "??:    "; break;
+        }
+      out << typeCount_.at(i) << '\n';
+    }
+
+  return true;
+}
+
+
+bool
+PmpManager::printStats(const std::string& path) const
+{
+  std::ofstream out(path);
+  if (not out.good())
+    {
+      std::cerr << "Failed to open file '" << path << "' for output\n";
+      return false;
+    }
+
+  return printStats(out);
 }
