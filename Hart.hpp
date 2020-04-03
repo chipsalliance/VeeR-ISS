@@ -789,6 +789,9 @@ namespace WdRiscv
     /// Print collected trap stats to the given file.
     void reportTrapStat(FILE* file) const;
 
+    /// Print collected physical memory protection stats on the given file.
+    void reportPmpStat(FILE* file) const;
+
     /// Reset trace data (items changed by the execution of an
     /// instruction.)
     void clearTraceData();

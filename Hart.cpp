@@ -1338,6 +1338,16 @@ Hart<URV>::reportTrapStat(FILE* file) const
 
 
 template <typename URV>
+void
+Hart<URV>::reportPmpStat(FILE* file) const
+{
+  std::ostringstream oss;
+  pmpManager_.printStats(oss);
+  fprintf(file, "%s", oss.str().c_str());
+}
+
+
+template <typename URV>
 bool
 Hart<URV>::misalignedAccessCausesException(URV addr, unsigned accessSize,
 					   SecondaryCause& secCause) const
