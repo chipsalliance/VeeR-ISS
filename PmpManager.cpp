@@ -48,7 +48,6 @@ PmpManager::PmpManager(uint64_t memSize, uint64_t pageSize)
 
 PmpManager::~PmpManager()
 {
-  printStats(std::cout);
 }
 
 

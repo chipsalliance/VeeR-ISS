@@ -1514,17 +1514,6 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
         }
     }
 
-  // Physical memory protection.
-  if (pmpEnabled_)
-    {
-      Pmp pmp = pmpManager_.accessPmp(addr);
-      if (not pmp.isRead(privMode_, mstatusMpp_, mstatusMprv_))
-        {
-          secCause = SecondaryCause::LOAD_ACC_PMP;
-          return ExceptionCause::LOAD_ACC_FAULT;
-        }
-    }
-
   // DCCM unmapped or out of MPU range
   bool isReadable = memory_.isAddrReadable(addr);
   if (not isReadable)
@@ -1570,6 +1559,17 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
 	  secCause = SecondaryCause::LOAD_ACC_PIC;
 	  return ExceptionCause::LOAD_ACC_FAULT;
 	}
+    }
+
+  // Physical memory protection.
+  if (pmpEnabled_)
+    {
+      Pmp pmp = pmpManager_.accessPmp(addr);
+      if (not pmp.isRead(privMode_, mstatusMpp_, mstatusMprv_))
+        {
+          secCause = SecondaryCause::LOAD_ACC_PMP;
+          return ExceptionCause::LOAD_ACC_FAULT;
+        }
     }
 
   // Fault dictated by bench.
@@ -6791,22 +6791,28 @@ Hart<URV>::execEbreak(const DecodedInst*)
       return;
     }
 
-  // If in machine mode and DCSR bit ebreakm is set, then enter debug mode.
-  if (privMode_ == PrivilegeMode::Machine)
+  // If in machine/supervisor/user mode and DCSR bit ebreakm/s/u is
+  // set, then enter debug mode.
+  URV dcsrVal = 0;
+  if (peekCsr(CsrNumber::DCSR, dcsrVal))
     {
-      URV dcsrVal = 0;
-      if (peekCsr(CsrNumber::DCSR, dcsrVal))
-	{
-	  if (dcsrVal & (URV(1) << 15))   // Bit ebreakm is on?
-	    {
-	      // The documentation (RISCV external debug support) does
-	      // not say whether or not we set EPC and MTVAL.
-	      enterDebugMode(DebugModeCause::EBREAK, currPc_);
-	      ebreakInstDebug_ = true;
-	      recordCsrWrite(CsrNumber::DCSR);
-	      return;
-	    }
-	}
+      bool ebm = (dcsrVal >> 15) & 1;
+      bool ebs = (dcsrVal >> 13) & 1;
+      bool ebu = (dcsrVal >> 12) & 1;
+
+      bool debug = ( (ebm and privMode_ == PrivilegeMode::Machine) or
+                     (ebs and privMode_ == PrivilegeMode::Supervisor) or
+                     (ebu and privMode_ == PrivilegeMode::User) );
+
+      if (debug)
+        {
+          // The documentation (RISCV external debug support) does
+          // not say whether or not we set EPC and MTVAL.
+          enterDebugMode(DebugModeCause::EBREAK, currPc_);
+          ebreakInstDebug_ = true;
+          recordCsrWrite(CsrNumber::DCSR);
+          return;
+        }
     }
 
   URV savedPc = currPc_;  // Goes into MEPC.
@@ -7287,17 +7293,6 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
       return ExceptionCause::STORE_ACC_FAULT;
     }
 
-  // Physical memory protection.
-  if (pmpEnabled_)
-    {
-      Pmp pmp = pmpManager_.accessPmp(addr);
-      if (not pmp.isWrite(privMode_, mstatusMpp_, mstatusMprv_))
-        {
-          secCause = SecondaryCause::STORE_ACC_PMP;
-          return ExceptionCause::STORE_ACC_FAULT;
-        }
-    }
-
   // DCCM unmapped or out of MPU windows. Invalid PIC access handled later.
   bool writeOk = memory_.checkWrite(addr, storeVal);
   if (not writeOk and not memory_.isAddrInMappedRegs(addr))
@@ -7334,6 +7329,17 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
     {
       secCause = SecondaryCause::STORE_ACC_PIC;
       return ExceptionCause::STORE_ACC_FAULT;
+    }
+
+  // Physical memory protection.
+  if (pmpEnabled_)
+    {
+      Pmp pmp = pmpManager_.accessPmp(addr);
+      if (not pmp.isWrite(privMode_, mstatusMpp_, mstatusMprv_))
+        {
+          secCause = SecondaryCause::STORE_ACC_PMP;
+          return ExceptionCause::STORE_ACC_FAULT;
+        }
     }
 
   // Fault dictated by bench
