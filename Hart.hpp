@@ -846,8 +846,22 @@ namespace WdRiscv
 
     /// Return true if given address is in the data closed coupled
     /// memory of this hart.
-    bool isAddressInDccm(size_t addr) const
-    { return memory_.isAddrInDccm(addr); }
+    bool isAddrInDccm(size_t addr) const
+    { return memory_.pmaMgr_.isAddrInDccm(addr); }
+
+    /// Return true if given address is in the memory mapped registers
+    /// area of this hart.
+    bool isAddrMemMapped(size_t addr) const
+    { return memory_.pmaMgr_.isAddrMemMapped(addr); }
+
+    /// Return true if given address is in a readable page.
+    bool isAddrReadable(size_t addr) const
+    { Pma pma = memory_.pmaMgr_.getPma(addr); return pma.isRead(); }
+
+    /// Return true if page of given address is in instruction closed
+    /// coupled memory.
+    bool isAddrInIccm(size_t addr) const
+    { Pma pma = memory_.pmaMgr_.getPma(addr); return pma.isIccm(); }
 
     /// Return true if given data (ld/st) address is external to the hart.
     bool isDataAddressExternal(size_t addr) const

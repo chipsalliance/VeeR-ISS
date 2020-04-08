@@ -168,30 +168,57 @@ namespace WdRiscv
 
     /// Associate a mask with the word-aligned word at the given address.
     void setMemMappedMask(uint64_t addr, uint32_t mask)
-    { addr = (addr >> 2) << 2; memMappedMasks_[addr] = mask; }
+    {
+      assert(addr >= memMappedBase_);
+      uint64_t wordIx = (addr - memMappedBase_) / 4;
+      assert(wordIx < memMappedMasks_.size());
+      memMappedMasks_.at(wordIx) = mask;
+    }
 
     /// Return mask associated with the word-aligned word at the given
     /// address.  Return 0xffffffff if no mask was ever associated
     /// with given address.
     uint32_t getMemMappedMask(uint64_t addr) const
     {
-      addr = (addr >> 2) << 2;
-      if (not memMappedMasks_.count(addr))
+      if (addr < memMappedBase_)
         return 0xffffffff;
-      return memMappedMasks_.at(addr);
+      uint64_t wordIx = (addr - memMappedBase_) / 4;
+      if (wordIx < memMappedMasks_.size())
+        return memMappedMasks_[wordIx];
+      return 0xffffffff;
     }
+
+    /// Return true if page of given address is in data closed coupled
+    /// memory.
+    bool isAddrInDccm(size_t addr) const
+    { Pma pma = getPma(addr); return pma.isDccm(); }
+
+    /// Return true if given address is in memory-mapped register region.
+    bool isAddrMemMapped(size_t addr) const
+    { Pma pma = getPma(addr); return pma.isMemMappedReg(); }
 
   protected:
 
     /// Reset (to zero) all memory mapped registers.
     void resetMemMapped(uint8_t* data)
     {
-      for (auto kv : memMappedMasks_)
+      for (size_t i = 0; i < memMappedMasks_.size(); ++i)
         {
-          uint64_t addr = kv.first;
+          uint64_t addr = memMappedBase_ + i*4;
           uint32_t* wordAddr = reinterpret_cast<uint32_t*>(data + addr);
           *wordAddr = 0;
         }
+    }
+
+    /// Bool an aread for memory mapped registers. Size is in bytes.
+    /// Size must be a multiple of 4.
+    bool defineMemMappedArea(uint64_t base, uint64_t size)
+    {
+      memMappedBase_ = base;
+      memMappedSize_ = (size >> 2) << 2;
+      uint64_t wordCount = memMappedSize_ / 4;
+      memMappedMasks_.resize(wordCount);
+      return size == memMappedSize_;
     }
 
   private:
@@ -222,6 +249,9 @@ namespace WdRiscv
     uint64_t memSize_;
     uint64_t pageSize_ = 4*1024;
     unsigned pageShift_ = 12;
-    std::unordered_map<uint64_t, uint32_t> memMappedMasks_;
+
+    uint64_t memMappedBase_ = 0;
+    uint64_t memMappedSize_ = 0;
+    std::vector<uint32_t> memMappedMasks_;  // One per word.
   };
 }

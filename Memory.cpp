@@ -771,6 +771,8 @@ Memory::defineMemoryMappedRegisterArea(size_t addr, size_t size)
   Pma::Attrib attrib = Pma::Attrib(Pma::Read | Pma::Write | Pma::MemMapped);
   pmaMgr_.setAttribute(addr, addr + size - 1, attrib);
 
+  pmaMgr_.defineMemMappedArea(addr, size);
+
   return true;
 }
 

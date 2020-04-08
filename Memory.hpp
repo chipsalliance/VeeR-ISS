@@ -33,98 +33,6 @@ namespace WdRiscv
   template <typename URV>
   class Hart;
 
-  /// Page attributes.
-  struct PageAttribs
-  {
-    PageAttribs()
-      : read_(false), write_(false), exec_(false),
-	reg_(false), iccm_(false), dccm_(false)
-    { }
-
-    /// Set all attributes to given flag.
-    void setAll(bool flag)
-    {
-      read_ = flag;
-      write_ = flag;
-      exec_ = flag;
-      reg_ = flag;
-      iccm_ = flag;
-      dccm_ = flag;
-    }
-
-    /// Mark page as writable/non-writable.
-    void setWrite(bool flag)
-    { write_ = flag; }
-
-    /// Mark/unmark page as usable for instruction fetch.
-    void setExec(bool flag)
-    { exec_ = flag; }
-
-    /// Mark/unmark page as readable.
-    void setRead(bool flag)
-    { read_ = flag; }
-
-    /// Mark/unmark page as usable for memory-mapped registers.
-    void setMemMappedReg(bool flag)
-    { reg_ = flag; }
-
-    /// Mark page as belonging to an ICCM region.
-    void setIccm(bool flag)
-    { iccm_ = flag; }
-
-    /// Mark page as belonging to a DCCM region.
-    void setDccm(bool flag)
-    { dccm_ = flag; }
-
-    /// Return true if page can be used for instruction fetch. Fetch
-    /// will still fail if page is not mapped.
-    bool isExec() const
-    { return exec_; }
-
-    /// Return true if page can be used for data access (load/store
-    /// instructions). Access will fail is page is not mapped. Write
-    /// access (store instructions) will fail if page is not
-    /// writable.
-    bool isRead() const
-    { return read_; }
-
-    /// Return true if page is writable (write will still fail if
-    /// page is not mapped).
-    bool isWrite() const
-    { return write_; }
-
-    /// True if page belongs to an ICCM region.
-    bool isIccm() const
-    { return iccm_; }
-
-    /// True if page belongs to a DCCM region.
-    bool isDccm() const
-    { return dccm_; }
-
-    /// True if page is marked for memory-mapped registers.
-    bool isMemMappedReg() const
-    { return reg_; }
-
-    /// Return true if page is external to the core.
-    bool isExternal() const
-    { return not dccm_ and not reg_; }
-
-    /// True if page is mapped (usable).
-    bool isMapped() const
-    { return read_ or write_ or exec_; }
-
-    bool read_            : 1; // True if page is readable.
-    bool write_           : 1; // True if page is writable.
-    bool exec_            : 1; // True if page can be used for fetching insts.
-    bool reg_             : 1; // True if page has memory mapped registers.
-    bool iccm_            : 1; // True if page is in an ICCM section.
-    bool dccm_            : 1; // True if page is in a DCCM section.
-
-    // When page size is small (64-bytes), the number of pages becomes
-    // very large. Using packed attribute helps reduce memory usage.
-  } __attribute__((packed));
-
-
   /// Location and size of an ELF file symbol.
   struct ElfSymbol
   {
@@ -184,16 +92,9 @@ namespace WdRiscv
       if (address & (sizeof(T) - 1))  // If address is misaligned
 	{
           Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
-#if 1
-          if (pma1.isDccm() != pma2.isDccm() or
-              pma1.isMemMappedReg() != pma2.isMemMappedReg())
+          if (not pma2.isRead())
             return false;
-#else
-          // This is compatible with PMA spec. Swerv cannot handle this
-          if (pma1 != pma2)
-            return false;
-#endif
-	}
+        }
 
       // Memory mapped region accessible only with word-size read.
       if (pma1.isMemMappedReg())
@@ -655,24 +556,6 @@ namespace WdRiscv
     size_t getRegionIndex(size_t addr) const
     { return (addr >> regionShift_) & regionMask_; }
 
-    /// Return true if given address is in a readable page.
-    bool isAddrReadable(size_t addr) const
-    { Pma pma = pmaMgr_.getPma(addr); return pma.isRead(); }
-
-    /// Return true if page of given address is in data closed coupled
-    /// memory.
-    bool isAddrInDccm(size_t addr) const
-    { Pma pma = pmaMgr_.getPma(addr); return pma.isDccm(); }
-
-    /// Return true if page of given address is in instruction closed
-    /// coupled memory.
-    bool isAddrInIccm(size_t addr) const
-    { Pma pma = pmaMgr_.getPma(addr); return pma.isIccm(); }
-
-    /// Return true if given address is in memory-mapped register region.
-    bool isAddrInMappedRegs(size_t addr) const
-    { Pma pma = pmaMgr_.getPma(addr); return pma.isMemMappedReg(); }
-
     /// Return true if given data address is external to the core.
     bool isDataAddressExternal(size_t addr) const
     {
@@ -755,11 +638,13 @@ namespace WdRiscv
 
     /// Take a snapshot of the entire simulated memory into binary
     /// file. Return true on success or false on failure
-    bool saveSnapshot(const std::string & filename, const std::vector<std::pair<uint64_t,uint64_t>>& used_blocks);
+    bool saveSnapshot(const std::string& filename,
+                      const std::vector<std::pair<uint64_t,uint64_t>>& used_blocks);
 
     /// Load the simulated memory from snapshot binary file. Return
     /// true on success or false on failure
-    bool loadSnapshot(const std::string & filename, const std::vector<std::pair<uint64_t,uint64_t>>& used_blocks);
+    bool loadSnapshot(const std::string& filename,
+                      const std::vector<std::pair<uint64_t,uint64_t>>& used_blocks);
 
   private:
 

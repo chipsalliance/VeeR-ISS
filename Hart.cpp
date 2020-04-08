@@ -658,7 +658,7 @@ Hart<URV>::putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
   if (not loadQueueEnabled_)
     return;
 
-  if (memory_.isAddrInDccm(addr))
+  if (isAddrInDccm(addr))
     {
       // Blocking load. Invalidate target register in load queue so
       // that it will not be reverted.
@@ -1506,8 +1506,8 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
   if (misal)
     {
       size_t lba = addr + ldSize - 1;  // Last byte address
-      if (memory_.isAddrInDccm(addr) != memory_.isAddrInDccm(lba) or
-          memory_.isAddrInMappedRegs(addr) != memory_.isAddrInMappedRegs(lba))
+      if (isAddrInDccm(addr) != isAddrInDccm(lba) or
+          isAddrMemMapped(addr) != isAddrMemMapped(lba))
         {
           secCause = SecondaryCause::LOAD_ACC_LOCAL_UNMAPPED;
           return ExceptionCause::LOAD_ACC_FAULT;
@@ -1515,14 +1515,14 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
     }
 
   // DCCM unmapped or out of MPU range
-  bool isReadable = memory_.isAddrReadable(addr);
+  bool isReadable = isAddrReadable(addr);
   if (not isReadable)
     {
       secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
       size_t region = memory_.getRegionIndex(addr);
       if (regionHasLocalDataMem_.at(region))
         {
-          if (not memory_.isAddrInMappedRegs(addr))
+          if (not isAddrMemMapped(addr))
             {
               secCause = SecondaryCause::LOAD_ACC_LOCAL_UNMAPPED;
               return ExceptionCause::LOAD_ACC_FAULT;
@@ -1536,7 +1536,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
   if (wideLdSt_)
     {
       bool fail = (addr & 7) or ldSize != 4 or ! isDataAddressExternal(addr);
-      fail = fail or ! memory_.isAddrReadable(addr+4);
+      fail = fail or ! isAddrReadable(addr+4);
       if (fail)
 	{
 	  secCause = SecondaryCause::LOAD_ACC_64BIT;
@@ -1552,7 +1552,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
     }
 
   // PIC access
-  if (memory_.isAddrInMappedRegs(addr))
+  if (isAddrMemMapped(addr))
     {
       if (misal or ldSize != 4)
 	{
@@ -1695,7 +1695,7 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
 
   cause = ExceptionCause::LOAD_ACC_FAULT;
   secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
-  if (memory_.isAddrInMappedRegs(addr))
+  if (isAddrMemMapped(addr))
     secCause = SecondaryCause::LOAD_ACC_PIC;
   initiateLoadException(cause, addr, secCause);
   return false;
@@ -2064,7 +2064,7 @@ Hart<URV>::fetchInst(URV addr, uint32_t& inst)
       URV info = pc_ + forceFetchFailOffset_;
       auto cause = ExceptionCause::INST_ACC_FAULT;
       auto secCause = SecondaryCause::INST_PRECISE;
-      if (memory_.isAddrInIccm(addr))
+      if (isAddrInIccm(addr))
 	secCause = SecondaryCause::INST_DOUBLE_ECC;
       initiateException(cause, pc_, info, secCause);
       return false;
@@ -6641,7 +6641,7 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, URV addr, unsigned accessSize,
   bool fail = (addr & mask) != 0;
 
   // Check if invalid outside DCCM.
-  if (amoInDccmOnly_ and not memory_.isAddrInDccm(addr))
+  if (amoInDccmOnly_ and not isAddrInDccm(addr))
     fail = true;
 
   if (fail)
@@ -7295,7 +7295,7 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
 
   // DCCM unmapped or out of MPU windows. Invalid PIC access handled later.
   bool writeOk = memory_.checkWrite(addr, storeVal);
-  if (not writeOk and not memory_.isAddrInMappedRegs(addr))
+  if (not writeOk and not isAddrMemMapped(addr))
     {
       secCause = SecondaryCause::STORE_ACC_MEM_PROTECTION;
       size_t region = memory_.getRegionIndex(addr);
@@ -7325,7 +7325,7 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
     }
 
   // PIC access
-  if (memory_.isAddrInMappedRegs(addr) and not writeOk)
+  if (isAddrMemMapped(addr) and not writeOk)
     {
       secCause = SecondaryCause::STORE_ACC_PIC;
       return ExceptionCause::STORE_ACC_FAULT;
@@ -8138,7 +8138,7 @@ Hart<URV>::execFlw(const DecodedInst* di)
 
   cause = ExceptionCause::LOAD_ACC_FAULT;
   secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
-  if (memory_.isAddrInMappedRegs(addr))
+  if (isAddrMemMapped(addr))
     secCause = SecondaryCause::LOAD_ACC_PIC;
 
   initiateLoadException(cause, addr, secCause);
@@ -9139,7 +9139,7 @@ Hart<URV>::execFld(const DecodedInst* di)
 
   cause = ExceptionCause::LOAD_ACC_FAULT;
   secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
-  if (memory_.isAddrInMappedRegs(addr))
+  if (isAddrMemMapped(addr))
     secCause = SecondaryCause::LOAD_ACC_PIC;
 
   initiateLoadException(cause, addr, secCause);
@@ -10070,7 +10070,7 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1)
     }
 
   // Address outside DCCM causes an exception (this is swerv specific).
-  bool fail = amoInDccmOnly_ and not memory_.isAddrInDccm(addr);
+  bool fail = amoInDccmOnly_ and not isAddrInDccm(addr);
 
   // Access must be naturally aligned.
   if ((addr & (ldSize - 1)) != 0)
@@ -10157,7 +10157,7 @@ Hart<URV>::storeConditional(unsigned rs1, URV addr, STORE_TYPE storeVal)
   auto secCause = SecondaryCause::NONE;
   auto cause = determineStoreException(rs1, addr, addr, storeVal, secCause);
 
-  bool fail = misal or (amoInDccmOnly_ and not memory_.isAddrInDccm(addr));
+  bool fail = misal or (amoInDccmOnly_ and not isAddrInDccm(addr));
   if (fail)
     {
       // AMO secondary cause has priority over ECC.
