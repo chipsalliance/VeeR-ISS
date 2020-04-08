@@ -200,15 +200,8 @@ namespace WdRiscv
   protected:
 
     /// Reset (to zero) all memory mapped registers.
-    void resetMemMapped(uint8_t* data)
-    {
-      for (size_t i = 0; i < memMappedMasks_.size(); ++i)
-        {
-          uint64_t addr = memMappedBase_ + i*4;
-          uint32_t* wordAddr = reinterpret_cast<uint32_t*>(data + addr);
-          *wordAddr = 0;
-        }
-    }
+    void resetMemMapped(uint8_t* /*data*/)
+    { memMappedRegs_.assign(memMappedRegs_.size(), 0); }
 
     /// Bool an aread for memory mapped registers. Size is in bytes.
     /// Size must be a multiple of 4.
@@ -218,8 +211,76 @@ namespace WdRiscv
       memMappedSize_ = (size >> 2) << 2;
       uint64_t wordCount = memMappedSize_ / 4;
       memMappedMasks_.resize(wordCount);
+      memMappedRegs_.resize(wordCount);
       return size == memMappedSize_;
     }
+
+    /// Set value to the value of the memory mapped regiser at addr
+    /// returning true if addr is valid. Return false if addr is not a
+    /// memory mapped reg leaving vlaue unmodified.
+    bool readRegister(uint64_t addr, uint32_t& value) const
+    {
+      if ((addr & 3) != 0)
+	return false;  // Address must be workd-aligned.
+      if (addr < memMappedBase_)
+        return false;
+      uint64_t wordIx = (addr - memMappedBase_) / 4;
+      if (wordIx >= memMappedRegs_.size())
+        return false;
+      value = memMappedRegs_[wordIx];
+      return true;
+    }
+
+    /// Set the value of the memory mapped regiser at addr to the
+    /// given value returning true if addr is valid. Return false if
+    /// addr is not a memory mapped reg leaving vlaue unmodified.
+    bool writeRegister(uint64_t addr, uint32_t value)
+    {
+      if ((addr & 3) != 0)
+	return false;  // Address must be workd-aligned.
+      if (addr < memMappedBase_)
+        return false;
+      uint64_t wordIx = (addr - memMappedBase_) / 4;
+      if (wordIx >= memMappedRegs_.size())
+        return false;
+      uint32_t mask = memMappedMasks_.at(wordIx);
+      memMappedRegs_.at(wordIx) = value & mask;
+      return true;
+    }
+
+    /// Similar to writeRgister but no masking is applied to value.
+    bool writeRegisterNoMask(uint64_t addr, uint32_t value)
+    {
+      if ((addr & 3) != 0)
+	return false;  // Address must be workd-aligned.
+      if (addr < memMappedBase_)
+        return false;
+      uint64_t wordIx = (addr - memMappedBase_) / 4;
+      if (wordIx >= memMappedRegs_.size())
+        return false;
+      memMappedRegs_.at(wordIx) = value;
+      return true;
+    }
+
+    /// Set the value of the memory mapped regiser byte at addr to the
+    /// given value returning true if addr is valid. Return false if
+    /// addr is not a memory mapped reg leaving vlaue unmodified.
+    bool writeRegisterByte(uint64_t addr, uint8_t value)
+    {
+      if (addr < memMappedBase_)
+        return false;
+      uint64_t wordIx = (addr - memMappedBase_) / 4;
+      if (wordIx >= memMappedRegs_.size())
+        return false;
+      unsigned byteIx = addr & 3;
+      unsigned shift = byteIx * 8;
+      uint32_t byteMask = 0xff << shift;
+      uint32_t vv = (uint32_t(value) << shift) & memMappedMasks_.at(wordIx);
+      memMappedRegs_.at(wordIx) = memMappedRegs_.at(wordIx) & ~byteMask;
+      memMappedRegs_.at(wordIx) = memMappedRegs_.at(wordIx) | vv;
+      return true;
+    }
+
 
   private:
 
@@ -252,6 +313,7 @@ namespace WdRiscv
 
     uint64_t memMappedBase_ = 0;
     uint64_t memMappedSize_ = 0;
-    std::vector<uint32_t> memMappedMasks_;  // One per word.
+    std::vector<uint32_t> memMappedMasks_;  // One entry per register.
+    std::vector<uint32_t> memMappedRegs_;  // One entry per register.
   };
 }

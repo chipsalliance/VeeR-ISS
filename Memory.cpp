@@ -635,8 +635,10 @@ Memory::writeByteNoAccessCheck(size_t addr, uint8_t value)
   unsigned byteIx = addr & 3;
   value = value & uint8_t((mask >> (byteIx*8)));
 
-  data_[addr] = value;
+  if (pmaMgr_.isAddrMemMapped(addr))
+    return pmaMgr_.writeRegisterByte(addr, value);
 
+  data_[addr] = value;
   return true;
 }
 

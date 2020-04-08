@@ -390,9 +390,7 @@ namespace WdRiscv
         {
           if constexpr (sizeof(T) != 4)
             return false;
-          if ((address & 3) != 0)
-            return false;  // Address must be word-aligned.
-          // value = doRegisterMasking(address, value);
+          return pmaMgr_.writeRegisterNoMask(address, value);
         }
 
       *(reinterpret_cast<T*>(data_ + address)) = value;
@@ -512,10 +510,7 @@ namespace WdRiscv
     /// Read a memory mapped register.
     bool readRegister(size_t addr, uint32_t& value) const
     {
-      if ((addr & 3) != 0)
-	return false;  // Address must be workd-aligned.
-      value = *(reinterpret_cast<const uint32_t*>(data_ + addr));
-      return true;
+      return pmaMgr_.readRegister(addr, value);
     }
 
     /// Return memory mapped mask associated with the word containing
@@ -536,16 +531,17 @@ namespace WdRiscv
     /// Write a memory mapped register.
     bool writeRegister(unsigned localHartId, size_t addr, uint32_t value)
     {
-      if ((addr & 3) != 0)
-	return false;  // Address must be word-aligned.
+      uint32_t prev = 0;
+      if (not readRegister(addr, prev))
+        return false;
 
       value = doRegisterMasking(addr, value);
 
+      if (not pmaMgr_.writeRegister(addr, value))
+        return false;
+
       auto& lwd = lastWriteData_.at(localHartId);
-      lwd.prevValue_ = *(reinterpret_cast<uint32_t*>(data_ + addr));
-
-      *(reinterpret_cast<uint32_t*>(data_ + addr)) = value;
-
+      lwd.prevValue_ = prev;
       lwd.size_ = 4;
       lwd.addr_ = addr;
       lwd.value_ = value;
