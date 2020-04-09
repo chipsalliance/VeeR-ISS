@@ -1554,6 +1554,11 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
   // PIC access
   if (isAddrMemMapped(addr))
     {
+      if (privMode_ != PrivilegeMode::Machine)
+        {
+          secCause = SecondaryCause::LOAD_ACC_LOCAL_UNMAPPED;
+	  return ExceptionCause::LOAD_ACC_FAULT;
+        }
       if (misal or ldSize != 4)
 	{
 	  secCause = SecondaryCause::LOAD_ACC_PIC;
@@ -1565,7 +1570,8 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
   if (pmpEnabled_)
     {
       Pmp pmp = pmpManager_.accessPmp(addr);
-      if (not pmp.isRead(privMode_, mstatusMpp_, mstatusMprv_))
+      if (not pmp.isRead(privMode_, mstatusMpp_, mstatusMprv_) and
+          not isAddrMemMapped(addr))
         {
           secCause = SecondaryCause::LOAD_ACC_PMP;
           return ExceptionCause::LOAD_ACC_FAULT;
@@ -7331,17 +7337,26 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
     }
 
   // PIC access
-  if (isAddrMemMapped(addr) and not writeOk)
+  if (isAddrMemMapped(addr))
     {
-      secCause = SecondaryCause::STORE_ACC_PIC;
-      return ExceptionCause::STORE_ACC_FAULT;
+      if (privMode_ != PrivilegeMode::Machine)
+        {
+          secCause = SecondaryCause::STORE_ACC_LOCAL_UNMAPPED;
+	  return ExceptionCause::STORE_ACC_FAULT;
+        }
+      if (not writeOk)
+        {
+          secCause = SecondaryCause::STORE_ACC_PIC;
+          return ExceptionCause::STORE_ACC_FAULT;
+        }
     }
 
   // Physical memory protection.
   if (pmpEnabled_)
     {
       Pmp pmp = pmpManager_.accessPmp(addr);
-      if (not pmp.isWrite(privMode_, mstatusMpp_, mstatusMprv_))
+      if (not pmp.isWrite(privMode_, mstatusMpp_, mstatusMprv_) and
+          not isAddrMemMapped(addr))
         {
           secCause = SecondaryCause::STORE_ACC_PMP;
           return ExceptionCause::STORE_ACC_FAULT;
