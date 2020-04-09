@@ -148,3 +148,138 @@ PmaManager::setAttribute(uint64_t a0, uint64_t a1, Pma::Attrib attrib)
         }
     }
 }
+
+
+void
+PmaManager::setMemMappedMask(uint64_t addr, uint32_t mask)
+{
+  assert(addr >= memMappedBase_);
+  uint64_t wordIx = (addr - memMappedBase_) / 4;
+  assert(wordIx < memMappedMasks_.size());
+  memMappedMasks_.at(wordIx) = mask;
+}
+
+
+uint32_t
+PmaManager::getMemMappedMask(uint64_t addr) const
+{
+  if (addr < memMappedBase_)
+    return 0xffffffff;
+  uint64_t wordIx = (addr - memMappedBase_) / 4;
+  if (wordIx < memMappedMasks_.size())
+    return memMappedMasks_[wordIx];
+  return 0xffffffff;
+}
+
+
+bool
+PmaManager::defineMemMappedArea(uint64_t base, uint64_t size)
+{
+  memMappedBase_ = base;
+  memMappedSize_ = (size >> 2) << 2;
+  uint64_t wordCount = memMappedSize_ / 4;
+  memMappedMasks_.resize(wordCount);
+  memMappedRegs_.resize(wordCount);
+  return size == memMappedSize_;
+}
+
+
+bool
+PmaManager::readRegister(uint64_t addr, uint32_t& value) const
+{
+  if ((addr & 3) != 0)
+    return false;  // Address must be workd-aligned.
+  if (addr < memMappedBase_)
+    return false;
+  uint64_t wordIx = (addr - memMappedBase_) / 4;
+  if (wordIx >= memMappedRegs_.size())
+    return false;
+  value = memMappedRegs_[wordIx];
+  return true;
+}
+
+
+bool
+PmaManager::writeRegister(uint64_t addr, uint32_t value)
+{
+  if ((addr & 3) != 0)
+    return false;  // Address must be workd-aligned.
+  if (addr < memMappedBase_)
+    return false;
+  uint64_t wordIx = (addr - memMappedBase_) / 4;
+  if (wordIx >= memMappedRegs_.size())
+    return false;
+  uint32_t mask = memMappedMasks_.at(wordIx);
+  memMappedRegs_.at(wordIx) = value & mask;
+  return true;
+}
+
+
+bool
+PmaManager::writeRegisterNoMask(uint64_t addr, uint32_t value)
+{
+  if ((addr & 3) != 0)
+    return false;  // Address must be workd-aligned.
+  if (addr < memMappedBase_)
+    return false;
+  uint64_t wordIx = (addr - memMappedBase_) / 4;
+  if (wordIx >= memMappedRegs_.size())
+    return false;
+  memMappedRegs_.at(wordIx) = value;
+  return true;
+}
+
+
+bool
+PmaManager::writeRegisterByte(uint64_t addr, uint8_t value)
+{
+  if (addr < memMappedBase_)
+    return false;
+  uint64_t wordIx = (addr - memMappedBase_) / 4;
+  if (wordIx >= memMappedRegs_.size())
+    return false;
+  unsigned byteIx = addr & 3;
+  unsigned shift = byteIx * 8;
+  uint32_t byteMask = 0xff << shift;
+  uint32_t vv = (uint32_t(value) << shift) & memMappedMasks_.at(wordIx);
+  memMappedRegs_.at(wordIx) = memMappedRegs_.at(wordIx) & ~byteMask;
+  memMappedRegs_.at(wordIx) = memMappedRegs_.at(wordIx) | vv;
+  return true;
+}
+
+
+bool
+PmaManager::changeMemMappedBase(uint64_t newBase)
+{
+  if (newBase == memMappedBase_)
+    return true;
+
+  if (memSize_ - memMappedSize_ < newBase)
+    return false;
+
+  // Makr old area as non-memory-mapped.
+  disable(memMappedBase_, memMappedBase_ + memMappedSize_ - 1, Pma::MemMapped);
+
+  // Mark new area as read/write/memory-mapped.
+  Pma::Attrib attrib = Pma::Attrib(Pma::Read | Pma::Write | Pma::MemMapped);
+  setAttribute(newBase, newBase + memMappedSize_ - 1, attrib);
+
+  memMappedBase_ = newBase;
+  return true;
+}
+
+
+void
+PmaManager::fracture(uint64_t addr)
+{
+  uint64_t pageIx = getPageIx(addr);
+  Pma pma = pagePmas_.at(pageIx);
+  if (pma.word_)
+    return;
+  pma.word_= true;
+
+  uint64_t words = pageSize_ / 4;
+  uint64_t wordIx = (pageIx*pageSize_) >> 2;
+  for (uint64_t i = 0; i < words; ++i, wordIx++)
+    wordPmas_[wordIx] = pma;
+}

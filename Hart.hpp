@@ -1087,6 +1087,10 @@ namespace WdRiscv
     void enableMisalignedData(bool flag)
     { misalDataOk_ = flag; }
 
+    /// Change the base address of the memory-mapped-register area.
+    bool changeMemMappedBase(uint64_t newBase)
+    { return memory_.pmaMgr_.changeMemMappedBase(newBase); }
+
   protected:
 
     /// Helper to reset: Return count of implemented PMP registers.

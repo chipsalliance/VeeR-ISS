@@ -1022,6 +1022,28 @@ HartConfig::clear()
 }
 
 
+/// Associate callbacks with write/poke of the mpicbaddr (pic base
+/// address csr).
+template <typename URV>
+void
+defineMpicbaddrSideEffects(std::vector<Hart<URV>*>& harts)
+{
+  for (auto hart : harts)
+    {
+      auto csrPtr = hart->findCsr("mpicbaddr");
+      if (not csrPtr)
+        continue;
+
+      auto post = [hart] (Csr<URV>&, URV val) -> void {
+                    hart->changeMemMappedBase(val);
+                  };
+
+      csrPtr->registerPostPoke(post);
+      csrPtr->registerPostWrite(post);
+    }
+}
+
+
 /// Associate callbacks with write/poke of mhartstart to start harts
 /// when corresponding bits are set in that CSR.
 template <typename URV>
@@ -1174,6 +1196,7 @@ HartConfig::finalizeCsrConfig(std::vector<Hart<URV>*>& harts) const
   // actions by associating callbacks the write/poke CSR methods.
   defineMhartstartSideEffects(harts);
   defineMnmipdelSideEffects(harts);
+  defineMpicbaddrSideEffects(harts);
 
 #if 1
   // Unfortuntately, this sometimes breaks g++7.1 and g++9.1

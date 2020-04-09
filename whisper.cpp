@@ -1460,7 +1460,7 @@ session(const Args& args, const HartConfig& config)
       autoDeleteHarts.push_back(std::unique_ptr<Hart<URV>>(hart));
     }
 
-  // Configure harts. Defice callbacks for non-standard CSRs.
+  // Configure harts. Define callbacks for non-standard CSRs.
   if (not config.configHarts(harts, args.verbose))
     if (not args.interactive)
       return false;

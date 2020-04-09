@@ -681,7 +681,7 @@ Memory::checkCcmConfig(const std::string& tag, size_t addr, size_t size) const
 
 bool
 Memory::checkCcmOverlap(const std::string& tag, size_t addr, size_t size,
-                        bool iccm, bool dccm, bool pic)
+                        bool iccm, bool dccm, bool pic) const
 {
   size_t region = addr / regionSize_;
   if (region > regionCount_)
@@ -689,24 +689,6 @@ Memory::checkCcmOverlap(const std::string& tag, size_t addr, size_t size,
       std::cerr << tag << " area at address 0x" << std::hex << addr
                 << " is outside of defined memory.\n";
       return false;
-    }
-
-  if (iccm)
-    regionHasLocalInst_.at(region) = true;
-
-  if (dccm or pic)
-    regionHasLocalData_.at(region) = true;
-
-  // If a region is ever configured, then only the configured parts
-  // are available (accessible).
-  if (not regionConfigured_.at(region))
-    {
-      // Region never configured. Make it all inaccessible.
-      regionConfigured_.at(region) = true;
-      size_t start = region*regionSize();
-      pmaMgr_.setAttribute(start, start + regionSize() - 1, Pma::Attrib::None);
-
-      return true;  // No overlap.
     }
 
   if (iccm or dccm or pic)
@@ -729,12 +711,40 @@ Memory::checkCcmOverlap(const std::string& tag, size_t addr, size_t size,
 }
 
 
+void
+Memory::narrowCcmRegion(size_t addr, bool trim)
+{
+  size_t region = addr / regionSize_;
+  if (region > regionCount_)
+    return;
+
+  // If a region is ever configured, then only the configured parts
+  // are available (accessible).
+  if (not regionConfigured_.at(region))
+    {
+      regionConfigured_.at(region) = true;
+      if (trim)
+        {
+          // Region never configured. Make it all inaccessible.
+          size_t start = region*regionSize();
+          pmaMgr_.setAttribute(start, start + regionSize() - 1,
+                               Pma::Attrib::None);
+        }
+    }
+}
+
+
 bool
-Memory::defineIccm(size_t addr, size_t size)
+Memory::defineIccm(size_t addr, size_t size, bool trim)
 {
   if (not checkCcmConfig("ICCM", addr, size))
     return false;
 
+  size_t region = addr / regionSize_;
+  if (region < regionCount_)
+  regionHasLocalInst_.at(region) = true;
+
+  narrowCcmRegion(addr, trim);
   checkCcmOverlap("ICCM", addr, size, true, false, false);
 
   // Mark as excutable and iccm.
@@ -746,11 +756,16 @@ Memory::defineIccm(size_t addr, size_t size)
 
 
 bool
-Memory::defineDccm(size_t addr, size_t size)
+Memory::defineDccm(size_t addr, size_t size, bool trim)
 {
   if (not checkCcmConfig("DCCM", addr, size))
     return false;
 
+  size_t region = addr / regionSize_;
+  if (region < regionCount_)
+    regionHasLocalData_.at(region) = true;
+
+  narrowCcmRegion(addr, trim);
   checkCcmOverlap("DCCM", addr, size, false, true, false);
 
   // Mark as read/write/dccm.
@@ -762,11 +777,16 @@ Memory::defineDccm(size_t addr, size_t size)
 
 
 bool
-Memory::defineMemoryMappedRegisterArea(size_t addr, size_t size)
+Memory::defineMemoryMappedRegisterArea(size_t addr, size_t size, bool trim)
 {
   if (not checkCcmConfig("PIC memory", addr, size))
     return false;
 
+  size_t region = addr / regionSize_;
+  if (region < regionCount_)
+    regionHasLocalData_.at(region) = true;
+
+  narrowCcmRegion(addr, trim);
   checkCcmOverlap("PIC memory", addr, size, false, false, true);
 
   // Mark as read/write/memory-mapped.
@@ -782,7 +802,7 @@ Memory::defineMemoryMappedRegisterArea(size_t addr, size_t size)
 void
 Memory::resetMemoryMappedRegisters()
 {
-  pmaMgr_.resetMemMapped(data_);
+  pmaMgr_.resetMemMapped();
 }
 
 

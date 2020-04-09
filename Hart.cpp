@@ -1870,7 +1870,9 @@ template <typename URV>
 bool
 Hart<URV>::defineIccm(size_t addr, size_t size)
 {
-  bool ok = memory_.defineIccm(addr, size);
+  bool trim = this->findCsr("mpicbaddr") == nullptr;
+
+  bool ok = memory_.defineIccm(addr, size, trim);
   if (ok)
     {
       size_t region = addr/regionSize();
@@ -1885,7 +1887,9 @@ template <typename URV>
 bool
 Hart<URV>::defineDccm(size_t addr, size_t size)
 {
-  bool ok = memory_.defineDccm(addr, size);
+  bool trim = this->findCsr("mpicbaddr") == nullptr;
+
+  bool ok = memory_.defineDccm(addr, size, trim);
   if (ok)
     {
       size_t region = addr/regionSize();
@@ -1901,7 +1905,9 @@ template <typename URV>
 bool
 Hart<URV>::defineMemoryMappedRegisterArea(size_t addr, size_t size)
 {
-  bool ok = memory_.defineMemoryMappedRegisterArea(addr, size);
+  bool trim = this->findCsr("mpicbaddr") == nullptr;
+
+  bool ok = memory_.defineMemoryMappedRegisterArea(addr, size, trim);
   if (ok)
     {
       size_t region = addr / memory_.regionSize();

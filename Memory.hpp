@@ -480,18 +480,27 @@ namespace WdRiscv
     /// overlaps a previously defined CCM area. Return true if all is
     /// well (no overlap).
     bool checkCcmOverlap(const std::string& tag, size_t addr, size_t size,
-			 bool iccm, bool dccm, bool pic);
+			 bool iccm, bool dccm, bool pic) const;
+
+    /// If a region contains dccm/pic or iccm (but not both) then only
+    /// the proper dcc/pic or iccm area is accessible.
+    void narrowCcmRegion(size_t addr, bool trim);
 
     /// Define instruction closed coupled memory (in core instruction memory).
-    bool defineIccm(size_t addr, size_t size);
+    /// If trim is true then region containing ICCM is marked inaccessible
+    /// except for the ICCM area.
+    bool defineIccm(size_t addr, size_t size, bool trim);
 
-    /// Define data closed coupled memory (in core data memory).
-    bool defineDccm(size_t addr, size_t size);
+    /// Define data closed coupled memory (in core data memory). If
+    /// trim is true then region containing DCCM is marked
+    /// inaccessible except for the ICCM area.
+    bool defineDccm(size_t addr, size_t size, bool trim);
 
-    /// Define region for memory mapped registers. Return true on
-    /// success and false if offset or size are not properly aligned
-    /// or sized.
-    bool defineMemoryMappedRegisterArea(size_t addr, size_t size);
+    /// Define region for memory mapped registers (MMR). Return true
+    /// on success and false if offset or size are not properly
+    /// aligned or sized. If trim is true then region containing MMR
+    /// is marked inaccessible except for the MMR area.
+    bool defineMemoryMappedRegisterArea(size_t addr, size_t size, bool trim );
 
     /// Reset (to zero) all memory mapped registers.
     void resetMemoryMappedRegisters();
