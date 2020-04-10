@@ -605,6 +605,9 @@ Server<URV>::stepCommand(const WhisperMessage& req,
   uint32_t inst = 0;
   hart.readInst(hart.peekPc(), inst);
 
+  // Get privilege mode.
+  int privMode = int(hart.privilegeMode());
+
   // Execute instruction. Determine if an interrupt was taken or if a
   // trigger got tripped.
   uint64_t interruptCount = hart.getInterruptCount();
@@ -621,6 +624,8 @@ Server<URV>::stepCommand(const WhisperMessage& req,
 
   processStepCahnges(hart, inst, pendingChanges, interrupted, hasPre,
 		     hasPost, reply);
+
+  reply.flags = privMode;
 
   hart.clearTraceData();
   return true;

@@ -1091,6 +1091,10 @@ namespace WdRiscv
     bool changeMemMappedBase(uint64_t newBase)
     { return memory_.pmaMgr_.changeMemMappedBase(newBase); }
 
+    /// Return current privilege mode.
+    PrivilegeMode privilegeMode() const
+    { return privMode_; }
+
   protected:
 
     /// Helper to reset: Return count of implemented PMP registers.
