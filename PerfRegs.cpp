@@ -38,6 +38,8 @@ PerfRegs::config(unsigned numCounters)
   assert(numCounters < counters_.size());
 
   eventOfCounter_.resize(numCounters);
+  enableUser_.resize(numCounters);
+  enableMachine_.resize(numCounters);
 
   unsigned numEvents = unsigned(EventNumber::_End);
   countersOfEvent_.resize(numEvents);
@@ -46,7 +48,8 @@ PerfRegs::config(unsigned numCounters)
 
 
 bool
-PerfRegs::assignEventToCounter(EventNumber event, unsigned counter)
+PerfRegs::assignEventToCounter(EventNumber event, unsigned counter,
+                               bool enableUser, bool enableMachine)
 {
   if (counter >= eventOfCounter_.size())
     return false;
@@ -66,6 +69,9 @@ PerfRegs::assignEventToCounter(EventNumber event, unsigned counter)
     countersOfEvent_.at(size_t(event)).push_back(counter);
 
   eventOfCounter_.at(counter) = event;
+  enableUser_.at(counter) = enableUser;
+  enableMachine_.at(counter) = enableMachine;
+
   return true;
 }
 

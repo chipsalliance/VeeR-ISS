@@ -2288,9 +2288,11 @@ Hart<URV>::initiateFastInterrupt(InterruptCause cause, URV pcToSave)
 
   PerfRegs& pregs = csRegs_.mPerfRegs_;
   if (cause == InterruptCause::M_EXTERNAL)
-    pregs.updateCounters(EventNumber::ExternalInterrupt, prevPerfControl_);
+    pregs.updateCounters(EventNumber::ExternalInterrupt, prevPerfControl_,
+                         lastPriv_);
   else if (cause == InterruptCause::M_TIMER)
-    pregs.updateCounters(EventNumber::TimerInterrupt, prevPerfControl_);
+    pregs.updateCounters(EventNumber::TimerInterrupt, prevPerfControl_,
+                         lastPriv_);
 }
 
 
@@ -2317,9 +2319,11 @@ Hart<URV>::initiateInterrupt(InterruptCause cause, URV pc)
 
   PerfRegs& pregs = csRegs_.mPerfRegs_;
   if (cause == InterruptCause::M_EXTERNAL)
-    pregs.updateCounters(EventNumber::ExternalInterrupt, prevPerfControl_);
+    pregs.updateCounters(EventNumber::ExternalInterrupt, prevPerfControl_,
+                         lastPriv_);
   else if (cause == InterruptCause::M_TIMER)
-    pregs.updateCounters(EventNumber::TimerInterrupt, prevPerfControl_);
+    pregs.updateCounters(EventNumber::TimerInterrupt, prevPerfControl_,
+                         lastPriv_);
 }
 
 
@@ -2336,7 +2340,8 @@ Hart<URV>::initiateException(ExceptionCause cause, URV pc, URV info,
 
   PerfRegs& pregs = csRegs_.mPerfRegs_;
   if (enableCounters_)
-    pregs.updateCounters(EventNumber::Exception, prevPerfControl_);
+    pregs.updateCounters(EventNumber::Exception, prevPerfControl_,
+                         lastPriv_);
 }
 
 
@@ -3222,86 +3227,112 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
     return;
 
   PerfRegs& pregs = csRegs_.mPerfRegs_;
-  pregs.updateCounters(EventNumber::InstCommited, prevPerfControl_);
+  pregs.updateCounters(EventNumber::InstCommited, prevPerfControl_,
+                       lastPriv_);
 
   if (isCompressedInst(inst))
-    pregs.updateCounters(EventNumber::Inst16Commited, prevPerfControl_);
+    pregs.updateCounters(EventNumber::Inst16Commited, prevPerfControl_,
+                         lastPriv_);
   else
-    pregs.updateCounters(EventNumber::Inst32Commited, prevPerfControl_);
+    pregs.updateCounters(EventNumber::Inst32Commited, prevPerfControl_,
+                         lastPriv_);
 
   if ((currPc_ & 3) == 0)
-    pregs.updateCounters(EventNumber::InstAligned, prevPerfControl_);
+    pregs.updateCounters(EventNumber::InstAligned, prevPerfControl_,
+                         lastPriv_);
 
   if (info.type() == InstType::Int)
     {
       if (id == InstId::ebreak or id == InstId::c_ebreak)
-	pregs.updateCounters(EventNumber::Ebreak, prevPerfControl_);
+	pregs.updateCounters(EventNumber::Ebreak, prevPerfControl_,
+                             lastPriv_);
       else if (id == InstId::ecall)
-	pregs.updateCounters(EventNumber::Ecall, prevPerfControl_);
+	pregs.updateCounters(EventNumber::Ecall, prevPerfControl_,
+                             lastPriv_);
       else if (id == InstId::fence)
-	pregs.updateCounters(EventNumber::Fence, prevPerfControl_);
+	pregs.updateCounters(EventNumber::Fence, prevPerfControl_,
+                             lastPriv_);
       else if (id == InstId::fencei)
-	pregs.updateCounters(EventNumber::Fencei, prevPerfControl_);
+	pregs.updateCounters(EventNumber::Fencei, prevPerfControl_,
+                             lastPriv_);
       else if (id == InstId::mret)
-	pregs.updateCounters(EventNumber::Mret, prevPerfControl_);
+	pregs.updateCounters(EventNumber::Mret, prevPerfControl_,
+                             lastPriv_);
       else if (id != InstId::illegal)
-	pregs.updateCounters(EventNumber::Alu, prevPerfControl_);
+	pregs.updateCounters(EventNumber::Alu, prevPerfControl_,
+                             lastPriv_);
     }
   else if (info.isMultiply())
     {
-      pregs.updateCounters(EventNumber::Mult, prevPerfControl_);
+      pregs.updateCounters(EventNumber::Mult, prevPerfControl_,
+                           lastPriv_);
     }
   else if (info.isDivide())
     {
-      pregs.updateCounters(EventNumber::Div, prevPerfControl_);
+      pregs.updateCounters(EventNumber::Div, prevPerfControl_,
+                           lastPriv_);
     }
   else if (info.isLoad())
     {
-      pregs.updateCounters(EventNumber::Load, prevPerfControl_);
+      pregs.updateCounters(EventNumber::Load, prevPerfControl_,
+                           lastPriv_);
       if (misalignedLdSt_)
-	pregs.updateCounters(EventNumber::MisalignLoad, prevPerfControl_);
+	pregs.updateCounters(EventNumber::MisalignLoad, prevPerfControl_,
+                             lastPriv_);
       if (isDataAddressExternal(ldStAddr_))
-	pregs.updateCounters(EventNumber::BusLoad, prevPerfControl_);
+	pregs.updateCounters(EventNumber::BusLoad, prevPerfControl_,
+                             lastPriv_);
     }
   else if (info.isStore())
     {
-      pregs.updateCounters(EventNumber::Store, prevPerfControl_);
+      pregs.updateCounters(EventNumber::Store, prevPerfControl_,
+                           lastPriv_);
       if (misalignedLdSt_)
-	pregs.updateCounters(EventNumber::MisalignStore, prevPerfControl_);
+	pregs.updateCounters(EventNumber::MisalignStore, prevPerfControl_,
+                             lastPriv_);
       size_t addr = 0;
       uint64_t value = 0;
       memory_.getLastWriteOldValue(localHartId_, addr, value);
       if (isDataAddressExternal(addr))
-	pregs.updateCounters(EventNumber::BusStore, prevPerfControl_);
+	pregs.updateCounters(EventNumber::BusStore, prevPerfControl_,
+                             lastPriv_);
     }
   else if (info.isBitManipulation())
     {
-      pregs.updateCounters(EventNumber::Bitmanip, prevPerfControl_);
+      pregs.updateCounters(EventNumber::Bitmanip, prevPerfControl_,
+                           lastPriv_);
     }
   else if (info.isAtomic())
     {
       if (id == InstId::lr_w or id == InstId::lr_d)
-	pregs.updateCounters(EventNumber::Lr, prevPerfControl_);
+	pregs.updateCounters(EventNumber::Lr, prevPerfControl_,
+                             lastPriv_);
       else if (id == InstId::sc_w or id == InstId::sc_d)
-	pregs.updateCounters(EventNumber::Sc, prevPerfControl_);
+	pregs.updateCounters(EventNumber::Sc, prevPerfControl_,
+                             lastPriv_);
       else
-	pregs.updateCounters(EventNumber::Atomic, prevPerfControl_);
+	pregs.updateCounters(EventNumber::Atomic, prevPerfControl_,
+                             lastPriv_);
     }
   else if (info.isCsr() and not hasException_)
     {
       if ((id == InstId::csrrw or id == InstId::csrrwi))
 	{
 	  if (op0 == 0)
-	    pregs.updateCounters(EventNumber::CsrWrite, prevPerfControl_);
+	    pregs.updateCounters(EventNumber::CsrWrite, prevPerfControl_,
+                                 lastPriv_);
 	  else
-	    pregs.updateCounters(EventNumber::CsrReadWrite, prevPerfControl_);
+	    pregs.updateCounters(EventNumber::CsrReadWrite, prevPerfControl_,
+                                 lastPriv_);
 	}
       else
 	{
 	  if (op1 == 0)
-	    pregs.updateCounters(EventNumber::CsrRead, prevPerfControl_);
+	    pregs.updateCounters(EventNumber::CsrRead, prevPerfControl_,
+                                 lastPriv_);
 	  else
-	    pregs.updateCounters(EventNumber::CsrReadWrite, prevPerfControl_);
+	    pregs.updateCounters(EventNumber::CsrReadWrite, prevPerfControl_,
+                                 lastPriv_);
 	}
 
       // Counter modified by csr instruction is not updated.
@@ -3332,9 +3363,11 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
     }
   else if (info.isBranch())
     {
-      pregs.updateCounters(EventNumber::Branch, prevPerfControl_);
+      pregs.updateCounters(EventNumber::Branch, prevPerfControl_,
+                           lastPriv_);
       if (lastBranchTaken_)
-	pregs.updateCounters(EventNumber::BranchTaken, prevPerfControl_);
+	pregs.updateCounters(EventNumber::BranchTaken, prevPerfControl_,
+                             lastPriv_);
     }
 
   pregs.clearModified();
@@ -6266,14 +6299,14 @@ Hart<URV>::enterDebugMode(DebugModeCause cause, URV pc)
       debugMode_ = true;
       if (debugStepMode_)
 	std::cerr << "Error: Entering debug-halt with debug-step true\n";
-      debugStepMode_ = false;
     }
 
   URV value = 0;
   if (csRegs_.peek(CsrNumber::DCSR, value))
     {
-      value &= ~(URV(7) << 6);   // Clear cause field (starts at bit 6).
-      value |= URV(cause) << 6;  // Set cause field
+      value &= ~(URV(7) << 6);        // Clear cause field (starts at bit 6).
+      value |= URV(cause) << 6;       // Set cause field
+      value |= URV(privMode_) & 0x3;  // Set privelge mode bits.
       if (nmiPending_)
 	value |= URV(1) << 3;    // Set nmip bit.
       csRegs_.poke(CsrNumber::DCSR, value);
@@ -6331,7 +6364,12 @@ Hart<URV>::exitDebugMode()
       if (dcsrStep_)
 	debugStepMode_ = true;
       else
-	debugMode_ = false;
+        {
+          debugMode_ = false;
+          URV dcsrVal = 0;
+          if (csRegs_.peek(CsrNumber::DCSR, dcsrVal))
+            privMode_ = PrivilegeMode(dcsrVal & 3);
+        }
     }
 
   // If pending nmi bit is set in dcsr, set pending nmi in the hart

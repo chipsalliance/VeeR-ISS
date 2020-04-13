@@ -879,13 +879,16 @@ namespace WdRiscv
     void countTrippedTriggers(unsigned& pre, unsigned& post) const
     { triggers_.countTrippedTriggers(pre, post); }
 
-    /// Associate given event number with given counter.
-    /// Subsequent calls to updatePerofrmanceCounters(en) will cause
-    /// given counter to count up by 1. Return true on success. Return
-    /// false if counter number is out of bounds.
-    bool assignEventToCounter(URV event, unsigned counter)
+    /// Associate given event number with given counter.  Subsequent
+    /// calls to updatePerofrmanceCounters(en) will cause given
+    /// counter to count up by 1 in user mode if enableUser is true and
+    /// in machine mode if enableMachine is true. Return true on
+    /// success. Return false if counter number is out of bounds.
+    bool assignEventToCounter(URV event, unsigned counter,
+                              bool enableUser, bool enableMachine)
     {
-      return mPerfRegs_.assignEventToCounter(EventNumber(event), counter);
+      return mPerfRegs_.assignEventToCounter(EventNumber(event), counter,
+                                             enableUser, enableMachine);
     }
 
     /// Return true if there is one or more tripped trigger action set

@@ -24,6 +24,8 @@
 #include <unordered_map>
 #include <type_traits>
 #include <cassert>
+#include "PrivilegeMode.hpp"
+
 
 namespace WdRiscv
 {
@@ -132,30 +134,40 @@ namespace WdRiscv
 
     /// Update (count-up) all the performance counters currently
     /// associated with the given event.
-    bool updateCounters(EventNumber event, uint32_t perfControl)
+    bool updateCounters(EventNumber event, uint32_t perfControl,
+                        PrivilegeMode mode)
     {
       size_t eventIx = size_t(event);
       if (eventIx >= countersOfEvent_.size())
 	return false;
       const auto& counterIndices = countersOfEvent_.at(eventIx);
+      bool user = (mode == PrivilegeMode::User);
+      bool machine = (mode == PrivilegeMode::Machine);
       for (auto counterIx : counterIndices)
 	{
           // Performance counters handeled in here are MHPMCOUNTER3 to
           // MHPMCOUNTER31 and they are indexed 0 to 29.
           if ((perfControl >> (3+counterIx)) & 1)
             {
-              counters_.at(counterIx)++;
-              modified_.at(counterIx) = true;
+              bool enable = ((user and enableUser_.at(eventIx)) or
+                             (machine and enableMachine_.at(eventIx)));
+              if (enable)
+                {
+                  counters_.at(counterIx)++;
+                  modified_.at(counterIx) = true;
+                }
             }
 	}
       return true;
     }
 
-    /// Associate given event number with given counter.
-    /// Subsequent calls to updatePerofrmanceCounters(en) will cause
-    /// given counter to count up by 1. Return true on success. Return
-    /// false if counter number is out of bounds.
-    bool assignEventToCounter(EventNumber event, unsigned counter);
+    /// Associate given event number with given counter.  Subsequent
+    /// calls to updatePerofrmanceCounters(en) will cause given
+    /// counter to count up by 1 in user mode if enableUser is true
+    /// and in machine mode if enableMachine is true. Return true on
+    /// success. Return false if counter number is out of bounds.
+    bool assignEventToCounter(EventNumber event, unsigned counter,
+                              bool enableUser, bool enableMachine);
 
   protected:
 
@@ -180,6 +192,12 @@ namespace WdRiscv
 
     // Map counter index to event currently associated with counter.
     std::vector<EventNumber> eventOfCounter_;
+
+    // Map counter index to enable flag in user mode.
+    std::vector<bool> enableUser_;
+
+    // Map counter index to enable flag in user mode.
+    std::vector<bool> enableMachine_;
 
     // Map an event number to a vector containing the indices of the
     // counters currently associated with that event.
