@@ -217,8 +217,11 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
 
   if (number >= CsrNumber::MHPMEVENT3 and number <= CsrNumber::MHPMEVENT31)
     {
+      // Legalize event
       URV event = value & 0xffff;
       event = std::min(event, maxEventId_);
+      value = (value & ~URV(0xffff)) | (event & 0xffff);
+
       bool enableUser = ~ ((value >> 16) & 1);
       bool enableMachine = ~ ((value >> 19) & 1);
       unsigned counterIx = unsigned(number) - unsigned(CsrNumber::MHPMEVENT3);
@@ -1025,8 +1028,11 @@ CsRegs<URV>::poke(CsrNumber number, URV value)
 
   if (number >= CsrNumber::MHPMEVENT3 and number <= CsrNumber::MHPMEVENT31)
     {
+      // Legalize event
       URV event = value & 0xffff;
       event = std::min(event, maxEventId_);
+      value = (value & ~URV(0xffff)) | (event & 0xffff);
+
       bool enableUser = ~ ((value >> 16) & 1);
       bool enableMachine = ~ ((value >> 19) & 1);
       unsigned counterIx = unsigned(number) - unsigned(CsrNumber::MHPMEVENT3);

@@ -133,7 +133,8 @@ namespace WdRiscv
     void config(unsigned numCounters);
 
     /// Update (count-up) all the performance counters currently
-    /// associated with the given event.
+    /// associated with the given event and enabled for the given
+    /// mode.
     bool updateCounters(EventNumber event, uint32_t perfControl,
                         PrivilegeMode mode)
     {
