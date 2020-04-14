@@ -881,14 +881,19 @@ namespace WdRiscv
 
     /// Associate given event number with given counter.  Subsequent
     /// calls to updatePerofrmanceCounters(en) will cause given
-    /// counter to count up by 1 in user mode if enableUser is true and
-    /// in machine mode if enableMachine is true. Return true on
+    /// counter to count up by 1 in user mode if user is true and in
+    /// machine mode if machine is true. Return true on
     /// success. Return false if counter number is out of bounds.
     bool assignEventToCounter(URV event, unsigned counter,
-                              bool enableUser, bool enableMachine)
+                              bool user, bool machine)
     {
       return mPerfRegs_.assignEventToCounter(EventNumber(event), counter,
-                                             enableUser, enableMachine);
+                                             user, machine);
+    }
+
+    bool applyPerfEventAssign()
+    {
+      return mPerfRegs_.applyPerfEventAssign();
     }
 
     /// Return true if there is one or more tripped trigger action set

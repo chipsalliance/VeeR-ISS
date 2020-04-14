@@ -48,29 +48,33 @@ PerfRegs::config(unsigned numCounters)
 
 
 bool
-PerfRegs::assignEventToCounter(EventNumber event, unsigned counter,
-                               bool enableUser, bool enableMachine)
+PerfRegs::applyPerfEventAssign()
 {
-  if (counter >= eventOfCounter_.size())
+  if (not hasPending_)
     return false;
 
-  if (size_t(event) >= countersOfEvent_.size())
+  hasPending_ = false;
+
+  if (pendingCounter_ >= eventOfCounter_.size())
+    return false;
+
+  if (size_t(pendingEvent_) >= countersOfEvent_.size())
     return false;
 
   // Disassociate counter from its previous event.
-  EventNumber prevEvent = eventOfCounter_.at(counter);
+  EventNumber prevEvent = eventOfCounter_.at(pendingCounter_);
   if (prevEvent != EventNumber::None)
     {
       auto& vec = countersOfEvent_.at(size_t(prevEvent));
-      vec.erase(std::remove(vec.begin(), vec.end(), counter), vec.end());
+      vec.erase(std::remove(vec.begin(), vec.end(), pendingCounter_), vec.end());
     }
 
-  if (event != EventNumber::None)
-    countersOfEvent_.at(size_t(event)).push_back(counter);
+  if (pendingEvent_ != EventNumber::None)
+    countersOfEvent_.at(size_t(pendingEvent_)).push_back(pendingCounter_);
 
-  eventOfCounter_.at(counter) = event;
-  enableUser_.at(counter) = enableUser;
-  enableMachine_.at(counter) = enableMachine;
+  eventOfCounter_.at(pendingCounter_) = pendingEvent_;
+  enableUser_.at(pendingCounter_) = pendingUser_;
+  enableMachine_.at(pendingCounter_) = pendingMachine_;
 
   return true;
 }

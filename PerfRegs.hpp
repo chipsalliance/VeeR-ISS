@@ -168,9 +168,19 @@ namespace WdRiscv
     /// and in machine mode if enableMachine is true. Return true on
     /// success. Return false if counter number is out of bounds.
     bool assignEventToCounter(EventNumber event, unsigned counter,
-                              bool enableUser, bool enableMachine);
+                              bool enableUser, bool enableMachine)
+    {
+      pendingEvent_ = event;
+      pendingCounter_ = counter;
+      pendingUser_ = enableUser;
+      pendingMachine_ = enableMachine;
+      hasPending_ = true;
+      return true;
+    }
 
   protected:
+
+    bool applyPerfEventAssign();
 
     /// Unmark registers marked as modified by current instruction. This
     /// is done at the end of each instruction.
@@ -206,5 +216,12 @@ namespace WdRiscv
 
     std::vector<uint64_t> counters_;
     std::vector<unsigned> modified_;
+
+    // Pending event assignment to counter.
+    EventNumber pendingEvent_ = EventNumber::None;
+    unsigned pendingCounter_ = 0;
+    bool pendingUser_ = false;
+    bool pendingMachine_ = false;
+    bool hasPending_ = false;
   };
 }

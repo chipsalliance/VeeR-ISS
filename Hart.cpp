@@ -3348,17 +3348,8 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
 	  }
 	else if (csr >= CsrNumber::MHPMEVENT3 and csr <= CsrNumber::MHPMEVENT31)
 	  {
-	    unsigned id = unsigned(csr) - unsigned(CsrNumber::MHPMEVENT3);
-	    if (pregs.isModified(id))
-	      {
-		URV val;
-		CsrNumber csr2 = CsrNumber(id + unsigned(CsrNumber::MHPMCOUNTER3));
-		if (pregs.isModified(unsigned(csr2) - unsigned(CsrNumber::MHPMCOUNTER3)))
-		  {
-		    peekCsr(csr2, val);
-		    pokeCsr(csr2, val - 1);
-		  }
-	      }
+            if (not csRegs_.applyPerfEventAssign())
+              std::cerr << "Unexpected applyPerfAssign fail\n";
 	  }
     }
   else if (info.isBranch())
