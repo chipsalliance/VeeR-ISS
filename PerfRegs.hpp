@@ -150,8 +150,8 @@ namespace WdRiscv
           // MHPMCOUNTER31 and they are indexed 0 to 29.
           if ((perfControl >> (3+counterIx)) & 1)
             {
-              bool enable = ((user and enableUser_.at(eventIx)) or
-                             (machine and enableMachine_.at(eventIx)));
+              bool enable = ((user and enableUser_.at(counterIx)) or
+                             (machine and enableMachine_.at(counterIx)));
               if (enable)
                 {
                   counters_.at(counterIx)++;
