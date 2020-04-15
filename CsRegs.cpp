@@ -275,6 +275,10 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
       recordWrite(CsrNumber::MEIHAP);
     }
 
+  // Writing mcounteren changes accessibility of the counters.
+  if (number == CsrNumber(CsrNumber::MCOUNTEREN))
+    updateCounterPrivilege();
+
   return true;
 }
 
@@ -623,8 +627,8 @@ CsRegs<URV>::defineMachineRegs()
   mask = ~URV(2);
   defineCsr("mtvec", Csrn::MTVEC, mand, imp, 0, mask, mask);
 
-  defineCsr("mcounteren", Csrn::MCOUNTEREN, !mand, !imp, 0, 0, 0);
-  defineCsr("mcountinhibit", Csrn::MCOUNTINHIBIT, !mand, !imp, 0, 0, 0);
+  defineCsr("mcounteren", Csrn::MCOUNTEREN, !mand, !imp, 0, wam, wam);
+  defineCsr("mcountinhibit", Csrn::MCOUNTINHIBIT, !mand, !imp, 0, wam, wam);
 
   // Machine trap handling: mscratch and mepc.
   defineCsr("mscratch", Csrn::MSCRATCH, mand, imp, 0, wam, wam);
@@ -1085,6 +1089,10 @@ CsRegs<URV>::poke(CsrNumber number, URV value)
       regs_.at(meihapIx).poke(meihap);
     }
 
+  // Poking mcounteren changes accessibility of the counters.
+  if (number == CsrNumber(CsrNumber::MCOUNTEREN))
+    updateCounterPrivilege();
+
   return true;
 }
 
@@ -1296,6 +1304,37 @@ CsRegs<URV>::isPmpaddrLocked(CsrNumber csrn) const
   bool tor = ((byte >> 3) & 3) == 1;
   return locked and tor;
 }
+
+
+template <typename URV>
+void
+CsRegs<URV>::updateCounterPrivilege()
+{
+  URV mask = 0;
+  if (not peek(CsrNumber::MCOUNTEREN, mask))
+    return;
+
+  // Bits 0, 1, 2, 3 to 31 of maks correspond to CYCLE, TIME, INSTRET, HPMCOUNTER3 to
+  // HPMCOUNTER31
+  for (unsigned i = 0; i < 32; ++i)
+    {
+      bool flag = (mask >> i) & 1;
+      PrivilegeMode mode = flag? PrivilegeMode::User : PrivilegeMode::Machine;
+      unsigned num = i + unsigned(CsrNumber::CYCLE);
+
+      CsrNumber csrn = CsrNumber(num);
+      auto csr = getImplementedCsr(csrn);
+      if (csr)
+        csr->setPrivilegeMode(mode);
+
+      num = i + unsigned(CsrNumber::CYCLEH);
+      csrn = CsrNumber(num);
+      csr = getImplementedCsr(csrn);
+      if (csr)
+        csr->setPrivilegeMode(mode);
+    }
+}
+
 
 
 template class WdRiscv::CsRegs<uint32_t>;

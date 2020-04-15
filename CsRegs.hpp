@@ -449,7 +449,11 @@ namespace WdRiscv
       : name_(name), number_(unsigned(number)), mandatory_(mandatory),
 	implemented_(implemented), initialValue_(value), value_(value),
 	writeMask_(writeMask), pokeMask_(writeMask)
-    { valuePtr_ = &value_; }
+    {
+      valuePtr_ = &value_;
+      initialMode_ = PrivilegeMode((number_ & 0x300) >> 8);
+      privMode_ = initialMode_;
+    }
 
     /// Copy constructor.
     Csr(const Csr<URV>& other)
@@ -466,8 +470,10 @@ namespace WdRiscv
 
     /// Return lowest privilege mode that can access the register.
     /// Bits 9 and 8 of the register number encode the privilege mode.
+    /// Privilege of user level performance counter is modified by
+    /// mcounteren.
     PrivilegeMode privilegeMode() const
-    { return PrivilegeMode((number_ & 0x300) >> 8); }
+    { return privMode_; }
 
     /// Return true if register is read-only. Bits ten and eleven of
     /// the register number denote read-only when both one and read-write
@@ -565,9 +571,15 @@ namespace WdRiscv
     void reset()
     {
       *valuePtr_ = initialValue_;
+      privMode_ = initialMode_;
       for (auto func : postReset_)
         func(*this);
     }
+
+    /// Change the privilege required to access the register. This is
+    /// used to control access to the user-level performance counters.
+    void setPrivilegeMode(PrivilegeMode mode)
+    { privMode_ = mode; }
 
     /// Configure.
     void config(const std::string& name, CsrNumber num, bool mandatory,
@@ -674,6 +686,8 @@ namespace WdRiscv
     bool debug_ = false;       // True if this is a debug-mode register.
     bool shared_ = false;      // True if this is shared between harts.
     URV initialValue_ = 0;
+    PrivilegeMode initialMode_ = PrivilegeMode::Machine;
+    PrivilegeMode privMode_ = PrivilegeMode::Machine;
     URV value_ = 0;
     URV prev_ = 0;
     bool hasPrev_ = false;
@@ -963,6 +977,10 @@ namespace WdRiscv
       size_t ix = size_t(num);
       return ix< regs_.size() and regs_.at(ix).isImplemented();
     }
+
+    /// Update the user level counter privilege. This is called after
+    /// a write/poke to MCOUNTEREN.
+    void updateCounterPrivilege();
 
     bool readTdata(CsrNumber number, PrivilegeMode mode, URV& value) const;
     

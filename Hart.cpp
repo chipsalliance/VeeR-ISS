@@ -425,6 +425,7 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
 
 
   updateMemoryProtection();
+  csRegs_.updateCounterPrivilege();
 
   alarmCounter_ = alarmInterval_;
 }
