@@ -1099,6 +1099,10 @@ namespace WdRiscv
     /// Return a legal mstatus value (chanign mpp if necessary).
     URV legalizeMstatusValue(URV value) const;
 
+    /// Legalize mhpevent and assign it to correspondign counter.
+    /// Return legalized value.
+    URV legalizeMhpmevent(CsrNumber number, URV value);
+
   private:
 
     unsigned xlen_ = 8*sizeof(URV);

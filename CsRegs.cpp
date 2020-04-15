@@ -216,18 +216,7 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
     }
 
   if (number >= CsrNumber::MHPMEVENT3 and number <= CsrNumber::MHPMEVENT31)
-    {
-      // Legalize event
-      URV event = value & 0xffff;
-      event = std::min(event, maxEventId_);
-      value = (value & ~URV(0xffff)) | (event & 0xffff);
-
-      bool enableUser = ~ ((value >> 16) & 1);
-      bool enableMachine = ~ ((value >> 19) & 1);
-      unsigned counterIx = unsigned(number) - unsigned(CsrNumber::MHPMEVENT3);
-
-      assignEventToCounter(event, counterIx, enableUser, enableMachine);
-    }
+    value = legalizeMhpmevent(number, value);
   else if (number == CsrNumber::MRAC)
     {
       // A value of 0b11 (io/cacheable) for the ith region is invalid:
@@ -275,7 +264,8 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
       recordWrite(CsrNumber::MEIHAP);
     }
 
-  // Writing mcounteren changes accessibility of the counters.
+  // Writing mcounteren changes accessibility of the counters in user
+  // mode.
   if (number == CsrNumber(CsrNumber::MCOUNTEREN))
     updateCounterPrivilege();
 
@@ -1032,19 +1022,8 @@ CsRegs<URV>::poke(CsrNumber number, URV value)
     return pokeTdata(number, value);
 
   if (number >= CsrNumber::MHPMEVENT3 and number <= CsrNumber::MHPMEVENT31)
-    {
-      // Legalize event
-      URV event = value & 0xffff;
-      event = std::min(event, maxEventId_);
-      value = (value & ~URV(0xffff)) | (event & 0xffff);
-
-      bool enableUser = ~ ((value >> 16) & 1);
-      bool enableMachine = ~ ((value >> 19) & 1);
-      unsigned counterIx = unsigned(number) - unsigned(CsrNumber::MHPMEVENT3);
-      assignEventToCounter(event, counterIx, enableUser, enableMachine);
-    }
-
-  if (number == CsrNumber::MRAC)
+    value = legalizeMhpmevent(number, value);
+  else if (number == CsrNumber::MRAC)
     {
       // A value of 0b11 (io/cacheable) for the ith region is invalid:
       // Make it 0b10 (io/non-cacheable).
@@ -1335,6 +1314,25 @@ CsRegs<URV>::updateCounterPrivilege()
     }
 }
 
+
+
+template <typename URV>
+URV
+CsRegs<URV>::legalizeMhpmevent(CsrNumber number, URV value)
+{
+  // Legalize event
+  URV event = value & 0xffff;
+  event = std::min(event, maxEventId_);
+  value = (value & ~URV(0xffff)) | (event & 0xffff);
+
+  bool enableUser = ~ ((value >> 16) & 1);
+  bool enableMachine = ~ ((value >> 19) & 1);
+  unsigned counterIx = unsigned(number) - unsigned(CsrNumber::MHPMEVENT3);
+
+  assignEventToCounter(event, counterIx, enableUser, enableMachine);
+
+  return value;
+}
 
 
 template class WdRiscv::CsRegs<uint32_t>;
