@@ -130,7 +130,7 @@ namespace WdRiscv
     /// Configure numCounters counters initialized to zero.  This
     /// should not be used if some CSR registers are tied to the
     /// counters in here.
-    void config(unsigned numCounters);
+    void config(unsigned numCounters, unsigned maxEventId);
 
     /// Update (count-up) all the performance counters currently
     /// associated with the given event and enabled for the given

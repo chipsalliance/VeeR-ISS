@@ -926,19 +926,19 @@ HartConfig::applyConfig(Hart<URV>& hart, bool verbose) const
 
   unsigned errors = 0;
 
+  tag = "max_mmode_perf_event";
+  if (config_ -> count(tag))
+    {
+      unsigned maxId = getJsonUnsigned<unsigned>(tag, config_ -> at(tag));
+      hart.configMachineModeMaxPerfEvent(maxId);
+    }
+
   tag = "num_mmode_perf_regs";
   if (config_ -> count(tag))
     {
       unsigned count = getJsonUnsigned<unsigned>(tag, config_ -> at(tag));
       if (not hart.configMachineModePerfCounters(count))
 	errors++;
-    }
-
-  tag = "max_mmode_perf_event";
-  if (config_ -> count(tag))
-    {
-      unsigned maxId = getJsonUnsigned<unsigned>(tag, config_ -> at(tag));
-      hart.configMachineModeMaxPerfEvent(maxId);
     }
 
   if (not applyCsrConfig(hart, *config_, verbose))

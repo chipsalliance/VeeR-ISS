@@ -1081,7 +1081,7 @@ printSignedHisto(const char* tag, const std::vector<uint64_t>& histo,
     return;
 
   if (histo.at(0))
-    fprintf(file, "    %s <= 64k      %" PRId64 "\n", tag, histo.at(0));
+    fprintf(file, "    %s <= -64k     %" PRId64 "\n", tag, histo.at(0));
   if (histo.at(1))
     fprintf(file, "    %s (-64k, -1k] %" PRId64 "\n", tag, histo.at(1));
   if (histo.at(2))
@@ -6299,6 +6299,9 @@ Hart<URV>::enterDebugMode(DebugModeCause cause, URV pc)
       value &= ~(URV(7) << 6);        // Clear cause field (starts at bit 6).
       value |= URV(cause) << 6;       // Set cause field
       value |= URV(privMode_) & 0x3;  // Set privelge mode bits.
+      value = (value >> 2) << 2;      // Clear privilege mode bits.
+      value |= URV(privMode_) & 0x3;  // Set privelge mode bits.
+
       if (nmiPending_)
 	value |= URV(1) << 3;    // Set nmip bit.
       csRegs_.poke(CsrNumber::DCSR, value);
@@ -6358,9 +6361,11 @@ Hart<URV>::exitDebugMode()
       else
         {
           debugMode_ = false;
+#if 0
           URV dcsrVal = 0;
           if (csRegs_.peek(CsrNumber::DCSR, dcsrVal))
             privMode_ = PrivilegeMode(dcsrVal & 3);
+#endif
         }
     }
 
@@ -6902,7 +6907,11 @@ Hart<URV>::execMret(const DecodedInst*)
   if (not csRegs_.write(CsrNumber::MSTATUS, privMode_, fields.value_))
     assert(0 and "Failed to write MSTATUS register\n");
 
-  // TBD: Handle MPV.
+  if (savedMode != PrivilegeMode::Machine)
+    {
+      fields.bits_.MPRV = 0;
+      mstatusMprv_ = 0;
+    }
 
   // Restore program counter from MEPC.
   URV epc;
@@ -6943,9 +6952,10 @@ Hart<URV>::execSret(const DecodedInst*)
       return;
     }
 
+  memory_.invalidateLr(localHartId_); // Clear LR reservation (if any).
+
   // ... updating/unpacking its fields,
   MstatusFields<URV> fields(value);
-  
   PrivilegeMode savedMode = fields.bits_.SPP? PrivilegeMode::Supervisor :
     PrivilegeMode::User;
   fields.bits_.SIE = fields.bits_.SPIE;
@@ -6959,7 +6969,7 @@ Hart<URV>::execSret(const DecodedInst*)
       return;
     }
 
-  // Restore program counter from UEPC.
+  // Restore program counter from SEPC.
   URV epc;
   if (not csRegs_.read(CsrNumber::SEPC, privMode_, epc))
     {
