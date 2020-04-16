@@ -6291,6 +6291,7 @@ Hart<URV>::enterDebugMode(DebugModeCause cause, URV pc)
       debugMode_ = true;
       if (debugStepMode_)
 	std::cerr << "Error: Entering debug-halt with debug-step true\n";
+      debugStepMode_ = false;
     }
 
   URV value = 0;
@@ -6298,7 +6299,6 @@ Hart<URV>::enterDebugMode(DebugModeCause cause, URV pc)
     {
       value &= ~(URV(7) << 6);        // Clear cause field (starts at bit 6).
       value |= URV(cause) << 6;       // Set cause field
-      value |= URV(privMode_) & 0x3;  // Set privelge mode bits.
       value = (value >> 2) << 2;      // Clear privilege mode bits.
       value |= URV(privMode_) & 0x3;  // Set privelge mode bits.
 
@@ -6361,11 +6361,6 @@ Hart<URV>::exitDebugMode()
       else
         {
           debugMode_ = false;
-#if 0
-          URV dcsrVal = 0;
-          if (csRegs_.peek(CsrNumber::DCSR, dcsrVal))
-            privMode_ = PrivilegeMode(dcsrVal & 3);
-#endif
         }
     }
 
