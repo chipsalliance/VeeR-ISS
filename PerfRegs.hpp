@@ -182,6 +182,9 @@ namespace WdRiscv
 
     bool applyPerfEventAssign();
 
+    /// Reset all assosiations between events and counters.
+    void reset();
+
     /// Unmark registers marked as modified by current instruction. This
     /// is done at the end of each instruction.
     void clearModified()

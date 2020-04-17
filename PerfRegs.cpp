@@ -79,3 +79,12 @@ PerfRegs::applyPerfEventAssign()
   return true;
 }
 
+
+void
+PerfRegs::reset()
+{
+  eventOfCounter_.assign(eventOfCounter_.size(), EventNumber::None);
+
+  for (auto& vec : countersOfEvent_)
+    vec.clear();
+}

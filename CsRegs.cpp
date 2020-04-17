@@ -303,6 +303,7 @@ CsRegs<URV>::reset()
       csr.reset();
 
   triggers_.reset();
+  mPerfRegs_.reset();
 
   // Cache interrupt enable.
   Csr<URV>* mstatus = getImplementedCsr(CsrNumber::MSTATUS);
