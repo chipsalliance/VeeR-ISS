@@ -1257,6 +1257,10 @@ CsRegs<URV>::legalizePmpcfgValue(URV current, URV value) const
             }
         }
 
+      // w=1 r=0 is not allowed, change to w=0 r=0 
+      if ((nb & 3) == 2)
+        nb = (nb >> 2) << 2;
+
       legal = legal | (URV(nb) << i*8);
     }
 
