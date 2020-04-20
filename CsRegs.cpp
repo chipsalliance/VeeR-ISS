@@ -635,10 +635,13 @@ CsRegs<URV>::defineMachineRegs()
   defineCsr("mip", CsrNumber::MIP, mand, imp, 0, rom, mieMask);
 
   // Physical memory protection.
-  defineCsr("pmpcfg0",   Csrn::PMPCFG0,   !mand, imp, 0, wam, wam);
-  defineCsr("pmpcfg1",   Csrn::PMPCFG1,   !mand, imp, 0, wam, wam);
-  defineCsr("pmpcfg2",   Csrn::PMPCFG2,   !mand, imp, 0, wam, wam);
-  defineCsr("pmpcfg3",   Csrn::PMPCFG3,   !mand, imp, 0, wam, wam);
+  URV cfgMask = 0x9f9f9f9f;
+  if constexpr (sizeof(URV) == 8)
+    cfgMask = 0x9f9f9f9f9f9f9f9f;
+  defineCsr("pmpcfg0",   Csrn::PMPCFG0,   !mand, imp, 0, cfgMask, cfgMask);
+  defineCsr("pmpcfg1",   Csrn::PMPCFG1,   !mand, imp, 0, cfgMask, cfgMask);
+  defineCsr("pmpcfg2",   Csrn::PMPCFG2,   !mand, imp, 0, cfgMask, cfgMask);
+  defineCsr("pmpcfg3",   Csrn::PMPCFG3,   !mand, imp, 0, cfgMask, cfgMask);
   defineCsr("pmpaddr0",  Csrn::PMPADDR0,  !mand, imp, 0, wam, wam);
   defineCsr("pmpaddr1",  Csrn::PMPADDR1,  !mand, imp, 0, wam, wam);
   defineCsr("pmpaddr2",  Csrn::PMPADDR2,  !mand, imp, 0, wam, wam);
