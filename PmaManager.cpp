@@ -257,11 +257,11 @@ PmaManager::changeMemMappedBase(uint64_t newBase)
   if (memSize_ - memMappedSize_ < newBase)
     return false;
 
-  // Makr old area as non-memory-mapped.
+  // Mark old area as non-memory-mapped.
   disable(memMappedBase_, memMappedBase_ + memMappedSize_ - 1, Pma::MemMapped);
 
-  // Mark new area as read/write/memory-mapped.
-  Pma::Attrib attrib = Pma::Attrib(Pma::Read | Pma::Write | Pma::MemMapped);
+  // Mark new area as read/write/exc/memory-mapped.
+  Pma::Attrib attrib = Pma::Attrib(Pma::Read | Pma::Write | Pma::Exec | Pma::MemMapped);
   setAttribute(newBase, newBase + memMappedSize_ - 1, attrib);
 
   memMappedBase_ = newBase;
