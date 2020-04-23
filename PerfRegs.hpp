@@ -178,6 +178,10 @@ namespace WdRiscv
       return true;
     }
 
+    /// Return the number of perormance counters.
+    size_t size() const
+    { return counters_.size(); }
+
   protected:
 
     bool applyPerfEventAssign();

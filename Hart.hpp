@@ -270,10 +270,16 @@ namespace WdRiscv
     /// Configure machine mode performance counters returning true on
     /// success and false on failure. N consecutive counters starting
     /// at MHPMCOUNTER3/MHPMCOUNTER3H are made read/write. The
-    /// remaining counters are made read only. For each counter that
-    /// is made read-write the corresponding MHPMEVENT is made
-    /// read-write.
+    /// remaining counters are made write-any read-zero. For each
+    /// counter that is made read-write the corresponding MHPMEVENT is
+    /// made read-write otherwise it is make write-any read-zero.
     bool configMachineModePerfCounters(unsigned n);
+
+    /// Configure user mode performance counters returning true on
+    /// success and false on failure. N cannot exceed the number of machine
+    /// mode performance registers. First N performance counters are configured
+    /// as readable, the remaining ones are made read-zero.
+    bool configUserModePerfCounters(unsigned n);
 
     /// Set the maximum event id that can be written to the MHPMEVENT
     /// registers. Larger values are replaced by this max-value before

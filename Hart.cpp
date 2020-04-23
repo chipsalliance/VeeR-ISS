@@ -2839,6 +2839,14 @@ Hart<URV>::configMachineModePerfCounters(unsigned numCounters)
 
 template <typename URV>
 bool
+Hart<URV>::configUserModePerfCounters(unsigned numCounters)
+{
+  return csRegs_.configUserModePerfCounters(numCounters);
+}
+
+
+template <typename URV>
+bool
 Hart<URV>::configMemoryProtectionGrain(uint64_t size)
 {
   bool ok = true;

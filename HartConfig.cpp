@@ -939,6 +939,8 @@ HartConfig::applyConfig(Hart<URV>& hart, bool verbose) const
       unsigned count = getJsonUnsigned<unsigned>(tag, config_ -> at(tag));
       if (not hart.configMachineModePerfCounters(count))
 	errors++;
+      if (not hart.configUserModePerfCounters(count))
+        errors++;
     }
 
   if (not applyCsrConfig(hart, *config_, verbose))

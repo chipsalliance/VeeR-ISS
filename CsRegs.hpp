@@ -944,6 +944,12 @@ namespace WdRiscv
     /// read-write.
     bool configMachineModePerfCounters(unsigned numCounters);
 
+    /// Configure user mode performance counters returning true on
+    /// success and false on failure. N cannot exceed the number of machine
+    /// mode performance registers. First N performance counters are configured
+    /// as readable, the remaining ones are made read-zero.
+    bool configUserModePerfCounters(unsigned numCounters);
+
     /// Helper to write method. Update frm/fflags after fscr is written.
     /// Update fcsr after frm/fflags is written.
     void updateFcsrGroupForWrite(CsrNumber number, URV value);

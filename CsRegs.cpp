@@ -424,6 +424,46 @@ CsRegs<URV>::configMachineModePerfCounters(unsigned numCounters)
 }
 
 
+template <typename URV>
+bool
+CsRegs<URV>::configUserModePerfCounters(unsigned numCounters)
+{
+  if (numCounters > mPerfRegs_.size())
+    {
+      std::cerr << "User mode number of performance counters (" << numCounters
+                << ") cannot exceed that of machine mode ("
+                << mPerfRegs_.size() << '\n';
+      return false;
+    }
+
+  unsigned errors = 0;
+  bool shared = false;
+
+  for (unsigned i = 0; i < 29; ++i)
+    {
+      URV resetValue = 0, mask = ~URV(0), pokeMask = ~URV(0);
+      if (i >= numCounters)
+	mask = pokeMask = 0;
+
+      CsrNumber csrNum = CsrNumber(i + unsigned(CsrNumber::HPMCOUNTER3));
+      bool isDebug = false;
+      if (not configCsr(csrNum, true, resetValue, mask, pokeMask, isDebug,
+                        shared))
+	errors++;
+
+      if constexpr (sizeof(URV) == 4)
+         {
+	   csrNum = CsrNumber(i + unsigned(CsrNumber::HPMCOUNTER3H));
+	   if (not configCsr(csrNum, true, resetValue, mask, pokeMask,
+                             isDebug, shared))
+	     errors++;
+	 }
+    }
+
+  return errors == 0;
+}
+
+
 /// Map a RISCV rounding mode to an fetsetround constant.
 static std::array<int, 5> riscvRoungingModeToFe =
   {
@@ -719,6 +759,10 @@ template <typename URV>
 void
 CsRegs<URV>::tiePerfCounters(std::vector<uint64_t>& counters)
 {
+  // Since the user-mode counters are a shadow of their machine-mode
+  // counterparts, we tie them as well regardless of whether or not
+  // they are configured.
+
   if constexpr (sizeof(URV) == 4)
     {
       // Tie each mhpmcounter CSR value to the least significant 4
