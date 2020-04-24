@@ -1752,6 +1752,8 @@ namespace WdRiscv
     void execSlliu_w(const DecodedInst*);
     void execPackh(const DecodedInst*);
     void execPacku(const DecodedInst*);
+    void execPackw(const DecodedInst*);
+    void execPackuw(const DecodedInst*);
     void execGrev(const DecodedInst*);
     void execGrevi(const DecodedInst*);
     void execGorc(const DecodedInst*);

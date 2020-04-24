@@ -1426,6 +1426,7 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         else if (funct7 == 4)
           {
             if      (funct3 == 0) return instTable_.getEntry(InstId::addu_w);
+            if      (funct3 == 4) return instTable_.getEntry(InstId::packw);
           }
         else if (funct7 == 5)
           {
@@ -1445,6 +1446,7 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	else if (funct7 == 0x24)
 	  {
 	    if      (funct3 == 0)  return instTable_.getEntry(InstId::subu_w);
+            if      (funct3 == 4) return instTable_.getEntry(InstId::packuw);
 	  }
 	else if (funct7 == 0x25)
 	  {

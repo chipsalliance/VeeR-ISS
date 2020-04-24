@@ -288,6 +288,8 @@ namespace WdRiscv
      slliu_w,
      packh,
      packu,
+     packw,
+     packuw,
      grev,
      grevi,
      gorc,

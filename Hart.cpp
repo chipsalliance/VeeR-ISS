@@ -5073,6 +5073,8 @@ Hart<URV>::execute(const DecodedInst* di)
      &&slliu_w,
      &&packh,
      &&packu,
+     &&packw,
+     &&packuw,
      &&grev,
      &&grevi,
      &&gorc,
@@ -6077,6 +6079,14 @@ Hart<URV>::execute(const DecodedInst* di)
 
  packu:
   execPacku(di);
+  return;
+
+ packw:
+  execPackw(di);
+  return;
+
+ packuw:
+  execPackuw(di);
   return;
 
  grev:
@@ -11411,6 +11421,58 @@ Hart<URV>::execPacku(const DecodedInst* di)
 
   URV lower = intRegs_.read(di->op1()) >> halfXlen;
   URV upper = (intRegs_.read(di->op2()) >> halfXlen) << halfXlen;
+  URV value = lower | upper;
+  intRegs_.write(di->op0(), value);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execPackw(const DecodedInst* di)
+{
+  if (not isRvzbb() and not isRvzbp())
+    {
+      illegalInst();
+      return;
+    }
+
+  if (not isRv64())
+    {
+      illegalInst();
+      return;
+    }
+
+  URV lower = intRegs_.read(di->op1()) & 0xffff;
+  URV upper = (intRegs_.read(di->op2()) & 0xffff) << 16;
+  URV value = lower | upper;
+  intRegs_.write(di->op0(), value);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execPackuw(const DecodedInst* di)
+{
+  if (not isRvzbb() and not isRvzbp())
+    {
+      illegalInst();
+      return;
+    }
+
+  if (not isRv64())
+    {
+      illegalInst();
+      return;
+    }
+
+
+  unsigned halfXlen = mxlen_ >> 1;
+
+  URV lower = (intRegs_.read(di->op1()) >> halfXlen);
+  URV upper = (intRegs_.read(di->op2()) >> halfXlen);
+
+  lower = lower & 0xffff;
+  upper = (upper & 0xffff) << 16;
   URV value = lower | upper;
   intRegs_.write(di->op0(), value);
 }
