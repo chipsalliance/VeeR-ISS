@@ -3246,9 +3246,11 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
     pregs.updateCounters(EventNumber::Inst32Commited, prevPerfControl_,
                          lastPriv_);
 
+#if 0
   if ((currPc_ & 3) == 0)
     pregs.updateCounters(EventNumber::InstAligned, prevPerfControl_,
                          lastPriv_);
+#endif
 
   if (info.type() == InstType::Int)
     {
