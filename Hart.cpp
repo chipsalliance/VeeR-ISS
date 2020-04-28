@@ -2701,6 +2701,8 @@ Hart<URV>::pokeCsr(CsrNumber csr, URV val)
     updateStackChecker();
   else if (csr == CsrNumber::MDBAC)
     enableWideLdStMode(true);
+  else if (csr == CsrNumber::MCOUNTINHIBIT)
+    perfControl_ = ~val;
   else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
            (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
     updateMemoryProtection();
@@ -7106,6 +7108,8 @@ Hart<URV>::doCsrWrite(CsrNumber csr, URV csrVal, unsigned intReg,
     updateStackChecker();
   else if (csr == CsrNumber::MDBAC)
     enableWideLdStMode(true);
+  else if (csr == CsrNumber::MCOUNTINHIBIT)
+    perfControl_ = ~csrVal;
   else if (csr == CsrNumber::MSTATUS)
     {
       // Update cached values of MSTATUS MPP and MPRV.
