@@ -1341,28 +1341,46 @@ template <typename URV>
 void
 CsRegs<URV>::updateCounterPrivilege()
 {
-  URV mask = 0;
-  if (not peek(CsrNumber::MCOUNTEREN, mask))
+  URV mMask = 0;
+  if (not peek(CsrNumber::MCOUNTEREN, mMask))
     return;
 
-  // Bits 0, 1, 2, 3 to 31 of maks correspond to CYCLE, TIME, INSTRET, HPMCOUNTER3 to
+  URV sMask = 0;
+  peek(CsrNumber::SCOUNTEREN, sMask);
+
+  // Bits 0, 1, 2, 3 to 31 of mask correspond to CYCLE, TIME, INSTRET, HPMCOUNTER3 to
   // HPMCOUNTER31
   for (unsigned i = 0; i < 32; ++i)
     {
-      bool flag = (mask >> i) & 1;
-      PrivilegeMode mode = flag? PrivilegeMode::User : PrivilegeMode::Machine;
+      bool mFlag = (mMask >> i) & 1;
+      PrivilegeMode nextMode = PrivilegeMode::Machine;
+
+      if (mFlag)
+        {
+          if (supervisorModeEnabled_)
+            {
+              nextMode = PrivilegeMode::Supervisor;
+
+              bool sFlag = (sMask >> i) & 1;
+              if (sFlag and userModeEnabled_)
+                nextMode = PrivilegeMode::User;
+            }
+          else if (userModeEnabled_)
+            nextMode = PrivilegeMode::User;
+        }
+
       unsigned num = i + unsigned(CsrNumber::CYCLE);
 
       CsrNumber csrn = CsrNumber(num);
       auto csr = getImplementedCsr(csrn);
       if (csr)
-        csr->setPrivilegeMode(mode);
+        csr->setPrivilegeMode(nextMode);
 
       num = i + unsigned(CsrNumber::CYCLEH);
       csrn = CsrNumber(num);
       csr = getImplementedCsr(csrn);
       if (csr)
-        csr->setPrivilegeMode(mode);
+        csr->setPrivilegeMode(nextMode);
     }
 }
 
