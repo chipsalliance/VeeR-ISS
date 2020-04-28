@@ -1082,11 +1082,11 @@ namespace WdRiscv
 
     /// Enable user mode.
     void enableUserMode(bool flag)
-    { csRegs_.enableUserMode(flag); }
+    { rvu_ = flag; csRegs_.enableUserMode(flag); }
 
     /// Enable supervisor mode.
     void enableSupervisorMode(bool flag)
-    { csRegs_.enableSupervisorMode(flag); }
+    { rvs_ = flag; csRegs_.enableSupervisorMode(flag); }
 
     /// Enable/diable misaligned access. If disabled then misaligned
     /// ld/st will trigger an exception.

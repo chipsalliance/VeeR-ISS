@@ -326,16 +326,10 @@ Hart<URV>::processExtensions()
 	rvm_ = true;
 
       if (value & (URV(1) << ('u' - 'a')))  // User-mode option.
-        {
-          rvu_ = true;
-          csRegs_.enableUserMode(true);
-        }
+        enableUserMode(true);
 
       if (value & (URV(1) << ('s' - 'a')))  // Supervisor-mode option.
-        {
-          rvs_ = true;
-          csRegs_.enableSupervisorMode(true);
-        }
+        enableSupervisorMode(true);
 
       for (auto ec : { 'b', 'e', 'g', 'h', 'j', 'k', 'l', 'n', 'o', 'p',
 	    'q', 'r', 't', 'v', 'w', 'x', 'y', 'z' } )

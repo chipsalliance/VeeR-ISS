@@ -264,9 +264,9 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
       recordWrite(CsrNumber::MEIHAP);
     }
 
-  // Writing mcounteren changes accessibility of the counters in user
-  // mode.
-  if (number == CsrNumber(CsrNumber::MCOUNTEREN))
+  // Writing mcounteren/scounteren changes accessibility of the
+  // counters in user/supervisor modes.
+  if (number == CsrNumber::MCOUNTEREN or number == CsrNumber::SCOUNTEREN)
     updateCounterPrivilege();
 
   return true;
@@ -1116,8 +1116,9 @@ CsRegs<URV>::poke(CsrNumber number, URV value)
       regs_.at(meihapIx).poke(meihap);
     }
 
-  // Poking mcounteren changes accessibility of the counters.
-  if (number == CsrNumber(CsrNumber::MCOUNTEREN))
+  // Poking mcounteren/scounteren changes accessibility of the
+  // counters in user/supervisor modes.
+  if (number == CsrNumber::MCOUNTEREN or number == CsrNumber::SCOUNTEREN)
     updateCounterPrivilege();
 
   return true;
