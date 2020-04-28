@@ -1159,11 +1159,11 @@ namespace WdRiscv
     {
       unsigned UIE      : 1;
       unsigned SIE      : 1;
-      unsigned res3     : 1;
+      unsigned res2     : 1;
       unsigned MIE      : 1;
       unsigned UPIE     : 1;
       unsigned SPIE     : 1;
-      unsigned res2     : 1;
+      unsigned UBE      : 1;
       unsigned MPIE     : 1;
       unsigned SPP      : 1;
       unsigned res1     : 2;
@@ -1194,11 +1194,11 @@ namespace WdRiscv
     {
       unsigned UIE      : 1;
       unsigned SIE      : 1;
-      unsigned res3     : 1;
+      unsigned res2     : 1;
       unsigned MIE      : 1;
       unsigned UPIE     : 1;
       unsigned SPIE     : 1;
-      unsigned res2     : 1;
+      unsigned UBE      : 1;
       unsigned MPIE     : 1;
       unsigned SPP      : 1;
       unsigned res1     : 2;
@@ -1214,7 +1214,9 @@ namespace WdRiscv
       unsigned res0     : 9;
       unsigned UXL      : 2;
       unsigned SXL      : 2;
-      unsigned res      : 27;  // Reserved
+      unsigned SBE      : 1;
+      unsigned MBE      : 1;
+      unsigned res      : 25;  // Reserved
       unsigned SD       : 1;
     } bits_;
   };
