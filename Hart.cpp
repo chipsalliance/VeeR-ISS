@@ -2357,8 +2357,15 @@ Hart<URV>::initiateTrap(bool interrupt, URV cause, URV pcToSave, URV info,
   privMode_ = PrivilegeMode::Machine;
   PrivilegeMode nextMode = PrivilegeMode::Machine;
 
-  // But they can be delegated. TBD: handle delegation to S/U modes
-  // updating nextMode.
+  // But they can be delegated.
+  if (isRvs())
+    {
+      URV delegVal = 0;
+      CsrNumber csrn = interrupt? CsrNumber::MIDELEG : CsrNumber::MEDELEG;
+      peekCsr(csrn, delegVal);
+      if (delegVal & (URV(1) << cause))
+        nextMode = PrivilegeMode::Supervisor;
+    }
 
   CsrNumber epcNum = CsrNumber::MEPC;
   CsrNumber causeNum = CsrNumber::MCAUSE;
