@@ -930,7 +930,7 @@ Syscall<URV>::emulate()
 
 	errno = 0;
 	int rc = uname(uts);
-	strcpy(uts->release, "4.14.0");
+	strcpy(uts->release, "5.14.0");
 	return rc < 0 ? SRV(-errno) : rc;
       }
 
