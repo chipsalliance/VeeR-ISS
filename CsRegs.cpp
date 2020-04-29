@@ -824,9 +824,18 @@ CsRegs<URV>::defineSupervisorRegs()
 
   using Csrn = CsrNumber;
 
-  // Only bits spp, spie, upie, sie and uie of sstatus are writeable.
-  URV mask = 0x233;
+  // Only bits sie, spie, upie, ube, spp, fs, xs, sum, mxr and sd of
+  // sstatus are writeable.
+  URV mask = 0x800de162;
+  if constexpr (sizeof(URV) == 8)
+    mask = 0x80000004000de162;
   defineCsr("sstatus",    Csrn::SSTATUS,    !mand, !imp, 0, mask, mask);
+
+  // SSTATUS shadows MSTATUS
+  auto sstatus = findCsr(Csrn::SSTATUS);
+  auto mstatus = findCsr(Csrn::MSTATUS);
+  if (sstatus and mstatus)
+    sstatus->tie(mstatus->valuePtr_);
 
   defineCsr("sedeleg",    Csrn::SEDELEG,    !mand, !imp, 0, 0, 0);
   defineCsr("sideleg",    Csrn::SIDELEG,    !mand, !imp, 0, 0, 0);

@@ -4016,6 +4016,7 @@ Hart<URV>::untilAddress(URV address, FILE* traceFile)
 	  ldStAddrValid_ = false;
 	  triggerTripped_ = false;
 	  hasException_ = false;
+          lastPriv_ = privMode_;
 
 	  ++instCounter_;
 
@@ -4035,7 +4036,6 @@ Hart<URV>::untilAddress(URV address, FILE* traceFile)
 
           // Increment pc and execute instruction
 	  pc_ += di->instSize();
-          lastPriv_ = privMode_;
 	  execute(di);
 
 	  ++cycleCount_;
@@ -4450,6 +4450,7 @@ Hart<URV>::singleStep(FILE* traceFile)
       triggerTripped_ = false;
       hasException_ = false;
       ebreakInstDebug_ = false;
+      lastPriv_ = privMode_;
 
       if (alarmCounter_)
         doAlarmCountdown();
@@ -4469,7 +4470,6 @@ Hart<URV>::singleStep(FILE* traceFile)
 
       // Increment pc and execute instruction
       pc_ += di.instSize();
-      lastPriv_ = privMode_;
       execute(&di);
 
       ++cycleCount_;
