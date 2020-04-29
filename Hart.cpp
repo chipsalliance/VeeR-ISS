@@ -2358,7 +2358,7 @@ Hart<URV>::initiateTrap(bool interrupt, URV cause, URV pcToSave, URV info,
   PrivilegeMode nextMode = PrivilegeMode::Machine;
 
   // But they can be delegated.
-  if (isRvs())
+  if (isRvs() and origMode != PrivilegeMode::Machine)
     {
       URV delegVal = 0;
       CsrNumber csrn = interrupt? CsrNumber::MIDELEG : CsrNumber::MEDELEG;
