@@ -357,11 +357,11 @@ namespace WdRiscv
     /// execute the instruction at that address. If file is non-null
     /// then print thereon tracing information after each executed
     /// instruction. Similar to method run with respect to tohost.
-    bool runUntilAddress(URV address, FILE* file = nullptr);
+    bool runUntilAddress(size_t address, FILE* file = nullptr);
 
     /// Helper to runUntiAddress: Same as runUntilAddress but does not
     /// print run-time and instructions per second.
-    bool untilAddress(URV address, FILE* file = nullptr);
+    bool untilAddress(size_t address, FILE* file = nullptr);
 
     /// Define the program counter value at which the run method will
     /// stop.

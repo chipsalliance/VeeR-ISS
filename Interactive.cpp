@@ -103,9 +103,12 @@ Interactive<URV>::untilCommand(Hart<URV>& hart, const std::string& line,
       return false;
     }
 
-  URV addr = 0;
+  size_t addr = 0;
   if (not parseCmdLineNumber("address", tokens.at(1), addr))
     return false;
+
+  if (addr >= hart.memorySize())
+    std::cerr << "Warning: Address outside memory range.\n";
 
   return hart.untilAddress(addr, traceFile);
 }
@@ -345,17 +348,17 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
 
   if (resource == "m")
     {
-      URV addr0 = 0;
+      size_t addr0 = 0;
       if (not parseCmdLineNumber("memory-address", addrStr, addr0))
 	return false;
 
-      URV addr1 = addr0;
+      size_t addr1 = addr0;
       if (tokens.size() == 4)
 	if (not parseCmdLineNumber("memory-address", tokens.at(3), addr1))
 	  return false;
 
       uint32_t word = 0;
-      for (URV addr = addr0; addr <= addr1; addr += 4)
+      for (size_t addr = addr0; addr <= addr1; addr += 4)
 	{
 	  if (not hart.peekMemory(addr, word))
 	    {
@@ -579,7 +582,7 @@ Interactive<URV>::pokeCommand(Hart<URV>& hart, const std::string& line,
 
   if (resource == "m")
     {
-      URV addr = 0;
+      size_t addr = 0;
       if (not parseCmdLineNumber("address", addrStr, addr))
 	return false;
       if (hart.pokeMemory(addr, value))

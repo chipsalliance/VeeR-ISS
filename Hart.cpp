@@ -3761,23 +3761,23 @@ Hart<URV>::copyMemRegionConfig(const Hart<URV>& other)
 // True if keyboard interrupt (user hit control-c) pending.
 static std::atomic<bool> kbdInterrupt = false;
 
-// This is set to false when user hits control-c to interrupt a long
-// run.
-static std::atomic<bool> noLinuxInterrupt = true;
+// Negation of the above. Exists for speed (obsessive compulsive
+// engineering).
+static std::atomic<bool> noKbdInterrupt = true;
 
 static void
 keyboardInterruptHandler(int)
 {
   kbdInterrupt = true;
-  noLinuxInterrupt = false;
+  noKbdInterrupt = false;
 }
 
 
 static void
-clearLinuxInterrupts()
+clearKbdInterrupts()
 {
   kbdInterrupt = false;
-  noLinuxInterrupt = true;
+  noKbdInterrupt = true;
 }
 
 
@@ -3792,7 +3792,7 @@ public:
 
   SignalHandlers()
   {
-    clearLinuxInterrupts();
+    clearKbdInterrupts();
 #ifdef __MINGW64__
   __p_sig_fn_t newKbdAction = keyboardInterruptHandler;
   prevKbdAction_ = signal(SIGINT, newKbdAction);
@@ -3978,7 +3978,7 @@ Hart<URV>::fetchInstWithTrigger(URV addr, uint32_t& inst, FILE* file)
 
 template <typename URV>
 bool
-Hart<URV>::untilAddress(URV address, FILE* traceFile)
+Hart<URV>::untilAddress(size_t address, FILE* traceFile)
 {
   std::string instStr;
   instStr.reserve(128);
@@ -4102,7 +4102,7 @@ Hart<URV>::untilAddress(URV address, FILE* traceFile)
 
 template <typename URV>
 bool
-Hart<URV>::runUntilAddress(URV address, FILE* traceFile)
+Hart<URV>::runUntilAddress(size_t address, FILE* traceFile)
 {
   struct timeval t0;
   gettimeofday(&t0, nullptr);
@@ -4179,7 +4179,7 @@ bool
 Hart<URV>::simpleRunWithLimit()
 {
   uint64_t limit = instCountLim_;
-  while (noLinuxInterrupt and instCounter_ < limit) 
+  while (noKbdInterrupt and instCounter_ < limit) 
     {
       currPc_ = pc_;
       ++instCounter_;
@@ -4206,7 +4206,7 @@ template <typename URV>
 bool
 Hart<URV>::simpleRunNoLimit()
 {
-  while (noLinuxInterrupt) 
+  while (noKbdInterrupt) 
     {
       currPc_ = pc_;
       ++instCounter_;
