@@ -910,20 +910,6 @@ HartConfig::applyConfig(Hart<URV>& hart, bool verbose) const
       hart.configEvenOddTriggerChaining(chainPairs);
     }
 
-  tag = "load_data_trigger";
-  if (config_ -> count(tag))
-    {
-      bool flag = getJsonBoolean(tag, config_ -> at(tag));
-      hart.configLoadDataTrigger(flag);
-    }
-
-  tag = "exec_opcode_trigger";
-  if (config_ -> count(tag))
-    {
-      bool flag = getJsonBoolean(tag, config_ -> at(tag));
-      hart.configExecOpcodeTrigger(flag);
-    }
-
   unsigned errors = 0;
 
   tag = "max_mmode_perf_event";
@@ -948,6 +934,20 @@ HartConfig::applyConfig(Hart<URV>& hart, bool verbose) const
 
   if (not applyTriggerConfig(hart, *config_))
     errors++;
+
+  tag = "load_data_trigger";
+  if (config_ -> count(tag))
+    {
+      bool flag = getJsonBoolean(tag, config_ -> at(tag));
+      hart.configLoadDataTrigger(flag);
+    }
+
+  tag = "exec_opcode_trigger";
+  if (config_ -> count(tag))
+    {
+      bool flag = getJsonBoolean(tag, config_ -> at(tag));
+      hart.configExecOpcodeTrigger(flag);
+    }
 
   if (config_ -> count("memmap"))
     {
