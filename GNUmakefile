@@ -86,7 +86,7 @@ RVCORE_SRCS := IntRegs.cpp CsRegs.cpp FpRegs.cpp instforms.cpp \
             PerfRegs.cpp gdb.cpp HartConfig.cpp \
             Server.cpp Interactive.cpp decode.cpp disas.cpp \
 	    Syscall.cpp PmaManager.cpp DecodedInst.cpp snapshot.cpp \
-	    PmpManager.cpp
+	    PmpManager.cpp VirtMem.cpp
 
 # List of All CPP Sources for the project
 SRCS_CXX += $(RVCORE_SRCS) whisper.cpp
