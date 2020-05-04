@@ -280,6 +280,7 @@ Hart<URV>::processExtensions()
   rva_ = false;
   rvc_ = false;
   rvd_ = false;
+  rve_ = false;
   rvf_ = false;
   rvm_ = false;
   rvs_ = false;
@@ -318,6 +319,12 @@ Hart<URV>::processExtensions()
 		      << "extension (bit 5) is not enabled -- ignored\n";
 	}
 
+      if (value & (URV(1) << ('e' - 'a')))  // Double precision FP.
+        {
+          rve_ = true;
+          intRegs_.regs_.resize(16);
+        }
+
       if (not (value & (URV(1) << ('i' - 'a'))))
 	std::cerr << "Bit 8 (i extension) is cleared in the MISA register "
 		  << " but extension is mandatory -- assuming bit 8 set\n";
@@ -331,7 +338,7 @@ Hart<URV>::processExtensions()
       if (value & (URV(1) << ('s' - 'a')))  // Supervisor-mode option.
         enableSupervisorMode(true);
 
-      for (auto ec : { 'b', 'e', 'g', 'h', 'j', 'k', 'l', 'n', 'o', 'p',
+      for (auto ec : { 'b', 'g', 'h', 'j', 'k', 'l', 'n', 'o', 'p',
 	    'q', 'r', 't', 'v', 'w', 'x', 'y', 'z' } )
 	{
 	  unsigned bit = ec - 'a';

@@ -577,8 +577,11 @@ Syscall<URV>::emulate()
   URV a3 = hart_.peekIntReg(RegA3);
 #endif
 
-  URV num = hart_.peekIntReg(RegA7);
-
+  URV num = 0;
+  if (hart_.isRve())
+    num = hart_.peekIntReg(RegT0);
+  else
+    num = hart_.peekIntReg(RegA7);
 
   switch (num)
     {

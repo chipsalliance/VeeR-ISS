@@ -654,6 +654,7 @@ applyIsaString(const std::string& isaStr, Hart<URV>& hart)
 	case 'a':
 	case 'c':
 	case 'd':
+        case 'e':
 	case 'f':
 	case 'i':
 	case 'm':

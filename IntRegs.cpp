@@ -58,7 +58,11 @@ IntRegs<URV>::findReg(const std::string& name, unsigned& ix) const
   if (iter == nameToNumber_.end())
     return false;
 
-  ix = iter->second;
+  unsigned num = iter->second;
+  if (num >= regs_.size())
+    return false;
+
+  ix = num;
   return true;
 }
 

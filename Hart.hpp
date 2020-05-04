@@ -883,6 +883,10 @@ namespace WdRiscv
     bool isRvd() const
     { return rvd_; }
 
+    /// Return true if rv64e (embedded) extension is enabled in this hart.
+    bool isRve() const
+    { return rve_; }
+
     /// Return true if rv64 (64-bit option) extension is enabled in
     /// this hart.
     bool isRv64() const
@@ -1879,6 +1883,7 @@ namespace WdRiscv
     bool rva_ = false;           // True if extension A (atomic) enabled.
     bool rvc_ = true;            // True if extension C (compressed) enabled.
     bool rvd_ = false;           // True if extension D (double fp) enabled.
+    bool rve_ = false;           // True if extension E (embedded) enabled.
     bool rvf_ = false;           // True if extension F (single fp) enabled.
     bool rvm_ = true;            // True if extension M (mul/div) enabled.
     bool rvs_ = false;           // True if extension S (supervisor-mode) enabled.
