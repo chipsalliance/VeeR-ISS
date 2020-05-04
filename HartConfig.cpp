@@ -327,7 +327,7 @@ applyCsrConfig(Hart<URV>& hart, const nlohmann::json& config, bool verbose)
                     << "in reset value of mhartstart CSR -- Bit is ignored\n";
 
       // Add local hart-id to the base-hart-id (which is common to all
-      // the harts in the code).
+      // the harts in the core).
       if (csrName == "mhartid")
         reset += hart.localHartId();
 
