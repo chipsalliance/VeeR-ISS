@@ -1871,7 +1871,7 @@ namespace WdRiscv
 
   private:
 
-    unsigned localHartId_ = 0;   // Hardware thread id witin core.
+    unsigned localHartId_ = 0;   // Hardware thread id within core.
     bool hartStarted_ = true;    // True if hart is running. WD special.
     Memory& memory_;
     IntRegs<URV> intRegs_;       // Integer register file.
