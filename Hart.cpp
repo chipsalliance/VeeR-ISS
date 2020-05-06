@@ -116,8 +116,8 @@ union Uint64DoubleUnion
 
 
 template <typename URV>
-Hart<URV>::Hart(unsigned localHartId, Memory& memory, unsigned intRegCount)
-  : localHartId_(localHartId), memory_(memory), intRegs_(intRegCount),
+Hart<URV>::Hart(unsigned hartIx, Memory& memory, unsigned intRegCount)
+  : hartIx_(hartIx), memory_(memory), intRegs_(intRegCount),
     fpRegs_(32), syscall_(*this),
     pmpManager_(memory.size(), memory.pageSize())
 {
@@ -186,12 +186,14 @@ Hart<URV>::Hart(unsigned localHartId, Memory& memory, unsigned intRegCount)
   // Tie the FCSR register to variable held in the hart.
   csRegs_.regs_.at(size_t(CsrNumber::FCSR)).tie(&fcsrValue_);
 
-  // Add local hart-id to the base-hart-id defined in the configuration file.
+  // Add local hart-id to the base-hart-id when MHARTID CSR is
+  // constructed.  This will be over-written if MHARTID is configured
+  // in the JSON configuration file.
   bool implemented = true, debug = false, shared = false;
   URV base = 0, reset = 0, mask = 0, pokeMask = 0;
 
   peekCsr(CsrNumber::MHARTID, base, reset, mask, pokeMask);
-  URV hartId = base + localHartId;
+  URV hartId = base + hartIx;
   csRegs_.configCsr(CsrNumber::MHARTID, implemented, hartId, mask, pokeMask,
                     debug, shared);
 }
@@ -365,7 +367,7 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   // mapped register data loaded from the ELF file.
   if (resetMemoryMappedRegs)
     memory_.resetMemoryMappedRegisters();
-  memory_.invalidateLr(localHartId_);
+  memory_.invalidateLr(hartIx_);
 
   clearTraceData();
   clearPendingNmi();
@@ -407,13 +409,13 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
 
   // If mhartstart exists then use its bits to decide which hart has
   // started.
-  if (localHartId_ != 0)
+  if (hartIx_ != 0)
     {
       auto csr = findCsr("mhartstart");
       if (csr)
         {
           URV value = csr->read();
-          hartStarted_ = ((URV(1) << localHartId_) & value) != 0;
+          hartStarted_ = ((URV(1) << hartIx_) & value) != 0;
         }
     }
 
@@ -1736,7 +1738,7 @@ bool
 Hart<URV>::fastStore(unsigned /*rs1*/, URV /*base*/, URV addr,
                      STORE_TYPE storeVal)
 {
-  if (memory_.write(localHartId_, addr, storeVal))
+  if (memory_.write(hartIx_, addr, storeVal))
     {
       if (toHostValid_ and addr == toHost_ and storeVal != 0)
 	{
@@ -1800,9 +1802,9 @@ Hart<URV>::store(unsigned rs1, URV base, URV addr, STORE_TYPE storeVal)
   if (wideLdSt_)
     return wideStore(addr, storeVal, stSize);
 
-  if (memory_.write(localHartId_, addr, storeVal))
+  if (memory_.write(hartIx_, addr, storeVal))
     {
-      memory_.invalidateOtherHartLr(localHartId_, addr, stSize);
+      memory_.invalidateOtherHartLr(hartIx_, addr, stSize);
 
       invalidateDecodeCache(addr, stSize);
 
@@ -2364,7 +2366,7 @@ Hart<URV>::initiateTrap(bool interrupt, URV cause, URV pcToSave, URV info,
 
   enableWideLdStMode(false);  // Swerv specific feature.
 
-  memory_.invalidateLr(localHartId_);
+  memory_.invalidateLr(hartIx_);
 
   PrivilegeMode origMode = privMode_;
 
@@ -2494,7 +2496,7 @@ Hart<URV>::undelegatedInterrupt(URV cause, URV pcToSave, URV nextPc)
   enableWideLdStMode(false);  // Swerv specific feature.
 
   interruptCount_++;
-  memory_.invalidateLr(localHartId_);
+  memory_.invalidateLr(hartIx_);
 
   PrivilegeMode origMode = privMode_;
 
@@ -3024,7 +3026,7 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
   if (reg > 0)
     {
       value = intRegs_.read(reg);
-      formatInstTrace<URV>(out, tag, localHartId_, currPc_, instBuff, 'r', reg,
+      formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'r', reg,
 			   value, tmp.c_str());
       pending = true;
     }
@@ -3035,7 +3037,7 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
     {
       uint64_t val = fpRegs_.readBitsRaw(fpReg);
       if (pending) fprintf(out, "  +\n");
-      formatFpInstTrace<URV>(out, tag, localHartId_, currPc_, instBuff, fpReg,
+      formatFpInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, fpReg,
 			     val, tmp.c_str());
       pending = true;
     }
@@ -3089,7 +3091,7 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
   for (const auto& [key, val] : csrMap)
     {
       if (pending) fprintf(out, "  +\n");
-      formatInstTrace<URV>(out, tag, localHartId_, currPc_, instBuff, 'c',
+      formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'c',
 			   key, val, tmp.c_str());
       pending = true;
     }
@@ -3097,13 +3099,13 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
   // Process memory diff.
   size_t address = 0;
   uint64_t memValue = 0;
-  unsigned writeSize = memory_.getLastWriteNewValue(localHartId_, address, memValue);
+  unsigned writeSize = memory_.getLastWriteNewValue(hartIx_, address, memValue);
   if (writeSize > 0)
     {
       if (pending)
 	fprintf(out, "  +\n");
 
-      formatInstTrace<URV>(out, tag, localHartId_, currPc_, instBuff, 'm',
+      formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'm',
 			   URV(address), URV(memValue), tmp.c_str());
       pending = true;
     }
@@ -3113,7 +3115,7 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
   else
     {
       // No diffs: Generate an x0 record.
-      formatInstTrace<URV>(out, tag, localHartId_, currPc_, instBuff, 'r', 0, 0,
+      formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'r', 0, 0,
 			  tmp.c_str());
       fprintf(out, "\n");
     }
@@ -3321,7 +3323,7 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
                              lastPriv_);
       size_t addr = 0;
       uint64_t value = 0;
-      memory_.getLastWriteOldValue(localHartId_, addr, value);
+      memory_.getLastWriteOldValue(hartIx_, addr, value);
       if (isDataAddressExternal(addr))
 	pregs.updateCounters(EventNumber::BusStore, prevPerfControl_,
                              lastPriv_);
@@ -3570,7 +3572,7 @@ Hart<URV>::clearTraceData()
   intRegs_.clearLastWrittenReg();
   fpRegs_.clearLastWrittenReg();
   csRegs_.clearLastWrittenRegs();
-  memory_.clearLastWriteInfo(localHartId_);
+  memory_.clearLastWriteInfo(hartIx_);
 }
 
 
@@ -3696,7 +3698,7 @@ Hart<URV>::lastMemory(std::vector<size_t>& addresses,
 
   size_t address = 0;
   uint64_t value;
-  unsigned writeSize = memory_.getLastWriteNewValue(localHartId_, address, value);
+  unsigned writeSize = memory_.getLastWriteNewValue(hartIx_, address, value);
 
   if (not writeSize)
     return;
@@ -4822,12 +4824,12 @@ Hart<URV>::collectAndUndoWhatIfChanges(URV prevPc, ChangeRecord& record)
       record.fpRegValue = newFpValue;
     }
 
-  record.memSize = memory_.getLastWriteNewValue(localHartId_, record.memAddr,
+  record.memSize = memory_.getLastWriteNewValue(hartIx_, record.memAddr,
                                                 record.memValue);
 
   size_t addr = 0;
   uint64_t value = 0;
-  size_t byteCount = memory_.getLastWriteOldValue(localHartId_, addr, value);
+  size_t byteCount = memory_.getLastWriteOldValue(hartIx_, addr, value);
   for (size_t i = 0; i < byteCount; ++i)
     {
       uint8_t byte = value & 0xff;
@@ -6348,7 +6350,7 @@ void
 Hart<URV>::enterDebugMode(DebugModeCause cause, URV pc)
 {
   // Entering debug modes loses LR reservation.
-  memory_.invalidateLr(localHartId_);
+  memory_.invalidateLr(hartIx_);
 
   if (debugMode_)
     {
@@ -6959,7 +6961,7 @@ Hart<URV>::execMret(const DecodedInst*)
       return;
     }
 
-  memory_.invalidateLr(localHartId_); // Clear LR reservation (if any).
+  memory_.invalidateLr(hartIx_); // Clear LR reservation (if any).
 
   // ... updating/unpacking its fields,
   MstatusFields<URV> fields(value);
@@ -7018,7 +7020,7 @@ Hart<URV>::execSret(const DecodedInst*)
       return;
     }
 
-  memory_.invalidateLr(localHartId_); // Clear LR reservation (if any).
+  memory_.invalidateLr(hartIx_); // Clear LR reservation (if any).
 
   // ... updating/unpacking its fields,
   MstatusFields<URV> fields(value);
@@ -7372,8 +7374,8 @@ Hart<URV>::wideStore(URV addr, URV storeVal, unsigned storeSize)
   peekCsr(CsrNumber::MDBHD, temp);
   uint32_t upper = temp;
 
-  if (not memory_.write(localHartId_, addr + 4, upper) or
-      not memory_.write(localHartId_, addr, lower))
+  if (not memory_.write(hartIx_, addr + 4, upper) or
+      not memory_.write(hartIx_, addr, lower))
     {
       // FIX: Clear last written data if 1st 4 bytes written.
       auto cause = ExceptionCause::STORE_ACC_FAULT;
@@ -10253,7 +10255,7 @@ Hart<URV>::execLr_w(const DecodedInst* di)
 
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
   URV addr = intRegs_.read(di->op1());
-  memory_.makeLr(localHartId_, addr, 4 /*size*/);
+  memory_.makeLr(hartIx_, addr, 4 /*size*/);
 }
 
 
@@ -10313,10 +10315,10 @@ Hart<URV>::storeConditional(unsigned rs1, URV addr, STORE_TYPE storeVal)
       return false;
     }
 
-  if (not memory_.hasLr(localHartId_, addr))
+  if (not memory_.hasLr(hartIx_, addr))
     return false;
 
-  if (memory_.write(localHartId_, addr, storeVal))
+  if (memory_.write(hartIx_, addr, storeVal))
     {
       invalidateDecodeCache(addr, sizeof(STORE_TYPE));
 
@@ -10347,11 +10349,11 @@ Hart<URV>::execSc_w(const DecodedInst* di)
   uint64_t prevCount = exceptionCount_;
 
   bool ok = storeConditional(rs1, addr, uint32_t(value));
-  memory_.invalidateLr(localHartId_);
+  memory_.invalidateLr(hartIx_);
 
   if (ok)
     {
-      memory_.invalidateOtherHartLr(localHartId_, addr, 4);
+      memory_.invalidateOtherHartLr(hartIx_, addr, 4);
       intRegs_.write(di->op0(), 0); // success
       return;
     }
@@ -10640,7 +10642,7 @@ Hart<URV>::execLr_d(const DecodedInst* di)
 
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
   URV addr = intRegs_.read(di->op1());
-  memory_.makeLr(localHartId_, addr, 8 /*size*/);
+  memory_.makeLr(hartIx_, addr, 8 /*size*/);
 }
 
 
@@ -10657,11 +10659,11 @@ Hart<URV>::execSc_d(const DecodedInst* di)
   uint64_t prevCount = exceptionCount_;
 
   bool ok = storeConditional(rs1, addr, uint64_t(value));
-  memory_.invalidateLr(localHartId_);
+  memory_.invalidateLr(hartIx_);
 
   if (ok)
     {
-      memory_.invalidateOtherHartLr(localHartId_, addr, 8);
+      memory_.invalidateOtherHartLr(hartIx_, addr, 8);
       intRegs_.write(di->op0(), 0); // success
       return;
     }

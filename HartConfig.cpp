@@ -322,14 +322,14 @@ applyCsrConfig(Hart<URV>& hart, const nlohmann::json& config, bool verbose)
       URV pokeMask0 = csr->getPokeMask();
 
       if (csrName == "mhartstart")
-        if (hart.localHartId() == 0 and (reset & 1) == 0)
+        if (hart.sysHartIndex() == 0 and (reset & 1) == 0)
           std::cerr << "Warning: Bit corresponding to hart 0 is cleared "
                     << "in reset value of mhartstart CSR -- Bit is ignored\n";
 
-      // Add local hart-id to the base-hart-id (which is common to all
+      // Add hart-index to the base-hart-id (which is common to all
       // the harts in the core).
       if (csrName == "mhartid")
-        reset += hart.localHartId();
+        reset += hart.sysHartIndex();
 
       if (not hart.configCsr(csrName, exists, reset, mask, pokeMask,
 			     isDebug, shared))
@@ -1063,7 +1063,7 @@ defineMhartstartSideEffects(std::vector<Hart<URV>*>& harts)
                     // Start harts corresponding to set bits
                     for (auto ht : harts)
                       {
-                        URV id = ht->localHartId();
+                        URV id = ht->sysHartIndex();
                         if (val & (URV(1) << id))
                           ht->setStarted(true);
                       }
@@ -1102,7 +1102,7 @@ defineMnmipdelSideEffects(std::vector<Hart<URV>*>& harts)
                       return;
                     for (auto ht : harts)
                       {
-                        URV id = ht->localHartId();
+                        URV id = ht->sysHartIndex();
                         bool enable = (val & (URV(1) << id)) != 0;
                         ht->enableNmi(enable);
                       }
@@ -1119,7 +1119,7 @@ defineMnmipdelSideEffects(std::vector<Hart<URV>*>& harts)
       // On reset, enable NMI in harts according to the bits of mnmipdel
       auto reset = [hart] (Csr<URV>& csr) -> void {
                    URV val = csr.read();
-                   URV id = hart->localHartId();
+                   URV id = hart->sysHartIndex();
                    bool flag = (val & (URV(1) << id)) != 0;
                    hart->enableNmi(flag);
                  };

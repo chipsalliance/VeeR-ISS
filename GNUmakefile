@@ -58,7 +58,7 @@ RM := rm -rf
 OFLAGS := -O3
 
 # Include paths.
-IFLAGS := $(addprefix -I,$(BOOST_INC)) -I.
+IFLAGS := $(addprefix -isystem ,$(BOOST_INC)) -I.
 
 # Command to compile .cpp files.
 override CXXFLAGS += -MMD -MP -std=c++17 $(OFLAGS) $(IFLAGS) -pedantic -Wall -Wextra
@@ -86,7 +86,7 @@ RVCORE_SRCS := IntRegs.cpp CsRegs.cpp FpRegs.cpp instforms.cpp \
             PerfRegs.cpp gdb.cpp HartConfig.cpp \
             Server.cpp Interactive.cpp decode.cpp disas.cpp \
 	    Syscall.cpp PmaManager.cpp DecodedInst.cpp snapshot.cpp \
-	    PmpManager.cpp VirtMem.cpp
+	    PmpManager.cpp VirtMem.cpp Core.cpp System.cc
 
 # List of All CPP Sources for the project
 SRCS_CXX += $(RVCORE_SRCS) whisper.cpp

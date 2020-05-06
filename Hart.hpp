@@ -110,9 +110,9 @@ namespace WdRiscv
     typedef typename std::make_signed_t<URV> SRV;
 
     /// Constructor: Define a hart with the given integer register
-    /// count, the given local hart id (id within core) and associate
-    /// it with the given memory.
-    Hart(unsigned localHartId, Memory& memory, unsigned intRegCount);
+    /// count, the given hart index (index within cluster of cores)
+    /// and associate it with the given memory.
+    Hart(unsigned hartIx, Memory& memory, unsigned intRegCount);
 
     /// Destructor.
     ~Hart();
@@ -994,10 +994,11 @@ namespace WdRiscv
     void setStarted(bool flag)
     { hartStarted_ = flag; }
 
-    /// Return the local (within a core) hart-id of this hart.  Local
-    /// hart ids are dense and start at zero.
-    unsigned localHartId()
-    { return localHartId_; }
+    /// Return the index of this hart within the system. Harts are
+    /// assigned indices 0 to m*n - 1 where m is the number of cores
+    /// and n is the number of harts per core.
+    unsigned sysHartIndex()
+    { return hartIx_; }
 
     /// Tie the shared CSRs in this hart to the corresponding CSRs in
     /// the target hart making them share the same location for their
@@ -1053,7 +1054,7 @@ namespace WdRiscv
 
     /// Cancel load reservation held by this hart (if any).
     void cancelLr()
-    { memory_.invalidateLr(localHartId_); }
+    { memory_.invalidateLr(hartIx_); }
 
     /// Set simAddr to the simulator memory address corresponding to
     /// the RISCV memory address returning true on success and false
@@ -1871,7 +1872,7 @@ namespace WdRiscv
 
   private:
 
-    unsigned localHartId_ = 0;   // Hardware thread id within core.
+    unsigned hartIx_ = 0;        // Hardware thread id within cluster.
     bool hartStarted_ = true;    // True if hart is running. WD special.
     Memory& memory_;
     IntRegs<URV> intRegs_;       // Integer register file.

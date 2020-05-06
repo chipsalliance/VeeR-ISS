@@ -510,7 +510,7 @@ applyCmdLineRegInit(const Args& args, Hart<URV>& hart)
 {
   bool ok = true;
 
-  URV hartId = hart.localHartId();
+  URV hartId = hart.sysHartIndex();
 
   for (const auto& regInit : args.regInits)
     {

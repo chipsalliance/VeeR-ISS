@@ -224,12 +224,12 @@ namespace WdRiscv
     /// fall in inaccessible regions or if the write crosses memory
     /// region of different attributes.
     template <typename T>
-    bool write(unsigned localHartId, size_t address, T value)
+    bool write(unsigned sysHartIx, size_t address, T value)
     {
 #ifdef FAST_SLOPPY
       if (address + sizeof(T) > size_)
         return false;
-      localHartId = localHartId; // Avoid unused var warning.
+      sysHartIx = sysHartIx; // Avoid unused var warning.
 #else
       Pma pma1 = pmaMgr_.getPma(address);
       if (not pma1.isWrite())
@@ -247,10 +247,10 @@ namespace WdRiscv
         {
           if constexpr (sizeof(T) != 4)
             return false;
-          return writeRegister(localHartId, address, value);
+          return writeRegister(sysHartIx, address, value);
 	}
 
-      auto& lwd = lastWriteData_.at(localHartId);
+      auto& lwd = lastWriteData_.at(sysHartIx);
       lwd.prevValue_ = *(reinterpret_cast<T*>(data_ + address));
       lwd.size_ = sizeof(T);
       lwd.addr_ = address;
@@ -263,12 +263,12 @@ namespace WdRiscv
 
     /// Write byte to given address. Return true on success. Return
     /// false if address is out of bounds or is not writable.
-    bool writeByte(unsigned localHartId, size_t address, uint8_t value)
+    bool writeByte(unsigned sysHartIx, size_t address, uint8_t value)
     {
 #ifdef FAST_SLOPPY
       if (address >= size_)
         return false;
-      localHartId = localHartId; // Avoid unused var warning.
+      sysHartIx = sysHartIx; // Avoid unused var warning.
 #else
       Pma pma = pmaMgr_.getPma(address);
       if (not pma.isWrite())
@@ -277,7 +277,7 @@ namespace WdRiscv
       if (pma.isMemMappedReg())
 	return false;  // Only word access allowed to memory mapped regs.
 
-      auto& lwd = lastWriteData_.at(localHartId);
+      auto& lwd = lastWriteData_.at(sysHartIx);
       lwd.prevValue_ = *(data_ + address);
       lwd.size_ = 1;
       lwd.addr_ = address;
@@ -291,20 +291,20 @@ namespace WdRiscv
     /// Write half-word (2 bytes) to given address. Return true on
     /// success. Return false if address is out of bounds or is not
     /// writable.
-    bool writeHalfWord(unsigned localHartId, size_t address, uint16_t value)
-    { return write(localHartId, address, value); }
+    bool writeHalfWord(unsigned sysHartIx, size_t address, uint16_t value)
+    { return write(sysHartIx, address, value); }
 
     /// Read word (4 bytes) from given address into value. Return true
     /// on success.  Return false if address is out of bounds or is
     /// not writable.
-    bool writeWord(unsigned localHartId, size_t address, uint32_t value)
-    { return write(localHartId, address, value); }
+    bool writeWord(unsigned sysHartIx, size_t address, uint32_t value)
+    { return write(sysHartIx, address, value); }
 
     /// Read a double-word (8 bytes) from given address into
     /// value. Return true on success. Return false if address is out
     /// of bounds.
-    bool writeDoubleWord(unsigned localHartId, size_t address, uint64_t value)
-    { return write(localHartId, address, value); }
+    bool writeDoubleWord(unsigned sysHartIx, size_t address, uint64_t value)
+    { return write(sysHartIx, address, value); }
 
     /// Load the given hex file and set memory locations accordingly.
     /// Return true on success. Return false if file does not exists,
@@ -420,9 +420,9 @@ namespace WdRiscv
     /// corresponding value and return the size of that write. Return
     /// 0 if no write since the most recent clearLastWriteInfo in
     /// which case addr and value are not modified.
-    unsigned getLastWriteNewValue(unsigned localHartId, size_t& addr, uint64_t& value) const
+    unsigned getLastWriteNewValue(unsigned sysHartIx, size_t& addr, uint64_t& value) const
     {
-      const auto& lwd = lastWriteData_.at(localHartId);
+      const auto& lwd = lastWriteData_.at(sysHartIx);
       if (lwd.size_)
 	{
 	  addr = lwd.addr_;
@@ -436,10 +436,10 @@ namespace WdRiscv
     /// return the size of that write. Return 0 if no write since the
     /// most recent clearLastWriteInfo in which case addr and value
     /// are not modified.
-    unsigned getLastWriteOldValue(unsigned localHartId, size_t& addr,
+    unsigned getLastWriteOldValue(unsigned sysHartIx, size_t& addr,
                                   uint64_t& value) const
     {
-      auto& lwd = lastWriteData_.at(localHartId);
+      auto& lwd = lastWriteData_.at(sysHartIx);
       if (lwd.size_)
 	{
 	  addr = lwd.addr_;
@@ -449,9 +449,9 @@ namespace WdRiscv
     }
 
     /// Clear the information associated with last write.
-    void clearLastWriteInfo(unsigned localHartId)
+    void clearLastWriteInfo(unsigned sysHartIx)
     {
-      auto& lwd = lastWriteData_.at(localHartId);
+      auto& lwd = lastWriteData_.at(sysHartIx);
       lwd.size_ = 0;
     }
 
@@ -538,7 +538,7 @@ namespace WdRiscv
     }
 
     /// Write a memory mapped register.
-    bool writeRegister(unsigned localHartId, size_t addr, uint32_t value)
+    bool writeRegister(unsigned sysHartIx, size_t addr, uint32_t value)
     {
       uint32_t prev = 0;
       if (not readRegister(addr, prev))
@@ -549,7 +549,7 @@ namespace WdRiscv
       if (not pmaMgr_.writeRegister(addr, value))
         return false;
 
-      auto& lwd = lastWriteData_.at(localHartId);
+      auto& lwd = lastWriteData_.at(sysHartIx);
       lwd.prevValue_ = prev;
       lwd.size_ = 4;
       lwd.addr_ = addr;
@@ -591,12 +591,12 @@ namespace WdRiscv
     /// bytes and belonging to harts other than the given hart-id. The
     /// memory tracks one reservation per hart indexed by local hart
     /// ids.
-    void invalidateOtherHartLr(unsigned localHartId, size_t addr,
+    void invalidateOtherHartLr(unsigned sysHartIx, size_t addr,
                                unsigned storeSize)
     {
       for (size_t i = 0; i < reservations_.size(); ++i)
         {
-          if (i == localHartId) continue;
+          if (i == sysHartIx) continue;
           auto& res = reservations_[i];
           if (addr >= res.addr_ and (addr - res.addr_) < res.size_)
             res.valid_ = false;
@@ -621,13 +621,13 @@ namespace WdRiscv
     }
 
     /// Invalidate LR reservation corresponding to the given hart.
-    void invalidateLr(unsigned localHartId)
-    { reservations_.at(localHartId).valid_ = false; }
+    void invalidateLr(unsigned sysHartIx)
+    { reservations_.at(sysHartIx).valid_ = false; }
 
     /// Make a LR reservation for the given hart.
-    void makeLr(unsigned localHartId, size_t addr, unsigned size)
+    void makeLr(unsigned sysHartIx, size_t addr, unsigned size)
     {
-      auto& res = reservations_.at(localHartId);
+      auto& res = reservations_.at(sysHartIx);
       res.addr_ = addr;
       res.size_ = size;
       res.valid_ = true;
@@ -635,9 +635,9 @@ namespace WdRiscv
 
     /// Return true if given hart has a valid LR reservation for the
     /// given address.
-    bool hasLr(unsigned localHartId, size_t addr) const
+    bool hasLr(unsigned sysHartIx, size_t addr) const
     {
-      auto& res = reservations_.at(localHartId);
+      auto& res = reservations_.at(sysHartIx);
       return res.valid_ and res.addr_ == addr;
     }
 
