@@ -43,3 +43,6 @@ System<URV>::~System()
 {
 }
 
+
+template class WdRiscv::System<uint32_t>;
+template class WdRiscv::System<uint64_t>;

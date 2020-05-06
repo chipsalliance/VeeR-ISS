@@ -116,8 +116,8 @@ union Uint64DoubleUnion
 
 
 template <typename URV>
-Hart<URV>::Hart(unsigned hartIx, Memory& memory, unsigned intRegCount)
-  : hartIx_(hartIx), memory_(memory), intRegs_(intRegCount),
+Hart<URV>::Hart(unsigned hartIx, Memory& memory)
+  : hartIx_(hartIx), memory_(memory), intRegs_(32),
     fpRegs_(32), syscall_(*this),
     pmpManager_(memory.size(), memory.pageSize())
 {

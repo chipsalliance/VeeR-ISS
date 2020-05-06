@@ -109,10 +109,10 @@ namespace WdRiscv
     /// is uint32_t, then SRV will be int32_t.
     typedef typename std::make_signed_t<URV> SRV;
 
-    /// Constructor: Define a hart with the given integer register
-    /// count, the given hart index (index within cluster of cores)
-    /// and associate it with the given memory.
-    Hart(unsigned hartIx, Memory& memory, unsigned intRegCount);
+    /// Constructor: Define a hart with the given index (unique index
+    /// within cluster of cores) and associate it with the given
+    /// memory.
+    Hart(unsigned hartIx, Memory& memory);
 
     /// Destructor.
     ~Hart();

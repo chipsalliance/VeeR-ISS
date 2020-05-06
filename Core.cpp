@@ -35,3 +35,11 @@ Core<URV>::Core(URV idBase, unsigned hartsPerCore, Memory& memory)
 }
 
 
+template <typename URV>
+Core<URV>::~Core()
+{
+}
+
+
+template class WdRiscv::Core<uint32_t>;
+template class WdRiscv::Core<uint64_t>;

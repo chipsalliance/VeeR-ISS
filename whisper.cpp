@@ -42,6 +42,8 @@ typedef int socklen_t;
 #include "HartConfig.hpp"
 #include "WhisperMessage.h"
 #include "Hart.hpp"
+#include "Core.hpp"
+#include "System.hpp"
 #include "Server.hpp"
 #include "Interactive.hpp"
 
@@ -195,6 +197,7 @@ struct Args
   
   unsigned regWidth = 32;
   unsigned harts = 1;
+  unsigned cores = 1;
   unsigned pageSize = 4*1024;
 
   bool help = false;
@@ -355,7 +358,9 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
 	("xlen", po::value(&args.regWidth),
 	 "Specify register width (32 or 64), defaults to 32")
 	("harts", po::value(&args.harts),
-	 "Specify number of hardware threads.")
+	 "Specify number of hardware threads per core (default=1).")
+	("cores", po::value(&args.cores),
+	 "Specify number of core per system (default=1).")
 	("pagesize", po::value(&args.pageSize),
 	 "Specify memory page size.")
 	("target,t", po::value(&args.targets)->multitoken(),
@@ -1418,11 +1423,19 @@ static
 bool
 session(const Args& args, const HartConfig& config)
 {
-  unsigned registerCount = 32;
-  unsigned hartCount = args.harts;
-  if (hartCount == 0 or hartCount > 64)
+  unsigned hartsPerCore = args.harts;
+  if (hartsPerCore == 0 or hartsPerCore > 16)
     {
-      std::cerr << "Unreasonable hart count: " << hartCount << '\n';
+      std::cerr << "Unsupported hart count: " << hartsPerCore;
+      std::cerr << " (1 to 16 currently suppored)\n";
+      return false;
+    }
+
+  unsigned coreCount = args.cores;
+  if (coreCount == 0 or coreCount > 16)
+    {
+      std::cerr << "Unsupported core count: " << coreCount;
+      std::cerr << " (1 to 16 currently suppored)\n";
       return false;
     }
 
@@ -1443,23 +1456,22 @@ session(const Args& args, const HartConfig& config)
   //if (not config.getRegionSize(regionSize))
   //regionSize = args.regionSize;
 
+  unsigned hartCount = coreCount * hartsPerCore;
+  assert(hartCount);
+
   checkAndRepairMemoryParams(memorySize, pageSize, regionSize);
 
   Memory memory(memorySize, pageSize);
   memory.setHartCount(hartCount);
   memory.checkUnmappedElf(not args.unmappedElfOk);
 
-  // Make sure harts get deleted on exit of this scope.
-  std::vector<std::unique_ptr<Hart<URV>>> autoDeleteHarts;
+  // Create cores & harts.
+  System<URV> system(coreCount, hartsPerCore, memory);
+  assert(hartCount == system.hartCount());
 
-  // Create harts.
-  std::vector<Hart<URV>*> harts;
-  for (unsigned i = 0; i < hartCount; ++i)
-    {
-      auto hart = new Hart<URV>(i, memory, registerCount);
-      harts.push_back(hart);
-      autoDeleteHarts.push_back(std::unique_ptr<Hart<URV>>(hart));
-    }
+  std::vector<Hart<URV>*> harts(hartCount);
+  for (unsigned i = 0; i < harts.size(); ++i)
+    harts.at(i) = system.ithHart(i).get();
 
   // Configure harts. Define callbacks for non-standard CSRs.
   if (not config.configHarts(harts, args.verbose))
