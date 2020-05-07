@@ -155,6 +155,32 @@ CsRegs<URV>::read(CsrNumber number, PrivilegeMode mode, URV& value) const
 
 
 template <typename URV>
+void
+CsRegs<URV>::enableSupervisorMode(bool flag)
+{
+  supervisorModeEnabled_ = flag;
+
+  for (auto csrn : { CsrNumber::SSTATUS, CsrNumber::STVEC,
+                      CsrNumber::SCOUNTEREN, CsrNumber::SSCRATCH,
+                      CsrNumber::SEPC, CsrNumber::SCAUSE,
+                      CsrNumber::STVAL, CsrNumber::SIE,
+                      CsrNumber::SIP, CsrNumber::SATP
+                      } )
+    {
+      auto csr = findCsr(csrn);
+      if (not csr)
+        {
+          std::cerr << "Error: enableSupervisorMode: CSR number 0x"
+                    << std::hex << URV(csrn) << " undefined\n";
+          assert(0);
+        }
+      else if (not csr->isImplemented())
+        csr->setImplemented(true);
+    }
+}
+
+
+template <typename URV>
 URV
 CsRegs<URV>::legalizeMstatusValue(URV value) const
 {
@@ -351,7 +377,7 @@ CsRegs<URV>::configCsr(CsrNumber csrNum, bool implemented, URV resetValue,
   if (csr.isMandatory() and not implemented)
     {
       std::cerr << "CSR " << csr.getName() << " is mandatory and is being "
-		<< "configured as non-implemented -- configuration ignored.\n";
+		<< "configured as not-implemented -- configuration ignored.\n";
       return false;
     }
 
@@ -817,8 +843,9 @@ template <typename URV>
 void
 CsRegs<URV>::defineSupervisorRegs()
 {
-  bool mand = true;  // Mandatory.
-  bool imp = true;   // Implemented.
+  bool mand = true;   // Mandatory.
+  bool imp = true;    // Implemented.
+  URV wam = ~ URV(0); // Write-all mask: all bits writeable.
 
   // Supervisor trap SETUP_CSR.
 
@@ -839,19 +866,38 @@ CsRegs<URV>::defineSupervisorRegs()
 
   defineCsr("sedeleg",    Csrn::SEDELEG,    !mand, !imp, 0, 0, 0);
   defineCsr("sideleg",    Csrn::SIDELEG,    !mand, !imp, 0, 0, 0);
-  defineCsr("sie",        Csrn::SIE,        !mand, !imp, 0, 0, 0);
-  defineCsr("stvec",      Csrn::STVEC,      !mand, !imp, 0, 0, 0);
-  defineCsr("scounteren", Csrn::SCOUNTEREN, !mand, !imp, 0, 0, 0);
+
+  defineCsr("stvec",      Csrn::STVEC,      !mand, !imp, 0, wam, wam);
+  defineCsr("scounteren", Csrn::SCOUNTEREN, !mand, !imp, 0, wam, wam);
 
   // Supervisor Trap Handling 
-  defineCsr("sscratch",   Csrn::SSCRATCH,   !mand, !imp, 0, 0, 0);
-  defineCsr("sepc",       Csrn::SEPC,       !mand, !imp, 0, 0, 0);
-  defineCsr("scause",     Csrn::SCAUSE,     !mand, !imp, 0, 0, 0);
-  defineCsr("stval",      Csrn::STVAL,      !mand, !imp, 0, 0, 0);
-  defineCsr("sip",        Csrn::SIP,        !mand, !imp, 0, 0, 0);
+  defineCsr("sscratch",   Csrn::SSCRATCH,   !mand, !imp, 0, wam, wam);
+  mask = ~URV(1);  // Bit 0 of SEPC is not writable.
+  defineCsr("sepc",       Csrn::SEPC,       !mand, !imp, 0, mask, mask);
+  defineCsr("scause",     Csrn::SCAUSE,     !mand, !imp, 0, wam, wam);
+  defineCsr("stval",      Csrn::STVAL,      !mand, !imp, 0, wam, wam);
+
+  mask = 0x112;   // seip/stip/ssip bits
+  defineCsr("sie",        Csrn::SIE,        !mand, !imp, 0, mask, mask);
+  auto sie = findCsr(Csrn::SIE);
+  auto mie = findCsr(Csrn::MIE);
+  if (sie and mie)
+    {
+      sie->tie(mie->valuePtr_);
+      sie->setReadMask(mask);
+    }
+
+  defineCsr("sip",        Csrn::SIP,        !mand, !imp, 0, mask, mask);
+  auto sip = findCsr(Csrn::SIP);
+  auto mip = findCsr(Csrn::MIP);
+  if (sip and mip)
+    {
+      sip->tie(mip->valuePtr_);
+      sip->setReadMask(mask);
+    }
 
   // Supervisor Protection and Translation 
-  defineCsr("satp",       Csrn::SATP,       !mand, !imp, 0, 0, 0);
+  defineCsr("satp",       Csrn::SATP,       !mand, !imp, 0, wam, wam);
 }
 
 

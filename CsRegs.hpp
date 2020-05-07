@@ -500,7 +500,7 @@ namespace WdRiscv
 
     /// Return the current value of this register.
     URV read() const
-    { return *valuePtr_; }
+    { return *valuePtr_ & readMask_; }
 
     /// Return the write-mask associated with this register. A
     /// register value bit is writable by the write method if and only
@@ -626,6 +626,9 @@ namespace WdRiscv
     void setWriteMask(URV mask)
     { writeMask_ = mask; }
 
+    void setReadMask(URV mask)
+    { readMask_ = mask; }
+
     /// Set the value of this register to the given value x honoring
     /// the write mask (defined at construction): Set the ith bit of
     /// this register to the ith bit of the given value x if the ith
@@ -698,6 +701,7 @@ namespace WdRiscv
 
     URV writeMask_ = ~URV(0);
     URV pokeMask_ = ~URV(0);
+    URV readMask_ = ~URV(0);  // Used for sstatus.
 
     std::vector<std::function<void(Csr<URV>&, URV)>> postPoke_;
     std::vector<std::function<void(Csr<URV>&, URV)>> postWrite_;
@@ -1099,8 +1103,7 @@ namespace WdRiscv
     { userModeEnabled_ = flag; }
 
     /// Enable supervisor mode.
-    void enableSupervisorMode(bool flag)
-    { supervisorModeEnabled_ = flag; }
+    void enableSupervisorMode(bool flag);
 
     /// Return a legal mstatus value (chanign mpp if necessary).
     URV legalizeMstatusValue(URV value) const;
