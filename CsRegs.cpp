@@ -160,6 +160,9 @@ CsRegs<URV>::enableSupervisorMode(bool flag)
 {
   supervisorModeEnabled_ = flag;
 
+  if (not flag)
+    return;
+
   for (auto csrn : { CsrNumber::SSTATUS, CsrNumber::STVEC,
                       CsrNumber::SCOUNTEREN, CsrNumber::SSCRATCH,
                       CsrNumber::SEPC, CsrNumber::SCAUSE,
