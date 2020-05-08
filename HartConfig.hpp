@@ -68,6 +68,16 @@ namespace WdRiscv
     /// not contain a register width (xlen) configuration.
     bool getXlen(unsigned& xlen) const;
 
+    /// Set count to the core-count configuration held in this object
+    /// returning true on success and false if this object does not
+    /// contain any such config.
+    bool getCoreCount(unsigned& count) const;
+
+    /// Set count to the hats-per-cor configuration held in this
+    /// object returning true on success and false if this object does
+    /// not contain any such config.
+    bool getHartsPerCore(unsigned& xlen) const;
+
     /// Set pageSize to the page size configuration held in this
     /// object returning true on success and false if this object does
     /// not contain a page size configuration.

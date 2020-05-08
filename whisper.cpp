@@ -202,6 +202,8 @@ struct Args
 
   bool help = false;
   bool hasRegWidth = false;
+  bool hasHarts = false;
+  bool hasCores = false;
   bool trace = false;
   bool interactive = false;
   bool verbose = false;
@@ -315,6 +317,12 @@ collectCommandLineValues(const boost::program_options::variables_map& varMap,
 
   if (varMap.count("xlen"))
     args.hasRegWidth = true;
+
+  if (varMap.count("cores"))
+    args.hasCores = true;
+
+  if (varMap.count("harts"))
+    args.hasHarts = true;
 
   if (varMap.count("alarm"))
     {
@@ -1423,7 +1431,10 @@ static
 bool
 session(const Args& args, const HartConfig& config)
 {
-  unsigned hartsPerCore = args.harts;
+  unsigned hartsPerCore = 1;
+  config.getHartsPerCore(hartsPerCore);
+  if (args.hasHarts)
+    hartsPerCore = args.harts;
   if (hartsPerCore == 0 or hartsPerCore > 16)
     {
       std::cerr << "Unsupported hart count: " << hartsPerCore;
@@ -1431,7 +1442,10 @@ session(const Args& args, const HartConfig& config)
       return false;
     }
 
-  unsigned coreCount = args.cores;
+  unsigned coreCount = 1;
+  config.getCoreCount(coreCount);
+  if (args.hasCores)
+    coreCount = args.cores;
   if (coreCount == 0 or coreCount > 16)
     {
       std::cerr << "Unsupported core count: " << coreCount;

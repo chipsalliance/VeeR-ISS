@@ -988,6 +988,30 @@ HartConfig::getXlen(unsigned& xlen) const
 
 
 bool
+HartConfig::getCoreCount(unsigned& count) const
+{
+  if (config_ -> count("cores"))
+    {
+      count = getJsonUnsigned<uint32_t>("cores", config_ -> at("cores"));
+      return true;
+    }
+  return false;
+}
+
+
+bool
+HartConfig::getHartsPerCore(unsigned& count) const
+{
+  if (config_ -> count("harts"))
+    {
+      count = getJsonUnsigned<uint32_t>("harts", config_ -> at("harts"));
+      return true;
+    }
+  return false;
+}
+
+
+bool
 HartConfig::getPageSize(size_t& pageSize) const
 {
   if (not config_ -> count("memmap"))
