@@ -4329,88 +4329,95 @@ Hart<URV>::isInterruptPossible(InterruptCause& cause)
   if (not csRegs_.read(CsrNumber::MSTATUS, PrivilegeMode::Machine, mstatus))
     return false;
 
-  MstatusFields<URV> fields(mstatus);
-  if (fields.bits_.MIE)
-    {
-      URV mip, mie;
-      if (csRegs_.read(CsrNumber::MIP, PrivilegeMode::Machine, mip)
-          and
-          csRegs_.read(CsrNumber::MIE, PrivilegeMode::Machine, mie))
-        {
-          if ((mie & mip) != 0)
-            {
+  URV mip, mie;
+  csRegs_.read(CsrNumber::MIP, PrivilegeMode::Machine, mip);
+  csRegs_.read(CsrNumber::MIE, PrivilegeMode::Machine, mie);
+  if ((mie & mip) == 0)
+    return false;  // Nothing enabled is also pending.
 
-              // Order of priority: external, software, timer and
-              // internal timers.
-              if (mie & (URV(1) << unsigned(InterruptCause::M_EXTERNAL)) & mip)
-                {
-                  cause = InterruptCause::M_EXTERNAL;
-                  return true;
-                }
-              if (mie & (URV(1) << unsigned(InterruptCause::M_LOCAL)) & mip)
-                {
-                  cause = InterruptCause::M_LOCAL;
-                  return true;
-                }
-              if (mie & (URV(1) << unsigned(InterruptCause::M_SOFTWARE)) & mip)
-                {
-                  cause = InterruptCause::M_SOFTWARE;
-                  return true;
-                }
-              if (mie & (URV(1) << unsigned(InterruptCause::M_TIMER)) & mip)
-                {
-                  cause = InterruptCause::M_TIMER;
-                  if (alarmInterval_ > 0)
-                    {
-                      // Reset the timer-interrupt pending bit.
-                      mip = mip & ~(URV(1) << unsigned(InterruptCause::M_TIMER));
-                      pokeCsr(CsrNumber::MIP, mip);
-                    }
-                  return true;
-                }
-              if (mie & (URV(1) << unsigned(InterruptCause::M_INT_TIMER0)) & mip)
-                {
-                  cause = InterruptCause::M_INT_TIMER0;
-                  return true;
-                }
-              if (mie & (URV(1) << unsigned(InterruptCause::M_INT_TIMER1)) & mip)
-                {
-                  cause = InterruptCause::M_INT_TIMER1;
-                  return true;
-                }
+  MstatusFields<URV> fields(mstatus);
+  if (fields.bits_.MIE or privMode_ < PrivilegeMode::Machine)
+    {
+      // Order of priority: external, software, timer and
+      // internal timers.
+      if (mie & (URV(1) << URV(InterruptCause::M_EXTERNAL)) & mip)
+        {
+          cause = InterruptCause::M_EXTERNAL;
+          return true;
+        }
+      if (mie & (URV(1) << URV(InterruptCause::M_LOCAL)) & mip)
+        {
+          cause = InterruptCause::M_LOCAL;
+          return true;
+        }
+      if (mie & (URV(1) << URV(InterruptCause::M_SOFTWARE)) & mip)
+        {
+          cause = InterruptCause::M_SOFTWARE;
+          return true;
+        }
+      if (mie & (URV(1) << URV(InterruptCause::M_TIMER)) & mip)
+        {
+          cause = InterruptCause::M_TIMER;
+          if (alarmInterval_ > 0)
+            {
+              // Reset the timer-interrupt pending bit.
+              mip = mip & ~(URV(1) << URV(InterruptCause::M_TIMER));
+              pokeCsr(CsrNumber::MIP, mip);
             }
+          return true;
+        }
+      if (mie & (URV(1) << URV(InterruptCause::M_INT_TIMER0)) & mip)
+        {
+          cause = InterruptCause::M_INT_TIMER0;
+          return true;
+        }
+      if (mie & (URV(1) << URV(InterruptCause::M_INT_TIMER1)) & mip)
+        {
+          cause = InterruptCause::M_INT_TIMER1;
+          return true;
         }
     }
 
   // No machine mode interrupts. Check supervisor mode.
-  if (isRvs() and fields.bits_.SIE and privMode_ <= PrivilegeMode::Supervisor)
+  if (isRvs() and (fields.bits_.SIE or privMode_ < PrivilegeMode::Supervisor))
     {
-      URV sip, sie;
-      if (csRegs_.read(CsrNumber::SIP, PrivilegeMode::Machine, sip)
-          and
-          csRegs_.read(CsrNumber::MIE, PrivilegeMode::Machine, sie))
+      // Order of priority: external, software, timer.
+      if (mie & (URV(1) << unsigned(InterruptCause::S_EXTERNAL)) & mip)
         {
+          cause = InterruptCause::S_EXTERNAL;
+          return true;
+        }
+      if (mie & (URV(1) << unsigned(InterruptCause::S_SOFTWARE)) & mip)
+        {
+          cause = InterruptCause::S_SOFTWARE;
+          return true;
+        }
+      if (mie & (URV(1) << unsigned(InterruptCause::S_TIMER)) & mip)
+        {
+          cause = InterruptCause::S_TIMER;
+          return true;
+        }
+    }
 
-          if ((sie & sip) == 0)
-            {
+  // No Supervisor mode interrupts. Check user mode.
+  if (isRvn() and fields.bits_.UIE)
+    {
 
-              // Order of priority: external, software, timer.
-              if (sie & (URV(1) << unsigned(InterruptCause::S_EXTERNAL)) & sip)
-                {
-                  cause = InterruptCause::S_EXTERNAL;
-                  return true;
-                }
-              if (sie & (URV(1) << unsigned(InterruptCause::S_SOFTWARE)) & sip)
-                {
-                  cause = InterruptCause::S_SOFTWARE;
-                  return true;
-                }
-              if (sie & (URV(1) << unsigned(InterruptCause::S_TIMER)) & sip)
-                {
-                  cause = InterruptCause::M_TIMER;
-                  return true;
-                }
-            }
+      // Order of priority: external, software, timer.
+      if (mie & (URV(1) << unsigned(InterruptCause::U_EXTERNAL)) & mip)
+        {
+          cause = InterruptCause::U_EXTERNAL;
+          return true;
+        }
+      if (mie & (URV(1) << unsigned(InterruptCause::U_SOFTWARE)) & mip)
+        {
+          cause = InterruptCause::U_SOFTWARE;
+          return true;
+        }
+      if (mie & (URV(1) << unsigned(InterruptCause::U_TIMER)) & mip)
+        {
+          cause = InterruptCause::U_TIMER;
+          return true;
         }
     }
 

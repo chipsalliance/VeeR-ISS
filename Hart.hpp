@@ -906,7 +906,7 @@ namespace WdRiscv
     bool isRva() const
     { return rva_; }
 
-    /// Return true if rvu (user-mode) extension is enabled in this
+    /// Return true if rvs (supervisor-mode) extension is enabled in this
     /// hart.
     bool isRvs() const
     { return rvs_; }
@@ -915,6 +915,11 @@ namespace WdRiscv
     /// hart.
     bool isRvu() const
     { return rvu_; }
+
+    /// Return true if rvn (user-mode-interrupt) extension is enabled
+    /// in this hart.
+    bool isRvn() const
+    { return rvn_; }
 
     /// Return true if zba extension is enabled in this hart.
     bool isRvzba() const
@@ -1889,6 +1894,7 @@ namespace WdRiscv
     bool rvm_ = true;            // True if extension M (mul/div) enabled.
     bool rvs_ = false;           // True if extension S (supervisor-mode) enabled.
     bool rvu_ = false;           // True if extension U (user-mode) enabled.
+    bool rvn_ = false;           // True if extension N (user-mode-interrupt) enabled.
     bool rvzba_ = false;         // True if extension zba enabled.
     bool rvzbb_ = false;         // True if extension zbb enabled.
     bool rvzbc_ = false;         // True if extension zbc enabled.
