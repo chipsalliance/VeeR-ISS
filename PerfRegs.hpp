@@ -24,7 +24,7 @@
 #include <unordered_map>
 #include <type_traits>
 #include <cassert>
-#include "PrivilegeMode.hpp"
+#include "trapEnums.hpp"
 
 
 namespace WdRiscv

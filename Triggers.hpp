@@ -22,7 +22,7 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
-#include "PrivilegeMode.hpp"
+#include "trapEnums.hpp"
 
 namespace WdRiscv
 {

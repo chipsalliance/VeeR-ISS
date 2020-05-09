@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "PrivilegeMode.hpp"
+#include "trapEnums.hpp"
 #include "Memory.hpp"
 
 
