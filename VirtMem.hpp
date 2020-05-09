@@ -366,12 +366,15 @@ namespace WdRiscv
 
     VirtMem(Memory& memory, unsigned pageSize);
 
-    bool translate(size_t va, PrivilegeMode pm, bool read, bool write,
-                   bool exec, size_t& pa);
+    /// Perform virtual to physical memory address translation.
+    /// Return encoutered exception on failure or ExceptionType::NONE
+    /// on success.
+    ExceptionCause translate(size_t va, PrivilegeMode pm, bool read,
+                             bool write, bool exec, size_t& pa);
 
     template <typename PTE, typename VA>
-    bool translate_(size_t va, PrivilegeMode pm, bool read, bool write,
-                    bool exec, size_t& pa);
+    ExceptionCause translate_(size_t va, PrivilegeMode pm, bool read,
+                              bool write, bool exec, size_t& pa);
 
   protected:
     void setPageTableRoot(uint64_t root)

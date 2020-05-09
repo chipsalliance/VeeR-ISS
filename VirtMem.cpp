@@ -15,14 +15,14 @@ VirtMem::VirtMem(Memory& memory, unsigned pageSize)
 }
 
 
-bool
+ExceptionCause
 VirtMem::translate(size_t va, PrivilegeMode pm, bool read, bool write,
                    bool exec, size_t& pa)
 {
   if (mode_ == Bare)
     {
       pa = va;
-      return true;
+      return ExceptionCause::NONE;
     }
 
   if (mode_ == Sv32)
@@ -35,12 +35,24 @@ VirtMem::translate(size_t va, PrivilegeMode pm, bool read, bool write,
     return translate_<Pte48, Va48>(va, pm, read, write, exec, pa);
 
   assert(0 and "Unspupported virtual memory mode.");
-  return false;
-}    
+  return ExceptionCause::LOAD_PAGE_FAULT;
+}
+
+
+inline
+ExceptionCause
+pageFaultType(bool read, bool write, bool exec)
+{
+  if (exec)  return ExceptionCause::INST_PAGE_FAULT;
+  if (read)  return ExceptionCause::LOAD_PAGE_FAULT;
+  if (write) return ExceptionCause::STORE_PAGE_FAULT;
+  assert(0);
+  return ExceptionCause::STORE_PAGE_FAULT;
+}
 
 
 template<typename PTE, typename VA>
-bool
+ExceptionCause
 VirtMem::translate_(size_t address, PrivilegeMode privMode,
                     bool read, bool write, bool exec,
                     size_t& pa)
@@ -68,18 +80,18 @@ VirtMem::translate_(size_t address, PrivilegeMode privMode,
 
       // TBD: Check pma
       if (! memory_.read(pteAddr, pte.data_))
-        return false;  // Access fault.
+        return pageFaultType(read, write, exec);
 
       // 4.
       if (not pte.valid() or (not pte.read() and pte.write()))
-        return false;  // Page fault
+        return pageFaultType(read, write, exec);
 
       // 5.
       if (not pte.read() and not pte.exec())
         {
           ii = ii - 1;
           if (ii < 0)
-            return false;  // Page fault
+            return pageFaultType(read, write, exec);
           root = pte.ppn();
           // goto 3.
         }
@@ -89,20 +101,19 @@ VirtMem::translate_(size_t address, PrivilegeMode privMode,
 
   // 6.  pte.read_ or pte.exec_ : leaf pte
   if (privMode == PrivilegeMode::User and not pte.user())
-    return false;  // Access fault
-
+    return pageFaultType(read, write, exec);
   if (privMode == PrivilegeMode::Supervisor and pte.user() and
       not supervisorOk_)
-    return false;  // Supervisor access to user pages not allowed.
-        
+    return pageFaultType(read, write, exec);
+
   bool pteRead = pte.read() or (execReadable_ and pte.exec());
   if ((read and not pteRead) or (write and not pte.write()) or
       (exec and pte.exec()))
-    return false;  // Page fault
-  
+        return pageFaultType(read, write, exec);
+
   // 7.
   if (ii > 0 and pte.ppn1() != 0 and pte.ppn0() != 0)
-    return false;  // Page fault
+    return pageFaultType(read, write, exec);
 
   // 8.
   if (not pte.accessed() or (write and not pte.dirty()))
@@ -112,7 +123,7 @@ VirtMem::translate_(size_t address, PrivilegeMode privMode,
       // B1. Set pte->accessed_ to 1 and, if a write, set pte->dirty_ to 1.
       // B2. Access fault if PMP violation.
 
-      return false;  // Choose A for now
+      return pageFaultType(read, write, exec);  // A for now.
     }
 
   // 9.
@@ -124,5 +135,5 @@ VirtMem::translate_(size_t address, PrivilegeMode privMode,
   for (int i = levels - 1; i >= ii; --i)
     pa = pa | pte.ppn(i) << pte.paPpnShift(i);
 
-  return true;
+  return ExceptionCause::NONE;
 }
