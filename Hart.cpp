@@ -380,9 +380,6 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   // Enable extensions if corresponding bits are set in the MISA CSR.
   processExtensions();
   
-  // Enable/disable physical memory protection.
-  pmpEnabled_ = countImplementedPmpRegisters() != 0;
-
   perfControl_ = ~uint32_t(0);
   URV value = 0;
   if (peekCsr(CsrNumber::MCOUNTINHIBIT, value))
@@ -426,8 +423,9 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   mstatusMpp_ = PrivilegeMode(msf.bits_.MPP);
   mstatusMprv_ = msf.bits_.MPRV;
 
-
   updateMemoryProtection();
+  countImplementedPmpRegisters();
+
   csRegs_.updateCounterPrivilege();
 
   alarmCounter_ = alarmInterval_;
@@ -12599,12 +12597,10 @@ template <typename URV>
 void
 Hart<URV>::updateMemoryProtection()
 {
-  if (not pmpEnabled_)
-    return;
-
   pmpManager_.reset();
 
   const unsigned count = 16;
+  unsigned offCount = 0;
 
   // Process the pmp entries in reverse order (since they are supposed to
   // be checked in first to last priority). Apply memory protection to
@@ -12630,7 +12626,10 @@ Hart<URV>::updateMemoryProtection()
         }
 
       if (type == Pmp::Type::Off)
-        continue;   // Entry is off.
+        {
+          offCount++;
+          continue;   // Entry is off.
+        }
 
       if (type == Pmp::Type::Tor)    // Top of range
         {
@@ -12670,6 +12669,8 @@ Hart<URV>::updateMemoryProtection()
       uint64_t high = low + size;
       pmpManager_.setMode(low, high - 1, type, mode, pmpIx, lock);
     }
+
+  pmpEnabled_ = offCount < count;
 }
 
 
