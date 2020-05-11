@@ -209,6 +209,9 @@ namespace WdRiscv
      sret,
      wfi,
 
+     // Supervisor
+     sfence_vma,
+
      // Compressed insts
      c_addi4spn,
      c_fld,

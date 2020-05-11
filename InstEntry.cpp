@@ -1088,6 +1088,13 @@ InstTable::setupInstVec()
       { "sret", InstId::sret, 0x10100073, 0xffffffff, InstType::Int },
       { "wfi", InstId::wfi, 0x10280073, 0xffffffff, InstType::Int },
 
+      // Supervisor
+      { "sfence.vma", InstId::sfence_vma, 0x12000073, 0xfe00707f,
+        InstType::Int,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+        OperandType::IntReg, OperandMode::Read, rs2Mask
+      },
+
       // Compressed insts. The operand bits are "swizzled" and the
       // operand masks are not used for obtaining operands. We set the
       // operand masks to zero.

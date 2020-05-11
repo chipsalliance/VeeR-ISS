@@ -1517,7 +1517,7 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 		  if (op0 != 0)
 		    return instTable_.getEntry(InstId::illegal);
 		  else // sfence.vma
-		    return instTable_.getEntry(InstId::illegal);
+		    return instTable_.getEntry(InstId::sfence_vma);
 		}
 	      else if (op2 == 0x102)
 		return instTable_.getEntry(InstId::sret);

@@ -5059,6 +5059,7 @@ Hart<URV>::execute(const DecodedInst* di)
      &&uret,
      &&sret,
      &&wfi,
+     &&sfence_vma,
      &&c_addi4spn,
      &&c_fld,
      &&c_lq,
@@ -5835,6 +5836,10 @@ Hart<URV>::execute(const DecodedInst* di)
   return;
 
  wfi:
+  return;
+
+ sfence_vma:
+  execSfence_vma(di);
   return;
 
  c_addi4spn:
@@ -6943,6 +6948,28 @@ Hart<URV>::execEbreak(const DecodedInst*)
   auto cause = ExceptionCause::BREAKP;
   auto secCause = SecondaryCause::BREAKP;
   initiateException(cause, savedPc, trapInfo, secCause);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execSfence_vma(const DecodedInst*)
+{
+  if (not isRvs())
+    {
+      illegalInst();
+      return;
+    }
+
+  URV status = 0;
+  peekCsr(CsrNumber::MSTATUS, status);
+
+  MstatusFields<URV> fields(status);
+  if (fields.bits_.TVM)
+    {
+      illegalInst();
+      return;
+    }
 }
 
 

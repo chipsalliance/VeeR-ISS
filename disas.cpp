@@ -165,6 +165,23 @@ printRdRs1Rs3Imm(const Hart<URV>& hart, std::ostream& stream, const char* inst,
 
 
 /// Helper to disassemble method. Print on the given stream given
+/// instruction which is of the form: inst rs1, rs2
+template <typename URV>
+static
+void
+printRs1Rs2(const Hart<URV>& hart, std::ostream& stream, const char* inst,
+            const DecodedInst& di)
+{
+  unsigned rs1 = di.op0(), rs2 = di.op1();
+
+  // Print instruction in a 9 character field.
+  stream << std::left << std::setw(9) << inst;
+
+  stream << hart.intRegName(rs1) << ", " << hart.intRegName(rs2) << std::dec;
+}
+
+
+/// Helper to disassemble method. Print on the given stream given
 /// instruction which is of the form: csrinst rd, csrn, rs1
 template <typename URV>
 static
@@ -1210,6 +1227,10 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
 
     case InstId::wfi:
       out << "wfi";
+      break;
+
+    case InstId::sfence_vma:
+      printRs1Rs2(*this, out, "sfence.vma", di);
       break;
 
     case InstId::c_addi4spn:
