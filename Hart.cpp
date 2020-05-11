@@ -1580,7 +1580,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
         }
     }
 
-  // Fault dictated by bench.
+  // Fault dictated by test-bench.
   if (forceAccessFail_)
     {
       secCause = forcedCause_;
@@ -7505,7 +7505,7 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
         }
     }
 
-  // Fault dictated by bench
+  // Fault dictated by test-bench
   if (forceAccessFail_)
     {
       secCause = forcedCause_;
@@ -12616,20 +12616,15 @@ Hart<URV>::updateMemoryProtection()
       bool lock = config & 0x80;
 
       Pmp::Mode mode = getModeFromPmpconfigByte(config);
-
-      URV pmpVal = 0;
-      if (not peekCsr(csrn, pmpVal))
-        {
-          // Should not happen
-          assert(0 && "Unimplemented PMPADDR register");
-          continue;
-        }
-
       if (type == Pmp::Type::Off)
         {
           offCount++;
           continue;   // Entry is off.
         }
+
+      URV pmpVal = 0;
+      if (not peekCsr(csrn, pmpVal))
+        continue;  // Unimplemented PMPADDR reg. Should not happen.
 
       if (type == Pmp::Type::Tor)    // Top of range
         {
