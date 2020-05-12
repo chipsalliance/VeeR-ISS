@@ -665,6 +665,21 @@ Syscall<URV>::emulate()
 	return rc < 0 ? SRV(-errno) : rc;
       }
 
+    case 53:       // fchmodat
+      {
+        int dirfd = effectiveFd(SRV(a0));
+
+	size_t pathAddr = 0;
+	if (not hart_.getSimMemAddr(a1, pathAddr))
+	  return SRV(-EINVAL);
+	const char* path = (const char*) pathAddr;
+
+        mode_t mode = a2;
+        int flags = 0; // Should be a3 -- non-zero not working on rhat6
+        int rc = fchmodat(dirfd, path, mode, flags);
+        return rc < 0 ? SRV(-errno) : rc;
+      }
+
     case 56:       // openat
       {
 	int dirfd = effectiveFd(SRV(a0));
@@ -887,6 +902,26 @@ Syscall<URV>::emulate()
 	errno = 0;
 	auto rc = write(fd, (void*) buffAddr, count);
 	return rc < 0 ? SRV(-errno) : rc;
+      }
+
+    case 88:  // utimensat
+      {
+        int dirfd = effectiveFd(SRV(a0));
+
+	size_t pathAddr = 0;
+	if (not hart_.getSimMemAddr(a1, pathAddr))
+	  return SRV(-EINVAL);
+	const char* path = (const char*) pathAddr;
+
+        size_t timeAddr = 0;
+        if (not hart_.getSimMemAddr(a2, timeAddr))
+          return SRV(-EINVAL);
+
+        const struct timespec* spec = (struct timespec*) timeAddr;
+
+        int flags = a3;
+        int rc = utimensat(dirfd, path, spec, flags);
+        return rc < 0 ? SRV(-errno) : rc;
       }
 
     case 93:  // exit
@@ -1118,12 +1153,12 @@ Syscall<URV>::emulate()
   //printf("syscall %s (0x%llx, 0x%llx, 0x%llx, 0x%llx) = 0x%llx\n",names[num].c_str(),urv_ll(a0), urv_ll(a1),urv_ll(a2), urv_ll(a3), urv_ll(retVal));
   //printf("syscall %s (0x%llx, 0x%llx, 0x%llx, 0x%llx) = unimplemented\n",names[num].c_str(),urv_ll(a0), urv_ll(a1),urv_ll(a2), urv_ll(a3));
   if (num < reportedCalls.size() and reportedCalls.at(num))
-	 return -1;
+    return -1;
 
   std::cerr << "Unimplemented syscall " << names[int(num)] << " number " << num << "\n";
 
    if (num < reportedCalls.size())
-	 reportedCalls.at(num) = true;
+     reportedCalls.at(num) = true;
    return -1;
 }
 

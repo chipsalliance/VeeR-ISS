@@ -358,11 +358,18 @@ namespace WdRiscv
   };
 
 
+  template <typename URV>
+  class Hart;
+
+
   class VirtMem
   {
   public:
 
-    enum Mode { Bare, Sv32, Sv39, Sv48, Sv57, Sv64 };
+    friend class Hart<uint32_t>;
+    friend class Hart<uint64_t>;
+
+    enum Mode { Bare = 0, Sv32 = 1, Sv39 = 8, Sv48 = 9, Sv57 = 10, Sv64 = 11 };
 
     VirtMem(Memory& memory, unsigned pageSize);
 
@@ -377,14 +384,22 @@ namespace WdRiscv
                               bool write, bool exec, size_t& pa);
 
   protected:
+
     void setPageTableRoot(uint64_t root)
     { pageTableRoot_ = root; }
+
+    void setMode(Mode m)
+    { mode_ = m; }
+
+    void setAddressSpace(uint64_t asid)
+    { asid_ = asid; }
 
   private:
 
     Memory& memory_;
     uint64_t pageTableRoot_ = 0;
     Mode mode_ = Bare;
+    uint64_t asid_ = 0;
     unsigned pageSize_ = 4096;
     unsigned pageBits_ = 12;
 

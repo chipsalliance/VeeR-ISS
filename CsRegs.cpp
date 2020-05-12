@@ -1407,8 +1407,8 @@ CsRegs<URV>::updateCounterPrivilege()
   URV sMask = 0;
   peek(CsrNumber::SCOUNTEREN, sMask);
 
-  // Bits 0, 1, 2, 3 to 31 of mask correspond to CYCLE, TIME, INSTRET, HPMCOUNTER3 to
-  // HPMCOUNTER31
+  // Bits 0, 1, 2, 3 to 31 of mask correspond to CYCLE, TIME, INSTRET,
+  // HPMCOUNTER3 to HPMCOUNTER31
   for (unsigned i = 0; i < 32; ++i)
     {
       bool mFlag = (mMask >> i) & 1;

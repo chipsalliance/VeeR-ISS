@@ -119,7 +119,8 @@ template <typename URV>
 Hart<URV>::Hart(unsigned hartIx, Memory& memory)
   : hartIx_(hartIx), memory_(memory), intRegs_(32),
     fpRegs_(32), syscall_(*this),
-    pmpManager_(memory.size(), memory.pageSize())
+    pmpManager_(memory.size(), memory.pageSize()),
+    virtMem_(memory, memory.pageSize())
 {
   regionHasLocalMem_.resize(16);
   regionHasLocalDataMem_.resize(16);
@@ -422,6 +423,8 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   MstatusFields<URV> msf(csrVal);
   mstatusMpp_ = PrivilegeMode(msf.bits_.MPP);
   mstatusMprv_ = msf.bits_.MPRV;
+
+  updateAddressTranslation();
 
   updateMemoryProtection();
   countImplementedPmpRegisters();
@@ -2728,6 +2731,8 @@ Hart<URV>::pokeCsr(CsrNumber csr, URV val)
   else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
            (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
     updateMemoryProtection();
+  else if (csr == CsrNumber::SATP)
+    updateAddressTranslation();
 
   // Update cached values of MSTATUS MPP and MPRV.
   if (csr == CsrNumber::MSTATUS)
@@ -7211,6 +7216,8 @@ Hart<URV>::doCsrWrite(CsrNumber csr, URV csrVal, unsigned intReg,
   else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
            (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
     updateMemoryProtection();
+  else if (csr == CsrNumber::SATP)
+    updateAddressTranslation();
 
   // Csr was written. If it was minstret, compensate for
   // auto-increment that will be done by run, runUntilAddress or
@@ -12666,6 +12673,41 @@ Hart<URV>::updateMemoryProtection()
     }
 
   pmpEnabled_ = offCount < count;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::updateAddressTranslation()
+{
+  if (not isRvs())
+    return;
+
+  URV value = 0;
+  if (not peekCsr(CsrNumber::SATP, value))
+    return;
+
+  URV mode = 0, asid = 0, ppn = 0;
+  if constexpr (sizeof(URV) == 4)
+    {
+      mode = value >> 31;
+      asid = (value >> 22) & 0x1ff;
+      ppn = value & 0xfffff;
+    }
+  else
+    {
+      mode = value >> 60;
+      if ((mode >= 1 and mode <= 7) or mode >= 12)
+        mode = 0;  // 1-7 and 12-15 are reserved in version 1.12 of sepc.
+      asid = (value >> 44) & 0xffff;
+      ppn = value & 0xfffffffffffll;
+    }
+
+  virtMem_.setMode(VirtMem::Mode(mode));
+  virtMem_.setAddressSpace(asid);
+  virtMem_.setPageTableRoot(ppn);  // TBD: fix.
+
+  assert(0 && "Finish");
 }
 
 

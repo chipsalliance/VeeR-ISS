@@ -33,6 +33,7 @@
 #include "DecodedInst.hpp"
 #include "Syscall.hpp"
 #include "PmpManager.hpp"
+#include "VirtMem.hpp"
 
 namespace WdRiscv
 {
@@ -1139,6 +1140,11 @@ namespace WdRiscv
     /// on reset or whenever a pmp address/config register is updated.
     void updateMemoryProtection();
 
+    /// Update the address translation manager. This is called on
+    /// reset or whenever the supervisor address trasnaltion register
+    /// (SATP) is updated.
+    void updateAddressTranslation();
+
     /// Helper to run method: Run until toHost is written or until
     /// exit is called.
     bool simpleRun();
@@ -2057,6 +2063,8 @@ namespace WdRiscv
     bool pmpEnabled_ = false; // True if one or more pmp register defined.
     unsigned pmpG_ = 0;       // ln2(pmp_grain) - 2
     PmpManager pmpManager_;
+
+    VirtMem virtMem_;
   };
 }
 
