@@ -390,6 +390,12 @@ namespace WdRiscv
     void setAddressSpace(uint64_t asid)
     { asid_ = asid; }
 
+    void setExecReadable(bool flag)
+    { execReadable_ = flag; }
+
+    void setSupervisorAccessUser(bool flag)
+    { supervisorOk_ = flag; }
+
   private:
 
     Memory& memory_;

@@ -419,6 +419,8 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   MstatusFields<URV> msf(csrVal);
   mstatusMpp_ = PrivilegeMode(msf.bits_.MPP);
   mstatusMprv_ = msf.bits_.MPRV;
+  virtMem_.setExecReadable(msf.bits_.MXR);
+  virtMem_.setSupervisorAccessUser(msf.bits_.SUM);
 
   updateAddressTranslation();
 
@@ -2731,13 +2733,15 @@ Hart<URV>::pokeCsr(CsrNumber csr, URV val)
     updateAddressTranslation();
 
   // Update cached values of MSTATUS MPP and MPRV.
-  if (csr == CsrNumber::MSTATUS)
+  if (csr == CsrNumber::MSTATUS or csr == CsrNumber::SSTATUS)
     {
       URV csrVal = 0;
       peekCsr(csr, csrVal);
       MstatusFields<URV> msf(csrVal);
       mstatusMpp_ = PrivilegeMode(msf.bits_.MPP);
       mstatusMprv_ = msf.bits_.MPRV;
+      virtMem_.setExecReadable(msf.bits_.MXR);
+      virtMem_.setSupervisorAccessUser(msf.bits_.SUM);
     }
 
   return true;
@@ -7209,7 +7213,7 @@ Hart<URV>::doCsrWrite(CsrNumber csr, URV csrVal, unsigned intReg,
     enableWideLdStMode(true);
   else if (csr == CsrNumber::MCOUNTINHIBIT)
     perfControl_ = ~csrVal;
-  else if (csr == CsrNumber::MSTATUS)
+  else if (csr == CsrNumber::MSTATUS or csr == CsrNumber::SSTATUS)
     {
       // Update cached values of MSTATUS MPP and MPRV.
       URV csrVal = 0;
@@ -7217,6 +7221,8 @@ Hart<URV>::doCsrWrite(CsrNumber csr, URV csrVal, unsigned intReg,
       MstatusFields<URV> msf(csrVal);
       mstatusMpp_ = PrivilegeMode(msf.bits_.MPP);
       mstatusMprv_ = msf.bits_.MPRV;
+      virtMem_.setExecReadable(msf.bits_.MXR);
+      virtMem_.setSupervisorAccessUser(msf.bits_.SUM);
     }
   else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
            (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
