@@ -4332,73 +4332,82 @@ Hart<URV>::isInterruptPossible(InterruptCause& cause)
   csRegs_.read(CsrNumber::MIP, PrivilegeMode::Machine, mip);
   csRegs_.read(CsrNumber::MIE, PrivilegeMode::Machine, mie);
   if ((mie & mip) == 0)
-    return false;  // Nothing enabled is also pending.
+    return false;  // Nothing enabled that is also pending.
 
+  typedef InterruptCause IC;
+
+  // Check for machine-level interrupts if MIE enabled or if user/supervisor.
   MstatusFields<URV> fields(mstatus);
   if (fields.bits_.MIE or privMode_ < PrivilegeMode::Machine)
     {
-      // Order of priority: external, software, timer and
-      // internal timers.
-      if (mie & (URV(1) << URV(InterruptCause::M_EXTERNAL)) & mip)
+      for (InterruptCause ic : { IC::M_EXTERNAL, IC::M_LOCAL, IC::M_SOFTWARE,
+                                  IC::M_TIMER, IC::M_INT_TIMER0,
+                                  IC::M_INT_TIMER1 } )
         {
-          cause = InterruptCause::M_EXTERNAL;
-          return true;
-        }
-      if (mie & (URV(1) << URV(InterruptCause::M_LOCAL)) & mip)
-        {
-          cause = InterruptCause::M_LOCAL;
-          return true;
-        }
-      if (mie & (URV(1) << URV(InterruptCause::M_SOFTWARE)) & mip)
-        {
-          cause = InterruptCause::M_SOFTWARE;
-          return true;
-        }
-      if (mie & (URV(1) << URV(InterruptCause::M_TIMER)) & mip)
-        {
-          cause = InterruptCause::M_TIMER;
-          if (alarmInterval_ > 0)
+          URV mask = URV(1) << unsigned(ic);
+          if (mie & mask & mip)
             {
-              // Reset the timer-interrupt pending bit.
-              mip = mip & ~(URV(1) << URV(InterruptCause::M_TIMER));
-              pokeCsr(CsrNumber::MIP, mip);
+              cause = ic;
+              if (ic == IC::M_TIMER and alarmInterval_ > 0)
+                {
+                  // Reset the timer-interrupt pending bit.
+                  mip = mip & ~mask;
+                  pokeCsr(CsrNumber::MIP, mip);
+                }
+              return true;
             }
-          return true;
-        }
-      if (mie & (URV(1) << URV(InterruptCause::M_INT_TIMER0)) & mip)
-        {
-          cause = InterruptCause::M_INT_TIMER0;
-          return true;
-        }
-      if (mie & (URV(1) << URV(InterruptCause::M_INT_TIMER1)) & mip)
-        {
-          cause = InterruptCause::M_INT_TIMER1;
-          return true;
         }
     }
 
-  // No machine mode interrupts. Check supervisor mode.
-  if (isRvs() and (fields.bits_.SIE or privMode_ < PrivilegeMode::Supervisor))
+  // Non-delegated Supervisor/User interrupts.
+  if (fields.bits_.MIE)
     {
-      // Order of priority: external, software, timer.
-      if (mie & (URV(1) << unsigned(InterruptCause::S_EXTERNAL)) & mip)
+      URV medeleg = 0;
+      csRegs_.read(CsrNumber::MEDELEG, PrivilegeMode::Machine, medeleg);
+      
+      for (InterruptCause ic : { IC::S_EXTERNAL, IC::S_SOFTWARE,
+                                  IC::S_TIMER, IC::U_EXTERNAL, IC::U_SOFTWARE,
+                                  IC::U_TIMER } )
         {
-          cause = InterruptCause::S_EXTERNAL;
-          return true;
-        }
-      if (mie & (URV(1) << unsigned(InterruptCause::S_SOFTWARE)) & mip)
-        {
-          cause = InterruptCause::S_SOFTWARE;
-          return true;
-        }
-      if (mie & (URV(1) << unsigned(InterruptCause::S_TIMER)) & mip)
-        {
-          cause = InterruptCause::S_TIMER;
-          return true;
+          URV mask = URV(1) << unsigned(ic);
+          if ((mie & mask & mip) and not (medeleg & mask))
+            {
+              cause = ic;
+              return true;
+            }
         }
     }
 
-  // No Supervisor mode interrupts. Check user mode.
+  // Supervisor mode interrupts: SIE enabled or user-mode.
+  if (isRvs() and (fields.bits_.SIE or privMode_ < PrivilegeMode::Supervisor))
+    for (auto ic : { IC::S_EXTERNAL, IC::S_SOFTWARE, IC::S_TIMER } )
+      {
+        URV mask = URV(1) << unsigned(ic);
+        if (mie & mask & mip)
+          {
+            cause = ic;
+            return true;
+          }
+      }
+
+  // Non-delegated User interrupts.
+  if (fields.bits_.SIE)
+    {
+      URV sedeleg = 0;
+      csRegs_.read(CsrNumber::SEDELEG, PrivilegeMode::Machine, sedeleg);
+      
+      for (InterruptCause ic : { IC::U_EXTERNAL, IC::U_SOFTWARE, IC::U_TIMER } )
+        {
+          URV mask = URV(1) << unsigned(ic);
+          if ((mie & mask & mip) and not (sedeleg & mask))
+            {
+              cause = ic;
+              return true;
+            }
+        }
+    }
+
+  // User mode interrupts.
   if (isRvn() and fields.bits_.UIE)
     {
 
