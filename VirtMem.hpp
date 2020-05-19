@@ -367,7 +367,7 @@ namespace WdRiscv
 
     enum Mode { Bare = 0, Sv32 = 1, Sv39 = 8, Sv48 = 9, Sv57 = 10, Sv64 = 11 };
 
-    VirtMem(Memory& memory, unsigned pageSize);
+    VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize);
 
     /// Perform virtual to physical memory address translation.
     /// Return encoutered exception on failure or ExceptionType::NONE
@@ -404,10 +404,12 @@ namespace WdRiscv
     uint64_t asid_ = 0;
     unsigned pageSize_ = 4096;
     unsigned pageBits_ = 12;
+    unsigned hartIx_ = 0;
 
     // Cached mstatus bits
     bool execReadable_ = false;  // MXR bit
     bool supervisorOk_ = false;  // SUM bit
+    bool faultOnFirstAccess_ = false;
   };
 
 }

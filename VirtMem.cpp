@@ -4,8 +4,8 @@
 using namespace WdRiscv;
 
 
-VirtMem::VirtMem(Memory& memory, unsigned pageSize)
-  : memory_(memory), mode_(Sv32), pageSize_(pageSize)
+VirtMem::VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize)
+  : memory_(memory), mode_(Sv32), pageSize_(pageSize), hartIx_(hartIx)
 {
   pageBits_ = static_cast<unsigned>(std::log2(pageSize_));
   unsigned p2PageSize =  unsigned(1) << pageBits_;
@@ -67,6 +67,7 @@ VirtMem::translate_(size_t address, PrivilegeMode privMode,
   VA va(address);
 
   uint64_t root = pageTableRoot_;
+  uint64_t pteAddr = 0;
 
   // 2.
   int ii = levels - 1;
@@ -78,7 +79,7 @@ VirtMem::translate_(size_t address, PrivilegeMode privMode,
       uint32_t vpn = va.vpn(ii);
       uint64_t pteAddr = root + vpn*pteSize;
 
-      // TBD: Check pma
+      // TBD: Check pmp
       if (! memory_.read(pteAddr, pte.data_))
         return pageFaultType(read, write, exec);
 
@@ -119,11 +120,20 @@ VirtMem::translate_(size_t address, PrivilegeMode privMode,
   if (not pte.accessed() or (write and not pte.dirty()))
     {
       // We have a choice:
-      // A. Page fault, or
+      // A. Page fault
+      if (faultOnFirstAccess_)
+        return pageFaultType(read, write, exec);  // A
+
+      // Or B
       // B1. Set pte->accessed_ to 1 and, if a write, set pte->dirty_ to 1.
       // B2. Access fault if PMP violation.
+      pte.bits_.accessed_ = 1;
+      if (write)
+        pte.bits_.dirty_ = 1;
 
-      return pageFaultType(read, write, exec);  // A for now.
+      // TBD: Check pmp
+      if (not memory_.write(hartIx_, pteAddr, pte.data_))
+        return pageFaultType(read, write, exec);
     }
 
   // 9.
