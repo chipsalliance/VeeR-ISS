@@ -241,7 +241,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 507;
+  unsigned subversion = 508;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -1293,13 +1293,22 @@ sessionRun(std::vector<Hart<URV>*>& harts, const Args& args, FILE* traceFile,
       if (not args.interactive)
 	return false;
 
+  // In server/interactive modes: enable triggers and performance counters.
   bool serverMode = not args.serverFile.empty();
   if (serverMode or args.interactive)
-    for (auto hartPtr : harts)
-      {
-	hartPtr->enableTriggers(true);
-	hartPtr->enablePerformanceCounters(true);
-      }
+    {
+      for (auto hartPtr : harts)
+        {
+          hartPtr->enableTriggers(true);
+          hartPtr->enablePerformanceCounters(true);
+        }
+    }
+  else
+    {
+      // Load error rollback is an annoyance if not in server/interactive mode
+      for (auto hartPtr : harts)
+        hartPtr->enableLoadErrorRollback(false);
+    }
 
   if (serverMode)
     return runServer(harts, args.serverFile, traceFile, commandLog);
