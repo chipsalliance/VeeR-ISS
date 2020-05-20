@@ -98,9 +98,6 @@ namespace WdRiscv
       BREAKP = 2,
       TRIGGER_HIT = 1,
 
-      // Cause = LOAD_ADDR_MISAL
-      LOAD_MISAL_REGION_CROSS = 2,
-
       // Cause = LOAD_ACC_FAULT
       LOAD_ACC_LOCAL_UNMAPPED = 2,
       LOAD_ACC_DOUBLE_ECC = 1,
@@ -113,10 +110,6 @@ namespace WdRiscv
       LOAD_ACC_IO = 0xb,
       LOAD_ACC_PMP = 8,
       LOAD_ACC_PRECISE = 9,  // precise bus error
-
-      // Cause = STORE_ADDR_MISAL
-      STORE_MISAL_REGION_CROSS = 0x2,
-      STORE_MISAL_IO = 1,
 
       // Cause = STORE_ACC_FAULT
       STORE_ACC_LOCAL_UNMAPPED = 2,

@@ -1355,18 +1355,12 @@ ExceptionCause
 Hart<URV>::determineMisalLoadException(URV addr, unsigned accessSize,
                                        SecondaryCause& secCause) const
 {
-  if (not misalDataOk_)
-    {
-      secCause = SecondaryCause::NONE;
-      return ExceptionCause::LOAD_ADDR_MISAL;
-    }
-
   size_t addr2 = addr + accessSize - 1;
 
   // Crossing region boundary causes misaligned exception.
   if (memory_.getRegionIndex(addr) != memory_.getRegionIndex(addr2))
     {
-      secCause = SecondaryCause::LOAD_MISAL_REGION_CROSS;
+      secCause = SecondaryCause::NONE;
       return ExceptionCause::LOAD_ADDR_MISAL;
     }
 
@@ -1378,8 +1372,14 @@ Hart<URV>::determineMisalLoadException(URV addr, unsigned accessSize,
       return ExceptionCause::LOAD_ACC_FAULT;
     }
 
+  if (misalDataOk_)
+    {
+      secCause = SecondaryCause::NONE;
+      return ExceptionCause::NONE;
+    }
+
   secCause = SecondaryCause::NONE;
-  return ExceptionCause::NONE;
+  return ExceptionCause::LOAD_ADDR_MISAL;
 }
 
 
@@ -1388,18 +1388,12 @@ ExceptionCause
 Hart<URV>::determineMisalStoreException(URV addr, unsigned accessSize,
                                         SecondaryCause& secCause) const
 {
-  if (not misalDataOk_)
-    {
-      secCause = SecondaryCause::NONE;
-      return ExceptionCause::STORE_ADDR_MISAL;
-    }
-
   size_t addr2 = addr + accessSize - 1;
 
   // Crossing region boundary causes misaligned exception.
   if (memory_.getRegionIndex(addr) != memory_.getRegionIndex(addr2))
     {
-      secCause = SecondaryCause::STORE_MISAL_REGION_CROSS;
+      secCause = SecondaryCause::NONE;
       return ExceptionCause::STORE_ADDR_MISAL;
     }
 
@@ -1411,8 +1405,14 @@ Hart<URV>::determineMisalStoreException(URV addr, unsigned accessSize,
       return ExceptionCause::STORE_ACC_FAULT;
     }
 
+  if (misalDataOk_)
+    {
+      secCause = SecondaryCause::NONE;
+      return ExceptionCause::NONE;
+    }
+
   secCause = SecondaryCause::NONE;
-  return ExceptionCause::NONE;
+  return ExceptionCause::STORE_ADDR_MISAL;
 }
 
 
@@ -1527,8 +1527,17 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
   bool misal = addr & alignMask;
   misalignedLdSt_ = misal;
 
+  ExceptionCause cause = ExceptionCause::NONE;
+  if (misal)
+    {
+      cause = determineMisalLoadException(addr, ldSize, secCause);
+      if (cause == ExceptionCause::LOAD_ADDR_MISAL)
+        return cause;  // Misaligned resulting in misaligned-adddress-exception
+    }
+
   // Stack access
-  if (rs1 == RegSp and checkStackAccess_ and not checkStackLoad(base, addr, ldSize))
+  if (rs1 == RegSp and checkStackAccess_ and
+      not checkStackLoad(base, addr, ldSize))
     {
       secCause = SecondaryCause::LOAD_ACC_STACK_CHECK;
       return ExceptionCause::LOAD_ACC_FAULT;
@@ -1598,12 +1607,9 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
 	}
     }
 
-  if (misal)
-    {
-      ExceptionCause ec = determineMisalLoadException(addr, ldSize, secCause);
-      if (ec != ExceptionCause::NONE)
-	return ec;
-    }
+  // Misaligned resulting in access fault exception.
+  if (misal and cause != ExceptionCause::NONE)
+    return cause;
 
   // Physical memory protection.
   if (pmpEnabled_)
@@ -7489,8 +7495,17 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
   bool misal = addr & alignMask;
   misalignedLdSt_ = misal;
 
+  ExceptionCause cause = ExceptionCause::NONE;
+  if (misal)
+    {
+      cause = determineMisalStoreException(addr, stSize, secCause);
+      if (cause == ExceptionCause::STORE_ADDR_MISAL)
+        return cause;
+    }
+
   // Stack access.
-  if (rs1 == RegSp and checkStackAccess_ and ! checkStackStore(base, addr, stSize))
+  if (rs1 == RegSp and checkStackAccess_ and
+      not checkStackStore(base, addr, stSize))
     {
       secCause = SecondaryCause::STORE_ACC_STACK_CHECK;
       return ExceptionCause::STORE_ACC_FAULT;
@@ -7542,12 +7557,8 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
         }
     }
 
-  if (misal)
-    {
-      ExceptionCause ec = determineMisalStoreException(addr, stSize, secCause);
-      if (ec != ExceptionCause::NONE)
-	return ec;
-    }
+  if (misal and cause != ExceptionCause::NONE)
+    return cause;
 
   // Physical memory protection.
   if (pmpEnabled_)
