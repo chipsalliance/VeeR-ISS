@@ -100,7 +100,6 @@ namespace WdRiscv
 
       // Cause = LOAD_ADDR_MISAL
       LOAD_MISAL_REGION_CROSS = 2,
-      LOAD_MISAL_IO = 1,
 
       // Cause = LOAD_ACC_FAULT
       LOAD_ACC_LOCAL_UNMAPPED = 2,
@@ -111,6 +110,7 @@ namespace WdRiscv
       LOAD_ACC_REGION_PREDICTION = 5,
       LOAD_ACC_PIC = 6,
       LOAD_ACC_AMO = 7,
+      LOAD_ACC_IO = 0xb,
       LOAD_ACC_PMP = 8,
       LOAD_ACC_PRECISE = 9,  // precise bus error
 
@@ -127,6 +127,7 @@ namespace WdRiscv
       STORE_ACC_REGION_PREDICTION = 5,
       STORE_ACC_PIC = 6,
       STORE_ACC_AMO = 7,
+      STORE_ACC_IO = 0xb,
       STORE_ACC_PMP = 8,
       STORE_ACC_PRECISE = 9,
 

@@ -1351,14 +1351,47 @@ Hart<URV>::reportPmpStat(FILE* file) const
 
 
 template <typename URV>
-bool
-Hart<URV>::misalignedAccessCausesException(URV addr, unsigned accessSize,
-					   SecondaryCause& secCause) const
+ExceptionCause
+Hart<URV>::determineMisalLoadException(URV addr, unsigned accessSize,
+                                       SecondaryCause& secCause) const
 {
   if (not misalDataOk_)
     {
       secCause = SecondaryCause::NONE;
-      return true;
+      return ExceptionCause::LOAD_ADDR_MISAL;
+    }
+
+  size_t addr2 = addr + accessSize - 1;
+
+  // Crossing region boundary causes misaligned exception.
+  if (memory_.getRegionIndex(addr) != memory_.getRegionIndex(addr2))
+    {
+      secCause = SecondaryCause::LOAD_MISAL_REGION_CROSS;
+      return ExceptionCause::LOAD_ADDR_MISAL;
+    }
+
+  // Misaligned access to a region with side effect causes misaligned
+  // exception.
+  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
+    {
+      secCause = SecondaryCause::LOAD_ACC_IO;
+      return ExceptionCause::LOAD_ACC_FAULT;
+    }
+
+  secCause = SecondaryCause::NONE;
+  return ExceptionCause::NONE;
+}
+
+
+template <typename URV>
+ExceptionCause
+Hart<URV>::determineMisalStoreException(URV addr, unsigned accessSize,
+                                        SecondaryCause& secCause) const
+{
+  if (not misalDataOk_)
+    {
+      secCause = SecondaryCause::NONE;
+      return ExceptionCause::STORE_ADDR_MISAL;
     }
 
   size_t addr2 = addr + accessSize - 1;
@@ -1367,18 +1400,19 @@ Hart<URV>::misalignedAccessCausesException(URV addr, unsigned accessSize,
   if (memory_.getRegionIndex(addr) != memory_.getRegionIndex(addr2))
     {
       secCause = SecondaryCause::STORE_MISAL_REGION_CROSS;
-      return true;
+      return ExceptionCause::STORE_ADDR_MISAL;
     }
 
   // Misaligned access to a region with side effect causes misaligned
   // exception.
   if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
     {
-      secCause = SecondaryCause::STORE_MISAL_IO;
-      return true;
+      secCause = SecondaryCause::STORE_ACC_IO;
+      return ExceptionCause::STORE_ACC_FAULT;
     }
 
-  return false;
+  secCause = SecondaryCause::NONE;
+  return ExceptionCause::NONE;
 }
 
 
@@ -1492,11 +1526,6 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
   unsigned alignMask = ldSize - 1;
   bool misal = addr & alignMask;
   misalignedLdSt_ = misal;
-  if (misal)
-    {
-      if (misalignedAccessCausesException(addr, ldSize, secCause))
-	return ExceptionCause::LOAD_ADDR_MISAL;
-    }
 
   // Stack access
   if (rs1 == RegSp and checkStackAccess_ and not checkStackLoad(base, addr, ldSize))
@@ -1567,6 +1596,13 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
 	  secCause = SecondaryCause::LOAD_ACC_PIC;
 	  return ExceptionCause::LOAD_ACC_FAULT;
 	}
+    }
+
+  if (misal)
+    {
+      ExceptionCause ec = determineMisalLoadException(addr, ldSize, secCause);
+      if (ec != ExceptionCause::NONE)
+	return ec;
     }
 
   // Physical memory protection.
@@ -7452,11 +7488,6 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
   constexpr unsigned alignMask = sizeof(STORE_TYPE) - 1;
   bool misal = addr & alignMask;
   misalignedLdSt_ = misal;
-  if (misal)
-    {
-      if (misalignedAccessCausesException(addr, stSize, secCause))
-	return ExceptionCause::STORE_ADDR_MISAL;
-    }
 
   // Stack access.
   if (rs1 == RegSp and checkStackAccess_ and ! checkStackStore(base, addr, stSize))
@@ -7509,6 +7540,13 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
           secCause = SecondaryCause::STORE_ACC_PIC;
           return ExceptionCause::STORE_ACC_FAULT;
         }
+    }
+
+  if (misal)
+    {
+      ExceptionCause ec = determineMisalStoreException(addr, stSize, secCause);
+      if (ec != ExceptionCause::NONE)
+	return ec;
     }
 
   // Physical memory protection.
