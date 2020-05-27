@@ -1357,19 +1357,26 @@ Hart<URV>::determineMisalLoadException(URV addr, unsigned accessSize,
 {
   size_t addr2 = addr + accessSize - 1;
 
+  // Misaligned access to a region with side effect causes access
+  // fault.
+  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
+    {
+      secCause = SecondaryCause::LOAD_ACC_IO;
+      return ExceptionCause::LOAD_ACC_FAULT;
+    }
+
+  // Misaligned access to PIC causes access fault
+  if (isAddrMemMapped(addr))
+    {
+      secCause = SecondaryCause::LOAD_ACC_PIC;
+      return ExceptionCause::LOAD_ACC_FAULT;
+    }
+
   // Crossing region boundary causes misaligned exception.
   if (memory_.getRegionIndex(addr) != memory_.getRegionIndex(addr2))
     {
       secCause = SecondaryCause::NONE;
       return ExceptionCause::LOAD_ADDR_MISAL;
-    }
-
-  // Misaligned access to a region with side effect causes misaligned
-  // exception.
-  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
-    {
-      secCause = SecondaryCause::LOAD_ACC_IO;
-      return ExceptionCause::LOAD_ACC_FAULT;
     }
 
   if (misalDataOk_)
@@ -1390,19 +1397,26 @@ Hart<URV>::determineMisalStoreException(URV addr, unsigned accessSize,
 {
   size_t addr2 = addr + accessSize - 1;
 
+  // Misaligned access to a region with side effect causes access
+  // fault.
+  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
+    {
+      secCause = SecondaryCause::STORE_ACC_IO;
+      return ExceptionCause::STORE_ACC_FAULT;
+    }
+
+  // Misaligned access to PIC causes access fault
+  if (isAddrMemMapped(addr))
+    {
+      secCause = SecondaryCause::STORE_ACC_PIC;
+      return ExceptionCause::STORE_ACC_FAULT;
+    }
+
   // Crossing region boundary causes misaligned exception.
   if (memory_.getRegionIndex(addr) != memory_.getRegionIndex(addr2))
     {
       secCause = SecondaryCause::NONE;
       return ExceptionCause::STORE_ADDR_MISAL;
-    }
-
-  // Misaligned access to a region with side effect causes misaligned
-  // exception.
-  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
-    {
-      secCause = SecondaryCause::STORE_ACC_IO;
-      return ExceptionCause::STORE_ACC_FAULT;
     }
 
   if (misalDataOk_)
@@ -1600,7 +1614,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
           secCause = SecondaryCause::LOAD_ACC_LOCAL_UNMAPPED;
 	  return ExceptionCause::LOAD_ACC_FAULT;
         }
-      if (misal or ldSize != 4)
+      if (ldSize != 4)
 	{
 	  secCause = SecondaryCause::LOAD_ACC_PIC;
 	  return ExceptionCause::LOAD_ACC_FAULT;

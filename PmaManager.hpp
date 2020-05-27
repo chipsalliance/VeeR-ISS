@@ -74,15 +74,15 @@ namespace WdRiscv
 
     /// Return true if in readable (ld instructions allowed) region.
     bool isRead() const
-    { return attrib_ & Read; }
+    { return attrib_ & (Read | MemMapped); }
 
     /// Return true if in writeable (st instructions allowed) region.
     bool isWrite() const
-    { return attrib_ & Write; }
+    { return attrib_ & (Write | MemMapped); }
 
     /// Return true if in executable (fetch allowed) region.
     bool isExec() const
-    { return attrib_ & Exec; }
+    { return attrib_ & (Exec | MemMapped); }
 
     /// Return true in region where access must be aligned.
     bool isAligned() const

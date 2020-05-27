@@ -23,6 +23,13 @@
 #include <cassert>
 #include <PmaManager.hpp>
 
+
+namespace ELFIO
+{
+  class elfio;
+}
+
+
 namespace WdRiscv
 {
 
@@ -636,6 +643,11 @@ namespace WdRiscv
       auto& res = reservations_.at(sysHartIx);
       return res.valid_ and res.addr_ == addr;
     }
+
+    /// Load contents of given ELF segment into memory.
+    /// This is a helper to loadElfFile.
+    bool loadElfSegment(ELFIO::elfio& reader, int segment, size_t& end,
+                        size_t& overwrites);
 
     /// Take a snapshot of the entire simulated memory into binary
     /// file. Return true on success or false on failure

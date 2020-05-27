@@ -124,7 +124,7 @@ namespace WdRiscv
       STORE_ACC_PMP = 8,
       STORE_ACC_PRECISE = 9,
 
-      MAX_CAUSE = STORE_ACC_STACK_CHECK
+      MAX_CAUSE = STORE_ACC_IO
     };
 
 
