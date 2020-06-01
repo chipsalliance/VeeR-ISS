@@ -82,7 +82,7 @@ namespace WdRiscv
 
     /// Return true if in executable (fetch allowed) region.
     bool isExec() const
-    { return attrib_ & (Exec | MemMapped); }
+    { return attrib_ & Exec; }
 
     /// Return true in region where access must be aligned.
     bool isAligned() const

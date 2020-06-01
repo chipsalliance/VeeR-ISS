@@ -1355,38 +1355,37 @@ ExceptionCause
 Hart<URV>::determineMisalLoadException(URV addr, unsigned accessSize,
                                        SecondaryCause& secCause) const
 {
-  size_t addr2 = addr + accessSize - 1;
-
-  // Misaligned access to a region with side effect causes access
-  // fault.
-  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
+  if (not misalDataOk_)
     {
-      secCause = SecondaryCause::LOAD_ACC_IO;
-      return ExceptionCause::LOAD_ACC_FAULT;
+      secCause = SecondaryCause::NONE;
+      return ExceptionCause::LOAD_ADDR_MISAL;
     }
 
-  // Misaligned access to PIC causes access fault
+  size_t addr2 = addr + accessSize - 1;
+
+  // Misaligned access to a region with side effect.
+  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
+    {
+      secCause = SecondaryCause::LOAD_MISAL_IO;
+      return ExceptionCause::LOAD_ADDR_MISAL;
+    }
+
+  // Misaligned access to PIC.
   if (isAddrMemMapped(addr))
     {
       secCause = SecondaryCause::LOAD_ACC_PIC;
       return ExceptionCause::LOAD_ACC_FAULT;
     }
 
-  // Crossing region boundary causes misaligned exception.
+  // Crossing 256 MB region boundary.
   if (memory_.getRegionIndex(addr) != memory_.getRegionIndex(addr2))
     {
-      secCause = SecondaryCause::NONE;
+      secCause = SecondaryCause::LOAD_MISAL_REGION_CROSS;
       return ExceptionCause::LOAD_ADDR_MISAL;
     }
 
-  if (misalDataOk_)
-    {
-      secCause = SecondaryCause::NONE;
-      return ExceptionCause::NONE;
-    }
-
   secCause = SecondaryCause::NONE;
-  return ExceptionCause::LOAD_ADDR_MISAL;
+  return ExceptionCause::NONE;
 }
 
 
@@ -1395,38 +1394,37 @@ ExceptionCause
 Hart<URV>::determineMisalStoreException(URV addr, unsigned accessSize,
                                         SecondaryCause& secCause) const
 {
-  size_t addr2 = addr + accessSize - 1;
-
-  // Misaligned access to a region with side effect causes access
-  // fault.
-  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
+  if (not misalDataOk_)
     {
-      secCause = SecondaryCause::STORE_ACC_IO;
-      return ExceptionCause::STORE_ACC_FAULT;
+      secCause = SecondaryCause::NONE;
+      return ExceptionCause::STORE_ADDR_MISAL;
     }
 
-  // Misaligned access to PIC causes access fault
+  size_t addr2 = addr + accessSize - 1;
+
+  // Misaligned access to a region with side effect.
+  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
+    {
+      secCause = SecondaryCause::STORE_MISAL_IO;
+      return ExceptionCause::STORE_ADDR_MISAL;
+    }
+
+  // Misaligned access to PIC.
   if (isAddrMemMapped(addr))
     {
       secCause = SecondaryCause::STORE_ACC_PIC;
       return ExceptionCause::STORE_ACC_FAULT;
     }
 
-  // Crossing region boundary causes misaligned exception.
+  // Crossing 256 MB region boundary.
   if (memory_.getRegionIndex(addr) != memory_.getRegionIndex(addr2))
     {
-      secCause = SecondaryCause::NONE;
+      secCause = SecondaryCause::STORE_MISAL_REGION_CROSS;
       return ExceptionCause::STORE_ADDR_MISAL;
     }
 
-  if (misalDataOk_)
-    {
-      secCause = SecondaryCause::NONE;
-      return ExceptionCause::NONE;
-    }
-
   secCause = SecondaryCause::NONE;
-  return ExceptionCause::STORE_ADDR_MISAL;
+  return ExceptionCause::NONE;
 }
 
 
@@ -1549,7 +1547,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
         return cause;  // Misaligned resulting in misaligned-adddress-exception
     }
 
-  // Stack access
+  // Stack access.
   if (rs1 == RegSp and checkStackAccess_ and
       not checkStackLoad(base, addr, ldSize))
     {
@@ -1614,7 +1612,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
           secCause = SecondaryCause::LOAD_ACC_LOCAL_UNMAPPED;
 	  return ExceptionCause::LOAD_ACC_FAULT;
         }
-      if (ldSize != 4)
+      if (misal or ldSize != 4)
 	{
 	  secCause = SecondaryCause::LOAD_ACC_PIC;
 	  return ExceptionCause::LOAD_ACC_FAULT;

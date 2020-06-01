@@ -414,10 +414,12 @@ namespace WdRiscv
       return true;
     }
 
-    /// Write byte to given address. Return true on success. Return
-    /// false if address is not mapped. This is used to initialize
-    /// memory.
-    bool writeByteNoAccessCheck(size_t address, uint8_t value);
+    /// Write byte to given address without write-access check. Return
+    /// true on success. Return false if address is not mapped. This
+    /// is used to initialize memory. If address is in
+    /// memory-mapped-register region, then both mem-mapped-register
+    /// and external memory are written.
+    bool specialInitializeByte(size_t address, uint8_t value);
 
     /// Set addr to the address of the last write and value to the
     /// corresponding value and return the size of that write. Return

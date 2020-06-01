@@ -249,7 +249,7 @@ Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end,
     {
       if (data_[vaddr + i] != 0)
         overwrites++;
-      if (not writeByteNoAccessCheck(vaddr + i, segData[i]))
+      if (not specialInitializeByte(vaddr + i, segData[i]))
         {
           if (unmappedCount == 0)
             std::cerr << "Failed to copy ELF byte at address 0x"
@@ -656,20 +656,25 @@ Memory::copy(const Memory& other)
 
 
 bool
-Memory::writeByteNoAccessCheck(size_t addr, uint8_t value)
+Memory::specialInitializeByte(size_t addr, uint8_t value)
 {
   Pma pma = pmaMgr_.getPma(addr);
   if (not pma.isMapped())
     return false;
 
-  // Perform masking for memory mapped registers.
-  uint32_t mask = getMemoryMappedMask(addr);
-  unsigned byteIx = addr & 3;
-  value = value & uint8_t((mask >> (byteIx*8)));
-
   if (pmaMgr_.isAddrMemMapped(addr))
-    return pmaMgr_.writeRegisterByte(addr, value);
+    {
+      // Perform masking for memory mapped registers.
+      uint32_t mask = getMemoryMappedMask(addr);
+      unsigned byteIx = addr & 3;
+      uint8_t masked = value & uint8_t((mask >> (byteIx*8)));
 
+      if (not pmaMgr_.writeRegisterByte(addr, masked))
+        return false;
+    }
+
+  // We initialize both the memory-mapped-register and the external
+  // memory to match/simplify the test-bench.
   data_[addr] = value;
   return true;
 }
