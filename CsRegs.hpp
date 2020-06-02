@@ -561,6 +561,8 @@ namespace WdRiscv
 
       for (auto func : postPoke_)
         func(*this, newVal);
+
+      nextValue_ = *valuePtr_;
     }
 
     /// Return the value of this register before last sequence of

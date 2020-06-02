@@ -366,8 +366,8 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
     memory_.resetMemoryMappedRegisters();
   memory_.invalidateLr(hartIx_);
 
-  clearTraceData();
   clearPendingNmi();
+  clearTraceData();
 
   loadQueue_.clear();
 
