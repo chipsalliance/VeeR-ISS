@@ -3423,22 +3423,21 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
                                  lastPriv_);
 	}
 
-      // Counter modified by csr instruction is not updated.
+      // Counter modified by csr instruction should not count up.
+      // Also, counter stops counting after corresponding event reg is
+      // written.
       std::vector<CsrNumber> csrs;
       std::vector<unsigned> triggers;
       csRegs_.getLastWrittenRegs(csrs, triggers);
       for (auto& csr : csrs)
-	if (pregs.isModified(unsigned(csr) - unsigned(CsrNumber::MHPMCOUNTER3)))
-	  {
-	    URV val;
-	    peekCsr(csr, val);
-	    pokeCsr(csr, val - 1);
-	  }
-	else if (csr >= CsrNumber::MHPMEVENT3 and csr <= CsrNumber::MHPMEVENT31)
-	  {
+        {
+          auto csrPtr = csRegs_.getImplementedCsr(csr);
+          csrPtr->undoCountUp();
+
+          if (csr >= CsrNumber::MHPMEVENT3 and csr <= CsrNumber::MHPMEVENT31)
             if (not csRegs_.applyPerfEventAssign())
               std::cerr << "Unexpected applyPerfAssign fail\n";
-	  }
+        }
     }
   else if (info.isBranch())
     {
@@ -3448,8 +3447,6 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
 	pregs.updateCounters(EventNumber::BranchTaken, prevPerfControl_,
                              lastPriv_);
     }
-
-  pregs.clearModified();
 }
 
 

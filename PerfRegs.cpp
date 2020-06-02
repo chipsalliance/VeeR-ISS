@@ -36,7 +36,6 @@ PerfRegs::config(unsigned numCounters, unsigned maxEventId)
   eventOfCounter_.resize(numCounters);
   enableUser_.resize(numCounters);
   enableMachine_.resize(numCounters);
-  modified_.resize(numCounters);
 
   unsigned numEvents = std::max(unsigned(EventNumber::_End), maxEventId) + 1;
   countersOfEvent_.resize(numEvents);
