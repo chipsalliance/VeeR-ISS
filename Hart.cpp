@@ -1686,11 +1686,11 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
 
   URV base = intRegs_.read(rs1);
   URV addr = base + SRV(imm);
+  unsigned ldSize = sizeof(LOAD_TYPE);
 
   ldStAddr_ = addr;       // For reporting ld/st addr in trace-mode.
   ldStAddrValid_ = true;  // For reporting ld/st addr in trace-mode.
 
-  URV prevRdVal = peekIntReg(rd);
   if (loadQueueEnabled_)
     removeFromLoadQueue(rs1, false);
 
@@ -1699,33 +1699,32 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
       if (ldStAddrTriggerHit(addr, TriggerTiming::Before, true /*isLoad*/,
                              privMode_, isInterruptEnabled()))
 	triggerTripped_ = true;
-      if (triggerTripped_)
-	return false;
     }
 
   // Unsigned version of LOAD_TYPE
   typedef typename std::make_unsigned<LOAD_TYPE>::type ULT;
 
   // Loading from console-io does a standard input read.
-  if (conIoValid_ and addr == conIo_)
+  if (not triggerTripped_)
     {
-      SRV val = fgetc(stdin);
-      intRegs_.write(rd, val);
-      return true;
+      if (conIoValid_ and addr == conIo_)
+        {
+          SRV val = fgetc(stdin);
+          intRegs_.write(rd, val);
+          return true;
+        }
+
+      auto secCause = SecondaryCause::NONE;
+      auto cause = determineLoadException(rs1, base, addr, ldSize, secCause);
+      if (cause != ExceptionCause::NONE)
+        {
+          initiateLoadException(cause, addr, secCause);
+          return false;
+        }
+
+      if (wideLdSt_)
+        return wideLoad(rd, addr, ldSize);
     }
-
-  unsigned ldSize = sizeof(LOAD_TYPE);
-
-  auto secCause = SecondaryCause::NONE;
-  auto cause = determineLoadException(rs1, base, addr, ldSize, secCause);
-  if (cause != ExceptionCause::NONE)
-    {
-      initiateLoadException(cause, addr, secCause);
-      return false;
-    }
-
-  if (wideLdSt_)
-    return wideLoad(rd, addr, ldSize);
 
   ULT uval = 0;
   if (memory_.read(addr, uval))
@@ -1736,28 +1735,33 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
       else
         value = SRV(LOAD_TYPE(uval)); // Loading signed: Sign extend.
 
-      // Put entry in load queue with value of rd before this load.
-      if (loadQueueEnabled_)
-	putInLoadQueue(ldSize, addr, rd, prevRdVal);
-
       if (hasActiveTrigger())
         {
           TriggerTiming timing = TriggerTiming::Before;
           bool isLoad = true;
           if (ldStDataTriggerHit(uval, timing, isLoad, privMode_,
                                  isInterruptEnabled()))
-            {
-              triggerTripped_ = true;
-              return false;
-            }
+            triggerTripped_ = true;
         }
 
-      intRegs_.write(rd, value);
-      return true;  // Success.
+      if (not triggerTripped_)
+        {
+          // Put entry in load queue with value of rd before this load.
+          if (loadQueueEnabled_)
+            {
+              URV prevRdVal = peekIntReg(rd);
+              putInLoadQueue(ldSize, addr, rd, prevRdVal);
+            }
+          intRegs_.write(rd, value);
+          return true;  // Success.
+        }
     }
 
-  cause = ExceptionCause::LOAD_ACC_FAULT;
-  secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
+  if (triggerTripped_)
+    return false;
+
+  auto cause = ExceptionCause::LOAD_ACC_FAULT;
+  auto secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
   if (isAddrMemMapped(addr))
     secCause = SecondaryCause::LOAD_ACC_PIC;
   initiateLoadException(cause, addr, secCause);

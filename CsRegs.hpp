@@ -748,10 +748,10 @@ namespace WdRiscv
     }
 
     /// Similar to ldStAddrTriggerHit but for data match.
-    bool ldStDataTriggerHit(URV addr, TriggerTiming t, bool isLoad,
+    bool ldStDataTriggerHit(URV data, TriggerTiming t, bool isLoad,
                             PrivilegeMode mode, bool ie)
     {
-      bool hit = triggers_.ldStDataTriggerHit(addr, t, isLoad, mode, ie);
+      bool hit = triggers_.ldStDataTriggerHit(data, t, isLoad, mode, ie);
       if (hit)
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
       return hit;
