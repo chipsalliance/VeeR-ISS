@@ -1735,7 +1735,8 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
       else
         value = SRV(LOAD_TYPE(uval)); // Loading signed: Sign extend.
 
-      if (hasActiveTrigger())
+      // Check for load-data-trigger outside io/region
+      if (hasActiveTrigger() and isIdempotentRegion(addr))
         {
           TriggerTiming timing = TriggerTiming::Before;
           bool isLoad = true;
@@ -1842,7 +1843,7 @@ Hart<URV>::store(unsigned rs1, URV base, URV addr, STORE_TYPE storeVal)
 						 maskedVal, secCause);
 
   // Consider store-data  trigger
-  if (hasTrig and cause == ExceptionCause::NONE)
+  if (hasTrig and cause == ExceptionCause::NONE and isIdempotentRegion(addr))
     if (ldStDataTriggerHit(maskedVal, timing, isLd, privMode_,
                            isInterruptEnabled()))
       triggerTripped_ = true;
