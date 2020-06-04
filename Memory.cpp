@@ -196,6 +196,77 @@ Memory::loadHexFile(const std::string& fileName)
 
 
 bool
+Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end,
+                       size_t& overwrites)
+{
+  const ELFIO::segment* seg = reader.segments[segIx];
+  ELFIO::Elf64_Addr vaddr = seg->get_virtual_address();
+  ELFIO::Elf_Xword segSize = seg->get_file_size(); // Size in file.
+  const char* segData = seg->get_data();
+  end = 0;
+  if (seg->get_type() != PT_LOAD)
+    return true;
+
+  if (vaddr + segSize > size_)
+    {
+      std::cerr << "End of ELF segment " << segIx << " ("
+                << (vaddr+segSize)
+                << ") is beyond end of simulated memory ("
+                << size_ << ")\n";
+      if (checkUnmappedElf_)
+        return false;
+    }
+
+#if 0
+  auto segSecCount = seg->get_sections_num();
+  for (int secOrder = 0; secOrder < segSecCount; ++secOrder)
+    {
+      auto secIx = seg->get_section_index_at(secOrder);
+      auto sec = reader.sections[secIx];
+      const char* secData = sec->get_data();
+      size_t size = sec->get_size();
+      size_t addr = sec->get_address();
+      // size_t offset = sec->get_offset();
+      printf("@%lx\n", addr);
+      size_t remain = size;
+      while (remain)
+        {
+          size_t chunk = std::min(remain, size_t(16));
+          const char* sep = "";
+          for (size_t ii = 0; ii < chunk; ++ii)
+            {
+              printf("%s%02x", sep, (*secData++) & 0xff);
+              sep = " ";
+            }
+          printf("\n");
+          remain -= chunk;
+        }
+    }
+#endif
+
+  size_t unmappedCount = 0;
+  for (size_t i = 0; i < segSize; ++i)
+    {
+      if (data_[vaddr + i] != 0)
+        overwrites++;
+      if (not specialInitializeByte(vaddr + i, segData[i]))
+        {
+          if (unmappedCount == 0)
+            std::cerr << "Failed to copy ELF byte at address 0x"
+                      << std::hex << (vaddr + i) << std::dec
+                      << ": corresponding location is not mapped\n";
+          unmappedCount++;
+          if (checkUnmappedElf_)
+            return false;
+        }
+    }
+
+  end = vaddr + size_t(segSize);
+  return true;
+}
+
+
+bool
 Memory::loadElfFile(const std::string& fileName, unsigned regWidth,
 		    size_t& entryPoint, size_t& end)
 {
@@ -251,60 +322,23 @@ Memory::loadElfFile(const std::string& fileName, unsigned regWidth,
       std::cerr << "Warning: non-riscv ELF file\n";
     }
 
-  auto secCount = reader.sections.size();
-
   // Copy loadable ELF segments into memory.
   size_t maxEnd = 0;  // Largest end address of a segment.
   size_t errors = 0, overwrites = 0;
 
-  unsigned loadedSegs = 0;
   for (int segIx = 0; segIx < reader.segments.size(); ++segIx)
     {
-      const ELFIO::segment* seg = reader.segments[segIx];
-      ELFIO::Elf64_Addr vaddr = seg->get_virtual_address();
-      ELFIO::Elf_Xword segSize = seg->get_file_size(); // Size in file.
-      const char* segData = seg->get_data();
-      if (seg->get_type() != PT_LOAD)
-	continue;
-
-      if (vaddr + segSize > size_)
-	{
-	  std::cerr << "End of ELF segment " << segIx << " ("
-		    << (vaddr+segSize)
-		    << ") is beyond end of simulated memory ("
-		    << size_ << ")\n";
-	  if (checkUnmappedElf_)
-	    {
-	      errors++;
-	      continue;
-	    }
-	}
-
-      size_t unmappedCount = 0;
-      for (size_t i = 0; i < segSize; ++i)
-	{
-	  if (data_[vaddr + i] != 0)
-	    overwrites++;
-	  if (not writeByteNoAccessCheck(vaddr + i, segData[i]))
-	    {
-	      if (unmappedCount == 0)
-		std::cerr << "Failed to copy ELF byte at address 0x"
-			  << std::hex << (vaddr + i) << std::dec
-			  << ": corresponding location is not mapped\n";
-	      unmappedCount++;
-	      if (checkUnmappedElf_)
-		{
-		  errors++;
-		  break;
-		}
-	    }
-	}
-
-      loadedSegs++;
-      maxEnd = std::max(maxEnd, size_t(vaddr) + size_t(segSize));
+      size_t end = 0, segOverwrite = 0;
+      if (loadElfSegment(reader, segIx, end, segOverwrite))
+        {
+          maxEnd = std::max(end, maxEnd);
+          overwrites += segOverwrite;
+        }
+      else
+        errors++;
     }
 
-  if (loadedSegs == 0)
+  if (maxEnd == 0)
     {
       std::cerr << "No loadable segment in ELF file\n";
       errors++;
@@ -316,6 +350,7 @@ Memory::loadElfFile(const std::string& fileName, unsigned regWidth,
     clearLastWriteInfo(hartId);
 
   // Collect symbols.
+  auto secCount = reader.sections.size();
   for (int secIx = 0; secIx < secCount; ++secIx)
     {
       auto sec = reader.sections[secIx];
@@ -338,6 +373,7 @@ Memory::loadElfFile(const std::string& fileName, unsigned regWidth,
 	    {
 	      if (name.empty())
 		continue;
+
 	      if (type == STT_NOTYPE or type == STT_FUNC or type == STT_OBJECT)
 		symbols_[name] = ElfSymbol(address, size);
 	    }
@@ -620,20 +656,25 @@ Memory::copy(const Memory& other)
 
 
 bool
-Memory::writeByteNoAccessCheck(size_t addr, uint8_t value)
+Memory::specialInitializeByte(size_t addr, uint8_t value)
 {
   Pma pma = pmaMgr_.getPma(addr);
   if (not pma.isMapped())
     return false;
 
-  // Perform masking for memory mapped registers.
-  uint32_t mask = getMemoryMappedMask(addr);
-  unsigned byteIx = addr & 3;
-  value = value & uint8_t((mask >> (byteIx*8)));
-
   if (pmaMgr_.isAddrMemMapped(addr))
-    return pmaMgr_.writeRegisterByte(addr, value);
+    {
+      // Perform masking for memory mapped registers.
+      uint32_t mask = getMemoryMappedMask(addr);
+      unsigned byteIx = addr & 3;
+      uint8_t masked = value & uint8_t((mask >> (byteIx*8)));
 
+      if (not pmaMgr_.writeRegisterByte(addr, masked))
+        return false;
+    }
+
+  // We initialize both the memory-mapped-register and the external
+  // memory to match/simplify the test-bench.
   data_[addr] = value;
   return true;
 }

@@ -33,7 +33,7 @@ BOOST_LIB_DIR := $(wildcard $(BOOST_DIR)/stage/lib $(BOOST_DIR)/lib)
 BOOST_LIBS := boost_program_options 
 
 # Add extra dependency libraries here
-EXTRA_LIBS := -lpthread -lz -lstdc++fs
+EXTRA_LIBS := -lpthread -lz -static-libstdc++ -lstdc++fs
 ifeq (mingw,$(findstring mingw,$(shell $(CXX) -v 2>&1 | grep Target | cut -d' ' -f2)))
 EXTRA_LIBS += -lws2_32
 endif

@@ -23,6 +23,13 @@
 #include <cassert>
 #include <PmaManager.hpp>
 
+
+namespace ELFIO
+{
+  class elfio;
+}
+
+
 namespace WdRiscv
 {
 
@@ -407,10 +414,12 @@ namespace WdRiscv
       return true;
     }
 
-    /// Write byte to given address. Return true on success. Return
-    /// false if address is not mapped. This is used to initialize
-    /// memory.
-    bool writeByteNoAccessCheck(size_t address, uint8_t value);
+    /// Write byte to given address without write-access check. Return
+    /// true on success. Return false if address is not mapped. This
+    /// is used to initialize memory. If address is in
+    /// memory-mapped-register region, then both mem-mapped-register
+    /// and external memory are written.
+    bool specialInitializeByte(size_t address, uint8_t value);
 
     /// Set addr to the address of the last write and value to the
     /// corresponding value and return the size of that write. Return
@@ -636,6 +645,11 @@ namespace WdRiscv
       auto& res = reservations_.at(sysHartIx);
       return res.valid_ and res.addr_ == addr;
     }
+
+    /// Load contents of given ELF segment into memory.
+    /// This is a helper to loadElfFile.
+    bool loadElfSegment(ELFIO::elfio& reader, int segment, size_t& end,
+                        size_t& overwrites);
 
     /// Take a snapshot of the entire simulated memory into binary
     /// file. Return true on success or false on failure

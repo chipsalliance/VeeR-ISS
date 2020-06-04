@@ -11,7 +11,7 @@ VirtMem::VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize)
   unsigned p2PageSize =  unsigned(1) << pageBits_;
 
   assert(p2PageSize == pageSize);
-  assert(pageSize > 1024);
+  assert(pageSize >= 64);
 }
 
 

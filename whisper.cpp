@@ -208,7 +208,7 @@ struct Args
   bool triggers = false;   // Enable debug triggers when true.
   bool counters = false;   // Enable performance counters when true.
   bool gdb = false;        // Enable gdb mode when true.
-  int gdbTcpPort = -1;        // Enable gdb mode over TCP when port is positive.
+  std::vector<unsigned> gdbTcpPort;        // Enable gdb mode over TCP when port is positive.
   bool abiNames = false;   // Use ABI register names in inst disassembly.
   bool newlib = false;     // True if target program linked with newlib.
   bool linux = false;      // True if target program linked with Linux C-lib.
@@ -241,7 +241,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 508;
+  unsigned subversion = 516;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -416,7 +416,7 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
 	 "Enable performance counters")
 	("gdb", po::bool_switch(&args.gdb),
 	 "Run in gdb mode enabling remote debugging from gdb.")
-	("gdb-tcp-port", po::value(&args.gdbTcpPort),
+	("gdb-tcp-port", po::value(&args.gdbTcpPort)->multitoken(),
 	 	 "TCP port number for gdb; If port num is negative,"
 			" gdb will work with stdio (default -1).")
 	("profileinst", po::value(&args.instFreqFile),
@@ -942,7 +942,8 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart)
 
   hart.enableTriggers(args.triggers);
   hart.enableGdb(args.gdb);
-  hart.setGdbTcpPort(args.gdbTcpPort);
+  if(args.gdbTcpPort.size()>hart.sysHartIndex())
+	  hart.setGdbTcpPort(args.gdbTcpPort[hart.sysHartIndex()]);
   hart.enablePerformanceCounters(args.counters);
   hart.enableAbiNames(args.abiNames);
 

@@ -149,10 +149,7 @@ namespace WdRiscv
               bool enable = ((user and enableUser_.at(counterIx)) or
                              (machine and enableMachine_.at(counterIx)));
               if (enable)
-                {
-                  counters_.at(counterIx)++;
-                  modified_.at(counterIx) = true;
-                }
+                counters_.at(counterIx)++;
             }
 	}
       return true;
@@ -185,23 +182,6 @@ namespace WdRiscv
     /// Reset all assosiations between events and counters.
     void reset();
 
-    /// Unmark registers marked as modified by current instruction. This
-    /// is done at the end of each instruction.
-    void clearModified()
-    {
-      for (auto& m : modified_)
-	m = false;
-    }
-
-    /// Return true if given number corresponds to a valid performance
-    /// counter and if that counter was modified by the current
-    /// instruction.
-    bool isModified(unsigned ix)
-    {
-      if (ix < modified_.size()) return modified_[ix];
-      return false;
-    }
-
   private:
 
     // Map counter index to event currently associated with counter.
@@ -218,7 +198,6 @@ namespace WdRiscv
     std::vector< std::vector<unsigned> > countersOfEvent_;
 
     std::vector<uint64_t> counters_;
-    std::vector<unsigned> modified_;
 
     // Pending event assignment to counter.
     EventNumber pendingEvent_ = EventNumber::None;

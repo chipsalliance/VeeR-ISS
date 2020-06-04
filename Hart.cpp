@@ -366,8 +366,8 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
     memory_.resetMemoryMappedRegisters();
   memory_.invalidateLr(hartIx_);
 
-  clearTraceData();
   clearPendingNmi();
+  clearTraceData();
 
   loadQueue_.clear();
 
@@ -1351,34 +1351,80 @@ Hart<URV>::reportPmpStat(FILE* file) const
 
 
 template <typename URV>
-bool
-Hart<URV>::misalignedAccessCausesException(URV addr, unsigned accessSize,
-					   SecondaryCause& secCause) const
+ExceptionCause
+Hart<URV>::determineMisalLoadException(URV addr, unsigned accessSize,
+                                       SecondaryCause& secCause) const
 {
   if (not misalDataOk_)
     {
       secCause = SecondaryCause::NONE;
-      return true;
+      return ExceptionCause::LOAD_ADDR_MISAL;
     }
 
   size_t addr2 = addr + accessSize - 1;
 
-  // Crossing region boundary causes misaligned exception.
-  if (memory_.getRegionIndex(addr) != memory_.getRegionIndex(addr2))
+  // Misaligned access to a region with side effect.
+  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
     {
-      secCause = SecondaryCause::STORE_MISAL_REGION_CROSS;
-      return true;
+      secCause = SecondaryCause::LOAD_MISAL_IO;
+      return ExceptionCause::LOAD_ADDR_MISAL;
     }
 
-  // Misaligned access to a region with side effect causes misaligned
-  // exception.
+  // Misaligned access to PIC.
+  if (isAddrMemMapped(addr))
+    {
+      secCause = SecondaryCause::LOAD_ACC_PIC;
+      return ExceptionCause::LOAD_ACC_FAULT;
+    }
+
+  // Crossing 256 MB region boundary.
+  if (memory_.getRegionIndex(addr) != memory_.getRegionIndex(addr2))
+    {
+      secCause = SecondaryCause::LOAD_MISAL_REGION_CROSS;
+      return ExceptionCause::LOAD_ADDR_MISAL;
+    }
+
+  secCause = SecondaryCause::NONE;
+  return ExceptionCause::NONE;
+}
+
+
+template <typename URV>
+ExceptionCause
+Hart<URV>::determineMisalStoreException(URV addr, unsigned accessSize,
+                                        SecondaryCause& secCause) const
+{
+  if (not misalDataOk_)
+    {
+      secCause = SecondaryCause::NONE;
+      return ExceptionCause::STORE_ADDR_MISAL;
+    }
+
+  size_t addr2 = addr + accessSize - 1;
+
+  // Misaligned access to a region with side effect.
   if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
     {
       secCause = SecondaryCause::STORE_MISAL_IO;
-      return true;
+      return ExceptionCause::STORE_ADDR_MISAL;
     }
 
-  return false;
+  // Misaligned access to PIC.
+  if (isAddrMemMapped(addr))
+    {
+      secCause = SecondaryCause::STORE_ACC_PIC;
+      return ExceptionCause::STORE_ACC_FAULT;
+    }
+
+  // Crossing 256 MB region boundary.
+  if (memory_.getRegionIndex(addr) != memory_.getRegionIndex(addr2))
+    {
+      secCause = SecondaryCause::STORE_MISAL_REGION_CROSS;
+      return ExceptionCause::STORE_ADDR_MISAL;
+    }
+
+  secCause = SecondaryCause::NONE;
+  return ExceptionCause::NONE;
 }
 
 
@@ -1492,14 +1538,18 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
   unsigned alignMask = ldSize - 1;
   bool misal = addr & alignMask;
   misalignedLdSt_ = misal;
+
+  ExceptionCause cause = ExceptionCause::NONE;
   if (misal)
     {
-      if (misalignedAccessCausesException(addr, ldSize, secCause))
-	return ExceptionCause::LOAD_ADDR_MISAL;
+      cause = determineMisalLoadException(addr, ldSize, secCause);
+      if (cause == ExceptionCause::LOAD_ADDR_MISAL)
+        return cause;  // Misaligned resulting in misaligned-adddress-exception
     }
 
-  // Stack access
-  if (rs1 == RegSp and checkStackAccess_ and not checkStackLoad(base, addr, ldSize))
+  // Stack access.
+  if (rs1 == RegSp and checkStackAccess_ and
+      not checkStackLoad(base, addr, ldSize))
     {
       secCause = SecondaryCause::LOAD_ACC_STACK_CHECK;
       return ExceptionCause::LOAD_ACC_FAULT;
@@ -1569,6 +1619,10 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
 	}
     }
 
+  // Misaligned resulting in access fault exception.
+  if (misal and cause != ExceptionCause::NONE)
+    return cause;
+
   // Physical memory protection.
   if (pmpEnabled_)
     {
@@ -1632,11 +1686,11 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
 
   URV base = intRegs_.read(rs1);
   URV addr = base + SRV(imm);
+  unsigned ldSize = sizeof(LOAD_TYPE);
 
   ldStAddr_ = addr;       // For reporting ld/st addr in trace-mode.
   ldStAddrValid_ = true;  // For reporting ld/st addr in trace-mode.
 
-  URV prevRdVal = peekIntReg(rd);
   if (loadQueueEnabled_)
     removeFromLoadQueue(rs1, false);
 
@@ -1645,33 +1699,32 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
       if (ldStAddrTriggerHit(addr, TriggerTiming::Before, true /*isLoad*/,
                              privMode_, isInterruptEnabled()))
 	triggerTripped_ = true;
-      if (triggerTripped_)
-	return false;
     }
 
   // Unsigned version of LOAD_TYPE
   typedef typename std::make_unsigned<LOAD_TYPE>::type ULT;
 
   // Loading from console-io does a standard input read.
-  if (conIoValid_ and addr == conIo_)
+  if (not triggerTripped_)
     {
-      SRV val = fgetc(stdin);
-      intRegs_.write(rd, val);
-      return true;
+      if (conIoValid_ and addr == conIo_)
+        {
+          SRV val = fgetc(stdin);
+          intRegs_.write(rd, val);
+          return true;
+        }
+
+      auto secCause = SecondaryCause::NONE;
+      auto cause = determineLoadException(rs1, base, addr, ldSize, secCause);
+      if (cause != ExceptionCause::NONE)
+        {
+          initiateLoadException(cause, addr, secCause);
+          return false;
+        }
+
+      if (wideLdSt_)
+        return wideLoad(rd, addr, ldSize);
     }
-
-  unsigned ldSize = sizeof(LOAD_TYPE);
-
-  auto secCause = SecondaryCause::NONE;
-  auto cause = determineLoadException(rs1, base, addr, ldSize, secCause);
-  if (cause != ExceptionCause::NONE)
-    {
-      initiateLoadException(cause, addr, secCause);
-      return false;
-    }
-
-  if (wideLdSt_)
-    return wideLoad(rd, addr, ldSize);
 
   ULT uval = 0;
   if (memory_.read(addr, uval))
@@ -1682,28 +1735,33 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
       else
         value = SRV(LOAD_TYPE(uval)); // Loading signed: Sign extend.
 
-      // Put entry in load queue with value of rd before this load.
-      if (loadQueueEnabled_)
-	putInLoadQueue(ldSize, addr, rd, prevRdVal);
-
       if (hasActiveTrigger())
         {
           TriggerTiming timing = TriggerTiming::Before;
           bool isLoad = true;
           if (ldStDataTriggerHit(uval, timing, isLoad, privMode_,
                                  isInterruptEnabled()))
-            {
-              triggerTripped_ = true;
-              return false;
-            }
+            triggerTripped_ = true;
         }
 
-      intRegs_.write(rd, value);
-      return true;  // Success.
+      if (not triggerTripped_)
+        {
+          // Put entry in load queue with value of rd before this load.
+          if (loadQueueEnabled_)
+            {
+              URV prevRdVal = peekIntReg(rd);
+              putInLoadQueue(ldSize, addr, rd, prevRdVal);
+            }
+          intRegs_.write(rd, value);
+          return true;  // Success.
+        }
     }
 
-  cause = ExceptionCause::LOAD_ACC_FAULT;
-  secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
+  if (triggerTripped_)
+    return false;
+
+  auto cause = ExceptionCause::LOAD_ACC_FAULT;
+  auto secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
   if (isAddrMemMapped(addr))
     secCause = SecondaryCause::LOAD_ACC_PIC;
   initiateLoadException(cause, addr, secCause);
@@ -3369,22 +3427,21 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
                                  lastPriv_);
 	}
 
-      // Counter modified by csr instruction is not updated.
+      // Counter modified by csr instruction should not count up.
+      // Also, counter stops counting after corresponding event reg is
+      // written.
       std::vector<CsrNumber> csrs;
       std::vector<unsigned> triggers;
       csRegs_.getLastWrittenRegs(csrs, triggers);
       for (auto& csr : csrs)
-	if (pregs.isModified(unsigned(csr) - unsigned(CsrNumber::MHPMCOUNTER3)))
-	  {
-	    URV val;
-	    peekCsr(csr, val);
-	    pokeCsr(csr, val - 1);
-	  }
-	else if (csr >= CsrNumber::MHPMEVENT3 and csr <= CsrNumber::MHPMEVENT31)
-	  {
+        {
+          auto csrPtr = csRegs_.getImplementedCsr(csr);
+          csrPtr->undoCountUp();
+
+          if (csr >= CsrNumber::MHPMEVENT3 and csr <= CsrNumber::MHPMEVENT31)
             if (not csRegs_.applyPerfEventAssign())
               std::cerr << "Unexpected applyPerfAssign fail\n";
-	  }
+        }
     }
   else if (info.isBranch())
     {
@@ -3394,8 +3451,6 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
 	pregs.updateCounters(EventNumber::BranchTaken, prevPerfControl_,
                              lastPriv_);
     }
-
-  pregs.clearModified();
 }
 
 
@@ -7452,14 +7507,18 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
   constexpr unsigned alignMask = sizeof(STORE_TYPE) - 1;
   bool misal = addr & alignMask;
   misalignedLdSt_ = misal;
+
+  ExceptionCause cause = ExceptionCause::NONE;
   if (misal)
     {
-      if (misalignedAccessCausesException(addr, stSize, secCause))
-	return ExceptionCause::STORE_ADDR_MISAL;
+      cause = determineMisalStoreException(addr, stSize, secCause);
+      if (cause == ExceptionCause::STORE_ADDR_MISAL)
+        return cause;
     }
 
   // Stack access.
-  if (rs1 == RegSp and checkStackAccess_ and ! checkStackStore(base, addr, stSize))
+  if (rs1 == RegSp and checkStackAccess_ and
+      not checkStackStore(base, addr, stSize))
     {
       secCause = SecondaryCause::STORE_ACC_STACK_CHECK;
       return ExceptionCause::STORE_ACC_FAULT;
@@ -7510,6 +7569,9 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
           return ExceptionCause::STORE_ACC_FAULT;
         }
     }
+
+  if (misal and cause != ExceptionCause::NONE)
+    return cause;
 
   // Physical memory protection.
   if (pmpEnabled_)
