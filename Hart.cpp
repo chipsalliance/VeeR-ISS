@@ -1843,7 +1843,7 @@ Hart<URV>::store(unsigned rs1, URV base, URV addr, STORE_TYPE storeVal)
 						 maskedVal, secCause);
 
   // Consider store-data  trigger
-  if (hasTrig and cause == ExceptionCause::NONE and isIdempotentRegion(addr))
+  if (hasTrig and cause == ExceptionCause::NONE)
     if (ldStDataTriggerHit(maskedVal, timing, isLd, privMode_,
                            isInterruptEnabled()))
       triggerTripped_ = true;
