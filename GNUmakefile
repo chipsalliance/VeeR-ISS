@@ -104,7 +104,7 @@ DEPS_FILES := $(OBJS_GEN:.o=.d)
 -include $(DEPS_FILES)
 
 # Object files needed for librvcore.a
-OBJS := $(RVCORE_SRCS:%=$(BUILD_DIR)/%.o)
+OBJS := $(RVCORE_SRCS:%=$(BUILD_DIR)/%.o) $(SRCS_C:%=$(BUILD_DIR)/%.o)
 
 $(BUILD_DIR)/librvcore.a: $(OBJS)
 	$(AR) cr $@ $^
