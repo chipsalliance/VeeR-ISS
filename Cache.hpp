@@ -16,6 +16,7 @@
 
 #include <cstdint>
 #include <map>
+#include <unordered_map>
 #include <vector>
 #include <cassert>
 
@@ -34,65 +35,43 @@ namespace WdRiscv
 
     /// Define a cache with the given total data size and line size
     /// (all sizes in bytes and refer to the data part of the cache
-    /// and not the tags). The total-size must be a power of 2 and
-    /// must be a multiple of the line-size. The line-size must be a
-    /// power of 2. To have a fully associated cache, arrange for the
-    /// set-count to be the same as the line count (which is the
-    /// total-size divided by the line-size).
+    /// and not the tags) and set-associativity. The total-size must
+    /// be a power of 2 and must be a multiple of the line-size. The
+    /// line-size and set-size must also be powers of 2. Peformance
+    /// will degrade significanlty (quadratic cost) if set size is
+    /// larger than 64.
     ///
-    /// Typical line-size: 64
-    /// Typical set-count: 16
     /// Typical total-size: 2*1024*1024  (2 MB)
+    /// Typical line-size: 64 bytes
+    /// Typical set-size: 16 (16-way set associative)
     Cache(uint64_t totalSize, unsigned lineSize, unsigned setCount);
+
+    ~Cache();
 
     /// Insert line overlapping given address into the cahce.
     void insert(uint64_t addr)
     {
       uint64_t lineNumber = getLineNumber(addr);
       uint64_t setIndex = getSetIndex(lineNumber);
-
       auto& lines = linesPerSet_.at(setIndex);
-      auto& times = timesPerSet_.at(setIndex);
+      accesses_++;
 
-      // If line present update access time.
-      auto lineIter = lines.find(lineNumber);
-      bool present = lineIter != lines.end();
-      if (present)
+      // Find line number or oldest entry.
+      size_t bestIx = 0;
+      for (size_t ix = 0; ix < lines.size(); ++ix)
         {
-          auto time = lineIter->second;
-          auto timeIter = times.find(time);
-          assert(timeIter != times.end() and timeIter->second == lineNumber);
-          times.erase(timeIter);
-          uint64_t nextTime = time_++;
-          times[nextTime] = lineNumber;
-          lines[lineNumber] = nextTime;
-          return;
+          auto& entry = lines[ix];
+          if (entry.tag_ == lineNumber)
+            {
+              hits_++;
+              bestIx = ix;
+              break;
+            }
+          if (not entry.valid() or entry.time_ < lines[bestIx].time_)
+            bestIx = ix;
         }
-
-      // If set is not full, insert line.
-      if (lines.size() < setCount_)
-        {
-          assert(times.size() < setCount_);
-          uint64_t nextTime = time_++;
-          lines[lineNumber] = nextTime;
-          times[nextTime] = lineNumber;
-          return;
-        }
-
-      // Set is full. Evict line oldest line (one with smallest time).
-      assert(lines.size() == setCount_);
-      assert(times.size() == setCount_);
-
-      auto timeIter = times.begin();
-      auto evictedLine = timeIter->second;
-      lineIter = lines.find(evictedLine);
-      assert(lineIter != lines.end() and lineIter->second == timeIter->first);
-      times.erase(timeIter);
-      lines.erase(lineIter);
-
-      uint64_t nextTime = time_++;
-      lines[lineNumber] = nextTime;
-      times[nextTime] = lineNumber;
+      lines[bestIx].tag_ = lineNumber;
+      lines[bestIx].time_ = time_++;
     }
 
     /// Invalidate line overlapping given address.
@@ -102,18 +81,9 @@ namespace WdRiscv
       uint64_t setIndex = getSetIndex(lineNumber);
 
       auto& lines = linesPerSet_.at(setIndex);
-      auto lineIter = lines.find(lineNumber);
-      if (lineIter == lines.end())
-        return; // Line not in cache
-      auto time = lineIter->second;
-
-      auto& times = timesPerSet_.at(setIndex);
-      auto timeIter = times.find(time);
-      assert(timeIter != times.end());
-      assert(timeIter->second == lineNumber);
-
-      times.erase(timeIter);
-      lines.erase(lineIter);
+      for (auto& entry : lines)
+        if (entry.tag_ == lineNumber)
+          entry.invalidate();
     }
 
     /// Return true if line overlapping given address is present in
@@ -124,22 +94,17 @@ namespace WdRiscv
     {
       uint64_t lineNumber = getLineNumber(addr);
       uint64_t setIndex = getSetIndex(lineNumber);
-
       auto& lines = linesPerSet_.at(setIndex);
-      auto lineIter = lines.find(lineNumber);
-      bool present = lineIter != lines.end();
-      if (present)
-        {
-          uint64_t time = lineIter->second;
-          auto& times = timesPerSet_.at(setIndex);
-          auto timeIter = times.find(time);
-          assert(timeIter != times.end() and timeIter->second == lineNumber);
-          times.erase(timeIter);
-          uint64_t nextTime = time_++;
-          times[nextTime] = lineNumber;
-          lines[lineNumber] = nextTime;
-        }
-      return present;
+      accesses_++;
+
+      for (auto& entry : lines)
+        if (entry.tag_ == lineNumber)
+          {
+            hits_++;
+            entry.time_ = time_++;
+            return true;
+          }
+      return false;
     }
 
   protected:
@@ -151,29 +116,42 @@ namespace WdRiscv
     /// Cache is organized as an array of sets. Return the index of the
     /// set corresponding to the given line number.
     uint64_t getSetIndex(uint64_t lineNumber) const
-    { return lineNumber >> setIndexShift_; }
+    { return lineNumber & setIndexMask_; }
 
   private:
 
-    /// Map a line address to an access time.
-    typedef std::map<uint64_t, uint64_t> LineToTime;
+    struct Entry
+    {
+      uint64_t tag_ = ~uint64_t(0);
+      uint64_t time_ = 0;
+
+      bool valid() const { return tag_ != ~uint64_t(0); }
+      void invalidate() { tag_ = ~uint64_t(0); }
+    };
+
+    /// Lines in set: Map a line address to an access time.
+    //typedef std::unordered_map<uint64_t, uint64_t> LineToTime;
+    typedef std::vector<Entry> LinesInSet;
 
     /// Map access-time to a line address
     typedef std::map<uint64_t, uint64_t> TimeToLine;
 
     /// Map a set index (line-address modulo secCount) to an time-to-line
     /// map.
-    std::vector<LineToTime> timesPerSet_;
+    std::vector<TimeToLine> timesPerSet_;
 
     /// Map a set index (line-address modulo secCount) to a line-to-time
     /// map.
-    std::vector<TimeToLine> linesPerSet_;
+    std::vector<LinesInSet> linesPerSet_;
 
     uint64_t size_ = 0;
     uint64_t time_ = 0;
     unsigned lineSize_ = 0;
-    unsigned setCount_ = 0;
+    unsigned setSize_ = 0;
     unsigned lineNumberShift_ = 0;
-    unsigned setIndexShift_ = 0;
+    unsigned setIndexMask_ = 0;
+
+    uint64_t hits_ = 0;
+    uint64_t accesses_ = 0;
   };
 }
