@@ -3838,25 +3838,25 @@ Hart<URV>::copyMemRegionConfig(const Hart<URV>& other)
 
 
 // True if keyboard interrupt (user hit control-c) pending.
-static std::atomic<bool> kbdInterrupt = false;
+static std::atomic<bool> userStop = false;
 
 // Negation of the above. Exists for speed (obsessive compulsive
 // engineering).
-static std::atomic<bool> noKbdInterrupt = true;
+static std::atomic<bool> noUserStop = true;
 
-static void
-keyboardInterruptHandler(int)
+void
+forceUserStop(int)
 {
-  kbdInterrupt = true;
-  noKbdInterrupt = false;
+  userStop = true;
+  noUserStop = false;
 }
 
 
 static void
-clearKbdInterrupts()
+clearUserStop()
 {
-  kbdInterrupt = false;
-  noKbdInterrupt = true;
+  userStop = false;
+  noUserStop = true;
 }
 
 
@@ -3871,14 +3871,14 @@ public:
 
   SignalHandlers()
   {
-    clearKbdInterrupts();
+    clearUserStop();
 #ifdef __MINGW64__
-  __p_sig_fn_t newKbdAction = keyboardInterruptHandler;
+  __p_sig_fn_t newKbdAction = forceUserStop;
   prevKbdAction_ = signal(SIGINT, newKbdAction);
 #else
   struct sigaction newKbdAction;
   memset(&newKbdAction, 0, sizeof(newKbdAction));
-  newKbdAction.sa_handler = keyboardInterruptHandler;
+  newKbdAction.sa_handler = forceUserStop;
   sigaction(SIGINT, &newKbdAction, &prevKbdAction_);
 #endif
   }
@@ -3927,14 +3927,14 @@ Hart<URV>::doAlarmCountdown()
 /// Report the number of retired instruction count and the simulation
 /// rate.
 static void
-reportInstsPerSec(uint64_t instCount, double elapsed, bool keyboardInterrupt)
+reportInstsPerSec(uint64_t instCount, double elapsed, bool userStop)
 {
   std::lock_guard<std::mutex> guard(stderrMutex);
 
   std::cout.flush();
 
-  if (keyboardInterrupt)
-    std::cerr << "Keyboard interrupt\n";
+  if (userStop)
+    std::cerr << "User stop\n";
   std::cerr << "Retired " << instCount << " instruction"
 	    << (instCount > 1? "s" : "") << " in "
 	    << (boost::format("%.2fs") % elapsed);
@@ -4077,7 +4077,7 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
 
   while (pc_ != address and instCounter_ < limit)
     {
-      if (kbdInterrupt)
+      if (userStop)
         break;
 
       if (enableGdb_ and ++gdbCount >= gdbLimit)
@@ -4207,7 +4207,7 @@ Hart<URV>::runUntilAddress(size_t address, FILE* traceFile)
 
   uint64_t numInsts = instCounter_ - counter0;
 
-  reportInstsPerSec(numInsts, elapsed, kbdInterrupt);
+  reportInstsPerSec(numInsts, elapsed, userStop);
   return success;
 }
 
@@ -4231,9 +4231,9 @@ Hart<URV>::simpleRun()
           else
             simpleRunNoLimit();
 
-          if (kbdInterrupt)
+          if (userStop)
             {
-              std::cerr << "Stopped -- keyboard interrupt\n";
+              std::cerr << "Stopped -- interrupted\n";
               break;
             }
 
@@ -4258,7 +4258,7 @@ bool
 Hart<URV>::simpleRunWithLimit()
 {
   uint64_t limit = instCountLim_;
-  while (noKbdInterrupt and instCounter_ < limit) 
+  while (noUserStop and instCounter_ < limit) 
     {
       currPc_ = pc_;
       ++instCounter_;
@@ -4285,7 +4285,7 @@ template <typename URV>
 bool
 Hart<URV>::simpleRunNoLimit()
 {
-  while (noKbdInterrupt) 
+  while (noUserStop) 
     {
       currPc_ = pc_;
       ++instCounter_;
@@ -4375,7 +4375,7 @@ Hart<URV>::run(FILE* file)
 		    double(t1.tv_usec - t0.tv_usec)*1e-6);
 
   uint64_t numInsts = instCounter_ - counter0;
-  reportInstsPerSec(numInsts, elapsed, kbdInterrupt);
+  reportInstsPerSec(numInsts, elapsed, userStop);
   return success;
 }
 

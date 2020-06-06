@@ -212,10 +212,11 @@ struct Args
   bool abiNames = false;   // Use ABI register names in inst disassembly.
   bool newlib = false;     // True if target program linked with newlib.
   bool linux = false;      // True if target program linked with Linux C-lib.
-  bool raw = false;       // True if bare-metal program (no linux no newlib).
+  bool raw = false;        // True if bare-metal program (no linux no newlib).
   bool fastExt = false;    // True if fast external interrupt dispatch enabled.
   bool unmappedElfOk = false;
   bool iccmRw = false;
+  bool quitOnAnyHart = false;    // True if run quits when any hart finishes.
 
   // Expand each target program string into program name and args.
   void expandTargets();
@@ -241,7 +242,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 518;
+  unsigned subversion = 519;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -459,6 +460,9 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
          " interrupt every n instructions. No-op if arg is zero.")
         ("iccmrw", po::bool_switch(&args.iccmRw),
          "Temporary switch to make ICCM region available to ld/st isntructions.")
+        ("quitany", po::bool_switch(&args.quitOnAnyHart),
+         "Terminate multi-threaded run when any hart finishes (default is to wait "
+         "for all harts.)")
 	("verbose,v", po::bool_switch(&args.verbose),
 	 "Be verbose.")
 	("version", po::bool_switch(&args.version),
@@ -1185,7 +1189,7 @@ kbdInterruptHandler(int)
 
 template <typename URV>
 static bool
-batchRun(std::vector<Hart<URV>*>& harts, FILE* traceFile)
+batchRun(std::vector<Hart<URV>*>& harts, FILE* traceFile, bool waitAll)
 {
   if (harts.empty())
     return true;
@@ -1204,18 +1208,35 @@ batchRun(std::vector<Hart<URV>*>& harts, FILE* traceFile)
 
   std::vector<std::thread> threadVec;
 
-  bool result = true;
+  std::atomic<bool> result = true;
+  std::atomic<unsigned> finished = 0;  // Count of finished threads. 
 
-  auto threadFunc = [&traceFile, &result] (Hart<URV>* hart) {
+  auto threadFunc = [&traceFile, &result, &finished] (Hart<URV>* hart) {
 		      bool r = hart->run(traceFile);
 		      result = result and r;
+                      finished++;
 		    };
 
   for (auto hartPtr : harts)
     threadVec.emplace_back(std::thread(threadFunc, hartPtr));
 
-  for (auto& t : threadVec)
-    t.join();
+  if (waitAll)
+    {
+      for (auto& t : threadVec)
+        t.join();
+    }
+  else
+    {
+      // First thread to finish terminates run.
+      while (finished == 0)
+        ;
+
+      extern void forceUserStop(int);
+      forceUserStop(0);
+      
+      for (auto& t : threadVec)
+        t.join();
+    }
 
   return result;
 }
@@ -1236,7 +1257,7 @@ snapshotRun(std::vector<Hart<URV>*>& harts, FILE* traceFile,
   if (not snapPeriod)
     {
       std::cerr << "Warning: Zero snap period ignored.\n";
-      return batchRun(harts, traceFile);
+      return batchRun(harts, traceFile, true /* waitAll */);
     }
 
   Hart<URV>* hart = harts.at(0);
@@ -1341,7 +1362,8 @@ sessionRun(std::vector<Hart<URV>*>& harts, const Args& args, FILE* traceFile,
       std::cerr << "Warning: Snapshots not supported for multi-thread runs\n";
     }
 
-  return batchRun(harts, traceFile);
+  bool waitAll = not args.quitOnAnyHart;
+  return batchRun(harts, traceFile, waitAll);
 }
 
 
