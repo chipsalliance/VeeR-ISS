@@ -1363,18 +1363,18 @@ Hart<URV>::determineMisalLoadException(URV addr, unsigned accessSize,
 
   size_t addr2 = addr + accessSize - 1;
 
-  // Misaligned access to a region with side effect.
-  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
-    {
-      secCause = SecondaryCause::LOAD_MISAL_IO;
-      return ExceptionCause::LOAD_ADDR_MISAL;
-    }
-
   // Misaligned access to PIC.
   if (isAddrMemMapped(addr))
     {
       secCause = SecondaryCause::LOAD_ACC_PIC;
       return ExceptionCause::LOAD_ACC_FAULT;
+    }
+
+  // Misaligned access to a region with side effect.
+  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
+    {
+      secCause = SecondaryCause::LOAD_MISAL_IO;
+      return ExceptionCause::LOAD_ADDR_MISAL;
     }
 
   // Crossing 256 MB region boundary.
@@ -1402,18 +1402,18 @@ Hart<URV>::determineMisalStoreException(URV addr, unsigned accessSize,
 
   size_t addr2 = addr + accessSize - 1;
 
-  // Misaligned access to a region with side effect.
-  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
-    {
-      secCause = SecondaryCause::STORE_MISAL_IO;
-      return ExceptionCause::STORE_ADDR_MISAL;
-    }
-
   // Misaligned access to PIC.
   if (isAddrMemMapped(addr))
     {
       secCause = SecondaryCause::STORE_ACC_PIC;
       return ExceptionCause::STORE_ACC_FAULT;
+    }
+
+  // Misaligned access to a region with side effect.
+  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
+    {
+      secCause = SecondaryCause::STORE_MISAL_IO;
+      return ExceptionCause::STORE_ADDR_MISAL;
     }
 
   // Crossing 256 MB region boundary.
@@ -1735,8 +1735,11 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
       else
         value = SRV(LOAD_TYPE(uval)); // Loading signed: Sign extend.
 
-      // Check for load-data-trigger outside io/region
-      if (hasActiveTrigger() and isIdempotentRegion(addr))
+      // Check for load-data-trigger. Load-data-trigger does not apply
+      // to io/region unless address is in local memory. Don't ask.
+      if (hasActiveTrigger() and
+          (isIdempotentRegion(addr) or
+           isAddrMemMapped(addr) or isAddrInDccm(addr)))
         {
           TriggerTiming timing = TriggerTiming::Before;
           bool isLoad = true;
