@@ -13,22 +13,23 @@
 // limitations under the License.
 
 
+#include <iostream>
 #include <cmath>
 #include "Cache.hpp"
 
 using namespace WdRiscv;
 
 
-Cache::Cache(uint64_t totalSize, unsigned lineSize, unsigned setCount)
-  : size_(totalSize), lineSize_(lineSize), setCount_(setCount)
+Cache::Cache(uint64_t totalSize, unsigned lineSize, unsigned setSize)
+  : size_(totalSize), lineSize_(lineSize), setSize_(setSize)
 {
   unsigned logSize = static_cast<unsigned>(std::log2(totalSize));
   uint64_t p2Size = uint64_t(1) << logSize;
   assert(p2Size == totalSize);
 
-  unsigned logSetCount = static_cast<unsigned>(std::log2(setCount));
+  unsigned logSetCount = static_cast<unsigned>(std::log2(setSize));
   unsigned p2SetCount = unsigned(1) << logSetCount;
-  assert(p2SetCount == setCount);
+  assert(p2SetCount == setSize);
 
   unsigned logLineSize = static_cast<unsigned>(std::log2(lineSize));
   unsigned p2LineSize = unsigned(1) << logLineSize;
@@ -39,9 +40,28 @@ Cache::Cache(uint64_t totalSize, unsigned lineSize, unsigned setCount)
   assert(totalSize >= lineSize);
 
   uint64_t lineCount = totalSize / lineSize;
-  assert(lineCount >= setCount);
+  assert(lineCount >= setSize);
 
-  uint64_t count = lineCount / setCount;
+  uint64_t count = lineCount / setSize;
   unsigned logCount = static_cast<unsigned>(std::log2(count));
-  setIndexShift_ = logCount;
+  uint64_t p2Count = uint64_t(1) << logCount;
+  assert(p2Count == count);
+
+  setIndexMask_ = count - 1;
+
+  timesPerSet_.resize(count);
+  linesPerSet_.resize(count);
+
+  for (auto& lines : linesPerSet_)
+    lines.resize(setSize_);
+}
+
+
+Cache::~Cache()
+{
+  std::cerr << "Cache access: " << accesses_ << '\n';
+  std::cerr << "Cache hits: " << hits_ << '\n';
+
+  double ratio = accesses_ == 0? 0. : double(hits_)/double(accesses_);
+  std::cerr << "Hit ratio: " << ratio << '\n';
 }
