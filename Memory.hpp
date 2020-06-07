@@ -78,9 +78,9 @@ namespace WdRiscv
 
     /// Read an unsigned integer value of type T from memory at the
     /// given address into value. Return true on success. Return false
-    /// if any of the requested bytes is out of memory bounds or fall
-    /// in unmapped memory or if the read crosses memory regions of
-    /// different attributes.
+    /// if any of the requested bytes is out of memory bounds, fall in
+    /// unmapped memory, are in a region marked non-read, or if is to
+    /// a memory-mapped-register aht the access size is different than 4.
     template <typename T>
     bool read(size_t address, T& value) const
     {
@@ -112,8 +112,7 @@ namespace WdRiscv
       return true;
     }
 
-    /// Read byte from given address into value. Return true on
-    /// success.  Return false if address is out of bounds.
+    /// Read byte from given address into value. See read method.
     bool readByte(size_t address, uint8_t& value) const
     {
 #ifdef FAST_SLOPPY
@@ -147,9 +146,9 @@ namespace WdRiscv
     bool readDoubleWord(size_t address, uint64_t& value) const
     { return read(address, value); }
 
-    /// On a unified memory model, this is the same as readHalfWord.
-    /// On a split memory model, this will taken an exception if the
-    /// target address is not in instruction memory.
+    /// Read a half-word from memory for instruction fetch. Return
+    /// true on success and false if address is not executable or if
+    /// an iccm boundary is corssed.
     bool readInstHalfWord(size_t address, uint16_t& value) const
     {
       Pma pma = pmaMgr_.getPma(address);
@@ -169,9 +168,9 @@ namespace WdRiscv
       return false;
     }
 
-    /// On a unified memory model, this is the same as readWord.
-    /// On a split memory model, this will taken an exception if the
-    /// target address is not in instruction memory.
+    /// Read a half-word from memory for instruction fetch. Return
+    /// true on success and false if address is not executable or if
+    /// an iccm boundary is corssed.
     bool readInstWord(size_t address, uint32_t& value) const
     {
       Pma pma = pmaMgr_.getPma(address);
