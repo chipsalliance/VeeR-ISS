@@ -946,8 +946,8 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart)
 
   hart.enableTriggers(args.triggers);
   hart.enableGdb(args.gdb);
-  if(args.gdbTcpPort.size()>hart.sysHartIndex())
-	  hart.setGdbTcpPort(args.gdbTcpPort[hart.sysHartIndex()]);
+  if (args.gdbTcpPort.size()>hart.sysHartIndex())
+    hart.setGdbTcpPort(args.gdbTcpPort[hart.sysHartIndex()]);
   hart.enablePerformanceCounters(args.counters);
   hart.enableAbiNames(args.abiNames);
 

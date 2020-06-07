@@ -33,9 +33,15 @@ Hart<URV>::saveSnapshot(const std::string& dir)
   filesystem::path fdPath = dirPath / "fd";
   if (not syscall_.saveFileDescriptors(fdPath.string()))
     return false;
+
   filesystem::path mmapPath = dirPath / "mmap";
   if (not syscall_.saveMmap(mmapPath.string()))
-	  return false;
+    return false;
+
+  filesystem::path cachePath = dirPath / "cache";
+  if (not memory_.saveCacheSnapshot(cachePath))
+    return false;
+
   return true;
 }
 
@@ -52,12 +58,12 @@ Hart<URV>::loadSnapshot(const std::string& dir)
     return false;
 
   filesystem::path usedBlocksPath = dirPath / "usedblocks";
-   if (not syscall_.loadUsedMemBlocks(usedBlocksPath.string(), usedBlocks))
-  	  return false;
+  if (not syscall_.loadUsedMemBlocks(usedBlocksPath.string(), usedBlocks))
+    return false;
 
   filesystem::path mmapPath = dirPath / "mmap";
   if (not syscall_.loadMmap(mmapPath.string()))
- 	  return false;
+    return false;
 
   filesystem::path memPath = dirPath / "memory";
   if (not memory_.loadSnapshot(memPath.string(), usedBlocks))
@@ -67,7 +73,10 @@ Hart<URV>::loadSnapshot(const std::string& dir)
   if (not syscall_.loadFileDescriptors(fdPath.string()))
     return false;
 
-
+  filesystem::path cachePath = dirPath / "cache";
+  if (filesystem::is_regular_file(cachePath))
+    if (not memory_.loadCacheSnapshot(cachePath.string()))
+      return false;
 
   return true;
 }

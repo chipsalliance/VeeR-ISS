@@ -95,6 +95,9 @@ Memory::~Memory()
 #endif
       data_ = nullptr;
     }
+
+  delete cache_;
+  cache_ = nullptr;
 }
 
 
@@ -644,6 +647,24 @@ Memory::loadSnapshot(const std::string & filename,
   gzclose(gzin);
   std::cout << "\nloadSnapshot finished\n";
   return success;
+}
+
+
+bool
+Memory::saveCacheSnapshot(const std::string& path)
+{
+  if (not cache_)
+    return true;
+  return cache_->saveSnapshot(path);
+}
+
+
+bool
+Memory::loadCacheSnapshot(const std::string& path)
+{
+  if (not cache_)
+    return true;
+  return cache_->loadSnapshot(path);
 }
 
 

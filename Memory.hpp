@@ -21,7 +21,8 @@
 #include <mutex>
 #include <type_traits>
 #include <cassert>
-#include <PmaManager.hpp>
+#include "PmaManager.hpp"
+#include "Cache.hpp"
 
 
 namespace ELFIO
@@ -109,6 +110,8 @@ namespace WdRiscv
         }
 #endif
       value = *(reinterpret_cast<const T*>(data_ + address));
+      if (cache_)
+        cache_->insert(address);
       return true;
     }
 
@@ -128,6 +131,8 @@ namespace WdRiscv
 #endif
 
       value = data_[address];
+      if (cache_)
+        cache_->insert(address);
       return true;
     }
 
@@ -163,6 +168,8 @@ namespace WdRiscv
 	    }
 
 	  value = *(reinterpret_cast<const uint16_t*>(data_ + address));
+          if (cache_)
+            cache_->insert(address);
 	  return true;
 	}
       return false;
@@ -185,6 +192,8 @@ namespace WdRiscv
 	    }
 
 	  value = *(reinterpret_cast<const uint32_t*>(data_ + address));
+          if (cache_)
+            cache_->insert(address);
 	  return true;
 	}
 	return false;
@@ -660,6 +669,15 @@ namespace WdRiscv
     bool loadSnapshot(const std::string& filename,
                       const std::vector<std::pair<uint64_t,uint64_t>>& used_blocks);
 
+    /// Save tags of cache to the given file (sorted in descending
+    /// order by age) returning true on success and false on
+    /// failure. Return true if no cache is present.
+    bool saveCacheSnapshot(const std::string& path);
+
+    /// Load tags of cache from the given file returning true on success
+    /// and false on failure. Return true if no cache is present.
+    bool loadCacheSnapshot(const std::string& path);
+
   private:
 
     /// Information about last write operation by a hart.
@@ -701,5 +719,6 @@ namespace WdRiscv
     std::vector<LastWriteData> lastWriteData_;
 
     PmaManager pmaMgr_;
+    Cache* cache_ = nullptr;
   };
 }
