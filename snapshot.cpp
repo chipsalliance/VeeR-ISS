@@ -24,7 +24,7 @@ Hart<URV>::saveSnapshot(const std::string& dir)
 
   filesystem::path usedBlocksPath = dirPath / "usedblocks";
   if (not syscall_.saveUsedMemBlocks(usedBlocksPath.string(), usedBlocks))
-  	  return false;
+    return false;
 
   filesystem::path memPath = dirPath / "memory";
   if (not memory_.saveSnapshot(memPath.string(), usedBlocks))

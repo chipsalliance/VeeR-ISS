@@ -553,7 +553,7 @@ Hart<URV>::pokeMemory(size_t addr, uint8_t val)
 
   memory_.invalidateLrs(addr, sizeof(val));
 
-  if (memory_.pokeByte(addr, val))
+  if (memory_.poke(addr, val))
     {
       invalidateDecodeCache(addr, sizeof(val));
       return true;
@@ -3701,10 +3701,10 @@ Hart<URV>::setTargetProgramArgs(const std::vector<std::string>& args)
       size_t ix = 0;
 
       for (uint8_t c : arg)
-	if (not memory_.pokeByte(sp + ix++, c))
+	if (not memory_.poke(sp + ix++, c))
 	  return false;
 
-      if (not memory_.pokeByte(sp + ix++, uint8_t(0))) // Null char.
+      if (not memory_.poke(sp + ix++, uint8_t(0))) // Null char.
 	return false;
     }
 

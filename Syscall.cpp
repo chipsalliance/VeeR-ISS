@@ -1381,6 +1381,7 @@ Syscall<URV>::mmap_remap(uint64_t addr, uint64_t old_size, uint64_t new_size,
 }
 
 
+// TBD FIX: Needs improvement.
 template<typename URV>
 void
 Syscall<URV>::getUsedMemBlocks(std::vector<std::pair<uint64_t,uint64_t>>& used_blocks)

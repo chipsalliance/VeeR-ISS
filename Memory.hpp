@@ -272,33 +272,6 @@ namespace WdRiscv
       return true;
     }
 
-    /// Write byte to given address. Return true on success. Return
-    /// false if address is out of bounds or is not writable.
-    bool writeByte(unsigned sysHartIx, size_t address, uint8_t value)
-    {
-#ifdef FAST_SLOPPY
-      if (address >= size_)
-        return false;
-      sysHartIx = sysHartIx; // Avoid unused var warning.
-#else
-      Pma pma = pmaMgr_.getPma(address);
-      if (not pma.isWrite())
-	return false;
-
-      if (pma.isMemMappedReg())
-	return false;  // Only word access allowed to memory mapped regs.
-
-      auto& lwd = lastWriteData_.at(sysHartIx);
-      lwd.prevValue_ = *(data_ + address);
-      lwd.size_ = 1;
-      lwd.addr_ = address;
-      lwd.value_ = value;
-#endif
-
-      data_[address] = value;
-      return true;
-    }
-
     /// Write half-word (2 bytes) to given address. Return true on
     /// success. Return false if address is out of bounds or is not
     /// writable.
@@ -423,20 +396,6 @@ namespace WdRiscv
         }
 
       *(reinterpret_cast<T*>(data_ + address)) = value;
-      return true;
-    }
-
-    /// Same as writeByte but effects are not record in last-write info.
-    bool pokeByte(size_t address, uint8_t value)
-    {
-      Pma pma = pmaMgr_.getPma(address);
-      if (not pma.isMapped())
-	return false;
-
-      if (pma.isMemMappedReg())
-	return false;  // Only word access allowed to memory mapped regs.
-
-      data_[address] = value;
       return true;
     }
 
