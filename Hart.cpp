@@ -499,13 +499,25 @@ Hart<URV>::loadElfFile(const std::string& file, size_t& entryPoint)
 
 template <typename URV>
 bool
-Hart<URV>::peekMemory(size_t address, uint16_t& val) const
+Hart<URV>::peekMemory(size_t address, uint8_t& val) const
 {
-  if (memory_.readHalfWord(address, val))
+  if (memory_.read(address, val))
     return true;
 
   // We may have failed because location is in instruction space.
-  return memory_.readInstHalfWord(address, val);
+  return memory_.readInst(address, val);
+}
+  
+
+template <typename URV>
+bool
+Hart<URV>::peekMemory(size_t address, uint16_t& val) const
+{
+  if (memory_.read(address, val))
+    return true;
+
+  // We may have failed because location is in instruction space.
+  return memory_.readInst(address, val);
 }
 
 
@@ -513,11 +525,11 @@ template <typename URV>
 bool
 Hart<URV>::peekMemory(size_t address, uint32_t& val) const
 {
-  if (memory_.readWord(address, val))
+  if (memory_.read(address, val))
     return true;
 
   // We may have failed because location is in instruction space.
-  return memory_.readInstWord(address, val);
+  return memory_.readInst(address, val);
 }
 
 
@@ -527,15 +539,15 @@ Hart<URV>::peekMemory(size_t address, uint64_t& val) const
 {
   uint32_t high = 0, low = 0;
 
-  if (memory_.readWord(address, low) and memory_.readWord(address + 4, high))
+  if (memory_.read(address, low) and memory_.read(address + 4, high))
     {
       val = (uint64_t(high) << 32) | low;
       return true;
     }
 
   // We may have failed because location is in instruction space.
-  if (memory_.readInstWord(address, low) and
-      memory_.readInstWord(address + 4, high))
+  if (memory_.readInst(address, low) and
+      memory_.readInst(address + 4, high))
     {
       val = (uint64_t(high) << 32) | low;
       return true;
@@ -1944,7 +1956,7 @@ Hart<URV>::readInst(size_t address, uint32_t& inst)
   inst = 0;
 
   uint16_t low;  // Low 2 bytes of instruction.
-  if (not memory_.readInstHalfWord(address, low))
+  if (not memory_.readInst(address, low))
     return false;
 
   inst = low;
@@ -1952,7 +1964,7 @@ Hart<URV>::readInst(size_t address, uint32_t& inst)
   if ((inst & 0x3) == 3)  // Non-compressed instruction.
     {
       uint16_t high;
-      if (not memory_.readInstHalfWord(address + 2, high))
+      if (not memory_.readInst(address + 2, high))
 	return false;
       inst |= (uint32_t(high) << 16);
     }
@@ -2179,7 +2191,7 @@ Hart<URV>::fetchInst(URV addr, uint32_t& inst)
 
   if ((addr & 3) == 0)   // Word aligned
     {
-      if (not memory_.readInstWord(addr, inst))
+      if (not memory_.readInst(addr, inst))
         {
           auto secCause = SecondaryCause::INST_MEM_PROTECTION;
           size_t region = memory_.getRegionIndex(addr);
@@ -2206,7 +2218,7 @@ Hart<URV>::fetchInst(URV addr, uint32_t& inst)
     }
 
   uint16_t half;
-  if (not memory_.readInstHalfWord(addr, half))
+  if (not memory_.readInst(addr, half))
     {
       auto secCause = SecondaryCause::INST_MEM_PROTECTION;
       size_t region = memory_.getRegionIndex(addr);
@@ -2234,7 +2246,7 @@ Hart<URV>::fetchInst(URV addr, uint32_t& inst)
     return true;
 
   uint16_t upperHalf;
-  if (not memory_.readInstHalfWord(addr + 2, upperHalf))
+  if (not memory_.readInst(addr + 2, upperHalf))
     {
       // 4-byte instruction: 4-byte fetch failed but 1st 2-byte fetch
       // succeeded. Problem must be in 2nd half of instruction.
@@ -2275,11 +2287,11 @@ Hart<URV>::fetchInstPostTrigger(URV addr, uint32_t& inst, FILE* traceFile)
   // memory read fails.
   if (not forceFetchFail_ and (addr & 1) == 0)
     {
-      if (memory_.readInstWord(addr, inst))
+      if (memory_.readInst(addr, inst))
 	return true;  // Read 4 bytes: success.
 
       uint16_t half;
-      if (memory_.readInstHalfWord(addr, half))
+      if (memory_.readInst(addr, half))
 	{
 	  if (isCompressedInst(inst))
 	    return true; // Read 2 bytes and compressed inst: success.

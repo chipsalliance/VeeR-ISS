@@ -117,86 +117,31 @@ namespace WdRiscv
 
     /// Read byte from given address into value. See read method.
     bool readByte(size_t address, uint8_t& value) const
-    {
-#ifdef FAST_SLOPPY
-      if (address >= size_)
-        return false;
-#else
-      Pma pma = pmaMgr_.getPma(address);
-      if (not pma.isRead())
-	return false;
-
-      if (pma.isMemMappedReg())
-	return false; // Only word access allowed to memory mapped regs.
-#endif
-
-      value = data_[address];
-      if (cache_)
-        cache_->insert(address);
-      return true;
-    }
-
-    /// Read half-word (2 bytes) from given address into value. See
-    /// read method.
-    bool readHalfWord(size_t address, uint16_t& value) const
     { return read(address, value); }
 
-    /// Read word (4 bytes) from given address into value. See read
-    /// method.
-    bool readWord(size_t address, uint32_t& value) const
-    { return read(address, value); }
-
-    /// Read a double-word (8 bytes) from given address into
-    /// value. See read method.
-    bool readDoubleWord(size_t address, uint64_t& value) const
-    { return read(address, value); }
-
-    /// Read a half-word from memory for instruction fetch. Return
-    /// true on success and false if address is not executable or if
-    /// an iccm boundary is corssed.
-    bool readInstHalfWord(size_t address, uint16_t& value) const
+    /// Read an unsigned inteer ot type T from memory for instruction
+    /// fetch. Return true on success and false if address is not
+    /// executable or if an iccm boundary is corssed.
+    template <typename T>
+    bool readInst(size_t address, T& value) const
     {
       Pma pma = pmaMgr_.getPma(address);
       if (pma.isExec())
 	{
-	  if (address & 1)
+	  if (address & (sizeof(T) -1))
 	    {
               // Misaligned address: Check next address.
-              Pma pma2 = pmaMgr_.getPma(address + 1);
+              Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
 	      if (pma != pma2)
                 return false;  // Cannot cross an ICCM boundary.
 	    }
 
-	  value = *(reinterpret_cast<const uint16_t*>(data_ + address));
+	  value = *(reinterpret_cast<const T*>(data_ + address));
           if (cache_)
             cache_->insert(address);
 	  return true;
 	}
       return false;
-    }
-
-    /// Read a half-word from memory for instruction fetch. Return
-    /// true on success and false if address is not executable or if
-    /// an iccm boundary is corssed.
-    bool readInstWord(size_t address, uint32_t& value) const
-    {
-      Pma pma = pmaMgr_.getPma(address);
-      if (pma.isExec())
-	{
-	  if (address & 3)
-	    {
-
-	      Pma pma2 = pmaMgr_.getPma(address + 3);
-	      if (pma != pma2)
-                return false;
-	    }
-
-	  value = *(reinterpret_cast<const uint32_t*>(data_ + address));
-          if (cache_)
-            cache_->insert(address);
-	  return true;
-	}
-	return false;
     }
 
     /// Return true if write will be successful if tried. Do not
