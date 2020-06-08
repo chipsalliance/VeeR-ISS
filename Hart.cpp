@@ -12820,8 +12820,6 @@ Hart<URV>::updateAddressTranslation()
   virtMem_.setMode(VirtMem::Mode(mode));
   virtMem_.setAddressSpace(asid);
   virtMem_.setPageTableRoot(ppn);  // TBD: fix.
-
-  assert(0 && "Finish");
 }
 
 
