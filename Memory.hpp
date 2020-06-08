@@ -379,6 +379,24 @@ namespace WdRiscv
     static bool isSymbolInElfFile(const std::string& path,
 				  const std::string& target);
 
+    /// This is for performance modeling. Enable a highest level cache
+    /// with given size, line size, and set associativity.  Any
+    /// previously enabled cache is deleted.  Return true on success
+    /// and false if the sizes are not powers of 2 or if any of them
+    /// is zero, or if they are too large (more than 64 MB for cache
+    /// size, more than 1024 for line size, and more than 64 for
+    /// associativity). This has no impact on functionality.
+    bool configureCache(uint64_t size, unsigned lineSize,
+                        unsigned setAssociativity);
+
+    /// Delete currently configured cache.
+    void deleteCache();
+
+    /// Fill given vector (cleared on entry) with the addresses of the
+    /// lines currently in the cache sorted in decreasing age (oldest
+    /// one first).
+    void getCacheLineAddresses(std::vector<uint64_t>& addresses);
+
   protected:
 
     /// Same as write but effects not recorded in last-write info.

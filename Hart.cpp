@@ -217,71 +217,12 @@ Hart<URV>::getImplementedCsrs(std::vector<CsrNumber>& vec) const
 }
 
 
-
 template <typename URV>
 bool
 Hart<URV>::configureCache(uint64_t size, unsigned lineSize,
                           unsigned setSize)
 {
-  delete memory_.cache_;
-  memory_.cache_ = nullptr;
-
-  if (size == 0)
-    {
-      std::cerr << "Bad cache size: " << size << '\n';
-      return false;
-    }
-  unsigned logSize = static_cast<unsigned>(std::log2(size));
-  uint64_t p2Size = uint64_t(1) << logSize;
-  if (p2Size != size)
-    {
-      std::cerr << "Cache size not a power of 2: " << size << '\n';
-      return false;
-    }
-  if (size > 64L*1024L*1024L)
-    {
-      std::cerr << "Cache size too large: " << size << '\n';
-      return false;
-    }
-
-  if (setSize == 0)
-    {
-      std::cerr << "Bad cache associativity: " << setSize << '\n';
-      return false;
-    }
-  unsigned logSetSize = static_cast<unsigned>(std::log2(setSize));
-  unsigned p2SetSize = unsigned(1) << logSetSize;
-  if (p2SetSize != setSize)
-    {
-      std::cerr << "Cache associtivy is not a power of 2: " << setSize << '\n';
-      return false;
-    }
-  if (setSize > 64)
-    {
-      std::cerr << "Cache associativity too large: " << setSize << '\n';
-      return false;
-    }
-
-  if (lineSize == 0)
-    {
-      std::cerr << "Bad cache line size: " << lineSize << '\n';
-      return false;
-    }
-  unsigned logLineSize = static_cast<unsigned>(std::log2(lineSize));
-  unsigned p2LineSize = unsigned(1) << logLineSize;
-  if (p2LineSize != lineSize)
-    {
-      std::cerr << "Cache line size is not a power of 2: " << lineSize << '\n';
-      return false;
-    }
-  if (lineSize > 1024)
-    {
-      std::cerr << "Cache line size too large: " << lineSize << '\n';
-      return false;
-    }
-
-  memory_.cache_ = new Cache(size, lineSize, setSize);
-  return true;
+  return memory_.configureCache(size, lineSize, setSize);
 }
 
 
@@ -289,8 +230,7 @@ template <typename URV>
 void
 Hart<URV>::deleteCache()
 {
-  delete memory_.cache_;
-  memory_.cache_ = nullptr;
+  memory_.deleteCache();
 }
 
 
@@ -298,9 +238,7 @@ template <typename URV>
 void
 Hart<URV>::getCacheLineAddresses(std::vector<uint64_t>& addresses)
 {
-  addresses.clear();
-  if (memory_.cache_)
-    memory_.cache_->getLineAddresses(addresses);
+  memory_.getCacheLineAddresses(addresses);
 }
 
 

@@ -950,3 +950,87 @@ Memory::finishCcmConfig(bool iccmRw)
 	}
     }
 }
+
+
+bool
+Memory::configureCache(uint64_t size, unsigned lineSize, unsigned setSize)
+{
+  delete cache_;
+  cache_ = nullptr;
+
+  if (size == 0)
+    {
+      std::cerr << "Bad cache size: " << size << '\n';
+      return false;
+    }
+  unsigned logSize = static_cast<unsigned>(std::log2(size));
+  uint64_t p2Size = uint64_t(1) << logSize;
+  if (p2Size != size)
+    {
+      std::cerr << "Cache size not a power of 2: " << size << '\n';
+      return false;
+    }
+  if (size > 64L*1024L*1024L)
+    {
+      std::cerr << "Cache size too large: " << size << '\n';
+      return false;
+    }
+
+  if (setSize == 0)
+    {
+      std::cerr << "Bad cache associativity: " << setSize << '\n';
+      return false;
+    }
+  unsigned logSetSize = static_cast<unsigned>(std::log2(setSize));
+  unsigned p2SetSize = unsigned(1) << logSetSize;
+  if (p2SetSize != setSize)
+    {
+      std::cerr << "Cache associtivy is not a power of 2: " << setSize << '\n';
+      return false;
+    }
+  if (setSize > 64)
+    {
+      std::cerr << "Cache associativity too large: " << setSize << '\n';
+      return false;
+    }
+
+  if (lineSize == 0)
+    {
+      std::cerr << "Bad cache line size: " << lineSize << '\n';
+      return false;
+    }
+  unsigned logLineSize = static_cast<unsigned>(std::log2(lineSize));
+  unsigned p2LineSize = unsigned(1) << logLineSize;
+  if (p2LineSize != lineSize)
+    {
+      std::cerr << "Cache line size is not a power of 2: " << lineSize << '\n';
+      return false;
+    }
+  if (lineSize > 1024)
+    {
+      std::cerr << "Cache line size too large: " << lineSize << '\n';
+      return false;
+    }
+
+  cache_ = new Cache(size, lineSize, setSize);
+  return true;
+}
+
+
+void
+Memory::deleteCache()
+{
+  delete cache_;
+  cache_ = nullptr;
+}
+
+
+void
+Memory::getCacheLineAddresses(std::vector<uint64_t>& addresses)
+{
+  addresses.clear();
+  if (cache_)
+    cache_->getLineAddresses(addresses);
+}
+
+
