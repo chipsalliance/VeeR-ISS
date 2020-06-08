@@ -996,6 +996,10 @@ namespace WdRiscv
     void setPmpG(unsigned value)
     { pmpG_ = value; }
 
+    /// Return the physical memory protection G parameter. See setPmpG.
+    unsigned getPmpG()
+    { return pmpG_; }
+
     /// Enable user mode.
     void enableUserMode(bool flag)
     { userModeEnabled_ = flag; }
@@ -1035,7 +1039,7 @@ namespace WdRiscv
                                 // MDEAU is written.
     URV maxEventId_ = ~URV(0);
 
-    URV pmpG_ = 0;  // PMP G value: ln2(pmpGrain) - 2
+    unsigned pmpG_ = 0;  // PMP G value: ln2(pmpGrain) - 2
 
     bool userModeEnabled_ = false;
     bool supervisorModeEnabled_ = false;

@@ -2990,8 +2990,8 @@ Hart<URV>::configMemoryProtectionGrain(uint64_t size)
       ok = false;
     }
 
-  pmpG_ = log2Size - 2;
-  csRegs_.setPmpG(pmpG_);
+  unsigned pmpG = log2Size - 2;
+  csRegs_.setPmpG(pmpG);
 
   return ok;
 }
@@ -12714,6 +12714,7 @@ Hart<URV>::updateMemoryProtection()
   // be checked in first to last priority). Apply memory protection to
   // the range defined by each entry allowing lower numbered entries to
   // over-ride higher numberd ones.
+  unsigned pmpG = csRegs_.getPmpG();
   unsigned num = unsigned(CsrNumber::PMPADDR15);
   for (unsigned ix = 0; ix < count; ++ix, --num)
     {
@@ -12743,12 +12744,12 @@ Hart<URV>::updateMemoryProtection()
               CsrNumber lowerCsrn = CsrNumber(num - 1);
               peekCsr(lowerCsrn, prevVal);
               low = prevVal;
-              low = (low >> pmpG_) << pmpG_;  // Clear least sig G bits.
+              low = (low >> pmpG) << pmpG;  // Clear least sig G bits.
               low = low << 2;
             }
               
           uint64_t high = pmpVal;
-          high = (high >> pmpG_) << pmpG_;
+          high = (high >> pmpG) << pmpG;
           high = high << 2;
           if (low < high)
             pmpManager_.setMode(low, high - 1, type, mode, pmpIx, lock);
@@ -12767,7 +12768,7 @@ Hart<URV>::updateMemoryProtection()
         assert(type == Pmp::Type::Na4);
 
       uint64_t low = napot;
-      low = (low >> pmpG_) << pmpG_;
+      low = (low >> pmpG) << pmpG;
       low = low << 2;
       uint64_t high = low + size;
       pmpManager_.setMode(low, high - 1, type, mode, pmpIx, lock);

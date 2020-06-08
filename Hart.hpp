@@ -2080,7 +2080,6 @@ namespace WdRiscv
 
     // Physical memory protection.
     bool pmpEnabled_ = false; // True if one or more pmp register defined.
-    unsigned pmpG_ = 0;       // ln2(pmp_grain) - 2
     PmpManager pmpManager_;
 
     VirtMem virtMem_;
