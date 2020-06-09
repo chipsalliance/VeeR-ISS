@@ -20,6 +20,7 @@
 #include <iosfwd>
 #include <unordered_set>
 #include <type_traits>
+#include <functional>
 #include "InstId.hpp"
 #include "InstEntry.hpp"
 #include "IntRegs.hpp"
@@ -389,6 +390,11 @@ namespace WdRiscv
     /// leaving address unmodified.
     bool getConsoleIo(URV& address) const
     { if (conIoValid_) address = conIo_; return conIoValid_; }
+
+    /// Define a memory mapped locations for software interrupts.
+    void setSoftwareInterruptAddress(URV address,
+                                     std::function<Hart<URV>*(size_t addr)> func)
+    { swInterrupt_ = address; swInterruptValid_ = true; swAddrToHart_ = func; }
 
     /// Disassemble given instruction putting results on the given
     /// stream.
@@ -1559,6 +1565,11 @@ namespace WdRiscv
     bool minstretEnabled() const
     { return prevPerfControl_ & 0x4; }
 
+    /// Called when a software-interrupt memory mapped register is written.
+    /// Clear/set software-interrupt bit in the MIP CSR of corresponding hart
+    /// if all the conditions are met.
+    void processSoftwareInterruptWrite(size_t addr, unsigned stSize, URV stVal);
+
     // rs1: index of source register (value range: 0 to 31)
     // rs2: index of source register (value range: 0 to 31)
     // rd: index of destination register (value range: 0 to 31)
@@ -1944,6 +1955,10 @@ namespace WdRiscv
 
     URV conIo_ = 0;              // Writing a byte to this writes to console.
     bool conIoValid_ = false;    // True if conIo_ is valid.
+
+    URV swInterrupt_ = 0;
+    bool swInterruptValid_ = false;
+    std::function<Hart<URV>*(size_t addr)> swAddrToHart_ = nullptr;
 
     URV nmiPc_ = 0;              // Non-maskable interrupt handler address.
     bool nmiPending_ = false;

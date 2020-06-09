@@ -190,7 +190,8 @@ struct Args
   std::optional<uint64_t> memorySize;
   std::optional<uint64_t> snapshotPeriod;
   std::optional<uint64_t> alarmInterval;
-  
+  std::optional<uint64_t> swInterrupt;  // Sotware interrupt mem mapped address
+
   unsigned regWidth = 32;
   unsigned harts = 1;
   unsigned cores = 1;
@@ -242,7 +243,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 519;
+  unsigned subversion = 520;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -328,6 +329,18 @@ collectCommandLineValues(const boost::program_options::variables_map& varMap,
         ok = false;
       else if (*args.alarmInterval == 0)
         std::cerr << "Warning: Zero alarm period ignored.\n";
+    }
+
+  if (varMap.count("softinterrupt"))
+    {
+      auto numStr = varMap["softinterrupt"].as<std::string>();
+      if (not parseCmdLineNumber("softinterrupt", numStr, args.swInterrupt))
+        ok = false;
+      else if ((*args.swInterrupt & 3) != 0)
+        {
+          std::cerr << "Error: softinterrupt address must be a multiple of 4\n";
+          ok = false;
+        }
     }
 
   if (args.interactive)
@@ -458,6 +471,19 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
 	 "External interrupt period in micro-seconds: Convert arg to an "
          "instruction count, n, assuming a 1ghz clock, and force an external "
          " interrupt every n instructions. No-op if arg is zero.")
+        ("softinterrupt", po::value<std::string>(),
+         "Address of memory mapped word(s) controlling software interrupts. In "
+         "an n-hart system, words at addresses a, a+4, ... a+(n-1)*4 "
+         "are associated with the n harts (\"a\" being the address "
+         "specified by this option and must be a multiple of "
+         "4). Writing 0/1 to one of these addresses (using sw) "
+         "clear/sets the software interrupt bit in the the MIP (machine "
+         "interrupt pending) CSR of the corresponding hart. If a "
+         "software interrupt is taken, it is up to interrupt handler to "
+         "write zero to the same location to clear the corresponding "
+         "bit in MIP. Writing values besides 0/1 will not affect the "
+         "MIP bit and neither will writing using sb/sh/sd or writing to "
+         "non-multiple of addresses.")
         ("iccmrw", po::bool_switch(&args.iccmRw),
          "Temporary switch to make ICCM region available to ld/st isntructions.")
         ("quitany", po::bool_switch(&args.quitOnAnyHart),
@@ -848,7 +874,7 @@ loadSnapshot(Hart<URV>& hart, const std::string& snapDir)
 template<typename URV>
 static
 bool
-applyCmdLineArgs(const Args& args, Hart<URV>& hart)
+applyCmdLineArgs(const Args& args, Hart<URV>& hart, std::vector<Hart<URV>*>& harts)
 {
   unsigned errors = 0;
 
@@ -927,6 +953,23 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart)
   // Command-line console io address overrides config file.
   if (args.consoleIo)
     hart.setConsoleIo(URV(*args.consoleIo));
+
+  if (args.swInterrupt)
+    {
+      uint64_t swAddr = *args.swInterrupt;
+      auto addrToHart = [swAddr, &harts](URV addr) -> Hart<URV>* {
+        size_t hartCount = harts.size();
+        uint64_t swAddr2 = swAddr + hartCount*4;
+        if (addr >= swAddr and addr < swAddr2)
+          {
+            size_t ix = (addr - swAddr) / 4;
+            if (ix < hartCount)
+              return harts[ix];
+          }
+        return nullptr;
+      };
+      hart.setSoftwareInterruptAddress(swAddr, addrToHart);
+    }
 
   // Set instruction count limit.
   if (args.instCountLim)
@@ -1311,7 +1354,7 @@ sessionRun(std::vector<Hart<URV>*>& harts, const Args& args, FILE* traceFile,
 	   FILE* commandLog)
 {
   for (auto hartPtr : harts)
-    if (not applyCmdLineArgs(args, *hartPtr))
+    if (not applyCmdLineArgs(args, *hartPtr, harts))
       if (not args.interactive)
 	return false;
 

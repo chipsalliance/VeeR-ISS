@@ -52,6 +52,7 @@
 #include "instforms.hpp"
 #include "DecodedInst.hpp"
 #include "Hart.hpp"
+#include "System.hpp"
 
 using namespace WdRiscv;
 
@@ -1924,6 +1925,9 @@ Hart<URV>::store(unsigned rs1, URV base, URV addr, STORE_TYPE storeVal)
           return true;
 	}
 
+      if (swInterruptValid_)
+        processSoftwareInterruptWrite(addr, stSize, storeVal);
+
       return true;
     }
 
@@ -1933,6 +1937,31 @@ Hart<URV>::store(unsigned rs1, URV base, URV addr, STORE_TYPE storeVal)
 #endif
 }
 
+
+template <typename URV>
+void
+Hart<URV>::processSoftwareInterruptWrite(size_t addr, unsigned stSize,
+                                         URV storeVal)
+{
+  Hart<URV>* hart = swAddrToHart_(addr);
+  if (not hart)
+    return;  // Address is not in the software-interrupt memory mapped locations.
+
+  if (stSize != 4)
+    return;  // Must be sw
+
+  if ((storeVal >> 1) != 0)
+    return;  // Must write 0 or 1.
+
+  URV mipVal = 0;
+  hart->peekCsr(CsrNumber::MIP, mipVal);
+  if (storeVal)
+    mipVal = mipVal | (URV(1) << URV(InterruptCause::M_SOFTWARE));
+  else
+    mipVal = mipVal & ~(URV(1) << URV(InterruptCause::M_SOFTWARE));
+  hart->pokeCsr(CsrNumber::MIP, mipVal);
+  recordCsrWrite(CsrNumber::MIP);
+}
 
 
 template <typename URV>
