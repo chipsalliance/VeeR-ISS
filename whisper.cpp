@@ -483,7 +483,7 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
          "write zero to the same location to clear the corresponding "
          "bit in MIP. Writing values besides 0/1 will not affect the "
          "MIP bit and neither will writing using sb/sh/sd or writing to "
-         "non-multiple of addresses.")
+         "non-multiple-of-4 addresses.")
         ("iccmrw", po::bool_switch(&args.iccmRw),
          "Temporary switch to make ICCM region available to ld/st isntructions.")
         ("quitany", po::bool_switch(&args.quitOnAnyHart),
