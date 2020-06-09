@@ -488,13 +488,13 @@ namespace WdRiscv
     /// bounds, location not mapped, location not writable etc...)
     bool pokeMemory(size_t address, uint8_t val);
 
-    /// Halt word version of the above.
+    /// Half-word version of the above.
     bool pokeMemory(size_t address, uint16_t val);
 
     /// Word version of the above.
     bool pokeMemory(size_t address, uint32_t val);
 
-    /// Double word version of the above.
+    /// Double-word version of the above.
     bool pokeMemory(size_t address, uint64_t val);
 
     /// Define value of program counter after a reset.
