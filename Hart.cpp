@@ -5003,6 +5003,10 @@ Hart<URV>::execute(const DecodedInst* di)
 {
 #pragma GCC diagnostic ignored "-Wpedantic"
 
+  // Setup an array of labels to index it by the decoded instruction
+  // id to jump to execute function of that instruction. A table of
+  // methods would be a lot cleaner (no goto) but it would cost 20%
+  // more in execution time.
   static void* labels[] =
     {
      &&illegal,
