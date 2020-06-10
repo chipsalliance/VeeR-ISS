@@ -4,7 +4,8 @@
 using namespace WdRiscv;
 
 
-VirtMem::VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize)
+VirtMem::VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize,
+                 unsigned tlbSize)
   : memory_(memory), mode_(Sv32), pageSize_(pageSize), hartIx_(hartIx)
 {
   pageBits_ = static_cast<unsigned>(std::log2(pageSize_));
@@ -12,6 +13,23 @@ VirtMem::VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize)
 
   assert(p2PageSize == pageSize);
   assert(pageSize >= 64);
+
+  pageMask_ = pageSize_ - 1;
+
+  assert(tlbSize <= 128);
+  tlbEntries_.resize(tlbSize);
+}
+
+
+inline
+ExceptionCause
+pageFaultType(bool read, bool write, bool exec)
+{
+  if (exec)  return ExceptionCause::INST_PAGE_FAULT;
+  if (read)  return ExceptionCause::LOAD_PAGE_FAULT;
+  if (write) return ExceptionCause::STORE_PAGE_FAULT;
+  assert(0);
+  return ExceptionCause::STORE_PAGE_FAULT;
 }
 
 
@@ -22,6 +40,23 @@ VirtMem::translate(size_t va, PrivilegeMode pm, bool read, bool write,
   if (mode_ == Bare)
     {
       pa = va;
+      return ExceptionCause::NONE;
+    }
+
+  // Lookup address in TLB.
+  TlbEntry* entry = findTlbEntry(va);
+  if (entry)
+    {
+      if (pm == PrivilegeMode::User and pm != entry->privMode_)
+        return pageFaultType(read, write, exec);
+      if (pm == PrivilegeMode::Supervisor and
+          entry->privMode_ == PrivilegeMode::User and not supervisorOk_)
+        return pageFaultType(read, write, exec);
+      bool entryRead = entry->read_ or (execReadable_ and entry->exec_);
+      if ((read and not entryRead) or (write and not entry->write_) or
+          (exec and not entry->exec_))
+        return pageFaultType(read, write, exec);
+      pa = (entry->physPageNum_ << pageBits_) | (va & pageMask_);
       return ExceptionCause::NONE;
     }
 
@@ -36,18 +71,6 @@ VirtMem::translate(size_t va, PrivilegeMode pm, bool read, bool write,
 
   assert(0 and "Unspupported virtual memory mode.");
   return ExceptionCause::LOAD_PAGE_FAULT;
-}
-
-
-inline
-ExceptionCause
-pageFaultType(bool read, bool write, bool exec)
-{
-  if (exec)  return ExceptionCause::INST_PAGE_FAULT;
-  if (read)  return ExceptionCause::LOAD_PAGE_FAULT;
-  if (write) return ExceptionCause::STORE_PAGE_FAULT;
-  assert(0);
-  return ExceptionCause::STORE_PAGE_FAULT;
 }
 
 

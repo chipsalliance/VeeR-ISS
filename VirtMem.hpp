@@ -354,6 +354,20 @@ namespace WdRiscv
   };
 
 
+  struct TlbEntry
+  {
+    uint64_t virtPageNum_ = 0;
+    uint64_t physPageNum_ = 0;
+    uint64_t time_ = 0;
+    uint32_t asid_ = 0;
+    PrivilegeMode privMode_ = PrivilegeMode::User;
+    bool valid_ = false;
+    bool read_ = false;
+    bool write_ = false;
+    bool exec_ = false;
+    
+  };
+
   template <typename URV>
   class Hart;
 
@@ -367,7 +381,7 @@ namespace WdRiscv
 
     enum Mode { Bare = 0, Sv32 = 1, Sv39 = 8, Sv48 = 9, Sv57 = 10, Sv64 = 11 };
 
-    VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize);
+    VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize, unsigned tlbSize);
 
     /// Perform virtual to physical memory address translation.
     /// Return encoutered exception on failure or ExceptionType::NONE
@@ -380,6 +394,15 @@ namespace WdRiscv
                               bool write, bool exec, size_t& pa);
 
   protected:
+
+    TlbEntry* findTlbEntry(size_t addr)
+    {
+      size_t pageNum = addr >> pageBits_;
+      for (auto& entry : tlbEntries_)
+        if (entry.valid_ and entry.asid_ == asid_ and entry.virtPageNum_ == pageNum)
+          return &entry;
+      return nullptr;
+    }
 
     void setPageTableRoot(uint64_t root)
     { pageTableRoot_ = root; }
@@ -404,12 +427,15 @@ namespace WdRiscv
     uint64_t asid_ = 0;
     unsigned pageSize_ = 4096;
     unsigned pageBits_ = 12;
+    uint64_t pageMask_ = 0xfff;
     unsigned hartIx_ = 0;
 
     // Cached mstatus bits
     bool execReadable_ = false;  // MXR bit
     bool supervisorOk_ = false;  // SUM bit
     bool faultOnFirstAccess_ = false;
+
+    std::vector<TlbEntry> tlbEntries_;
   };
 
 }

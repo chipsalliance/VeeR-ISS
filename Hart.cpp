@@ -117,7 +117,7 @@ Hart<URV>::Hart(unsigned hartIx, Memory& memory)
   : hartIx_(hartIx), memory_(memory), intRegs_(32),
     fpRegs_(32), syscall_(*this),
     pmpManager_(memory.size(), memory.pageSize()),
-    virtMem_(hartIx, memory, memory.pageSize())
+    virtMem_(hartIx, memory, memory.pageSize(), 16 /* FIX: TLB size*/)
 {
   regionHasLocalMem_.resize(16);
   regionHasLocalDataMem_.resize(16);
@@ -1741,26 +1741,25 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
   // Unsigned version of LOAD_TYPE
   typedef typename std::make_unsigned<LOAD_TYPE>::type ULT;
 
-  // Loading from console-io does a standard input read.
-  if (not triggerTripped_)
+  auto secCause = SecondaryCause::NONE;
+  auto cause = determineLoadException(rs1, base, addr, ldSize, secCause);
+  if (cause != ExceptionCause::NONE)
     {
-      if (conIoValid_ and addr == conIo_)
-        {
-          SRV val = fgetc(stdin);
-          intRegs_.write(rd, val);
-          return true;
-        }
+      if (triggerTripped_)
+        return false;
+      initiateLoadException(cause, addr, secCause);
+      return false;
+    }
 
-      auto secCause = SecondaryCause::NONE;
-      auto cause = determineLoadException(rs1, base, addr, ldSize, secCause);
-      if (cause != ExceptionCause::NONE)
-        {
-          initiateLoadException(cause, addr, secCause);
-          return false;
-        }
+  if (wideLdSt_ and not triggerTripped_)
+    return wideLoad(rd, addr, ldSize);
 
-      if (wideLdSt_)
-        return wideLoad(rd, addr, ldSize);
+  // Loading from console-io does a standard input read.
+  if (conIoValid_ and addr == conIo_ and not triggerTripped_)
+    {
+      SRV val = fgetc(stdin);
+      intRegs_.write(rd, val);
+      return true;
     }
 
   ULT uval = 0;
@@ -1801,8 +1800,8 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
   if (triggerTripped_)
     return false;
 
-  auto cause = ExceptionCause::LOAD_ACC_FAULT;
-  auto secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
+  cause = ExceptionCause::LOAD_ACC_FAULT;
+  secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
   if (isAddrMemMapped(addr))
     secCause = SecondaryCause::LOAD_ACC_PIC;
   initiateLoadException(cause, addr, secCause);
