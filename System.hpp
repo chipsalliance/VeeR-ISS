@@ -64,11 +64,9 @@ namespace WdRiscv
     /// out of bounds.
     std::shared_ptr<HartClass> ithHart(unsigned i)
     {
-      unsigned coreIx = i / hartsPerCore_;
-      if (coreIx >= cores_.size())
+      if (i >= sysHarts_.size())
 	return std::shared_ptr<HartClass>();
-      unsigned hartInCore = i % hartsPerCore_;
-      return cores_.at(coreIx)->ithHart(hartInCore);
+      return sysHarts_.at(i);
     }
 
   private:
@@ -77,5 +75,6 @@ namespace WdRiscv
     unsigned hartsPerCore_;
 
     std::vector< std::shared_ptr<CoreClass> > cores_;
+    std::vector< std::shared_ptr<HartClass> > sysHarts_; // All harts in system.
   };
 }
