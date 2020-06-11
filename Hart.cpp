@@ -12807,7 +12807,7 @@ Hart<URV>::updateMemoryProtection()
       uint64_t napot = pmpVal;  // Naturally aligned power of 2.
       if (type == Pmp::Type::Napot)  // Naturally algined power of 2.
         {
-          unsigned rzi = __builtin_ctz(~pmpVal); // rightmost-zero-bit ix.
+          unsigned rzi = __builtin_ctzl(~pmpVal); // rightmost-zero-bit ix.
           napot = (napot >> rzi) << rzi; // Clear bits below rightmost zero bit.
           size = uint64_t(1) << (rzi + 3);
         }
