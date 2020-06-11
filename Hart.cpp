@@ -17,6 +17,7 @@
 #include <sstream>
 #include <cfenv>
 #include <cmath>
+#include <climits>
 #include <map>
 #include <mutex>
 #include <array>
@@ -12807,9 +12808,26 @@ Hart<URV>::updateMemoryProtection()
       uint64_t napot = pmpVal;  // Naturally aligned power of 2.
       if (type == Pmp::Type::Napot)  // Naturally algined power of 2.
         {
-          unsigned rzi = __builtin_ctzl(~pmpVal); // rightmost-zero-bit ix.
-          napot = (napot >> rzi) << rzi; // Clear bits below rightmost zero bit.
-          sizeM1 = (uint64_t(1) << (rzi + 3)) - 1;
+          unsigned rzi = 0;  // Righmost-zero-bit index in pmpval.
+          if (pmpVal == URV(-1))
+            {
+              // Handle special case where pmpVal is set to maximum value
+              napot = 0;
+              rzi = mxlen_;
+            }
+          else
+            {
+              napot = (napot >> rzi) << rzi; // Clear bits below rightmost zero bit.
+              rzi = __builtin_ctzl(~pmpVal); // rightmost-zero-bit ix.
+            }
+
+          // Avoid overflow when computing 2 to the power 64 or
+          // higher. This is incorrect but should work in practice
+          // where the physical address space is 64-bit wide or less.
+          if (rzi + 3 >= 64)
+            sizeM1 = -1L;
+          else
+            sizeM1 = (uint64_t(1) << (rzi + 3)) - 1;
         }
       else
         assert(type == Pmp::Type::Na4);
