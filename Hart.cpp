@@ -1891,6 +1891,9 @@ Hart<URV>::store(unsigned rs1, URV base, URV addr, STORE_TYPE storeVal)
 
   if (cause != ExceptionCause::NONE)
     {
+      // For the bench: A precise error does write externl memory.
+      if (forceAccessFail_ and memory_.isDataAddressExternal(addr))
+        memory_.write(hartIx_, addr, storeVal);
       initiateStoreException(cause, addr, secCause);
       return false;
     }
