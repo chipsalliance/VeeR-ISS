@@ -1372,7 +1372,10 @@ sessionRun(std::vector<Hart<URV>*>& harts, const Args& args, FILE* traceFile,
     {
       // Load error rollback is an annoyance if not in server/interactive mode
       for (auto hartPtr : harts)
-        hartPtr->enableLoadErrorRollback(false);
+        {
+          hartPtr->enableLoadErrorRollback(false);
+          hartPtr->enableBenchLoadExceptions(false);
+        }
     }
 
   if (serverMode)

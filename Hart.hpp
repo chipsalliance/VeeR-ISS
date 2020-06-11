@@ -685,8 +685,8 @@ namespace WdRiscv
     /// is updated.
     bool applyLoadFinished(URV address, unsigned tag, unsigned& matchCount);
 
-    /// Enable processing of imprecise load exceptions.
-    void enableLoadExceptions(bool flag)
+    /// Enable processing of imprecise load exceptions from test-bench.
+    void enableBenchLoadExceptions(bool flag)
     { loadQueueEnabled_ = flag; }
 
     /// Set load queue size (used when load exceptions are enabled).
