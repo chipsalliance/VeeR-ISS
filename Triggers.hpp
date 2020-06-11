@@ -456,8 +456,10 @@ namespace WdRiscv
 	  leastSigZeroBit++;
 	  value >>= 1;
 	}
-      if (leastSigZeroBit < 8*sizeof(URV))
-	data2CompareMask_ = data2CompareMask_ << (leastSigZeroBit + 1);
+      if (leastSigZeroBit == 8*sizeof(URV) - 1)
+        data2CompareMask_ = 0;
+      else if (leastSigZeroBit < 8*sizeof(URV))
+        data2CompareMask_ = data2CompareMask_ << (leastSigZeroBit + 1);
     }
 
     bool isModified() const
