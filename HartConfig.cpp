@@ -16,6 +16,7 @@
 #include <fstream>
 #include <iostream>
 #include "HartConfig.hpp"
+#include "System.hpp"
 #include "Hart.hpp"
 
 
@@ -962,12 +963,12 @@ HartConfig::applyConfig(Hart<URV>& hart, bool verbose) const
 
 template<typename URV>
 bool
-HartConfig::configHarts(std::vector<Hart<URV>*>& harts, bool verbose) const
+HartConfig::configHarts(System<URV>& system, bool verbose) const
 {
-  for (auto hartPtr : harts)
-    if (not applyConfig(*hartPtr, verbose))
+  for (unsigned i = 0; i < system.hartCount(); ++i)
+    if (not applyConfig(*system.ithHart(i), verbose))
       return false;
-  return finalizeCsrConfig(harts);
+  return finalizeCsrConfig(system);
 }
 
 
@@ -1048,10 +1049,11 @@ HartConfig::clear()
 /// address csr).
 template <typename URV>
 void
-defineMpicbaddrSideEffects(std::vector<Hart<URV>*>& harts)
+defineMpicbaddrSideEffects(System<URV>& system)
 {
-  for (auto hart : harts)
+  for (unsigned i = 0; i < system.hartCount(); ++i)
     {
+      auto hart = system.ithHart(i);
       auto csrPtr = hart->findCsr("mpicbaddr");
       if (not csrPtr)
         continue;
@@ -1070,29 +1072,33 @@ defineMpicbaddrSideEffects(std::vector<Hart<URV>*>& harts)
 /// when corresponding bits are set in that CSR.
 template <typename URV>
 void
-defineMhartstartSideEffects(std::vector<Hart<URV>*>& harts)
+defineMhartstartSideEffects(System<URV>& system)
 {
-  for (auto hart : harts)
+  for (unsigned i = 0; i < system.hartCount(); ++i)
     {
+      auto hart = system.ithHart(i);
       auto csrPtr = hart->findCsr("mhartstart");
       if (not csrPtr)
         continue;
       auto csrNum = csrPtr->getNumber();
 
-      auto post = [&harts] (Csr<URV>&, URV val) -> void {
+      auto post = [&system] (Csr<URV>&, URV val) -> void {
                     // Start harts corresponding to set bits
-                    for (auto ht : harts)
+                    for (unsigned ii = 0; ii < system.hartCount(); ++ii)
                       {
+                        auto ht = system.ithHart(ii);
                         URV id = ht->sysHartIndex();
                         if (val & (URV(1) << id))
                           ht->setStarted(true);
                       }
                   };
 
-      auto pre = [&harts, csrNum] (Csr<URV>&, URV& val) -> void {
-                   // Implement write one semantics.
+      auto pre = [&system, csrNum] (Csr<URV>&, URV& val) -> void {
+                   // Implement write-one semantics. We let hart 0 do
+                   // the shared CSR value change.
+                   auto ht = system.ithHart(0);
                    URV prev = 0;
-                   harts.at(0)->peekCsr(csrNum, prev);
+                   ht->peekCsr(csrNum, prev);
                    val |= prev;
                  };
 
@@ -1108,29 +1114,30 @@ defineMhartstartSideEffects(std::vector<Hart<URV>*>& harts)
 /// non-maskable-interrupts to harts.
 template <typename URV>
 void
-defineMnmipdelSideEffects(std::vector<Hart<URV>*>& harts)
+defineMnmipdelSideEffects(System<URV>& system)
 {
-  for (auto hart : harts)
+  for (unsigned ix = 0; ix < system.hartCount(); ++ix)
     {
+      auto hart = system.ithHart(ix);
       auto csrPtr = hart->findCsr("mnmipdel");
       if (not csrPtr)
         continue;
 
       // Enable NMI for harts corresponding to set bits in mnmipdel.
-      auto post = [&harts] (Csr<URV>& csr, URV val) -> void {
+      auto post = [&system] (Csr<URV>& csr, URV val) -> void {
                     if ((val & csr.getWriteMask()) == 0)
                       return;
-                    for (auto ht : harts)
+                    for (unsigned i = i; i < system.hartCount(); ++i)
                       {
-                        URV id = ht->sysHartIndex();
-                        bool enable = (val & (URV(1) << id)) != 0;
+                        auto ht = system.ithHart(i);
+                        bool enable = (val & (URV(1) << i)) != 0;
                         ht->enableNmi(enable);
                       }
                   };
 
       // If an attempt to change writeable bits to all-zero, keep
       // previous value.
-      auto pre = [&harts] (Csr<URV>& csr, URV& val) -> void {
+      auto pre = [] (Csr<URV>& csr, URV& val) -> void {
                    URV prev = csr.read();
                    if ((val & csr.getWriteMask()) == 0)
                      val = prev;
@@ -1158,10 +1165,11 @@ defineMnmipdelSideEffects(std::vector<Hart<URV>*>& harts)
 /// Associate callback with write/poke of mpmpc
 template <typename URV>
 void
-defineMpmcSideEffects(std::vector<Hart<URV>*>& harts)
+defineMpmcSideEffects(System<URV>& system)
 {
-  for (auto hart : harts)
+  for (unsigned i = 0; i < system.hartCount(); ++i)
     {
+      auto hart = system.ithHart(i);
       auto csrPtr = hart->findCsr("mpmc");
       if (not csrPtr)
         continue;
@@ -1201,71 +1209,30 @@ defineMpmcSideEffects(std::vector<Hart<URV>*>& harts)
 
 template <typename URV>
 bool
-HartConfig::finalizeCsrConfig(std::vector<Hart<URV>*>& harts) const
+HartConfig::finalizeCsrConfig(System<URV>& system) const
 {
-  if (harts.empty())
+  if (system.hartCount() == 0)
     return false;
 
   // Make shared CSRs in each hart with hart-id greater than zero
   // point to the corresponding values in hart zero.
-  auto hart0 = harts.at(0);
+  auto hart0 = system.ithHart(0);
   assert(hart0);
-  for (auto hart : harts)
-    if (hart != hart0)
-      hart->tieSharedCsrsTo(*hart0);
+  for (unsigned i = 1; i < system.hartCount(); ++i)
+    system.ithHart(i)->tieSharedCsrsTo(*hart0);
 
   // The following are WD non-standard CSRs. We implement their
   // actions by associating callbacks the write/poke CSR methods.
-  defineMhartstartSideEffects(harts);
-  defineMnmipdelSideEffects(harts);
-  defineMpicbaddrSideEffects(harts);
+  defineMhartstartSideEffects(system);
+  defineMnmipdelSideEffects(system);
+  defineMpicbaddrSideEffects(system);
+  defineMpmcSideEffects(system);
 
-#if 1
-  // Unfortuntately, this sometimes breaks g++7.1 and g++9.1
-  defineMpmcSideEffects(harts);
-#else
-  // Associate callback with write/poke of mpmpc
-  for (auto hart : harts)
-    {
-      auto csrPtr = hart->findCsr("mpmc");
-      if (not csrPtr)
-        continue;
-
-      // Writing 3 to pmpc enables external interrupts unless in debug mode.
-      auto prePoke = [hart] (Csr<URV>& csr, URV& val) -> void {
-                       if (hart->inDebugMode() or (val & 3) != 3 or
-                           (val & csr.getPokeMask()) == 0)
-                         return;
-                       URV mval = 0;
-                       if (not hart->peekCsr(CsrNumber::MSTATUS, mval))
-                         return;
-                       MstatusFields<URV> fields(mval);
-                       fields.bits_.MIE = 1;
-                       hart->pokeCsr(CsrNumber::MSTATUS, fields.value_);
-                     };
-
-      auto preWrite = [hart] (Csr<URV>& csr, URV& val) -> void {
-                        if (hart->inDebugMode() or (val & 3) != 3 or
-                           (val & csr.getWriteMask()) == 0)
-                          return;
-                        URV mval = 0;
-                        if (not hart->peekCsr(CsrNumber::MSTATUS, mval))
-                          return;
-                       MstatusFields<URV> fields(mval);
-                       fields.bits_.MIE = 1;
-                       hart->pokeCsr(CsrNumber::MSTATUS, fields.value_);
-                       hart->recordCsrWrite(CsrNumber::MSTATUS);
-                     };
-
-
-      csrPtr->registerPrePoke(prePoke);
-      csrPtr->registerPreWrite(preWrite);
-    }
-#endif
 
   // Define callback to react to write/poke to mcountinhibit CSR.
-  for (auto hart : harts)
+  for (unsigned i = 0; i < system.hartCount(); ++i)
     {
+      auto hart = system.ithHart(i);
       auto csrPtr = hart->findCsr("mcountinhibit");
       if (not csrPtr)
         continue;
@@ -1296,11 +1263,11 @@ HartConfig::finalizeCsrConfig(std::vector<Hart<URV>*>& harts) const
 template bool HartConfig::applyConfig<uint32_t>(Hart<uint32_t>&, bool) const;
 template bool HartConfig::applyConfig<uint64_t>(Hart<uint64_t>&, bool) const;
 
-template bool HartConfig::configHarts<uint32_t>(std::vector<Hart<uint32_t>*>&, bool) const;
-template bool HartConfig::configHarts<uint64_t>(std::vector<Hart<uint64_t>*>&, bool) const;
+template bool HartConfig::configHarts<uint32_t>(System<uint32_t>&, bool) const;
+template bool HartConfig::configHarts<uint64_t>(System<uint64_t>&, bool) const;
 
 template bool HartConfig::applyMemoryConfig<uint32_t>(Hart<uint32_t>&, bool, bool) const;
 template bool HartConfig::applyMemoryConfig<uint64_t>(Hart<uint64_t>&, bool, bool) const;
 
-template bool HartConfig::finalizeCsrConfig<uint32_t>(std::vector<Hart<uint32_t>*>&) const;
-template bool HartConfig::finalizeCsrConfig<uint64_t>(std::vector<Hart<uint64_t>*>&) const;
+template bool HartConfig::finalizeCsrConfig<uint32_t>(System<uint32_t>&) const;
+template bool HartConfig::finalizeCsrConfig<uint64_t>(System<uint64_t>&) const;

@@ -243,7 +243,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 524;
+  unsigned subversion = 525;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -874,7 +874,7 @@ loadSnapshot(Hart<URV>& hart, const std::string& snapDir)
 template<typename URV>
 static
 bool
-applyCmdLineArgs(const Args& args, Hart<URV>& hart, std::vector<Hart<URV>*>& harts)
+applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
 {
   unsigned errors = 0;
 
@@ -956,15 +956,17 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, std::vector<Hart<URV>*>& har
 
   if (args.swInterrupt)
     {
+      // Define callback to associate a memory mapped software
+      // interrupt location to its corresponding hart so that when
+      // such a location is written the software interrupt bit is
+      // set/cleared in the MIP register of that hart.
       uint64_t swAddr = *args.swInterrupt;
-      auto addrToHart = [swAddr, &harts](URV addr) -> Hart<URV>* {
-        size_t hartCount = harts.size();
-        uint64_t swAddr2 = swAddr + hartCount*4;
+      auto addrToHart = [swAddr, &system](URV addr) -> Hart<URV>* {
+        uint64_t swAddr2 = swAddr + system.hartCount()*4; // 1 word per hart
         if (addr >= swAddr and addr < swAddr2)
           {
             size_t ix = (addr - swAddr) / 4;
-            if (ix < hartCount)
-              return harts[ix];
+            return system.ithHart(ix).get();
           }
         return nullptr;
       };
@@ -1039,7 +1041,7 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, std::vector<Hart<URV>*>& har
 template <typename URV>
 static
 bool
-runServer(std::vector<Hart<URV>*>& harts, const std::string& serverFile,
+runServer(System<URV>& system, const std::string& serverFile,
 	  FILE* traceFile, FILE* commandLog)
 {
   char hostName[1024];
@@ -1114,7 +1116,7 @@ runServer(std::vector<Hart<URV>*>& harts, const std::string& serverFile,
 
   try
     {
-      Server<URV> server(harts);
+      Server<URV> server(system);
       ok = server.interact(newSoc, traceFile, commandLog);
     }
   catch(...)
@@ -1232,17 +1234,17 @@ kbdInterruptHandler(int)
 
 template <typename URV>
 static bool
-batchRun(std::vector<Hart<URV>*>& harts, FILE* traceFile, bool waitAll)
+batchRun(System<URV>& system, FILE* traceFile, bool waitAll)
 {
-  if (harts.empty())
+  if (system.hartCount() == 0)
     return true;
 
-  if (harts.size() == 1)
+  if (system.hartCount() == 1)
     {
-      auto hart = harts.front();
-      bool ok = hart->run(traceFile);
+      auto& hart = *system.ithHart(0);
+      bool ok = hart.run(traceFile);
 #ifdef FAST_SLOPPY
-      hart->reportOpenedFiles(std::cout);
+      hart.reportOpenedFiles(std::cout);
 #endif
       return ok;
     }
@@ -1260,8 +1262,11 @@ batchRun(std::vector<Hart<URV>*>& harts, FILE* traceFile, bool waitAll)
                       finished++;
 		    };
 
-  for (auto hartPtr : harts)
-    threadVec.emplace_back(std::thread(threadFunc, hartPtr));
+  for (unsigned i = 0; i < system.hartCount(); ++i)
+    {
+      Hart<URV>* hart = system.ithHart(i).get();
+      threadVec.emplace_back(std::thread(threadFunc, hart));
+    }                             
 
   if (waitAll)
     {
@@ -1292,7 +1297,7 @@ batchRun(std::vector<Hart<URV>*>& harts, FILE* traceFile, bool waitAll)
 template <typename URV>
 static
 bool
-snapshotRun(std::vector<Hart<URV>*>& harts, FILE* traceFile,
+snapshotRun(System<URV>& system, FILE* traceFile,
             const std::string& snapDir, uint64_t snapPeriod)
 {
   using namespace std::experimental;
@@ -1300,27 +1305,28 @@ snapshotRun(std::vector<Hart<URV>*>& harts, FILE* traceFile,
   if (not snapPeriod)
     {
       std::cerr << "Warning: Zero snap period ignored.\n";
-      return batchRun(harts, traceFile, true /* waitAll */);
+      return batchRun(system, traceFile, true /* waitAll */);
     }
 
-  Hart<URV>* hart = harts.at(0);
+  assert(system.hartCount() == 1);
+  Hart<URV>& hart = *(system.ithHart(0));
 
   bool done = false;
-  uint64_t globalLimit = hart->getInstructionCountLimit();
+  uint64_t globalLimit = hart.getInstructionCountLimit();
 
   while (not done)
     {
-      uint64_t nextLimit = hart->getInstructionCount() +  snapPeriod;
+      uint64_t nextLimit = hart.getInstructionCount() +  snapPeriod;
       if (nextLimit >= globalLimit)
         done = true;
       nextLimit = std::min(nextLimit, globalLimit);
-      hart->setInstructionCountLimit(nextLimit);
-      hart->run(traceFile);
-      if (hart->hasTargetProgramFinished())
+      hart.setInstructionCountLimit(nextLimit);
+      hart.run(traceFile);
+      if (hart.hasTargetProgramFinished())
         done = true;
       if (not done)
         {
-          unsigned index = hart->snapshotIndex();
+          unsigned index = hart.snapshotIndex();
           filesystem::path path(snapDir + std::to_string(index));
           if (not filesystem::is_directory(path))
             if (not filesystem::create_directories(path))
@@ -1328,8 +1334,8 @@ snapshotRun(std::vector<Hart<URV>*>& harts, FILE* traceFile,
                 std::cerr << "Error: Failed to create snapshot directory " << path << '\n';
                 return false;
               }
-          hart->setSnapshotIndex(index + 1);
-          if (not hart->saveSnapshot(path))
+          hart.setSnapshotIndex(index + 1);
+          if (not hart.saveSnapshot(path))
             {
               std::cerr << "Error: Failed to save a snapshot\n";
               return false;
@@ -1338,7 +1344,7 @@ snapshotRun(std::vector<Hart<URV>*>& harts, FILE* traceFile,
     }
 
 #ifdef FAST_SLOPPY
-  hart->reportOpenedFiles(std::cout);
+  hart.reportOpenedFiles(std::cout);
 #endif
 
   return true;
@@ -1350,11 +1356,10 @@ snapshotRun(std::vector<Hart<URV>*>& harts, FILE* traceFile,
 template <typename URV>
 static
 bool
-sessionRun(std::vector<Hart<URV>*>& harts, const Args& args, FILE* traceFile,
-	   FILE* commandLog)
+sessionRun(System<URV>& system, const Args& args, FILE* traceFile, FILE* cmdLog)
 {
-  for (auto hartPtr : harts)
-    if (not applyCmdLineArgs(args, *hartPtr, harts))
+  for (unsigned i = 0; i < system.hartCount(); ++i)
+    if (not applyCmdLineArgs(args, *system.ithHart(i), system))
       if (not args.interactive)
 	return false;
 
@@ -1362,24 +1367,26 @@ sessionRun(std::vector<Hart<URV>*>& harts, const Args& args, FILE* traceFile,
   bool serverMode = not args.serverFile.empty();
   if (serverMode or args.interactive)
     {
-      for (auto hartPtr : harts)
+      for (unsigned i = 0; i < system.hartCount(); ++i)
         {
-          hartPtr->enableTriggers(true);
-          hartPtr->enablePerformanceCounters(true);
+          auto& hart = *system.ithHart(i);
+          hart.enableTriggers(true);
+          hart.enablePerformanceCounters(true);
         }
     }
   else
     {
       // Load error rollback is an annoyance if not in server/interactive mode
-      for (auto hartPtr : harts)
+      for (unsigned i = 0; i < system.hartCount(); ++i)
         {
-          hartPtr->enableLoadErrorRollback(false);
-          hartPtr->enableBenchLoadExceptions(false);
+          auto& hart = *system.ithHart(i);
+          hart.enableLoadErrorRollback(false);
+          hart.enableBenchLoadExceptions(false);
         }
     }
 
   if (serverMode)
-    return runServer(harts, args.serverFile, traceFile, commandLog);
+    return runServer(system, args.serverFile, traceFile, cmdLog);
 
   if (args.interactive)
     {
@@ -1395,21 +1402,21 @@ sessionRun(std::vector<Hart<URV>*>& harts, const Args& args, FILE* traceFile,
       sigaction(SIGINT, &newAction, nullptr);
 #endif
 
-      Interactive interactive(harts);
-      return interactive.interact(traceFile, commandLog);
+      Interactive interactive(system);
+      return interactive.interact(traceFile, cmdLog);
     }
 
   if (args.snapshotPeriod and *args.snapshotPeriod)
     {
       uint64_t period = *args.snapshotPeriod;
       std::string dir = args.snapshotDir;
-      if (harts.size() == 1)
-        return snapshotRun(harts, traceFile, dir, period);
+      if (system.hartCount() == 1)
+        return snapshotRun(system, traceFile, dir, period);
       std::cerr << "Warning: Snapshots not supported for multi-thread runs\n";
     }
 
   bool waitAll = not args.quitOnAnyHart;
-  return batchRun(harts, traceFile, waitAll);
+  return batchRun(system, traceFile, waitAll);
 }
 
 
@@ -1543,11 +1550,9 @@ session(const Args& args, const HartConfig& config)
   size_t regionSize = 256*1024*1024;
   //if (not config.getRegionSize(regionSize))
   //regionSize = args.regionSize;
-
-  unsigned hartCount = coreCount * hartsPerCore;
-  assert(hartCount);
-
   checkAndRepairMemoryParams(memorySize, pageSize, regionSize);
+
+  unsigned hartCount = coreCount*hartsPerCore;
 
   Memory memory(memorySize, pageSize);
   memory.setHartCount(hartCount);
@@ -1555,22 +1560,20 @@ session(const Args& args, const HartConfig& config)
 
   // Create cores & harts.
   System<URV> system(coreCount, hartsPerCore, memory);
-  assert(hartCount == system.hartCount());
-
-  std::vector<Hart<URV>*> harts(hartCount);
-  for (unsigned i = 0; i < harts.size(); ++i)
-    harts.at(i) = system.ithHart(i).get();
+  assert(system.hartCount() == hartCount);
+  assert(system.hartCount() > 0);
 
   // Configure harts. Define callbacks for non-standard CSRs.
-  if (not config.configHarts(harts, args.verbose))
+  if (not config.configHarts(system, args.verbose))
     if (not args.interactive)
       return false;
 
   // Configure memory.
-  if (not config.applyMemoryConfig(*(harts.at(0)), args.iccmRw, args.verbose))
+  auto& hart0 = *system.ithHart(0);
+  if (not config.applyMemoryConfig(hart0, args.iccmRw, args.verbose))
     return false;
-  for (unsigned i = 1; i < hartCount; ++i)
-    harts.at(i)->copyMemRegionConfig(*harts.at(0));
+  for (unsigned i = 1; i < system.hartCount(); ++i)
+    system.ithHart(i)->copyMemRegionConfig(hart0);
 
   if (args.hexFiles.empty() and args.expandedTargets.empty()
       and not args.interactive)
@@ -1585,19 +1588,17 @@ session(const Args& args, const HartConfig& config)
   if (not openUserFiles(args, traceFile, commandLog, consoleOut))
     return false;
 
-  for (auto hartPtr : harts)
+  for (unsigned i = 0; i < system.hartCount(); ++i)
     {
-      hartPtr->setConsoleOutput(consoleOut);
-      hartPtr->reset();
+      auto& hart = *system.ithHart(i);
+      hart.setConsoleOutput(consoleOut);
+      hart.reset();
     }
 
-  bool result = sessionRun(harts, args, traceFile, commandLog);
+  bool result = sessionRun(system, args, traceFile, commandLog);
 
   if (not args.instFreqFile.empty())
-    {
-      Hart<URV>& hart0 = *harts.front();
-      result = reportInstructionFrequency(hart0, args.instFreqFile) and result;
-    }
+    result = reportInstructionFrequency(hart0, args.instFreqFile) and result;
 
   closeUserFiles(traceFile, commandLog, consoleOut);
 

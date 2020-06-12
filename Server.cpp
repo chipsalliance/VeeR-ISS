@@ -29,6 +29,7 @@
 #include <cinttypes>
 
 #include "WhisperMessage.h"
+#include "Hart.hpp"
 #include "Server.hpp"
 
 
@@ -248,8 +249,8 @@ sendMessage(int soc, WhisperMessage& msg)
 
 
 template <typename URV>
-Server<URV>::Server(std::vector< Hart<URV>* >& harts)
-  : harts_(harts)
+Server<URV>::Server(System<URV>& system)
+  : system_(system)
 {
 }
   
@@ -264,7 +265,10 @@ Server<URV>::pokeCommand(const WhisperMessage& req, WhisperMessage& reply)
     return false;
 
   uint32_t hartId = req.hart;
-  auto& hart = *(harts_.at(hartId));
+  auto hartPtr = system_.ithHart(hartId);
+  if (not hartPtr)
+    return false;
+  auto& hart = *hartPtr;
 
   switch (req.resource)
     {
@@ -313,7 +317,10 @@ Server<URV>::peekCommand(const WhisperMessage& req, WhisperMessage& reply)
     return false;
 
   uint32_t hartId = req.hart;
-  auto& hart = *(harts_.at(hartId));
+  auto hartPtr = system_.ithHart(hartId);
+  if (not hartPtr)
+    return false;
+  auto& hart = *hartPtr;
 
   URV value;
 
@@ -538,7 +545,7 @@ bool
 Server<URV>::checkHartId(const WhisperMessage& req, WhisperMessage& reply)
 {
   uint32_t hartId = req.hart;
-  if (hartId >= harts_.size())
+  if (hartId >= system_.hartCount())
     {
       std::cerr << "Error: Hart ID (" << std::dec << hartId
                 << ") out of bounds\n";
@@ -558,7 +565,11 @@ Server<URV>::checkHart(const WhisperMessage& req, const std::string& command,
     return false;
 
   uint32_t hartId = req.hart;
-  auto& hart = *(harts_.at(hartId));
+  auto hartPtr = system_.ithHart(hartId);
+  if (not hartPtr)
+    return false;
+
+  auto& hart = *hartPtr;
   if (not hart.isStarted())
     {
       std::cerr << "Error: Command " << command
@@ -586,7 +597,10 @@ Server<URV>::stepCommand(const WhisperMessage& req,
     return false;
 
   uint32_t hartId = req.hart;
-  auto& hart = *(harts_.at(hartId));
+  auto hartPtr = system_.ithHart(hartId);
+  if (not hartPtr)
+    return false;
+  auto& hart = *hartPtr;
 
   // Step is not allowed in debug mode unless we are in debug_step as
   // well.
@@ -641,7 +655,10 @@ Server<URV>::exceptionCommand(const WhisperMessage& req,
     return false;
 
   uint32_t hartId = req.hart;
-  auto& hart = *(harts_.at(hartId));
+  auto hartPtr = system_.ithHart(hartId);
+  if (not hartPtr)
+    return false;
+  auto& hart = *hartPtr;
 
   std::ostringstream oss;
 
@@ -742,7 +759,9 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
           std::string timeStamp = std::to_string(msg.rank);
 
           uint32_t hartId = msg.hart;
-	  auto& hart = *(harts_.at(hartId));
+          auto hartPtr = system_.ithHart(hartId);
+          assert(hartPtr);
+          auto& hart = *hartPtr;
 
 	  if (msg.type == Step or msg.type == Until)
 	    resetMemoryMappedReg = true;
