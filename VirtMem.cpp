@@ -6,7 +6,8 @@ using namespace WdRiscv;
 
 VirtMem::VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize,
                  unsigned tlbSize)
-  : memory_(memory), mode_(Sv32), pageSize_(pageSize), hartIx_(hartIx)
+  : memory_(memory), mode_(Sv32), pageSize_(pageSize), hartIx_(hartIx),
+    tlb_(tlbSize)
 {
   pageBits_ = static_cast<unsigned>(std::log2(pageSize_));
   unsigned p2PageSize =  unsigned(1) << pageBits_;
@@ -15,9 +16,6 @@ VirtMem::VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize,
   assert(pageSize >= 64);
 
   pageMask_ = pageSize_ - 1;
-
-  assert(tlbSize <= 128);
-  tlbEntries_.resize(tlbSize);
 }
 
 
@@ -34,7 +32,7 @@ pageFaultType(bool read, bool write, bool exec)
 
 
 ExceptionCause
-VirtMem::translate(size_t va, PrivilegeMode pm, bool read, bool write,
+VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
                    bool exec, size_t& pa)
 {
   if (mode_ == Bare)
@@ -43,14 +41,15 @@ VirtMem::translate(size_t va, PrivilegeMode pm, bool read, bool write,
       return ExceptionCause::NONE;
     }
 
-  // Lookup address in TLB.
-  TlbEntry* entry = findTlbEntry(va);
+  // Lookup virtual page number in TLB.
+  size_t virPageNum = va >> pageBits_;
+
+  const TlbEntry* entry = tlb_.findEntry(virPageNum, asid_);
   if (entry)
     {
-      if (pm == PrivilegeMode::User and pm != entry->privMode_)
+      if (priv == PrivilegeMode::User and not entry->user_)
         return pageFaultType(read, write, exec);
-      if (pm == PrivilegeMode::Supervisor and
-          entry->privMode_ == PrivilegeMode::User and not supervisorOk_)
+      if (priv == PrivilegeMode::Supervisor and entry->user_ and not supervisorOk_)
         return pageFaultType(read, write, exec);
       bool entryRead = entry->read_ or (execReadable_ and entry->exec_);
       if ((read and not entryRead) or (write and not entry->write_) or
@@ -60,25 +59,32 @@ VirtMem::translate(size_t va, PrivilegeMode pm, bool read, bool write,
       return ExceptionCause::NONE;
     }
 
+  bool isUser = false;
+  ExceptionCause cause = ExceptionCause::LOAD_PAGE_FAULT;
+
   if (mode_ == Sv32)
-    return translate_<Pte32, Va32>(va, pm, read, write, exec, pa);
+    cause = pageTableWalk<Pte32, Va32>(va, priv, read, write, exec, pa, isUser);
+  else if (mode_ == Sv39)
+    cause = pageTableWalk<Pte39, Va39>(va, priv, read, write, exec, pa, isUser);
+  else if (mode_ == Sv48)
+    cause = pageTableWalk<Pte48, Va48>(va, priv, read, write, exec, pa, isUser);
+  else
+    assert(0 and "Unspupported virtual memory mode.");
 
-  if (mode_ == Sv39)
-    return translate_<Pte39, Va39>(va, pm, read, write, exec, pa);
+  if (cause == ExceptionCause::NONE)
+    {
+      uint64_t physPageNum = pa >> pageBits_;
+      tlb_.insertEntry(virPageNum, physPageNum, asid_, isUser, read, write, exec);
+    }
 
-  if (mode_ == Sv48)
-    return translate_<Pte48, Va48>(va, pm, read, write, exec, pa);
-
-  assert(0 and "Unspupported virtual memory mode.");
-  return ExceptionCause::LOAD_PAGE_FAULT;
+  return cause;
 }
 
 
 template<typename PTE, typename VA>
 ExceptionCause
-VirtMem::translate_(size_t address, PrivilegeMode privMode,
-                    bool read, bool write, bool exec,
-                    size_t& pa)
+VirtMem::pageTableWalk(size_t address, PrivilegeMode privMode, bool read, bool write,
+                       bool exec, size_t& pa, bool& isUser)
 {
   // TBD check xlen against valen.
 
@@ -167,6 +173,9 @@ VirtMem::translate_(size_t address, PrivilegeMode privMode,
 
   for (int i = levels - 1; i >= ii; --i)
     pa = pa | pte.ppn(i) << pte.paPpnShift(i);
+
+  // Update isUser with mode found in PTE
+  isUser = pte.user();
 
   return ExceptionCause::NONE;
 }

@@ -1127,7 +1127,7 @@ defineMnmipdelSideEffects(System<URV>& system)
       auto post = [&system] (Csr<URV>& csr, URV val) -> void {
                     if ((val & csr.getWriteMask()) == 0)
                       return;
-                    for (unsigned i = i; i < system.hartCount(); ++i)
+                    for (unsigned i = 0; i < system.hartCount(); ++i)
                       {
                         auto ht = system.ithHart(i);
                         bool enable = (val & (URV(1) << i)) != 0;
