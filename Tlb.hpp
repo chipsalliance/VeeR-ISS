@@ -26,7 +26,8 @@ namespace WdRiscv
     uint64_t physPageNum_ = 0;
     uint64_t time_ = 0;   // Access time (we use order to approximate time).
     uint32_t asid_ = 0;   // Address space identifier.
-    bool user_ = false;   // User-mode entry if trye.
+    bool global_ = false; // 
+    bool user_ = false;   // User-mode entry if true.
     bool valid_ = false;
     bool read_ = false;   // Has read access.
     bool write_ = false;  // Write access.
@@ -48,11 +49,12 @@ namespace WdRiscv
     const TlbEntry* findEntry(uint64_t pageNum, uint32_t asid)
     {
       for (auto& entry : entries_)
-        if (entry.valid_ and entry.asid_ == asid and entry.virtPageNum_ == pageNum)
-          {
-            entry.time_ = time_++;
-            return &entry;
-          }
+        if (entry.valid_ and entry.virtPageNum_ == pageNum)
+          if (entry.global_ or entry.asid_ == asid)
+            {
+              entry.time_ = time_++;
+              return &entry;
+            }
       return nullptr;
     }
 
@@ -60,7 +62,8 @@ namespace WdRiscv
     /// the contents of the  least recently accessed slot are replaced by the
     /// given parameters.
     void insertEntry(uint64_t virtPageNum, uint64_t phyPageNUm,
-                     uint32_t asid, bool isUser, bool read, bool write, bool exec);
+                     uint32_t asid, bool global, bool isUser, bool read,
+                     bool write, bool exec);
 
   private:
 

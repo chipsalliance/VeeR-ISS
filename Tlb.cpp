@@ -12,7 +12,7 @@ Tlb::Tlb(unsigned size)
 
 void
 Tlb::insertEntry(uint64_t virtPageNum, uint64_t physPageNum, uint32_t asid,
-                 bool isUser, bool read, bool write, bool exec)
+                 bool global, bool isUser, bool read, bool write, bool exec)
 {
   TlbEntry* best = nullptr;
   for (size_t i = 0; i < entries_.size(); ++i)
@@ -26,6 +26,7 @@ Tlb::insertEntry(uint64_t virtPageNum, uint64_t physPageNum, uint32_t asid,
   best->physPageNum_ = physPageNum;
   best->time_ = time_++;
   best->asid_ = asid;
+  best->global_ = global;
   best->user_ = isUser;
   best->read_ = read;
   best->write_ = write;

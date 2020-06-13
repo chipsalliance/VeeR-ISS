@@ -59,22 +59,22 @@ VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
       return ExceptionCause::NONE;
     }
 
-  bool isUser = false;
+  bool isUser = false, glbl = false;
   ExceptionCause cause = ExceptionCause::LOAD_PAGE_FAULT;
 
   if (mode_ == Sv32)
-    cause = pageTableWalk<Pte32, Va32>(va, priv, read, write, exec, pa, isUser);
+    cause = pageTableWalk<Pte32, Va32>(va, priv, read, write, exec, pa, glbl, isUser);
   else if (mode_ == Sv39)
-    cause = pageTableWalk<Pte39, Va39>(va, priv, read, write, exec, pa, isUser);
+    cause = pageTableWalk<Pte39, Va39>(va, priv, read, write, exec, pa, glbl, isUser);
   else if (mode_ == Sv48)
-    cause = pageTableWalk<Pte48, Va48>(va, priv, read, write, exec, pa, isUser);
+    cause = pageTableWalk<Pte48, Va48>(va, priv, read, write, exec, pa, glbl, isUser);
   else
     assert(0 and "Unspupported virtual memory mode.");
 
   if (cause == ExceptionCause::NONE)
     {
       uint64_t physPageNum = pa >> pageBits_;
-      tlb_.insertEntry(virPageNum, physPageNum, asid_, isUser, read, write, exec);
+      tlb_.insertEntry(virPageNum, physPageNum, asid_, glbl, isUser, read, write, exec);
     }
 
   return cause;
@@ -84,7 +84,7 @@ VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
 template<typename PTE, typename VA>
 ExceptionCause
 VirtMem::pageTableWalk(size_t address, PrivilegeMode privMode, bool read, bool write,
-                       bool exec, size_t& pa, bool& isUser)
+                       bool exec, size_t& pa, bool& global, bool& isUser)
 {
   // TBD check xlen against valen.
 
@@ -176,6 +176,7 @@ VirtMem::pageTableWalk(size_t address, PrivilegeMode privMode, bool read, bool w
 
   // Update isUser with mode found in PTE
   isUser = pte.user();
+  global = pte.global();
 
   return ExceptionCause::NONE;
 }

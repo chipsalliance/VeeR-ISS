@@ -58,6 +58,8 @@ namespace WdRiscv
 
     bool user() const       { return bits_.user_; }
 
+    bool global() const     { return bits_.global_; }
+
     bool accessed() const   { return bits_.accessed_; }
 
     bool dirty() const      { return bits_.dirty_; }
@@ -125,6 +127,8 @@ namespace WdRiscv
     bool exec() const       { return bits_.exec_; }
 
     bool user() const       { return bits_.user_; }
+
+    bool global() const     { return bits_.global_; }
 
     bool accessed() const   { return bits_.accessed_; }
 
@@ -199,6 +203,8 @@ namespace WdRiscv
     bool exec() const       { return bits_.exec_; }
 
     bool user() const       { return bits_.user_; }
+
+    bool global() const     { return bits_.global_; }
 
     bool accessed() const   { return bits_.accessed_; }
 
@@ -381,7 +387,7 @@ namespace WdRiscv
     /// Heler to translate method.
     template <typename PTE, typename VA>
     ExceptionCause pageTableWalk(size_t va, PrivilegeMode pm, bool read, bool write,
-                                 bool exec, size_t& pa, bool& isUSer);
+                                 bool exec, size_t& pa, bool& global, bool& isUSer);
 
     void setPageTableRoot(uint64_t root)
     { pageTableRoot_ = root; }
