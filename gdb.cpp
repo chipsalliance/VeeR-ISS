@@ -591,6 +591,13 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
 	  break;
 
 	case 's':
+          if (not hart.isStarted())
+            {
+              std::cerr << "Hart not yet started (need to write mhartstart)\n";
+              reply << "E01";
+              break;
+            }
+
 	  hart.singleStep(nullptr);
 	  notifyGdbAfterStop(hart, fd);
 	  continue;
