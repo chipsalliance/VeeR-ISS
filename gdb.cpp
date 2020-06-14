@@ -527,6 +527,13 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
 
 	case 'c':  // cAA..AA    Continue at address AA..AA(optional)
 	  {
+            if (not hart.isStarted())
+              {
+                std::cerr << "Hart not yet started (need to write mhartstart)\n";
+                reply << "E01";
+                break;
+              }
+
 	    if (packet.size() == 1)
 	      return;
 
