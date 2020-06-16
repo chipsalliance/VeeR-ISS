@@ -389,11 +389,16 @@ namespace WdRiscv
     ExceptionCause pageTableWalk(size_t va, PrivilegeMode pm, bool read, bool write,
                                  bool exec, size_t& pa, bool& global, bool& isUSer);
 
-    void setPageTableRoot(uint64_t root)
-    { pageTableRoot_ = root; }
+    void setPageTableRootPage(uint64_t root)
+    { pageTableRootPage_ = root; }
 
+    // Change the translation mode to m.  Page size is reset to 4096.
     void setMode(Mode m)
-    { mode_ = m; }
+    {
+      mode_ = m;
+      pageSize_ = 4096;
+      pageBits_ = 12;
+    }
 
     void setAddressSpace(uint32_t asid)
     { asid_ = asid; }
@@ -404,10 +409,13 @@ namespace WdRiscv
     void setSupervisorAccessUser(bool flag)
     { supervisorOk_ = flag; }
 
+    /// Return true if successful and false if page size is not supported.
+    bool setPageSize(uint64_t size);
+
   private:
 
     Memory& memory_;
-    uint64_t pageTableRoot_ = 0;
+    uint64_t pageTableRootPage_ = 0;
     Mode mode_ = Bare;
     uint32_t asid_ = 0;
     unsigned pageSize_ = 4096;

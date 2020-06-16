@@ -12841,7 +12841,7 @@ Hart<URV>::updateAddressTranslation()
     {
       mode = value >> 31;
       asid = (value >> 22) & 0x1ff;
-      ppn = value & 0xfffff;
+      ppn = value & 0x3fffff;  // Least sig 22 bits
     }
   else
     {
@@ -12849,12 +12849,12 @@ Hart<URV>::updateAddressTranslation()
       if ((mode >= 1 and mode <= 7) or mode >= 12)
         mode = 0;  // 1-7 and 12-15 are reserved in version 1.12 of sepc.
       asid = (value >> 44) & 0xffff;
-      ppn = value & 0xfffffffffffll;
+      ppn = value & 0xfffffffffffll;  // Least sig 44 bits
     }
 
   virtMem_.setMode(VirtMem::Mode(mode));
   virtMem_.setAddressSpace(asid);
-  virtMem_.setPageTableRoot(ppn);  // TBD: fix.
+  virtMem_.setPageTableRootPage(ppn);
 }
 
 
