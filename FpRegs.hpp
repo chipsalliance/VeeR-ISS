@@ -20,6 +20,7 @@
 #include <vector>
 #include <type_traits>
 #include <unordered_map>
+#include <string>
 
 namespace WdRiscv
 {
