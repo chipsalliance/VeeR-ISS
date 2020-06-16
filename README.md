@@ -25,7 +25,7 @@ simulator. In particular you would need:
 
    Ubuntu
    ```shell
-   $ sudo apt install riscv64-unknown-elf-gcc
+   $ sudo apt install gcc-riscv64-unknown-elf
    ```
 
    Arch
