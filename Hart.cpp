@@ -12756,7 +12756,7 @@ Hart<URV>::updateMemoryProtection()
   pmpManager_.reset();
 
   const unsigned count = 16;
-  unsigned offCount = 0;
+  unsigned impCount = 0;  // Count of implemented PMP registers
 
   // Process the pmp entries in reverse order (since they are supposed to
   // be checked in first to last priority). Apply memory protection to
@@ -12768,16 +12768,17 @@ Hart<URV>::updateMemoryProtection()
     {
       unsigned pmpIx = count - ix - 1;
       CsrNumber csrn = CsrNumber(num);
+      if (not csRegs_.isImplemented(csrn))
+        continue;
+      impCount++;
+
       unsigned config = csRegs_.getPmpConfigByteFromPmpAddr(csrn);
       Pmp::Type type = Pmp::Type((config >> 3) & 3);
       bool lock = config & 0x80;
 
       Pmp::Mode mode = getModeFromPmpconfigByte(config);
       if (type == Pmp::Type::Off)
-        {
-          offCount++;
-          continue;   // Entry is off.
-        }
+        continue;   // Entry is off.
 
       URV pmpVal = 0;
       if (not peekCsr(csrn, pmpVal))
@@ -12839,7 +12840,7 @@ Hart<URV>::updateMemoryProtection()
       pmpManager_.setMode(low, high, type, mode, pmpIx, lock);
     }
 
-  pmpEnabled_ = offCount < count;
+  pmpEnabled_ = impCount > 0;
 }
 
 
