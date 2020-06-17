@@ -25,11 +25,8 @@ using namespace WdRiscv;
 
 template <typename URV>
 CsRegs<URV>::CsRegs()
+  : regs_(size_t(CsrNumber::MAX_CSR_) + 1)
 {
-  // Allocate CSR vector.  All entries are invalid.
-  regs_.clear();
-  regs_.resize(size_t(CsrNumber::MAX_CSR_) + 1);
-
   // Define CSR entries.
   defineMachineRegs();
   defineSupervisorRegs();
@@ -73,6 +70,9 @@ CsRegs<URV>::defineCsr(const std::string& name, CsrNumber csrn, bool mandatory,
 		  << " is already defined as " << csr.getName() << '\n';
       return nullptr;
     }
+
+  PrivilegeMode priv = PrivilegeMode((ix & 0x300) >> 8);
+  csr.definePrivilegeMode(priv);
 
   csr.setDefined(true);
 

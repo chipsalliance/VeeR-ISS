@@ -342,18 +342,8 @@ namespace WdRiscv
       privMode_ = initialMode_;
     }
 
-    /// Copy constructor.
-    Csr(const Csr<URV>& other)
-      : name_(other.name_), number_(other.number_),
-	mandatory_(other.mandatory_),
-	implemented_(other.implemented_), debug_(other.debug_),
-	initialValue_(other.initialValue_), value_(other.value_),
-	valuePtr_(nullptr),
-	writeMask_(other.writeMask_), pokeMask_(other.pokeMask_)
-    {
-      valuePtr_ = &value_;
-      *valuePtr_ = other.valuePtr_? *other.valuePtr_ : other.value_;
-    }
+    /// Copy constructor is not available.
+    Csr(const Csr<URV>& other) = delete;
 
     /// Return lowest privilege mode that can access the register.
     /// Bits 9 and 8 of the register number encode the privilege mode.
@@ -447,6 +437,10 @@ namespace WdRiscv
     friend class Hart<URV>;
 
     void operator=(const Csr<URV>& other) = delete;
+
+    /// Define the privilege mode of this CSR.
+    void definePrivilegeMode(PrivilegeMode mode)
+    { initialMode_ = mode; privMode_ = mode; }
 
     /// Restore CSR value to that written by a csrwr instruction before.
     /// This is done to restore value clobbered by performance counters
