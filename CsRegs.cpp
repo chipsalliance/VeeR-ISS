@@ -159,12 +159,11 @@ CsRegs<URV>::enableSupervisorMode(bool flag)
   if (not flag)
     return;
 
-  for (auto csrn : { CsrNumber::SSTATUS, CsrNumber::STVEC,
-                      CsrNumber::SCOUNTEREN, CsrNumber::SSCRATCH,
-                      CsrNumber::SEPC, CsrNumber::SCAUSE,
-                      CsrNumber::STVAL, CsrNumber::SIE,
-                      CsrNumber::SIP, CsrNumber::SATP
-                      } )
+  for (auto csrn : { CsrNumber::SSTATUS, CsrNumber::SEDELEG, CsrNumber::SIDELEG,
+                      CsrNumber::STVEC, CsrNumber::SIE, CsrNumber::STVEC,
+                      CsrNumber::SCOUNTEREN, CsrNumber::SSCRATCH, CsrNumber::SEPC,
+                      CsrNumber::SCAUSE, CsrNumber::STVAL, CsrNumber::SIP,
+                      CsrNumber::SATP } )
     {
       auto csr = findCsr(csrn);
       if (not csr)
