@@ -868,65 +868,57 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
 
 	    case EnterDebug:
               if (checkHart(msg, "enter_debug", reply))
-                {
-                  hart.enterDebugMode(hart.peekPc());
-                  if (commandLog)
-                    fprintf(commandLog, "hart=%d enter_debug # ts=%s\n", hartId,
-                            timeStamp.c_str());
-                }
+                hart.enterDebugMode(hart.peekPc());
+              if (commandLog)
+                fprintf(commandLog, "hart=%d enter_debug # ts=%s\n", hartId,
+                        timeStamp.c_str());
 	      break;
 
 	    case ExitDebug:
               if (checkHart(msg, "exit_debug", reply))
-                {
-                  hart.exitDebugMode();
-                  if (commandLog)
-                    fprintf(commandLog, "hart=%d exit_debug # ts=%s\n", hartId,
-                            timeStamp.c_str());
-                }
+                hart.exitDebugMode();
+              if (commandLog)
+                fprintf(commandLog, "hart=%d exit_debug # ts=%s\n", hartId,
+                        timeStamp.c_str());
 	      break;
 
 	    case LoadFinished:
-              if (checkHart(msg, "load_finished", reply))
-                {
-                  URV addr = static_cast<URV>(msg.address);
-                  if (addr != msg.address)
-                    std::cerr << "Error: Address too large (" << std::hex
-                              << msg.address << ") in load finished command.\n"
-                              << std::dec;
-                  unsigned tag = msg.flags;
-                  unsigned matchCount = 0;
-                  hart.applyLoadFinished(addr, tag, matchCount);
-                  reply.value = matchCount;
-                  if (commandLog)
-                    {
-                      fprintf(commandLog, "hart=%d load_finished 0x%0*" PRIx64 " %d # ts=%s\n",
-                              hartId,
-                              ( (sizeof(URV) == 4) ? 8 : 16 ), uint64_t(addr),
-                              tag, timeStamp.c_str());
-                    }
-                }
+              {
+                URV addr = static_cast<URV>(msg.address);
+                unsigned tag = msg.flags;
+                if (checkHart(msg, "load_finished", reply))
+                  {
+                    if (addr != msg.address)
+                      std::cerr << "Error: Address too large (" << std::hex
+                                << msg.address << ") in load finished command.\n"
+                                << std::dec;
+                    unsigned matchCount = 0;
+                    hart.applyLoadFinished(addr, tag, matchCount);
+                    reply.value = matchCount;
+                  }
+                if (commandLog)
+                  fprintf(commandLog, "hart=%d load_finished 0x%0*" PRIx64 " %d # ts=%s\n",
+                          hartId,
+                          ( (sizeof(URV) == 4) ? 8 : 16 ), uint64_t(addr),
+                          tag, timeStamp.c_str());
+              }
               break;
 
             case CancelDiv:
               if (checkHart(msg, "cancel_div", reply))
-                {
-                  if (not hart.cancelLastDiv())
-                    reply.type = Invalid;
-                  if (commandLog)
-                    fprintf(commandLog, "hart=%d cancel_div # ts=%s\n", hartId,
-                            timeStamp.c_str());
-                }
+                if (not hart.cancelLastDiv())
+                  reply.type = Invalid;
+              if (commandLog)
+                fprintf(commandLog, "hart=%d cancel_div # ts=%s\n", hartId,
+                        timeStamp.c_str());
               break;
 
             case CancelLr:
               if (checkHart(msg, "cancel_lr", reply))
-                {
-                  hart.cancelLr();
-                  if (commandLog)
-                    fprintf(commandLog, "hart=%d cancel_lr # ts=%s\n", hartId,
-                            timeStamp.c_str());
-                }
+                hart.cancelLr();
+              if (commandLog)
+                fprintf(commandLog, "hart=%d cancel_lr # ts=%s\n", hartId,
+                        timeStamp.c_str());
               break;
 
 	    default:
