@@ -163,7 +163,7 @@ CsRegs<URV>::enableSupervisorMode(bool flag)
                       CsrNumber::STVEC, CsrNumber::SIE, CsrNumber::STVEC,
                       CsrNumber::SCOUNTEREN, CsrNumber::SSCRATCH, CsrNumber::SEPC,
                       CsrNumber::SCAUSE, CsrNumber::STVAL, CsrNumber::SIP,
-                      CsrNumber::SATP } )
+                      CsrNumber::SATP, CsrNumber::MEDELEG, CsrNumber::MIDELEG } )
     {
       auto csr = findCsr(csrn);
       if (not csr)
