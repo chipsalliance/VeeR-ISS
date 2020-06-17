@@ -702,6 +702,10 @@ applyIsaString(const std::string& isaStr, Hart<URV>& hart)
 	  isa |= URV(1) << (c -  'a');
 	  break;
 
+        case 'g':  // Enable a, d, f, and m
+          isa |= 0x1 | 0x8 | 0x20 | 0x1000;
+          break;
+
 	default:
 	  std::cerr << "Extension \"" << c << "\" is not supported.\n";
 	  errors++;
