@@ -12817,8 +12817,8 @@ Hart<URV>::updateMemoryProtection()
             }
           else
             {
-              napot = (napot >> rzi) << rzi; // Clear bits below rightmost zero bit.
               rzi = __builtin_ctzl(~pmpVal); // rightmost-zero-bit ix.
+              napot = (napot >> rzi) << rzi; // Clear bits below rightmost zero bit.
             }
 
           // Avoid overflow when computing 2 to the power 64 or
