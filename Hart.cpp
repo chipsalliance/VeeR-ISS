@@ -1565,9 +1565,8 @@ Hart<URV>::wideLoad(uint32_t rd, URV addr, unsigned ldSize)
 
 template <typename URV>
 ExceptionCause
-Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
-				  unsigned ldSize,
-				  SecondaryCause& secCause)
+Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
+				  unsigned ldSize, SecondaryCause& secCause)
 {
   secCause = SecondaryCause::NONE;
 
@@ -1593,53 +1592,65 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, URV addr,
       return ExceptionCause::LOAD_ACC_FAULT;
     }
 
-  // DCCM unmapped
-  if (misal)
+  // Address translation
+  if (isRvs())
     {
-      size_t lba = addr + ldSize - 1;  // Last byte address
-      if (isAddrInDccm(addr) != isAddrInDccm(lba) or
-          isAddrMemMapped(addr) != isAddrMemMapped(lba))
-        {
-          secCause = SecondaryCause::LOAD_ACC_LOCAL_UNMAPPED;
-          return ExceptionCause::LOAD_ACC_FAULT;
-        }
+      uint64_t pa = 0;
+      cause = virtMem_.translate(addr, privMode_, true, false, false, pa);
+      if (cause != ExceptionCause::NONE)
+        return cause;
+      addr = pa;
     }
-
-  // DCCM unmapped or out of MPU range
-  bool isReadable = isAddrReadable(addr);
-  if (not isReadable)
+  else
     {
-      secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
-      size_t region = memory_.getRegionIndex(addr);
-      if (regionHasLocalDataMem_.at(region))
+      // DCCM unmapped
+      if (misal)
         {
-          if (not isAddrMemMapped(addr))
+          size_t lba = addr + ldSize - 1;  // Last byte address
+          if (isAddrInDccm(addr) != isAddrInDccm(lba) or
+              isAddrMemMapped(addr) != isAddrMemMapped(lba))
             {
               secCause = SecondaryCause::LOAD_ACC_LOCAL_UNMAPPED;
               return ExceptionCause::LOAD_ACC_FAULT;
             }
         }
-      else
-        return ExceptionCause::LOAD_ACC_FAULT;
-    }
 
-  // 64-bit load
-  if (wideLdSt_)
-    {
-      bool fail = (addr & 7) or ldSize != 4 or ! isDataAddressExternal(addr);
-      fail = fail or ! isAddrReadable(addr+4);
-      if (fail)
-	{
-	  secCause = SecondaryCause::LOAD_ACC_64BIT;
-	  return ExceptionCause::LOAD_ACC_FAULT;
-	}
-    }
+      // DCCM unmapped or out of MPU range
+      bool isReadable = isAddrReadable(addr);
+      if (not isReadable)
+        {
+          secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
+          size_t region = memory_.getRegionIndex(addr);
+          if (regionHasLocalDataMem_.at(region))
+            {
+              if (not isAddrMemMapped(addr))
+                {
+                  secCause = SecondaryCause::LOAD_ACC_LOCAL_UNMAPPED;
+                  return ExceptionCause::LOAD_ACC_FAULT;
+                }
+            }
+          else
+            return ExceptionCause::LOAD_ACC_FAULT;
+        }
 
-  // Region predict (Effective address compatible with base).
-  if (eaCompatWithBase_ and effectiveAndBaseAddrMismatch(addr, base))
-    {
-      secCause = SecondaryCause::LOAD_ACC_REGION_PREDICTION;
-      return ExceptionCause::LOAD_ACC_FAULT;
+      // 64-bit load
+      if (wideLdSt_)
+        {
+          bool fail = (addr & 7) or ldSize != 4 or ! isDataAddressExternal(addr);
+          fail = fail or ! isAddrReadable(addr+4);
+          if (fail)
+            {
+              secCause = SecondaryCause::LOAD_ACC_64BIT;
+              return ExceptionCause::LOAD_ACC_FAULT;
+            }
+        }
+
+      // Region predict (Effective address compatible with base).
+      if (eaCompatWithBase_ and effectiveAndBaseAddrMismatch(addr, base))
+        {
+          secCause = SecondaryCause::LOAD_ACC_REGION_PREDICTION;
+          return ExceptionCause::LOAD_ACC_FAULT;
+        }
     }
 
   // PIC access
@@ -1723,10 +1734,10 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
 #else
 
   URV base = intRegs_.read(rs1);
-  URV addr = base + SRV(imm);
+  uint64_t virtAddr = base + SRV(imm);
   unsigned ldSize = sizeof(LOAD_TYPE);
 
-  ldStAddr_ = addr;       // For reporting ld/st addr in trace-mode.
+  ldStAddr_ = virtAddr;   // For reporting ld/st addr in trace-mode.
   ldStAddrValid_ = true;  // For reporting ld/st addr in trace-mode.
 
   if (loadQueueEnabled_)
@@ -1734,7 +1745,7 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
 
   if (hasActiveTrigger())
     {
-      if (ldStAddrTriggerHit(addr, TriggerTiming::Before, true /*isLoad*/,
+      if (ldStAddrTriggerHit(virtAddr, TriggerTiming::Before, true /*isLoad*/,
                              privMode_, isInterruptEnabled()))
 	triggerTripped_ = true;
     }
@@ -1743,12 +1754,13 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
   typedef typename std::make_unsigned<LOAD_TYPE>::type ULT;
 
   auto secCause = SecondaryCause::NONE;
+  uint64_t addr = virtAddr;
   auto cause = determineLoadException(rs1, base, addr, ldSize, secCause);
   if (cause != ExceptionCause::NONE)
     {
       if (triggerTripped_)
         return false;
-      initiateLoadException(cause, addr, secCause);
+      initiateLoadException(cause, virtAddr, secCause);
       return false;
     }
 
@@ -1805,7 +1817,7 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
   secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
   if (isAddrMemMapped(addr))
     secCause = SecondaryCause::LOAD_ACC_PIC;
-  initiateLoadException(cause, addr, secCause);
+  initiateLoadException(cause, virtAddr, secCause);
   return false;
 #endif
 }
@@ -1856,15 +1868,15 @@ template <typename URV>
 template <typename STORE_TYPE>
 inline
 bool
-Hart<URV>::store(unsigned rs1, URV base, URV addr, STORE_TYPE storeVal)
+Hart<URV>::store(unsigned rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
 {
 #ifdef FAST_SLOPPY
-  return fastStore(rs1, base, addr, storeVal);
+  return fastStore(rs1, base, virtAddr, storeVal);
 #else
 
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
-  ldStAddr_ = addr;       // For reporting ld/st addr in trace-mode.
+  ldStAddr_ = virtAddr;   // For reporting ld/st addr in trace-mode.
   ldStAddrValid_ = true;  // For reporting ld/st addr in trace-mode.
 
   // ld/st-address or instruction-address triggers have priority over
@@ -1872,13 +1884,14 @@ Hart<URV>::store(unsigned rs1, URV base, URV addr, STORE_TYPE storeVal)
   bool hasTrig = hasActiveTrigger();
   TriggerTiming timing = TriggerTiming::Before;
   bool isLd = false;  // Not a load.
-  if (hasTrig and ldStAddrTriggerHit(addr, timing, isLd, privMode_,
+  if (hasTrig and ldStAddrTriggerHit(virtAddr, timing, isLd, privMode_,
                                      isInterruptEnabled()))
     triggerTripped_ = true;
 
   // Determine if a store exception is possible.
   STORE_TYPE maskedVal = storeVal;  // Masked store value.
   auto secCause = SecondaryCause::NONE;
+  uint64_t addr = virtAddr;
   ExceptionCause cause = determineStoreException(rs1, base, addr,
 						 maskedVal, secCause);
 
@@ -1895,7 +1908,7 @@ Hart<URV>::store(unsigned rs1, URV base, URV addr, STORE_TYPE storeVal)
       // For the bench: A precise error does write externl memory.
       if (forceAccessFail_ and memory_.isDataAddressExternal(addr))
         memory_.write(hartIx_, addr, storeVal);
-      initiateStoreException(cause, addr, secCause);
+      initiateStoreException(cause, virtAddr, secCause);
       return false;
     }
 
@@ -1935,7 +1948,7 @@ Hart<URV>::store(unsigned rs1, URV base, URV addr, STORE_TYPE storeVal)
     }
 
   // Store failed: Take exception. Should not happen but we are paranoid.
-  initiateStoreException(ExceptionCause::STORE_ACC_FAULT, addr, secCause);
+  initiateStoreException(ExceptionCause::STORE_ACC_FAULT, virtAddr, secCause);
   return false;
 #endif
 }
@@ -6889,7 +6902,7 @@ Hart<URV>::execFencei(const DecodedInst*)
 
 template <typename URV>
 ExceptionCause
-Hart<URV>::validateAmoAddr(uint32_t rs1, URV addr, unsigned accessSize,
+Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
                            SecondaryCause& secCause)
 {
   URV mask = URV(accessSize) - 1;
@@ -6936,9 +6949,9 @@ Hart<URV>::amoLoad32(uint32_t rs1, URV& value)
 {
   enableWideLdStMode(false);
 
-  URV addr = intRegs_.read(rs1);
+  URV virtAddr = intRegs_.read(rs1);
 
-  ldStAddr_ = addr;    // For reporting load addr in trace-mode.
+  ldStAddr_ = virtAddr;   // For reporting load addr in trace-mode.
   ldStAddrValid_ = true;  // For reporting load addr in trace-mode.
 
   if (loadQueueEnabled_)
@@ -6946,7 +6959,7 @@ Hart<URV>::amoLoad32(uint32_t rs1, URV& value)
 
   if (hasActiveTrigger())
     {
-      if (ldStAddrTriggerHit(addr, TriggerTiming::Before, false /*isLoad*/,
+      if (ldStAddrTriggerHit(virtAddr, TriggerTiming::Before, false /*isLoad*/,
 			     privMode_, isInterruptEnabled()))
 	triggerTripped_ = true;
     }
@@ -6954,12 +6967,14 @@ Hart<URV>::amoLoad32(uint32_t rs1, URV& value)
   unsigned ldSize = 4;
 
   auto secCause = SecondaryCause::STORE_ACC_AMO;
+  
+  uint64_t addr = virtAddr;
   auto cause = validateAmoAddr(rs1, addr, ldSize, secCause);
 
   if (cause != ExceptionCause::NONE)
     {
       if (not triggerTripped_)
-        initiateLoadException(ExceptionCause::STORE_ACC_FAULT, addr, secCause);
+        initiateLoadException(ExceptionCause::STORE_ACC_FAULT, virtAddr, secCause);
       return false;
     }
 
@@ -6971,7 +6986,7 @@ Hart<URV>::amoLoad32(uint32_t rs1, URV& value)
     }
 
   cause = ExceptionCause::STORE_ACC_FAULT;
-  initiateLoadException(cause, addr, secCause);
+  initiateLoadException(cause, virtAddr, secCause);
   return false;
 }
 
@@ -6980,9 +6995,9 @@ template <typename URV>
 bool
 Hart<URV>::amoLoad64(uint32_t rs1, URV& value)
 {
-  URV addr = intRegs_.read(rs1);
+  URV virtAddr = intRegs_.read(rs1);
 
-  ldStAddr_ = addr;    // For reporting load addr in trace-mode.
+  ldStAddr_ = virtAddr;   // For reporting load addr in trace-mode.
   ldStAddrValid_ = true;  // For reporting load addr in trace-mode.
 
   if (loadQueueEnabled_)
@@ -6990,7 +7005,7 @@ Hart<URV>::amoLoad64(uint32_t rs1, URV& value)
 
   if (hasActiveTrigger())
     {
-      if (ldStAddrTriggerHit(addr, TriggerTiming::Before, false /*isLoad*/,
+      if (ldStAddrTriggerHit(virtAddr, TriggerTiming::Before, false /*isLoad*/,
 			     privMode_, isInterruptEnabled()))
 	triggerTripped_ = true;
     }
@@ -6998,12 +7013,13 @@ Hart<URV>::amoLoad64(uint32_t rs1, URV& value)
   unsigned ldSize = 8;
 
   auto secCause = SecondaryCause::STORE_ACC_AMO;
+  uint64_t addr = virtAddr;
   auto cause = validateAmoAddr(rs1, addr, ldSize, secCause);
 
   if (cause != ExceptionCause::NONE)
     {
       if (not triggerTripped_)
-        initiateLoadException(ExceptionCause::STORE_ACC_FAULT, addr, secCause);
+        initiateLoadException(ExceptionCause::STORE_ACC_FAULT, virtAddr, secCause);
       return false;
     }
 
@@ -7015,7 +7031,7 @@ Hart<URV>::amoLoad64(uint32_t rs1, URV& value)
     }
 
   cause = ExceptionCause::STORE_ACC_FAULT;
-  initiateLoadException(cause, addr, secCause);
+  initiateLoadException(cause, virtAddr, secCause);
   return false;
 }
 
@@ -7572,7 +7588,7 @@ Hart<URV>::wideStore(URV addr, URV storeVal, unsigned storeSize)
 template <typename URV>
 template <typename STORE_TYPE>
 ExceptionCause
-Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
+Hart<URV>::determineStoreException(unsigned rs1, URV base, uint64_t& addr,
 				   STORE_TYPE& storeVal,
 				   SecondaryCause& secCause)
 {
@@ -7600,35 +7616,50 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
       return ExceptionCause::STORE_ACC_FAULT;
     }
 
-  // DCCM unmapped or out of MPU windows. Invalid PIC access handled later.
-  bool writeOk = memory_.checkWrite(addr, storeVal);
-  if (not writeOk and not isAddrMemMapped(addr))
-    {
-      secCause = SecondaryCause::STORE_ACC_MEM_PROTECTION;
-      size_t region = memory_.getRegionIndex(addr);
-      if (regionHasLocalDataMem_.at(region))
-	secCause = SecondaryCause::STORE_ACC_LOCAL_UNMAPPED;
-      return ExceptionCause::STORE_ACC_FAULT;
-    }
+  bool writeOk = false;
 
-  // 64-bit store
-  if (wideLdSt_)
+  // Address translation
+  if (isRvs())
     {
-      bool fail = (addr & 7) or stSize != 4 or ! isDataAddressExternal(addr);
-      uint64_t val = 0;
-      fail = fail or ! memory_.checkWrite(addr, val);
-      if (fail)
-	{
-	  secCause = SecondaryCause::STORE_ACC_64BIT;
-	  return ExceptionCause::STORE_ACC_FAULT;
-	}
+      uint64_t pa = 0;
+      cause = virtMem_.translate(addr, privMode_, false, true, false, pa);
+      if (cause != ExceptionCause::NONE)
+        return cause;
+      addr = pa;
+      writeOk = memory_.checkWrite(addr, storeVal);
     }
-
-  // Region predict (Effective address compatible with base).
-  if (eaCompatWithBase_ and effectiveAndBaseAddrMismatch(addr, base))
+  else
     {
-      secCause = SecondaryCause::STORE_ACC_REGION_PREDICTION;
-      return ExceptionCause::STORE_ACC_FAULT;
+      // DCCM unmapped or out of MPU windows. Invalid PIC access handled later.
+      writeOk = memory_.checkWrite(addr, storeVal);
+      if (not writeOk and not isAddrMemMapped(addr))
+        {
+          secCause = SecondaryCause::STORE_ACC_MEM_PROTECTION;
+          size_t region = memory_.getRegionIndex(addr);
+          if (regionHasLocalDataMem_.at(region))
+            secCause = SecondaryCause::STORE_ACC_LOCAL_UNMAPPED;
+          return ExceptionCause::STORE_ACC_FAULT;
+        }
+
+      // 64-bit store
+      if (wideLdSt_)
+        {
+          bool fail = (addr & 7) or stSize != 4 or ! isDataAddressExternal(addr);
+          uint64_t val = 0;
+          fail = fail or ! memory_.checkWrite(addr, val);
+          if (fail)
+            {
+              secCause = SecondaryCause::STORE_ACC_64BIT;
+              return ExceptionCause::STORE_ACC_FAULT;
+            }
+        }
+
+      // Region predict (Effective address compatible with base).
+      if (eaCompatWithBase_ and effectiveAndBaseAddrMismatch(addr, base))
+        {
+          secCause = SecondaryCause::STORE_ACC_REGION_PREDICTION;
+          return ExceptionCause::STORE_ACC_FAULT;
+        }
     }
 
   // PIC access
@@ -7644,6 +7675,12 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
           secCause = SecondaryCause::STORE_ACC_PIC;
           return ExceptionCause::STORE_ACC_FAULT;
         }
+    }
+
+  if (not writeOk)
+    {
+      secCause = SecondaryCause::STORE_ACC_MEM_PROTECTION;
+      return ExceptionCause::STORE_ACC_FAULT;
     }
 
   if (misal and cause != ExceptionCause::NONE)
@@ -7667,8 +7704,6 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, URV addr,
       secCause = forcedCause_;
       return ExceptionCause::STORE_ACC_FAULT;
     }
-
-  assert(writeOk);
 
   return ExceptionCause::NONE;
 }
@@ -8419,9 +8454,9 @@ Hart<URV>::execFlw(const DecodedInst* di)
   SRV imm = di->op2As<SRV>();
 
   URV base = intRegs_.read(rs1);
-  URV addr = base + imm;
+  URV virtAddr = base + imm;
 
-  ldStAddr_ = addr;    // For reporting load addr in trace-mode.
+  ldStAddr_ = virtAddr;   // For reporting load addr in trace-mode.
   ldStAddrValid_ = true;  // For reporting load addr in trace-mode.
 
   auto secCause = SecondaryCause::NONE;
@@ -8430,7 +8465,7 @@ Hart<URV>::execFlw(const DecodedInst* di)
 #ifndef FAST_SLOPPY
   if (hasActiveTrigger())
     {
-      if (ldStAddrTriggerHit(addr, TriggerTiming::Before, true /*isLoad*/,
+      if (ldStAddrTriggerHit(virtAddr, TriggerTiming::Before, true /*isLoad*/,
 			     privMode_, isInterruptEnabled()))
 	triggerTripped_ = true;
       if (triggerTripped_)
@@ -8439,10 +8474,11 @@ Hart<URV>::execFlw(const DecodedInst* di)
 
   unsigned ldSize = 8;
 
+  uint64_t addr = virtAddr;
   cause = determineLoadException(rs1, base, addr, ldSize, secCause);
   if (cause != ExceptionCause::NONE)
     {
-      initiateLoadException(cause, addr, secCause);
+      initiateLoadException(cause, virtAddr, secCause);
       return;
     }
 #endif
@@ -8460,7 +8496,7 @@ Hart<URV>::execFlw(const DecodedInst* di)
   if (isAddrMemMapped(addr))
     secCause = SecondaryCause::LOAD_ACC_PIC;
 
-  initiateLoadException(cause, addr, secCause);
+  initiateLoadException(cause, virtAddr, secCause);
 }
 
 
@@ -9413,9 +9449,9 @@ Hart<URV>::execFld(const DecodedInst* di)
   SRV imm = di->op2As<SRV>();
 
   URV base = intRegs_.read(rs1);
-  URV addr = base + imm;
+  URV virtAddr = base + imm;
 
-  ldStAddr_ = addr;    // For reporting load addr in trace-mode.
+  ldStAddr_ = virtAddr;   // For reporting load addr in trace-mode.
   ldStAddrValid_ = true;  // For reporting load addr in trace-mode.
 
   auto secCause = SecondaryCause::NONE;
@@ -9424,7 +9460,7 @@ Hart<URV>::execFld(const DecodedInst* di)
 #ifndef FAST_SLOPPY
   if (hasActiveTrigger())
     {
-      if (ldStAddrTriggerHit(addr, TriggerTiming::Before, true /*isLoad*/,
+      if (ldStAddrTriggerHit(virtAddr, TriggerTiming::Before, true /*isLoad*/,
 			     privMode_, isInterruptEnabled()))
 	triggerTripped_ = true;
       if (triggerTripped_)
@@ -9433,10 +9469,11 @@ Hart<URV>::execFld(const DecodedInst* di)
 
   unsigned ldSize = 8;
 
+  uint64_t addr = virtAddr;
   cause = determineLoadException(rs1, base, addr, ldSize, secCause);
   if (cause != ExceptionCause::NONE)
     {
-      initiateLoadException(cause, addr, secCause);
+      initiateLoadException(cause, virtAddr, secCause);
       return;
     }
 #endif
@@ -9461,7 +9498,7 @@ Hart<URV>::execFld(const DecodedInst* di)
   if (isAddrMemMapped(addr))
     secCause = SecondaryCause::LOAD_ACC_PIC;
 
-  initiateLoadException(cause, addr, secCause);
+  initiateLoadException(cause, virtAddr, secCause);
 }
 
 
@@ -10352,9 +10389,9 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1)
 {
   enableWideLdStMode(false);
 
-  URV addr = intRegs_.read(rs1);
+  URV virtAddr = intRegs_.read(rs1);
 
-  ldStAddr_ = addr;    // For reporting load addr in trace-mode.
+  ldStAddr_ = virtAddr;   // For reporting load addr in trace-mode.
   ldStAddrValid_ = true;  // For reporting load addr in trace-mode.
 
   if (loadQueueEnabled_)
@@ -10365,7 +10402,7 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1)
       typedef TriggerTiming Timing;
 
       bool isLd = true;
-      if (ldStAddrTriggerHit(addr, Timing::Before, isLd,
+      if (ldStAddrTriggerHit(virtAddr, Timing::Before, isLd,
                              privMode_, isInterruptEnabled()))
 	triggerTripped_ = true;
       if (triggerTripped_)
@@ -10377,7 +10414,8 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1)
 
   auto secCause = SecondaryCause::NONE;
   unsigned ldSize = sizeof(LOAD_TYPE);
-  auto cause = determineLoadException(rs1, addr, addr, ldSize, secCause);
+  uint64_t addr = virtAddr;
+  auto cause = determineLoadException(rs1, virtAddr, addr, ldSize, secCause);
   if (cause != ExceptionCause::NONE)
     {
       if (cause == ExceptionCause::LOAD_ADDR_MISAL and
@@ -10409,14 +10447,14 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1)
 
   if (cause != ExceptionCause::NONE)
     {
-      initiateLoadException(cause, addr, secCause);
+      initiateLoadException(cause, virtAddr, secCause);
       return false;
     }
 
   ULT uval = 0;
   if (not memory_.read(addr, uval))
     {  // Should never happen.
-      initiateLoadException(cause, addr, secCause);
+      initiateLoadException(cause, virtAddr, secCause);
       return false;
     }      
 
@@ -10451,11 +10489,11 @@ Hart<URV>::execLr_w(const DecodedInst* di)
 template <typename URV>
 template <typename STORE_TYPE>
 bool
-Hart<URV>::storeConditional(unsigned rs1, URV addr, STORE_TYPE storeVal)
+Hart<URV>::storeConditional(unsigned rs1, URV virtAddr, STORE_TYPE storeVal)
 {
   enableWideLdStMode(false);
 
-  ldStAddr_ = addr;       // For reporting ld/st addr in trace-mode.
+  ldStAddr_ = virtAddr;   // For reporting ld/st addr in trace-mode.
   ldStAddrValid_ = true;  // For reporting ld/st addr in trace-mode.
 
   // ld/st-address or instruction-address triggers have priority over
@@ -10464,17 +10502,18 @@ Hart<URV>::storeConditional(unsigned rs1, URV addr, STORE_TYPE storeVal)
   TriggerTiming timing = TriggerTiming::Before;
   bool isLoad = false;
   if (hasTrig)
-    if (ldStAddrTriggerHit(addr, timing, isLoad, privMode_,
+    if (ldStAddrTriggerHit(virtAddr, timing, isLoad, privMode_,
                            isInterruptEnabled()))
       triggerTripped_ = true;
 
   // Misaligned store causes an exception.
   constexpr unsigned alignMask = sizeof(STORE_TYPE) - 1;
-  bool misal = addr & alignMask;
+  bool misal = virtAddr & alignMask;
   misalignedLdSt_ = misal;
 
   auto secCause = SecondaryCause::NONE;
-  auto cause = determineStoreException(rs1, addr, addr, storeVal, secCause);
+  uint64_t addr = virtAddr;
+  auto cause = determineStoreException(rs1, virtAddr, addr, storeVal, secCause);
 
   bool fail = misal or (amoInDccmOnly_ and not isAddrInDccm(addr));
   if (fail)
@@ -10499,7 +10538,7 @@ Hart<URV>::storeConditional(unsigned rs1, URV addr, STORE_TYPE storeVal)
 
   if (cause != ExceptionCause::NONE)
     {
-      initiateStoreException(ExceptionCause::STORE_ACC_FAULT, addr, secCause);
+      initiateStoreException(ExceptionCause::STORE_ACC_FAULT, virtAddr, secCause);
       return false;
     }
 
@@ -10519,7 +10558,7 @@ Hart<URV>::storeConditional(unsigned rs1, URV addr, STORE_TYPE storeVal)
 
   // Should never happen.
   secCause = SecondaryCause::STORE_ACC_AMO;
-  initiateStoreException(ExceptionCause::STORE_ACC_FAULT, addr, secCause);
+  initiateStoreException(ExceptionCause::STORE_ACC_FAULT, virtAddr, secCause);
   return false;
 }
 

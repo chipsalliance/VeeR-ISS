@@ -1289,10 +1289,11 @@ namespace WdRiscv
     bool fastLoad(uint32_t rd, uint32_t rs1, int32_t imm);
 
     /// Helper to load method: Return possible load exception (wihtout
-    /// taking any exception).
-    ExceptionCause determineLoadException(unsigned rs1, URV base, URV addr,
-					  unsigned ldSize,
-					  SecondaryCause& secCause);
+    /// taking any exception). If supervisor mode is enabled, and
+    /// address translation is successful, then addr is changed to the
+    /// translated physical address.
+    ExceptionCause determineLoadException(unsigned rs1, URV base, uint64_t& addr,
+					  unsigned ldSize, SecondaryCause& secCause);
 
     /// Helper to sb, sh, sw ... Sore type should be uint8_t, uint16_t
     /// etc... for sb, sh, etc...
@@ -1309,7 +1310,7 @@ namespace WdRiscv
     /// taking any exception). Update stored value by doing memory
     /// mapped register masking.
     template<typename STORE_TYPE>
-    ExceptionCause determineStoreException(unsigned rs1, URV base, URV addr,
+    ExceptionCause determineStoreException(unsigned rs1, URV base, uint64_t& addr,
 					   STORE_TYPE& storeVal,
 					   SecondaryCause& secCause);
 
@@ -1517,10 +1518,12 @@ namespace WdRiscv
     bool isIdempotentRegion(size_t addr) const;
 
     /// Check address associated with an atomic memory operation (AMO)
-    /// instruction. Return true if AMO access is allowed. Return false
-    /// triggering an exception if address is misaligned or if it is out
-    /// of DCCM range in DCCM-only mode.
-    ExceptionCause validateAmoAddr(uint32_t rs1, URV addr, unsigned accessSize,
+    /// instruction. Return true if AMO access is allowed. Return
+    /// false triggering an exception if address is misaligned or if
+    /// it is out of DCCM range in DCCM-only mode. If successful, the
+    /// given virtual addr is replaced by the translated physical
+    /// address.
+    ExceptionCause validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
                                    SecondaryCause& secCause);
 
     /// Do the load value part of a word-sized AMO instruction. Return
