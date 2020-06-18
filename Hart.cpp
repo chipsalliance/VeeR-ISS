@@ -1593,7 +1593,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
     }
 
   // Address translation
-  if (isRvs())
+  if (isRvs() and privMode_ != PrivilegeMode::Machine)
     {
       uint64_t pa = 0;
       cause = virtMem_.translate(addr, privMode_, true, false, false, pa);
@@ -7619,7 +7619,7 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, uint64_t& addr,
   bool writeOk = false;
 
   // Address translation
-  if (isRvs())
+  if (isRvs() and privMode_ != PrivilegeMode::Machine)
     {
       uint64_t pa = 0;
       cause = virtMem_.translate(addr, privMode_, false, true, false, pa);
