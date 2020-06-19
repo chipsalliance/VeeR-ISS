@@ -66,7 +66,7 @@ VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
     cause = pageTableWalk<Pte32, Va32>(va, priv, read, write, exec, pa, glbl, isUser);
   else if (mode_ == Sv39)
     {
-      // Bits 63-39 must equal bit 38
+      // Part 1 of address translation: Bits 63-39 must equal bit 38
       uint64_t mask = (va >> 38) & 1;
       if (mask)
         mask = 0x1ffffff;  // Least sig 25 bits set
@@ -76,7 +76,7 @@ VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
     }
   else if (mode_ == Sv48)
     {
-      // Bits 63-47 muse equal bit 47
+      // Part 1 of address translation: Bits 63-47 muse equal bit 47
       uint64_t mask = (va >> 47) & 1;
       if (mask)
         mask = 0xffff;  // Least sig 16 bits set
@@ -102,7 +102,7 @@ ExceptionCause
 VirtMem::pageTableWalk(size_t address, PrivilegeMode privMode, bool read, bool write,
                        bool exec, size_t& pa, bool& global, bool& isUser)
 {
-  // 1. TBD check xlen against valen.
+  // 1. Done in translate method.
 
   PTE pte(0);
 
@@ -111,11 +111,9 @@ VirtMem::pageTableWalk(size_t address, PrivilegeMode privMode, bool read, bool w
 
   VA va(address);
 
-  // Root is "a" in section 4.3.2 of privileged spec.
+  // 2. Root is "a" in section 4.3.2 of privileged spec.
   uint64_t root = pageTableRootPage_ * pageSize_;
   uint64_t pteAddr = 0;
-
-  // 2.
   int ii = levels - 1;
 
   while (true)
