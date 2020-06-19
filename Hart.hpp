@@ -1352,13 +1352,13 @@ namespace WdRiscv
 
     /// Helper to CSR instructions: Write csr and integer register if csr
     /// is writeable.
-    void doCsrWrite(CsrNumber csr, URV csrVal, unsigned intReg,
-		    URV intRegVal);
+    void doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
+                    unsigned intReg, URV intRegVal);
 
     /// Helper to CSR instructions: Read csr register returning true
     /// on success and false on failure (csr does not exist or is not
     /// accessible).  is writeable.
-    bool doCsrRead(CsrNumber csr, URV& csrVal);
+    bool doCsrRead(const DecodedInst* di, CsrNumber csr, URV& csrVal);
 
     /// Return true if one or more load-address/store-address trigger
     /// has a hit on the given address and given timing
@@ -1503,11 +1503,11 @@ namespace WdRiscv
     ///   - Machine mode instruction executed when not in machine mode.
     ///   - Invalid CSR.
     ///   - Write to a read-only CSR.
-    void illegalInst();
+    void illegalInst(const DecodedInst*);
 
     /// Place holder for not-yet implemented instructions. Calls
     /// illegal instruction.
-    void unimplemented();
+    void unimplemented(const DecodedInst*);
 
     /// Return true if an external interrupts are enabled and an external
     /// interrupt is pending and is enabled. Set cause to the type of
@@ -1555,7 +1555,7 @@ namespace WdRiscv
     /// Helper to shift/bit execute instruction with immediate
     /// operands: Signal an illegal instruction if immediate value is
     /// greater than XLEN-1 returning false; otherwise return true.
-    bool checkShiftImmediate(URV imm);
+    bool checkShiftImmediate(const DecodedInst* di, URV imm);
 
     /// Helper to the run methods: Log (on the standard error) the
     /// cause of a stop signaled with an exception. Return true if
