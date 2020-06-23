@@ -667,8 +667,8 @@ CsRegs<URV>::defineMachineRegs()
   URV val = 0;
   if constexpr (sizeof(URV) == 8)
     {
-      mask |= (URV(0b1111) << 32);  // Mask for SXL and UXL.
-      val |= (URV(0b1010) << 32);   // Value of SXL and UXL.
+      mask |= (URV(0b0000) << 32);  // Mask for SXL and UXL (currently not writable).
+      val |= (URV(0b1010) << 32);   // Value of SXL and UXL : sxlen=uxlen=64
     }
   defineCsr("mstatus", Csrn::MSTATUS, mand, imp, val, mask, mask);
   defineCsr("misa", Csrn::MISA, mand,  imp, 0x40001104, rom, rom);
@@ -709,22 +709,27 @@ CsRegs<URV>::defineMachineRegs()
   defineCsr("pmpcfg1",   Csrn::PMPCFG1,   !mand, imp, 0, cfgMask, cfgMask);
   defineCsr("pmpcfg2",   Csrn::PMPCFG2,   !mand, imp, 0, cfgMask, cfgMask);
   defineCsr("pmpcfg3",   Csrn::PMPCFG3,   !mand, imp, 0, cfgMask, cfgMask);
-  defineCsr("pmpaddr0",  Csrn::PMPADDR0,  !mand, imp, 0, wam, wam);
-  defineCsr("pmpaddr1",  Csrn::PMPADDR1,  !mand, imp, 0, wam, wam);
-  defineCsr("pmpaddr2",  Csrn::PMPADDR2,  !mand, imp, 0, wam, wam);
-  defineCsr("pmpaddr3",  Csrn::PMPADDR3,  !mand, imp, 0, wam, wam);
-  defineCsr("pmpaddr4",  Csrn::PMPADDR4,  !mand, imp, 0, wam, wam);
-  defineCsr("pmpaddr5",  Csrn::PMPADDR5,  !mand, imp, 0, wam, wam);
-  defineCsr("pmpaddr6",  Csrn::PMPADDR6,  !mand, imp, 0, wam, wam);
-  defineCsr("pmpaddr7",  Csrn::PMPADDR7,  !mand, imp, 0, wam, wam);
-  defineCsr("pmpaddr8",  Csrn::PMPADDR8,  !mand, imp, 0, wam, wam);
-  defineCsr("pmpaddr9",  Csrn::PMPADDR9,  !mand, imp, 0, wam, wam);
-  defineCsr("pmpaddr10", Csrn::PMPADDR10, !mand, imp, 0, wam, wam);
-  defineCsr("pmpaddr11", Csrn::PMPADDR11, !mand, imp, 0, wam, wam);
-  defineCsr("pmpaddr12", Csrn::PMPADDR12, !mand, imp, 0, wam, wam);
-  defineCsr("pmpaddr13", Csrn::PMPADDR13, !mand, imp, 0, wam, wam);
-  defineCsr("pmpaddr14", Csrn::PMPADDR14, !mand, imp, 0, wam, wam);
-  defineCsr("pmpaddr15", Csrn::PMPADDR15, !mand, imp, 0, wam, wam);
+
+  URV pmpMask = 0xffffffff;
+  if constexpr (sizeof(URV) == 8)
+    pmpMask = 0x003f'ffff'ffff'ffffL; // Top 10 bits are zeros
+
+  defineCsr("pmpaddr0",  Csrn::PMPADDR0,  !mand, imp, 0, pmpMask, pmpMask);
+  defineCsr("pmpaddr1",  Csrn::PMPADDR1,  !mand, imp, 0, pmpMask, pmpMask);
+  defineCsr("pmpaddr2",  Csrn::PMPADDR2,  !mand, imp, 0, pmpMask, pmpMask);
+  defineCsr("pmpaddr3",  Csrn::PMPADDR3,  !mand, imp, 0, pmpMask, pmpMask);
+  defineCsr("pmpaddr4",  Csrn::PMPADDR4,  !mand, imp, 0, pmpMask, pmpMask);
+  defineCsr("pmpaddr5",  Csrn::PMPADDR5,  !mand, imp, 0, pmpMask, pmpMask);
+  defineCsr("pmpaddr6",  Csrn::PMPADDR6,  !mand, imp, 0, pmpMask, pmpMask);
+  defineCsr("pmpaddr7",  Csrn::PMPADDR7,  !mand, imp, 0, pmpMask, pmpMask);
+  defineCsr("pmpaddr8",  Csrn::PMPADDR8,  !mand, imp, 0, pmpMask, pmpMask);
+  defineCsr("pmpaddr9",  Csrn::PMPADDR9,  !mand, imp, 0, pmpMask, pmpMask);
+  defineCsr("pmpaddr10", Csrn::PMPADDR10, !mand, imp, 0, pmpMask, pmpMask);
+  defineCsr("pmpaddr11", Csrn::PMPADDR11, !mand, imp, 0, pmpMask, pmpMask);
+  defineCsr("pmpaddr12", Csrn::PMPADDR12, !mand, imp, 0, pmpMask, pmpMask);
+  defineCsr("pmpaddr13", Csrn::PMPADDR13, !mand, imp, 0, pmpMask, pmpMask);
+  defineCsr("pmpaddr14", Csrn::PMPADDR14, !mand, imp, 0, pmpMask, pmpMask);
+  defineCsr("pmpaddr15", Csrn::PMPADDR15, !mand, imp, 0, pmpMask, pmpMask);
 
   // Machine Counter/Timers.
   defineCsr("mcycle",    Csrn::MCYCLE,    mand, imp, 0, wam, wam);
