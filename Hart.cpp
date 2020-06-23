@@ -10510,10 +10510,10 @@ template <typename URV>
 void
 Hart<URV>::execLr_w(const DecodedInst* di)
 {
+  std::lock_guard<std::mutex> lock(memory_.lrMutex_);
   if (not loadReserve<int32_t>(di->op0(), di->op1()))
     return;
 
-  std::lock_guard<std::mutex> lock(memory_.lrMutex_);
   URV addr = intRegs_.read(di->op1());
   memory_.makeLr(hartIx_, addr, 4 /*size*/);
 }
