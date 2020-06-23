@@ -666,7 +666,10 @@ CsRegs<URV>::defineMachineRegs()
   URV mask = 0b0'00000000'1'1'1'1'1'1'11'11'11'00'1'1'0'1'1'1'0'1'1;
   URV val = 0;
   if constexpr (sizeof(URV) == 8)
-    mask |= (URV(0b1111) << 32);  // Mask for SXL and UXL.
+    {
+      mask |= (URV(0b1111) << 32);  // Mask for SXL and UXL.
+      val |= (URV(0b1010) << 32);   // Value of SXL and UXL.
+    }
   defineCsr("mstatus", Csrn::MSTATUS, mand, imp, val, mask, mask);
   defineCsr("misa", Csrn::MISA, mand,  imp, 0x40001104, rom, rom);
   defineCsr("medeleg", Csrn::MEDELEG, !mand, !imp, 0, 0, 0);
