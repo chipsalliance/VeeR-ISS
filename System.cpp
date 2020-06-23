@@ -28,8 +28,15 @@ System<URV>::System(unsigned coreCount, unsigned hartsPerCore, Memory& memory)
   for (unsigned ix = 0; ix < coreCount; ++ix)
     {
       URV hartIdBase = ix * hartsPerCore;
-      cores_.at(ix) = std::make_shared<CoreClass>(hartIdBase, hartsPerCore,
-						  memory);
+      cores_.at(ix) = std::make_shared<CoreClass>(hartIdBase, hartsPerCore, memory);
+
+      // Maintain a vector of all the harts in the system.
+      auto core = cores_.at(ix);
+      for (unsigned i = 0; i < hartsPerCore; ++i)
+        {
+          auto hart = core->ithHart(i);
+          sysHarts_.push_back(hart);
+        }
     }
 }
 

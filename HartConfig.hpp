@@ -22,6 +22,9 @@ namespace WdRiscv
 {
 
   template <typename URV>
+  class System;
+
+  template <typename URV>
   class Hart;
 
 
@@ -53,7 +56,7 @@ namespace WdRiscv
     /// harts. Finalize CSR configuration by defining callbacks for
     /// non-standard CSRs.
     template<typename URV>
-    bool configHarts(std::vector<Hart<URV>*>& harts, bool verbose) const;
+    bool configHarts(System<URV>& system, bool verbose) const;
 
     /// Apply the memory configuration in this object.
     template<typename URV>
@@ -90,7 +93,7 @@ namespace WdRiscv
     /// Configure actions of non-standard CSRs. Configure shared CSRs
     /// in multi-hart configurations.
     template<typename URV>
-    bool finalizeCsrConfig(std::vector<Hart<URV>*>& harts) const;
+    bool finalizeCsrConfig(System<URV>& system) const;
 
   private:
 

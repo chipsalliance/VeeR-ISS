@@ -80,8 +80,8 @@ parseCmdLineNumber(const std::string& option,
 
 
 template <typename URV>
-Interactive<URV>::Interactive(std::vector< Hart<URV>* >& harts)
-  : harts_(harts)
+Interactive<URV>::Interactive(System<URV>& system)
+  : system_(system)
 {
 }
 
@@ -1305,13 +1305,13 @@ Interactive<URV>::executeLine(unsigned& currentHartId,
       outLine = std::string("hart=") + std::to_string(hartId) + " " + line;
     }
 
-  if (hartId >= harts_.size())
+  if (hartId >= system_.hartCount())
     {
       std::cerr << "Hart id out of bounds: " << hartId << '\n';
       return false;
     }
 
-  Hart<URV>& hart = *(harts_.at(hartId));
+  Hart<URV>& hart = *(system_.ithHart(hartId));
 
   const std::string& command = tokens.front();
 

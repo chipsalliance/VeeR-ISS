@@ -15,6 +15,7 @@
 #pragma once
 
 #include <unordered_map>
+#include "System.hpp"
 #include "Hart.hpp"
 
 
@@ -33,7 +34,7 @@ namespace WdRiscv
   public:
 
     /// Constructor.
-    Interactive(std::vector< Hart<URV>* >& harts);
+    Interactive(System<URV>& system);
 
     /// Read commands from the standard input and execute them.
     /// Instance traces go the the given traceFile (no instance
@@ -114,7 +115,7 @@ namespace WdRiscv
 
   private:
 
-    std::vector< Hart<URV>* >& harts_;
+    System<URV>& system_;
 
     // Initial resets do not reset memory mapped registers.
     bool resetMemoryMappedRegs_ = false;

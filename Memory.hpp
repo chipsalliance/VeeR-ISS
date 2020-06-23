@@ -21,7 +21,8 @@
 #include <mutex>
 #include <type_traits>
 #include <cassert>
-#include <PmaManager.hpp>
+#include "PmaManager.hpp"
+#include "Cache.hpp"
 
 
 namespace ELFIO
@@ -78,9 +79,9 @@ namespace WdRiscv
 
     /// Read an unsigned integer value of type T from memory at the
     /// given address into value. Return true on success. Return false
-    /// if any of the requested bytes is out of memory bounds or fall
-    /// in unmapped memory or if the read crosses memory regions of
-    /// different attributes.
+    /// if any of the requested bytes is out of memory bounds, fall in
+    /// unmapped memory, are in a region marked non-read, or if is to
+    /// a memory-mapped-register aht the access size is different than 4.
     template <typename T>
     bool read(size_t address, T& value) const
     {
@@ -109,86 +110,38 @@ namespace WdRiscv
         }
 #endif
       value = *(reinterpret_cast<const T*>(data_ + address));
+      if (cache_)
+        cache_->insert(address);
       return true;
     }
 
-    /// Read byte from given address into value. Return true on
-    /// success.  Return false if address is out of bounds.
+    /// Read byte from given address into value. See read method.
     bool readByte(size_t address, uint8_t& value) const
-    {
-#ifdef FAST_SLOPPY
-      if (address >= size_)
-        return false;
-#else
-      Pma pma = pmaMgr_.getPma(address);
-      if (not pma.isRead())
-	return false;
-
-      if (pma.isMemMappedReg())
-	return false; // Only word access allowed to memory mapped regs.
-#endif
-
-      value = data_[address];
-      return true;
-    }
-
-    /// Read half-word (2 bytes) from given address into value. See
-    /// read method.
-    bool readHalfWord(size_t address, uint16_t& value) const
     { return read(address, value); }
 
-    /// Read word (4 bytes) from given address into value. See read
-    /// method.
-    bool readWord(size_t address, uint32_t& value) const
-    { return read(address, value); }
-
-    /// Read a double-word (8 bytes) from given address into
-    /// value. See read method.
-    bool readDoubleWord(size_t address, uint64_t& value) const
-    { return read(address, value); }
-
-    /// On a unified memory model, this is the same as readHalfWord.
-    /// On a split memory model, this will taken an exception if the
-    /// target address is not in instruction memory.
-    bool readInstHalfWord(size_t address, uint16_t& value) const
+    /// Read an unsigned inteer ot type T from memory for instruction
+    /// fetch. Return true on success and false if address is not
+    /// executable or if an iccm boundary is corssed.
+    template <typename T>
+    bool readInst(size_t address, T& value) const
     {
       Pma pma = pmaMgr_.getPma(address);
       if (pma.isExec())
 	{
-	  if (address & 1)
+	  if (address & (sizeof(T) -1))
 	    {
               // Misaligned address: Check next address.
-              Pma pma2 = pmaMgr_.getPma(address + 1);
+              Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
 	      if (pma != pma2)
                 return false;  // Cannot cross an ICCM boundary.
 	    }
 
-	  value = *(reinterpret_cast<const uint16_t*>(data_ + address));
+	  value = *(reinterpret_cast<const T*>(data_ + address));
+          if (cache_)
+            cache_->insert(address);
 	  return true;
 	}
       return false;
-    }
-
-    /// On a unified memory model, this is the same as readWord.
-    /// On a split memory model, this will taken an exception if the
-    /// target address is not in instruction memory.
-    bool readInstWord(size_t address, uint32_t& value) const
-    {
-      Pma pma = pmaMgr_.getPma(address);
-      if (pma.isExec())
-	{
-	  if (address & 3)
-	    {
-
-	      Pma pma2 = pmaMgr_.getPma(address + 3);
-	      if (pma != pma2)
-                return false;
-	    }
-
-	  value = *(reinterpret_cast<const uint32_t*>(data_ + address));
-	  return true;
-	}
-	return false;
     }
 
     /// Return true if write will be successful if tried. Do not
@@ -261,33 +214,6 @@ namespace WdRiscv
 #endif
 
       *(reinterpret_cast<T*>(data_ + address)) = value;
-      return true;
-    }
-
-    /// Write byte to given address. Return true on success. Return
-    /// false if address is out of bounds or is not writable.
-    bool writeByte(unsigned sysHartIx, size_t address, uint8_t value)
-    {
-#ifdef FAST_SLOPPY
-      if (address >= size_)
-        return false;
-      sysHartIx = sysHartIx; // Avoid unused var warning.
-#else
-      Pma pma = pmaMgr_.getPma(address);
-      if (not pma.isWrite())
-	return false;
-
-      if (pma.isMemMappedReg())
-	return false;  // Only word access allowed to memory mapped regs.
-
-      auto& lwd = lastWriteData_.at(sysHartIx);
-      lwd.prevValue_ = *(data_ + address);
-      lwd.size_ = 1;
-      lwd.addr_ = address;
-      lwd.value_ = value;
-#endif
-
-      data_[address] = value;
       return true;
     }
 
@@ -371,6 +297,24 @@ namespace WdRiscv
     static bool isSymbolInElfFile(const std::string& path,
 				  const std::string& target);
 
+    /// This is for performance modeling. Enable a highest level cache
+    /// with given size, line size, and set associativity.  Any
+    /// previously enabled cache is deleted.  Return true on success
+    /// and false if the sizes are not powers of 2 or if any of them
+    /// is zero, or if they are too large (more than 64 MB for cache
+    /// size, more than 1024 for line size, and more than 64 for
+    /// associativity). This has no impact on functionality.
+    bool configureCache(uint64_t size, unsigned lineSize,
+                        unsigned setAssociativity);
+
+    /// Delete currently configured cache.
+    void deleteCache();
+
+    /// Fill given vector (cleared on entry) with the addresses of the
+    /// lines currently in the cache sorted in decreasing age (oldest
+    /// one first).
+    void getCacheLineAddresses(std::vector<uint64_t>& addresses);
+
   protected:
 
     /// Same as write but effects not recorded in last-write info.
@@ -397,20 +341,6 @@ namespace WdRiscv
         }
 
       *(reinterpret_cast<T*>(data_ + address)) = value;
-      return true;
-    }
-
-    /// Same as writeByte but effects are not record in last-write info.
-    bool pokeByte(size_t address, uint8_t value)
-    {
-      Pma pma = pmaMgr_.getPma(address);
-      if (not pma.isMapped())
-	return false;
-
-      if (pma.isMemMappedReg())
-	return false;  // Only word access allowed to memory mapped regs.
-
-      data_[address] = value;
       return true;
     }
 
@@ -661,6 +591,15 @@ namespace WdRiscv
     bool loadSnapshot(const std::string& filename,
                       const std::vector<std::pair<uint64_t,uint64_t>>& used_blocks);
 
+    /// Save tags of cache to the given file (sorted in descending
+    /// order by age) returning true on success and false on
+    /// failure. Return true if no cache is present.
+    bool saveCacheSnapshot(const std::string& path);
+
+    /// Load tags of cache from the given file returning true on success
+    /// and false on failure. Return true if no cache is present.
+    bool loadCacheSnapshot(const std::string& path);
+
   private:
 
     /// Information about last write operation by a hart.
@@ -702,5 +641,6 @@ namespace WdRiscv
     std::vector<LastWriteData> lastWriteData_;
 
     PmaManager pmaMgr_;
+    Cache* cache_ = nullptr;
   };
 }

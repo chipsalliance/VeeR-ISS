@@ -4,38 +4,18 @@
 using namespace WdRiscv;
 
 
-VirtMem::VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize)
-  : memory_(memory), mode_(Sv32), pageSize_(pageSize), hartIx_(hartIx)
+VirtMem::VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize,
+                 unsigned tlbSize)
+  : memory_(memory), mode_(Sv32), pageSize_(pageSize), hartIx_(hartIx),
+    tlb_(tlbSize)
 {
   pageBits_ = static_cast<unsigned>(std::log2(pageSize_));
   unsigned p2PageSize =  unsigned(1) << pageBits_;
 
   assert(p2PageSize == pageSize);
   assert(pageSize >= 64);
-}
 
-
-ExceptionCause
-VirtMem::translate(size_t va, PrivilegeMode pm, bool read, bool write,
-                   bool exec, size_t& pa)
-{
-  if (mode_ == Bare)
-    {
-      pa = va;
-      return ExceptionCause::NONE;
-    }
-
-  if (mode_ == Sv32)
-    return translate_<Pte32, Va32>(va, pm, read, write, exec, pa);
-
-  if (mode_ == Sv39)
-    return translate_<Pte39, Va39>(va, pm, read, write, exec, pa);
-
-  if (mode_ == Sv48)
-    return translate_<Pte48, Va48>(va, pm, read, write, exec, pa);
-
-  assert(0 and "Unspupported virtual memory mode.");
-  return ExceptionCause::LOAD_PAGE_FAULT;
+  pageMask_ = pageSize_ - 1;
 }
 
 
@@ -51,13 +31,78 @@ pageFaultType(bool read, bool write, bool exec)
 }
 
 
+ExceptionCause
+VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
+                   bool exec, size_t& pa)
+{
+  if (mode_ == Bare)
+    {
+      pa = va;
+      return ExceptionCause::NONE;
+    }
+
+  // Lookup virtual page number in TLB.
+  size_t virPageNum = va >> pageBits_;
+
+  const TlbEntry* entry = tlb_.findEntry(virPageNum, asid_);
+  if (entry)
+    {
+      if (priv == PrivilegeMode::User and not entry->user_)
+        return pageFaultType(read, write, exec);
+      if (priv == PrivilegeMode::Supervisor and entry->user_ and not supervisorOk_)
+        return pageFaultType(read, write, exec);
+      bool entryRead = entry->read_ or (execReadable_ and entry->exec_);
+      if ((read and not entryRead) or (write and not entry->write_) or
+          (exec and not entry->exec_))
+        return pageFaultType(read, write, exec);
+      pa = (entry->physPageNum_ << pageBits_) | (va & pageMask_);
+      return ExceptionCause::NONE;
+    }
+
+  bool isUser = false, glbl = false;
+  ExceptionCause cause = ExceptionCause::LOAD_PAGE_FAULT;
+
+  if (mode_ == Sv32)
+    cause = pageTableWalk<Pte32, Va32>(va, priv, read, write, exec, pa, glbl, isUser);
+  else if (mode_ == Sv39)
+    {
+      // Part 1 of address translation: Bits 63-39 must equal bit 38
+      uint64_t mask = (va >> 38) & 1;
+      if (mask)
+        mask = 0x1ffffff;  // Least sig 25 bits set
+      if ((va >> 39) != mask)
+        return pageFaultType(read, write, exec);
+      cause = pageTableWalk<Pte39, Va39>(va, priv, read, write, exec, pa, glbl, isUser);
+    }
+  else if (mode_ == Sv48)
+    {
+      // Part 1 of address translation: Bits 63-47 muse equal bit 47
+      uint64_t mask = (va >> 47) & 1;
+      if (mask)
+        mask = 0xffff;  // Least sig 16 bits set
+      if ((va >> 48) != mask)
+        return pageFaultType(read, write, exec);
+      cause = pageTableWalk<Pte48, Va48>(va, priv, read, write, exec, pa, glbl, isUser);
+    }
+  else
+    assert(0 and "Unspupported virtual memory mode.");
+
+  if (cause == ExceptionCause::NONE)
+    {
+      uint64_t physPageNum = pa >> pageBits_;
+      tlb_.insertEntry(virPageNum, physPageNum, asid_, glbl, isUser, read, write, exec);
+    }
+
+  return cause;
+}
+
+
 template<typename PTE, typename VA>
 ExceptionCause
-VirtMem::translate_(size_t address, PrivilegeMode privMode,
-                    bool read, bool write, bool exec,
-                    size_t& pa)
+VirtMem::pageTableWalk(size_t address, PrivilegeMode privMode, bool read, bool write,
+                       bool exec, size_t& pa, bool& global, bool& isUser)
 {
-  // TBD check xlen against valen.
+  // 1. Done in translate method.
 
   PTE pte(0);
 
@@ -66,16 +111,14 @@ VirtMem::translate_(size_t address, PrivilegeMode privMode,
 
   VA va(address);
 
-  uint64_t root = pageTableRoot_;
+  // 2. Root is "a" in section 4.3.2 of privileged spec.
+  uint64_t root = pageTableRootPage_ * pageSize_;
   uint64_t pteAddr = 0;
-
-  // 2.
   int ii = levels - 1;
 
   while (true)
     {
       // 3.
-
       uint32_t vpn = va.vpn(ii);
       uint64_t pteAddr = root + vpn*pteSize;
 
@@ -93,7 +136,7 @@ VirtMem::translate_(size_t address, PrivilegeMode privMode,
           ii = ii - 1;
           if (ii < 0)
             return pageFaultType(read, write, exec);
-          root = pte.ppn();
+          root = pte.ppn() * pageSize_;
           // goto 3.
         }
       else
@@ -110,7 +153,7 @@ VirtMem::translate_(size_t address, PrivilegeMode privMode,
   bool pteRead = pte.read() or (execReadable_ and pte.exec());
   if ((read and not pteRead) or (write and not pte.write()) or
       (exec and pte.exec()))
-        return pageFaultType(read, write, exec);
+    return pageFaultType(read, write, exec);
 
   // 7.
   if (ii > 0 and pte.ppn1() != 0 and pte.ppn0() != 0)
@@ -145,5 +188,53 @@ VirtMem::translate_(size_t address, PrivilegeMode privMode,
   for (int i = levels - 1; i >= ii; --i)
     pa = pa | pte.ppn(i) << pte.paPpnShift(i);
 
+  // Update isUser with mode found in PTE
+  isUser = pte.user();
+  global = pte.global();
+
   return ExceptionCause::NONE;
+}
+
+
+bool
+VirtMem::setPageSize(uint64_t size)
+{
+  if (size == 0)
+    return false;
+
+  unsigned bits = static_cast<unsigned>(std::log2(pageSize_));
+  uint64_t p2Size =  uint64_t(1) << bits;
+
+  if (size != p2Size)
+    return false;
+  
+  if (mode_ == Sv32)
+    {
+      if (size != 4096)
+        return false;
+      pageBits_ = bits;
+      pageSize_ = size;
+      return true;
+    }
+
+  if (mode_ == Sv39)
+    {
+      if (size != 4096 and size != 2*1024*1024 and size != 1024*1024*1024)
+        return false;
+      pageBits_ = bits;
+      pageSize_ = size;
+      return true;
+    }
+
+  if (mode_ == Sv48)
+    {
+      if (size != 4096 and size != 2*1024*1024 and size != 1024*1024*1024
+          and size != 512L*1024L*1024L*1024L)
+        return false;
+      pageBits_ = bits;
+      pageSize_ = size;
+    }
+
+  assert(0 && "Translation modes Sv57 and Sv64 are not currently supported");
+  return false;
 }

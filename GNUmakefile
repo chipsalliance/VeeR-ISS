@@ -86,7 +86,8 @@ RVCORE_SRCS := IntRegs.cpp CsRegs.cpp FpRegs.cpp instforms.cpp \
             PerfRegs.cpp gdb.cpp HartConfig.cpp \
             Server.cpp Interactive.cpp decode.cpp disas.cpp \
 	    Syscall.cpp PmaManager.cpp DecodedInst.cpp snapshot.cpp \
-	    PmpManager.cpp VirtMem.cpp Core.cpp System.cpp Cache.cpp
+	    PmpManager.cpp VirtMem.cpp Core.cpp System.cpp Cache.cpp \
+	    Tlb.cpp
 
 # List of All CPP Sources for the project
 SRCS_CXX += $(RVCORE_SRCS) whisper.cpp
@@ -104,7 +105,7 @@ DEPS_FILES := $(OBJS_GEN:.o=.d)
 -include $(DEPS_FILES)
 
 # Object files needed for librvcore.a
-OBJS := $(RVCORE_SRCS:%=$(BUILD_DIR)/%.o)
+OBJS := $(RVCORE_SRCS:%=$(BUILD_DIR)/%.o) $(SRCS_C:%=$(BUILD_DIR)/%.o)
 
 $(BUILD_DIR)/librvcore.a: $(OBJS)
 	$(AR) cr $@ $^

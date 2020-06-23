@@ -14,7 +14,9 @@
 
 
 #include <iostream>
+#include <fstream>
 #include <cmath>
+#include <algorithm>
 #include "Cache.hpp"
 
 using namespace WdRiscv;
@@ -49,7 +51,6 @@ Cache::Cache(uint64_t totalSize, unsigned lineSize, unsigned setSize)
 
   setIndexMask_ = count - 1;
 
-  timesPerSet_.resize(count);
   linesPerSet_.resize(count);
 
   for (auto& lines : linesPerSet_)
@@ -64,4 +65,86 @@ Cache::~Cache()
 
   double ratio = accesses_ == 0? 0. : double(hits_)/double(accesses_);
   std::cerr << "Hit ratio: " << ratio << '\n';
+}
+
+
+void
+Cache::getLineAddresses(std::vector<uint64_t>& result) const
+{
+  result.clear();
+
+  std::vector<Entry> entries;
+
+  for (const auto& lines : linesPerSet_)
+    for (const auto& entry : lines)
+      if (entry.valid())
+        entries.push_back(entry);
+
+  std::sort(entries.begin(), entries.end(),
+            [](const Entry& a, const Entry& b) {
+              return a.time_ < b.time_;
+            } );
+
+  result.reserve(entries.size());
+  for (const auto& entry : entries)
+    result.push_back(entry.tag_ << lineNumberShift_);
+}
+
+
+bool
+Cache::saveSnapshot(const std::string& path)
+{
+  std::ofstream ofs(path, std::ios::trunc);
+
+  if (not ofs)
+    {
+      std::cerr << "Cache::saveSnapshot failed - cannot open " << path << " for write\n";
+      return false;
+    }
+
+  std::vector<uint64_t> vec;
+  getLineAddresses(vec);
+
+  ofs << std::hex;
+
+  for (auto& addr : vec)
+    ofs << "0x" << addr << '\n';
+
+  ofs << std::dec;
+
+  if (not ofs)
+    {
+      std::cerr << "Cache::saveSnapshot failed to write all line addresses\n";
+      return false;
+    }
+
+  return true;
+}
+
+
+bool
+Cache::loadSnapshot(const std::string& path)
+{
+  std::ifstream ifs(path);
+  if (not ifs)
+    {
+      std::cerr << "Cache::loadSnapshot failed - cannot open " << path << " for read\n";
+      return false;
+    }
+
+  uint64_t addr = 0;
+  while (ifs)
+    {
+      if (ifs >> std::hex >> addr)
+        insert(addr);
+      else if (ifs.eof())
+        break;
+      else
+        {
+          std::cerr << "Cache::loadSnapshot failed to load " << path << "\n";
+          return false;
+        }
+    }
+
+  return true;
 }

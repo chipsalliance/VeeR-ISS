@@ -16,6 +16,7 @@
 
 #include "trapEnums.hpp"
 #include "Memory.hpp"
+#include "Tlb.hpp"
 
 
 namespace WdRiscv
@@ -56,6 +57,8 @@ namespace WdRiscv
     bool exec() const       { return bits_.exec_; }
 
     bool user() const       { return bits_.user_; }
+
+    bool global() const     { return bits_.global_; }
 
     bool accessed() const   { return bits_.accessed_; }
 
@@ -124,6 +127,8 @@ namespace WdRiscv
     bool exec() const       { return bits_.exec_; }
 
     bool user() const       { return bits_.user_; }
+
+    bool global() const     { return bits_.global_; }
 
     bool accessed() const   { return bits_.accessed_; }
 
@@ -198,6 +203,8 @@ namespace WdRiscv
     bool exec() const       { return bits_.exec_; }
 
     bool user() const       { return bits_.user_; }
+
+    bool global() const     { return bits_.global_; }
 
     bool accessed() const   { return bits_.accessed_; }
 
@@ -367,7 +374,7 @@ namespace WdRiscv
 
     enum Mode { Bare = 0, Sv32 = 1, Sv39 = 8, Sv48 = 9, Sv57 = 10, Sv64 = 11 };
 
-    VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize);
+    VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize, unsigned tlbSize);
 
     /// Perform virtual to physical memory address translation.
     /// Return encoutered exception on failure or ExceptionType::NONE
@@ -375,19 +382,25 @@ namespace WdRiscv
     ExceptionCause translate(size_t va, PrivilegeMode pm, bool read,
                              bool write, bool exec, size_t& pa);
 
-    template <typename PTE, typename VA>
-    ExceptionCause translate_(size_t va, PrivilegeMode pm, bool read,
-                              bool write, bool exec, size_t& pa);
-
   protected:
 
-    void setPageTableRoot(uint64_t root)
-    { pageTableRoot_ = root; }
+    /// Heler to translate method.
+    template <typename PTE, typename VA>
+    ExceptionCause pageTableWalk(size_t va, PrivilegeMode pm, bool read, bool write,
+                                 bool exec, size_t& pa, bool& global, bool& isUSer);
 
+    void setPageTableRootPage(uint64_t root)
+    { pageTableRootPage_ = root; }
+
+    // Change the translation mode to m.  Page size is reset to 4096.
     void setMode(Mode m)
-    { mode_ = m; }
+    {
+      mode_ = m;
+      pageSize_ = 4096;
+      pageBits_ = 12;
+    }
 
-    void setAddressSpace(uint64_t asid)
+    void setAddressSpace(uint32_t asid)
     { asid_ = asid; }
 
     void setExecReadable(bool flag)
@@ -396,20 +409,28 @@ namespace WdRiscv
     void setSupervisorAccessUser(bool flag)
     { supervisorOk_ = flag; }
 
+    /// Return true if successful and false if page size is not supported.
+    bool setPageSize(uint64_t size);
+
   private:
 
     Memory& memory_;
-    uint64_t pageTableRoot_ = 0;
+    uint64_t pageTableRootPage_ = 0;
     Mode mode_ = Bare;
-    uint64_t asid_ = 0;
+    uint32_t asid_ = 0;
     unsigned pageSize_ = 4096;
     unsigned pageBits_ = 12;
+    uint64_t pageMask_ = 0xfff;
     unsigned hartIx_ = 0;
+
+    uint64_t time_ = 0;  //  Access order
 
     // Cached mstatus bits
     bool execReadable_ = false;  // MXR bit
     bool supervisorOk_ = false;  // SUM bit
     bool faultOnFirstAccess_ = false;
+
+    Tlb tlb_;
   };
 
 }

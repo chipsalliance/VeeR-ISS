@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "Hart.hpp"
+#include "System.hpp"
 
 
 namespace WdRiscv
@@ -27,7 +27,7 @@ namespace WdRiscv
   public:
 
     /// Constructor.
-    Server(std::vector< Hart<URV>* >&);
+    Server(System<URV>& system);
 
     /// Server mode poke command.
     bool pokeCommand(const WhisperMessage& req, WhisperMessage& reply);
@@ -82,7 +82,7 @@ namespace WdRiscv
     bool checkHart(const WhisperMessage& reg, const std::string& command,
                    WhisperMessage& reply);
 
-    std::vector< Hart<URV>* >& harts_;
+    System<URV>& system_;
   };
 
 }

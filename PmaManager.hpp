@@ -49,7 +49,7 @@ namespace WdRiscv
 
     /// Return true if mapped.
     bool isMapped() const
-    { return attrib_ & Mapped; }
+    { return attrib_ & (Mapped | MemMapped); }
 
     /// Return true if in ICCM region (instruction closely coupled
     /// memory).

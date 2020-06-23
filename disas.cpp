@@ -1035,8 +1035,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::fmv_w_x:
-      out << "fmv.w.x  "<< ", " << fpRegName(di.op0())
-	  << ", " << intRegName(di.op1());
+      out << "fmv.w.x  " << fpRegName(di.op0()) << ", " << intRegName(di.op1());
       break;
 
     case InstId::fcvt_l_s:

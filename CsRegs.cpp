@@ -25,11 +25,8 @@ using namespace WdRiscv;
 
 template <typename URV>
 CsRegs<URV>::CsRegs()
+  : regs_(size_t(CsrNumber::MAX_CSR_) + 1)
 {
-  // Allocate CSR vector.  All entries are invalid.
-  regs_.clear();
-  regs_.resize(size_t(CsrNumber::MAX_CSR_) + 1);
-
   // Define CSR entries.
   defineMachineRegs();
   defineSupervisorRegs();
@@ -73,6 +70,9 @@ CsRegs<URV>::defineCsr(const std::string& name, CsrNumber csrn, bool mandatory,
 		  << " is already defined as " << csr.getName() << '\n';
       return nullptr;
     }
+
+  PrivilegeMode priv = PrivilegeMode((ix & 0x300) >> 8);
+  csr.definePrivilegeMode(priv);
 
   csr.setDefined(true);
 
@@ -159,12 +159,11 @@ CsRegs<URV>::enableSupervisorMode(bool flag)
   if (not flag)
     return;
 
-  for (auto csrn : { CsrNumber::SSTATUS, CsrNumber::STVEC,
-                      CsrNumber::SCOUNTEREN, CsrNumber::SSCRATCH,
-                      CsrNumber::SEPC, CsrNumber::SCAUSE,
-                      CsrNumber::STVAL, CsrNumber::SIE,
-                      CsrNumber::SIP, CsrNumber::SATP
-                      } )
+  for (auto csrn : { CsrNumber::SSTATUS, CsrNumber::SEDELEG, CsrNumber::SIDELEG,
+                      CsrNumber::STVEC, CsrNumber::SIE, CsrNumber::STVEC,
+                      CsrNumber::SCOUNTEREN, CsrNumber::SSCRATCH, CsrNumber::SEPC,
+                      CsrNumber::SCAUSE, CsrNumber::STVAL, CsrNumber::SIP,
+                      CsrNumber::SATP, CsrNumber::MEDELEG, CsrNumber::MIDELEG } )
     {
       auto csr = findCsr(csrn);
       if (not csr)
@@ -667,7 +666,10 @@ CsRegs<URV>::defineMachineRegs()
   URV mask = 0b0'00000000'1'1'1'1'1'1'11'11'11'00'1'1'0'1'1'1'0'1'1;
   URV val = 0;
   if constexpr (sizeof(URV) == 8)
-    mask |= (URV(0b1111) << 32);  // Mask for SXL and UXL.
+    {
+      mask |= (URV(0b1111) << 32);  // Mask for SXL and UXL.
+      val |= (URV(0b1010) << 32);   // Value of SXL and UXL.
+    }
   defineCsr("mstatus", Csrn::MSTATUS, mand, imp, val, mask, mask);
   defineCsr("misa", Csrn::MISA, mand,  imp, 0x40001104, rom, rom);
   defineCsr("medeleg", Csrn::MEDELEG, !mand, !imp, 0, 0, 0);

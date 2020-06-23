@@ -20,6 +20,7 @@
 #include <vector>
 #include <cassert>
 
+
 namespace WdRiscv
 {
 
@@ -107,6 +108,19 @@ namespace WdRiscv
       return false;
     }
 
+    /// Fill the given vector (cleared on entry) with the addresses of
+    /// the lines curently in the cache in descending order (oldest
+    /// one first) by age.
+    void getLineAddresses(std::vector<uint64_t>& result) const;
+
+    /// Take a snapshot of the cache tags into the given file. Return
+    /// true on success or false on failure
+    bool saveSnapshot(const std::string& path);
+
+    /// Load the cache tags from the snapshot file. Return true on
+    /// success and fase on failure.
+    bool loadSnapshot(const std::string& path);
+
   protected:
 
     /// Return the line number corresponding to the given address.
@@ -132,13 +146,6 @@ namespace WdRiscv
     /// Lines in set: Map a line address to an access time.
     //typedef std::unordered_map<uint64_t, uint64_t> LineToTime;
     typedef std::vector<Entry> LinesInSet;
-
-    /// Map access-time to a line address
-    typedef std::map<uint64_t, uint64_t> TimeToLine;
-
-    /// Map a set index (line-address modulo secCount) to an time-to-line
-    /// map.
-    std::vector<TimeToLine> timesPerSet_;
 
     /// Map a set index (line-address modulo secCount) to a line-to-time
     /// map.

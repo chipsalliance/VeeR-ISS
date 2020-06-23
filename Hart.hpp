@@ -20,6 +20,7 @@
 #include <iosfwd>
 #include <unordered_set>
 #include <type_traits>
+#include <functional>
 #include "InstId.hpp"
 #include "InstEntry.hpp"
 #include "IntRegs.hpp"
@@ -390,6 +391,11 @@ namespace WdRiscv
     bool getConsoleIo(URV& address) const
     { if (conIoValid_) address = conIo_; return conIoValid_; }
 
+    /// Define a memory mapped locations for software interrupts.
+    void setSoftwareInterruptAddress(URV address,
+                                     std::function<Hart<URV>*(size_t addr)> func)
+    { swInterrupt_ = address; swInterruptValid_ = true; swAddrToHart_ = func; }
+
     /// Disassemble given instruction putting results on the given
     /// stream.
     void disassembleInst(uint32_t inst, std::ostream&);
@@ -466,8 +472,7 @@ namespace WdRiscv
     /// Set val to the value of the memory byte at the given address
     /// returning true on success and false if address is out of
     /// bounds.
-    bool peekMemory(size_t address, uint8_t& val) const
-    { return memory_.readByte(address, val); }
+    bool peekMemory(size_t address, uint8_t& val) const;
 
     /// Set val to the value of the half-word at the given address
     /// returning true on success and false if address is out of
@@ -489,13 +494,13 @@ namespace WdRiscv
     /// bounds, location not mapped, location not writable etc...)
     bool pokeMemory(size_t address, uint8_t val);
 
-    /// Halt word version of the above.
+    /// Half-word version of the above.
     bool pokeMemory(size_t address, uint16_t val);
 
     /// Word version of the above.
     bool pokeMemory(size_t address, uint32_t val);
 
-    /// Double word version of the above.
+    /// Double-word version of the above.
     bool pokeMemory(size_t address, uint64_t val);
 
     /// Define value of program counter after a reset.
@@ -680,8 +685,8 @@ namespace WdRiscv
     /// is updated.
     bool applyLoadFinished(URV address, unsigned tag, unsigned& matchCount);
 
-    /// Enable processing of imprecise load exceptions.
-    void enableLoadExceptions(bool flag)
+    /// Enable processing of imprecise load exceptions from test-bench.
+    void enableBenchLoadExceptions(bool flag)
     { loadQueueEnabled_ = flag; }
 
     /// Set load queue size (used when load exceptions are enabled).
@@ -1109,6 +1114,24 @@ namespace WdRiscv
     PrivilegeMode privilegeMode() const
     { return privMode_; }
 
+    /// This is for performance modeling. Enable a highest level cache
+    /// with given size, line size, and set associativity.  Any
+    /// previously enabled cache is deleted.  Return true on success
+    /// and false if the sizes are not powers of 2 or if any of them
+    /// is zero, or if they are too large (more than 64 MB for cache
+    /// size, more than 1024 for line size, and more than 64 for
+    /// associativity). This has no impact on functionality.
+    bool configureCache(uint64_t size, unsigned lineSize,
+                        unsigned setAssociativity);
+
+    /// Delete currently configured cache.
+    void deleteCache();
+
+    /// Fill given vector (cleared on entry) with the addresses of the
+    /// lines currently in the cache sorted in decreasing age (oldest
+    /// one first).
+    void getCacheLineAddresses(std::vector<uint64_t>& addresses);
+
   protected:
 
     /// Helper to reset: Return count of implemented PMP registers.
@@ -1266,10 +1289,11 @@ namespace WdRiscv
     bool fastLoad(uint32_t rd, uint32_t rs1, int32_t imm);
 
     /// Helper to load method: Return possible load exception (wihtout
-    /// taking any exception).
-    ExceptionCause determineLoadException(unsigned rs1, URV base, URV addr,
-					  unsigned ldSize,
-					  SecondaryCause& secCause);
+    /// taking any exception). If supervisor mode is enabled, and
+    /// address translation is successful, then addr is changed to the
+    /// translated physical address.
+    ExceptionCause determineLoadException(unsigned rs1, URV base, uint64_t& addr,
+					  unsigned ldSize, SecondaryCause& secCause);
 
     /// Helper to sb, sh, sw ... Sore type should be uint8_t, uint16_t
     /// etc... for sb, sh, etc...
@@ -1286,7 +1310,7 @@ namespace WdRiscv
     /// taking any exception). Update stored value by doing memory
     /// mapped register masking.
     template<typename STORE_TYPE>
-    ExceptionCause determineStoreException(unsigned rs1, URV base, URV addr,
+    ExceptionCause determineStoreException(unsigned rs1, URV base, uint64_t& addr,
 					   STORE_TYPE& storeVal,
 					   SecondaryCause& secCause);
 
@@ -1328,13 +1352,13 @@ namespace WdRiscv
 
     /// Helper to CSR instructions: Write csr and integer register if csr
     /// is writeable.
-    void doCsrWrite(CsrNumber csr, URV csrVal, unsigned intReg,
-		    URV intRegVal);
+    void doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
+                    unsigned intReg, URV intRegVal);
 
     /// Helper to CSR instructions: Read csr register returning true
     /// on success and false on failure (csr does not exist or is not
     /// accessible).  is writeable.
-    bool doCsrRead(CsrNumber csr, URV& csrVal);
+    bool doCsrRead(const DecodedInst* di, CsrNumber csr, URV& csrVal);
 
     /// Return true if one or more load-address/store-address trigger
     /// has a hit on the given address and given timing
@@ -1479,11 +1503,11 @@ namespace WdRiscv
     ///   - Machine mode instruction executed when not in machine mode.
     ///   - Invalid CSR.
     ///   - Write to a read-only CSR.
-    void illegalInst();
+    void illegalInst(const DecodedInst*);
 
     /// Place holder for not-yet implemented instructions. Calls
     /// illegal instruction.
-    void unimplemented();
+    void unimplemented(const DecodedInst*);
 
     /// Return true if an external interrupts are enabled and an external
     /// interrupt is pending and is enabled. Set cause to the type of
@@ -1494,10 +1518,12 @@ namespace WdRiscv
     bool isIdempotentRegion(size_t addr) const;
 
     /// Check address associated with an atomic memory operation (AMO)
-    /// instruction. Return true if AMO access is allowed. Return false
-    /// triggering an exception if address is misaligned or if it is out
-    /// of DCCM range in DCCM-only mode.
-    ExceptionCause validateAmoAddr(uint32_t rs1, URV addr, unsigned accessSize,
+    /// instruction. Return true if AMO access is allowed. Return
+    /// false triggering an exception if address is misaligned or if
+    /// it is out of DCCM range in DCCM-only mode. If successful, the
+    /// given virtual addr is replaced by the translated physical
+    /// address.
+    ExceptionCause validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
                                    SecondaryCause& secCause);
 
     /// Do the load value part of a word-sized AMO instruction. Return
@@ -1529,7 +1555,7 @@ namespace WdRiscv
     /// Helper to shift/bit execute instruction with immediate
     /// operands: Signal an illegal instruction if immediate value is
     /// greater than XLEN-1 returning false; otherwise return true.
-    bool checkShiftImmediate(URV imm);
+    bool checkShiftImmediate(const DecodedInst* di, URV imm);
 
     /// Helper to the run methods: Log (on the standard error) the
     /// cause of a stop signaled with an exception. Return true if
@@ -1541,6 +1567,11 @@ namespace WdRiscv
     /// Return true if minstret is enabled (not inhibited by mcountinhibit).
     bool minstretEnabled() const
     { return prevPerfControl_ & 0x4; }
+
+    /// Called when a software-interrupt memory mapped register is written.
+    /// Clear/set software-interrupt bit in the MIP CSR of corresponding hart
+    /// if all the conditions are met.
+    void processSoftwareInterruptWrite(size_t addr, unsigned stSize, URV stVal);
 
     // rs1: index of source register (value range: 0 to 31)
     // rs2: index of source register (value range: 0 to 31)
@@ -1928,6 +1959,10 @@ namespace WdRiscv
     URV conIo_ = 0;              // Writing a byte to this writes to console.
     bool conIoValid_ = false;    // True if conIo_ is valid.
 
+    URV swInterrupt_ = 0;
+    bool swInterruptValid_ = false;
+    std::function<Hart<URV>*(size_t addr)> swAddrToHart_ = nullptr;
+
     URV nmiPc_ = 0;              // Non-maskable interrupt handler address.
     bool nmiPending_ = false;
     NmiCause nmiCause_ = NmiCause::UNKNOWN;
@@ -2062,7 +2097,6 @@ namespace WdRiscv
 
     // Physical memory protection.
     bool pmpEnabled_ = false; // True if one or more pmp register defined.
-    unsigned pmpG_ = 0;       // ln2(pmp_grain) - 2
     PmpManager pmpManager_;
 
     VirtMem virtMem_;
