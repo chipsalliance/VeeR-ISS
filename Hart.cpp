@@ -439,6 +439,16 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
         }
     }
 
+  // Enable FP if f/d extension and linux/newlib.
+  if ((isRvf() or isRvd()) and (newlib_ or linux_))
+    {
+      URV val = 0;
+      csRegs_.read(CsrNumber::MSTATUS, PrivilegeMode::Machine, val);
+      MstatusFields<URV> fields(val);
+      fields.bits_.FS = unsigned(FpFs::Initial);
+      csRegs_.write(CsrNumber::MSTATUS, PrivilegeMode::Machine, fields.value_);
+    }
+
   // Update cached values of mstatus.mpp and mstatus.mprv and mstatus.fs.
   updateCachedMstatusFields();
 
@@ -8385,6 +8395,7 @@ Hart<URV>::markFsDirty()
   csRegs_.read(CsrNumber::MSTATUS, PrivilegeMode::Machine, val);
   MstatusFields<URV> fields(val);
   fields.bits_.FS = unsigned(FpFs::Dirty);
+  fields.bits_.SD = 1;
   csRegs_.write(CsrNumber::MSTATUS, PrivilegeMode::Machine, fields.value_);
   updateCachedMstatusFields();
 }
