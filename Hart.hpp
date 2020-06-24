@@ -1134,6 +1134,17 @@ namespace WdRiscv
 
   protected:
 
+    // Return true if FS field of mstatus is not off.
+    bool isFpEnabled() const
+    { return mstatusFs_ != FpFs::Off; }
+
+    // Mark FS field of mstatus as dirty.
+    void markFsDirty();
+
+    // Update cached values of mstatus.mpp and mstatus.mprv and
+    // mstatus.fs ...  This is called when mstatus is written/poked.
+    void updateCachedMstatusFields();
+
     /// Helper to reset: Return count of implemented PMP registers.
     /// If one pmp register is implemented, make sure they are all
     /// implemented.
@@ -2029,6 +2040,7 @@ namespace WdRiscv
     PrivilegeMode lastPriv_ = PrivilegeMode::Machine;   // Before current inst.
     PrivilegeMode mstatusMpp_ = PrivilegeMode::Machine; // Cached mstatus.mpp.
     bool mstatusMprv_ = false;                          // Cached mstatus.mprv.
+    FpFs mstatusFs_ = FpFs::Off;                        // Cahced mstatus.fs.
 
     bool debugMode_ = false;         // True on debug mode.
     bool debugStepMode_ = false;     // True in debug step mode.
