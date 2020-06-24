@@ -439,14 +439,8 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
         }
     }
 
-  // Update cached values of mstatus.mpp and mstatus.mprv.
-  URV csrVal = 0;
-  peekCsr(CsrNumber::MSTATUS, csrVal);
-  MstatusFields<URV> msf(csrVal);
-  mstatusMpp_ = PrivilegeMode(msf.bits_.MPP);
-  mstatusMprv_ = msf.bits_.MPRV;
-  virtMem_.setExecReadable(msf.bits_.MXR);
-  virtMem_.setSupervisorAccessUser(msf.bits_.SUM);
+  // Update cached values of mstatus.mpp and mstatus.mprv and mstatus.fs.
+  updateCachedMstatusFields();
 
   updateAddressTranslation();
 
@@ -456,6 +450,22 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   csRegs_.updateCounterPrivilege();
 
   alarmCounter_ = alarmInterval_;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::updateCachedMstatusFields()
+{
+  URV csrVal = 0;
+  peekCsr(CsrNumber::MSTATUS, csrVal);
+  MstatusFields<URV> msf(csrVal);
+  mstatusMpp_ = PrivilegeMode(msf.bits_.MPP);
+  mstatusMprv_ = msf.bits_.MPRV;
+  mstatusFs_ = FpFs(msf.bits_.FS);
+
+  virtMem_.setExecReadable(msf.bits_.MXR);
+  virtMem_.setSupervisorAccessUser(msf.bits_.SUM);
 }
 
 
@@ -2610,7 +2620,6 @@ Hart<URV>::initiateTrap(bool interrupt, URV cause, URV pcToSave, URV info,
   if (nextMode == PrivilegeMode::Machine)
     {
       msf.bits_.MPP = unsigned(origMode);
-      mstatusMpp_ = origMode;
       msf.bits_.MPIE = msf.bits_.MIE;
       msf.bits_.MIE = 0;
     }
@@ -2629,6 +2638,7 @@ Hart<URV>::initiateTrap(bool interrupt, URV cause, URV pcToSave, URV info,
   // ... and putting it back
   if (not csRegs_.write(CsrNumber::MSTATUS, privMode_, msf.value_))
     assert(0 and "Failed to write MSTATUS register");
+  updateCachedMstatusFields();
   
   // Set program counter to trap handler address.
   URV tvec = 0;
@@ -2703,13 +2713,13 @@ Hart<URV>::undelegatedInterrupt(URV cause, URV pcToSave, URV nextPc)
   MstatusFields<URV> msf(status);
 
   msf.bits_.MPP = unsigned(origMode);
-  mstatusMpp_ = origMode;
   msf.bits_.MPIE = msf.bits_.MIE;
   msf.bits_.MIE = 0;
 
   // ... and putting it back
   if (not csRegs_.write(CsrNumber::MSTATUS, privMode_, msf.value_))
     assert(0 and "Failed to write MSTATUS register");
+  updateCachedMstatusFields();
   
   // Clear pending nmi bit in dcsr
   URV dcsrVal = 0;
@@ -2909,15 +2919,7 @@ Hart<URV>::pokeCsr(CsrNumber csr, URV val)
 
   // Update cached values of MSTATUS MPP and MPRV.
   if (csr == CsrNumber::MSTATUS or csr == CsrNumber::SSTATUS)
-    {
-      URV csrVal = 0;
-      peekCsr(csr, csrVal);
-      MstatusFields<URV> msf(csrVal);
-      mstatusMpp_ = PrivilegeMode(msf.bits_.MPP);
-      mstatusMprv_ = msf.bits_.MPRV;
-      virtMem_.setExecReadable(msf.bits_.MXR);
-      virtMem_.setSupervisorAccessUser(msf.bits_.SUM);
-    }
+    updateCachedMstatusFields();
 
   return true;
 }
@@ -7193,18 +7195,14 @@ Hart<URV>::execMret(const DecodedInst* di)
   PrivilegeMode savedMode = PrivilegeMode(fields.bits_.MPP);
   fields.bits_.MIE = fields.bits_.MPIE;
   fields.bits_.MPP = unsigned(PrivilegeMode::User);
-  mstatusMpp_ = PrivilegeMode::User;
   fields.bits_.MPIE = 1;
+  if (savedMode != PrivilegeMode::Machine)
+    fields.bits_.MPRV = 0;
 
   // ... and putting it back
   if (not csRegs_.write(CsrNumber::MSTATUS, privMode_, fields.value_))
     assert(0 and "Failed to write MSTATUS register\n");
-
-  if (savedMode != PrivilegeMode::Machine)
-    {
-      fields.bits_.MPRV = 0;
-      mstatusMprv_ = 0;
-    }
+  updateCachedMstatusFields();
 
   // Restore program counter from MEPC.
   URV epc;
@@ -7261,6 +7259,7 @@ Hart<URV>::execSret(const DecodedInst* di)
       illegalInst(di);
       return;
     }
+  updateCachedMstatusFields();
 
   // Restore program counter from SEPC.
   URV epc;
@@ -7315,6 +7314,7 @@ Hart<URV>::execUret(const DecodedInst* di)
       illegalInst(di);
       return;
     }
+  updateCachedMstatusFields();
 
   // Restore program counter from UEPC.
   URV epc;
@@ -7393,16 +7393,7 @@ Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
   else if (csr == CsrNumber::MCOUNTINHIBIT)
     perfControl_ = ~csrVal;
   else if (csr == CsrNumber::MSTATUS or csr == CsrNumber::SSTATUS)
-    {
-      // Update cached values of MSTATUS MPP and MPRV.
-      URV csrVal = 0;
-      peekCsr(csr, csrVal);
-      MstatusFields<URV> msf(csrVal);
-      mstatusMpp_ = PrivilegeMode(msf.bits_.MPP);
-      mstatusMprv_ = msf.bits_.MPRV;
-      virtMem_.setExecReadable(msf.bits_.MXR);
-      virtMem_.setSupervisorAccessUser(msf.bits_.SUM);
-    }
+    updateCachedMstatusFields();
   else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
            (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
     updateMemoryProtection();
@@ -8335,6 +8326,14 @@ Hart<URV>::updateAccruedFpBits(bool /* skipUnderflow */)
 {
 }
 
+
+template <typename URV>
+inline
+void
+Hart<URV>::markFsDirty()
+{
+}
+
 #else
 
 template <typename URV>
@@ -8371,6 +8370,23 @@ Hart<URV>::updateAccruedFpBits(bool skipUnderflow)
           recordCsrWrite(CsrNumber::FCSR);
         }
     }
+}
+
+
+template <typename URV>
+inline
+void
+Hart<URV>::markFsDirty()
+{
+  if (mstatusFs_ == FpFs::Dirty)
+    return;
+
+  URV val = 0;
+  csRegs_.read(CsrNumber::MSTATUS, PrivilegeMode::Machine, val);
+  MstatusFields<URV> fields(val);
+  fields.bits_.FS = unsigned(FpFs::Dirty);
+  csRegs_.write(CsrNumber::MSTATUS, PrivilegeMode::Machine, fields.value_);
+  updateCachedMstatusFields();
 }
 
 #endif
@@ -8431,7 +8447,7 @@ inline
 bool
 Hart<URV>::checkRoundingModeSp(const DecodedInst* di)
 {
-  if (not isRvf())
+  if (not isRvf() or not isFpEnabled())
     {
       illegalInst(di);
       return false;
@@ -8455,7 +8471,7 @@ inline
 bool
 Hart<URV>::checkRoundingModeDp(const DecodedInst* di)
 {
-  if (not isRvd())
+  if (not isRvd() or not isFpEnabled())
     {
       illegalInst(di);
       return false;
@@ -8478,7 +8494,7 @@ template <typename URV>
 void
 Hart<URV>::execFlw(const DecodedInst* di)
 {
-  if (not isRvf())
+  if (not isRvf() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -8522,6 +8538,7 @@ Hart<URV>::execFlw(const DecodedInst* di)
     {
       Uint32FloatUnion ufu(word);
       fpRegs_.writeSingle(rd, ufu.f);
+      markFsDirty();
       return;
     }
 
@@ -8538,7 +8555,7 @@ template <typename URV>
 void
 Hart<URV>::execFsw(const DecodedInst* di)
 {
-  if (not isRvf())
+  if (not isRvf() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -8629,6 +8646,8 @@ Hart<URV>::execFmadd_s(const DecodedInst* di)
   updateAccruedFpBits(noUnderflow);
   if (invalid)
     setInvalidInFcsr();
+
+  markFsDirty();
 }
 
 
@@ -8654,6 +8673,8 @@ Hart<URV>::execFmsub_s(const DecodedInst* di)
   updateAccruedFpBits(noUnderflow);
   if (invalid)
     setInvalidInFcsr();
+
+  markFsDirty();
 }
 
 
@@ -8679,6 +8700,8 @@ Hart<URV>::execFnmsub_s(const DecodedInst* di)
   updateAccruedFpBits(noUnderflow);
   if (invalid)
     setInvalidInFcsr();
+
+  markFsDirty();
 }
 
 
@@ -8706,6 +8729,8 @@ Hart<URV>::execFnmadd_s(const DecodedInst* di)
   updateAccruedFpBits(noUnderflow);
   if (invalid)
     setInvalidInFcsr();
+
+  markFsDirty();
 }
 
 
@@ -8726,6 +8751,8 @@ Hart<URV>::execFadd_s(const DecodedInst* di)
 
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -8766,6 +8793,8 @@ Hart<URV>::execFmul_s(const DecodedInst* di)
 
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -8786,6 +8815,8 @@ Hart<URV>::execFdiv_s(const DecodedInst* di)
 
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -8812,7 +8843,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnj_s(const DecodedInst* di)
 {
-  if (not isRvf())
+  if (not isRvf() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -8822,6 +8853,8 @@ Hart<URV>::execFsgnj_s(const DecodedInst* di)
   float f2 = fpRegs_.readSingle(di->op2());
   float res = std::copysignf(f1, f2);  // Magnitude of rs1 and sign of rs2
   fpRegs_.writeSingle(di->op0(), res);
+
+  markFsDirty();
 }
 
 
@@ -8829,7 +8862,8 @@ template <typename URV>
 void
 Hart<URV>::execFsgnjn_s(const DecodedInst* di)
 {
-  if (not isRvf())   {
+  if (not isRvf() or not isFpEnabled())
+    {
       illegalInst(di);
       return;
     }
@@ -8839,6 +8873,8 @@ Hart<URV>::execFsgnjn_s(const DecodedInst* di)
   float res = std::copysignf(f1, f2);  // Magnitude of rs1 and sign of rs2
   res = -res;  // Magnitude of rs1 and negative the sign of rs2
   fpRegs_.writeSingle(di->op0(), res);
+
+  markFsDirty();
 }
 
 
@@ -8846,7 +8882,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnjx_s(const DecodedInst* di)
 {
-  if (not isRvf())
+  if (not isRvf() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -8863,6 +8899,8 @@ Hart<URV>::execFsgnjx_s(const DecodedInst* di)
 
   float res = std::copysignf(f1, x);  // Magnitude of rs1 and sign of x
   fpRegs_.writeSingle(di->op0(), res);
+
+  markFsDirty();
 }
 
 
@@ -8902,7 +8940,7 @@ template <typename URV>
 void
 Hart<URV>::execFmin_s(const DecodedInst* di)
 {
-  if (not isRvf())
+  if (not isRvf() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -8928,6 +8966,8 @@ Hart<URV>::execFmin_s(const DecodedInst* di)
     res = std::copysign(res, -1.0F);  // Make sure min(-0, +0) is -0.
 
   fpRegs_.writeSingle(di->op0(), res);
+
+  markFsDirty();
 }
 
 
@@ -8935,7 +8975,7 @@ template <typename URV>
 void
 Hart<URV>::execFmax_s(const DecodedInst* di)
 {
-  if (not isRvf())
+  if (not isRvf() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -8961,6 +9001,8 @@ Hart<URV>::execFmax_s(const DecodedInst* di)
     res = std::copysign(res, 1.0F);  // Make sure max(-0, +0) is +0.
 
   fpRegs_.writeSingle(di->op0(), res);
+
+  markFsDirty();
 }
 
 
@@ -9024,6 +9066,8 @@ Hart<URV>::execFcvt_w_s(const DecodedInst* di)
   updateAccruedFpBits(true);
   if (not valid)
     setInvalidInFcsr();
+
+  markFsDirty();
 }
 
 
@@ -9072,6 +9116,8 @@ Hart<URV>::execFcvt_wu_s(const DecodedInst* di)
   updateAccruedFpBits(true);
   if (not valid)
     setInvalidInFcsr();
+
+  markFsDirty();
 }
 
 
@@ -9079,7 +9125,7 @@ template <typename URV>
 void
 Hart<URV>::execFmv_x_w(const DecodedInst* di)
 {
-  if (not isRvf())
+  if (not isRvf() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -9099,7 +9145,7 @@ template <typename URV>
 void
 Hart<URV>::execFeq_s(const DecodedInst* di)
 {
-  if (not isRvf())
+  if (not isRvf() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -9126,7 +9172,7 @@ template <typename URV>
 void
 Hart<URV>::execFlt_s(const DecodedInst* di)
 {
-  if (not isRvf())
+  if (not isRvf() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -9150,7 +9196,7 @@ template <typename URV>
 void
 Hart<URV>::execFle_s(const DecodedInst* di)
 {
-  if (not isRvf())
+  if (not isRvf() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -9191,7 +9237,7 @@ template <typename URV>
 void
 Hart<URV>::execFclass_s(const DecodedInst* di)
 {
-  if (not isRvf())
+  if (not isRvf() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -9257,6 +9303,8 @@ Hart<URV>::execFcvt_s_w(const DecodedInst* di)
 
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -9273,6 +9321,8 @@ Hart<URV>::execFcvt_s_wu(const DecodedInst* di)
 
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -9280,7 +9330,7 @@ template <typename URV>
 void
 Hart<URV>::execFmv_w_x(const DecodedInst* di)
 {
-  if (not isRvf())
+  if (not isRvf() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -9290,6 +9340,8 @@ Hart<URV>::execFmv_w_x(const DecodedInst* di)
 
   Uint32FloatUnion ufu(u1);
   fpRegs_.writeSingle(di->op0(), ufu.f);
+
+  markFsDirty();
 }
 
 
@@ -9350,6 +9402,8 @@ Hart<uint64_t>::execFcvt_l_s(const DecodedInst* di)
   updateAccruedFpBits(true);
   if (not valid)
     setInvalidInFcsr();
+
+  markFsDirty();
 }
 
 
@@ -9422,6 +9476,8 @@ Hart<uint64_t>::execFcvt_lu_s(const DecodedInst* di)
   updateAccruedFpBits(true);
   if (not valid)
     setInvalidInFcsr();
+
+  markFsDirty();
 }
 
 
@@ -9444,6 +9500,8 @@ Hart<URV>::execFcvt_s_l(const DecodedInst* di)
 
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -9466,6 +9524,8 @@ Hart<URV>::execFcvt_s_lu(const DecodedInst* di)
 
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -9473,7 +9533,7 @@ template <typename URV>
 void
 Hart<URV>::execFld(const DecodedInst* di)
 {
-  if (not isRvd())
+  if (not isRvd() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -9524,6 +9584,8 @@ Hart<URV>::execFld(const DecodedInst* di)
       UDU udu;
       udu.u = val64;
       fpRegs_.write(di->op0(), udu.d);
+
+      markFsDirty();
       return;
     }
 
@@ -9540,7 +9602,7 @@ template <typename URV>
 void
 Hart<URV>::execFsd(const DecodedInst* di)
 {
-  if (not isRvd())
+  if (not isRvd() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -9588,6 +9650,8 @@ Hart<URV>::execFmadd_d(const DecodedInst* di)
   updateAccruedFpBits(noUnderflow);
   if (invalid)
     setInvalidInFcsr();
+
+  markFsDirty();
 }
 
 
@@ -9614,6 +9678,8 @@ Hart<URV>::execFmsub_d(const DecodedInst* di)
   updateAccruedFpBits(noUnderflow);
   if (invalid)
     setInvalidInFcsr();
+
+  markFsDirty();
 }
 
 
@@ -9639,6 +9705,8 @@ Hart<URV>::execFnmsub_d(const DecodedInst* di)
   updateAccruedFpBits(noUnderflow);
   if (invalid)
     setInvalidInFcsr();
+
+  markFsDirty();
 }
 
 
@@ -9666,6 +9734,8 @@ Hart<URV>::execFnmadd_d(const DecodedInst* di)
   updateAccruedFpBits(noUnderflow);
   if (invalid)
     setInvalidInFcsr();
+
+  markFsDirty();
 }
 
 
@@ -9686,6 +9756,8 @@ Hart<URV>::execFadd_d(const DecodedInst* di)
 
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -9706,6 +9778,8 @@ Hart<URV>::execFsub_d(const DecodedInst* di)
 
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -9726,6 +9800,8 @@ Hart<URV>::execFmul_d(const DecodedInst* di)
 
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -9746,6 +9822,8 @@ Hart<URV>::execFdiv_d(const DecodedInst* di)
 
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -9753,7 +9831,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnj_d(const DecodedInst* di)
 {
-  if (not isRvd())
+  if (not isRvd() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -9763,6 +9841,8 @@ Hart<URV>::execFsgnj_d(const DecodedInst* di)
   double d2 = fpRegs_.read(di->op2());
   double res = copysign(d1, d2);  // Magnitude of rs1 and sign of rs2
   fpRegs_.write(di->op0(), res);
+
+  markFsDirty();
 }
 
 
@@ -9770,7 +9850,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnjn_d(const DecodedInst* di)
 {
-  if (not isRvd())
+  if (not isRvd() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -9781,6 +9861,8 @@ Hart<URV>::execFsgnjn_d(const DecodedInst* di)
   double res = copysign(d1, d2);  // Magnitude of rs1 and sign of rs2
   res = -res;  // Magnitude of rs1 and negative the sign of rs2
   fpRegs_.write(di->op0(), res);
+
+  markFsDirty();
 }
 
 
@@ -9788,7 +9870,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnjx_d(const DecodedInst* di)
 {
-  if (not isRvd())
+  if (not isRvd() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -9805,6 +9887,8 @@ Hart<URV>::execFsgnjx_d(const DecodedInst* di)
 
   double res = copysign(d1, x);  // Magnitude of rs1 and sign of x
   fpRegs_.write(di->op0(), res);
+
+  markFsDirty();
 }
 
 
@@ -9812,7 +9896,7 @@ template <typename URV>
 void
 Hart<URV>::execFmin_d(const DecodedInst* di)
 {
-  if (not isRvd())
+  if (not isRvd() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -9838,6 +9922,8 @@ Hart<URV>::execFmin_d(const DecodedInst* di)
     res = std::copysign(res, -1.0);  // Make sure min(-0, +0) is -0.
 
   fpRegs_.write(di->op0(), res);
+
+  markFsDirty();
 }
 
 
@@ -9845,7 +9931,7 @@ template <typename URV>
 void
 Hart<URV>::execFmax_d(const DecodedInst* di)
 {
-  if (not isRvd())
+  if (not isRvd() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -9871,6 +9957,8 @@ Hart<URV>::execFmax_d(const DecodedInst* di)
     res = std::copysign(res, 1.0);  // Make sure max(-0, +0) is +0.
 
   fpRegs_.write(di->op0(), res);
+
+  markFsDirty();
 }
 
 
@@ -9890,6 +9978,8 @@ Hart<URV>::execFcvt_d_s(const DecodedInst* di)
 
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -9909,6 +9999,8 @@ Hart<URV>::execFcvt_s_d(const DecodedInst* di)
 
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -9928,6 +10020,8 @@ Hart<URV>::execFsqrt_d(const DecodedInst* di)
 
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -9935,7 +10029,7 @@ template <typename URV>
 void
 Hart<URV>::execFle_d(const DecodedInst* di)
 {
-  if (not isRvd())
+  if (not isRvd() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -9959,7 +10053,7 @@ template <typename URV>
 void
 Hart<URV>::execFlt_d(const DecodedInst* di)
 {
-  if (not isRvd())
+  if (not isRvd() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -9983,7 +10077,7 @@ template <typename URV>
 void
 Hart<URV>::execFeq_d(const DecodedInst* di)
 {
-  if (not isRvd())
+  if (not isRvd() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -10044,6 +10138,8 @@ Hart<URV>::execFcvt_w_d(const DecodedInst* di)
   updateAccruedFpBits(true);
   if (not valid)
     setInvalidInFcsr();
+
+  markFsDirty();
 }
 
 
@@ -10086,6 +10182,8 @@ Hart<URV>::execFcvt_wu_d(const DecodedInst* di)
   updateAccruedFpBits(true);
   if (not valid)
     setInvalidInFcsr();
+
+  markFsDirty();
 }
 
 
@@ -10102,6 +10200,8 @@ Hart<URV>::execFcvt_d_w(const DecodedInst* di)
 
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -10118,6 +10218,8 @@ Hart<URV>::execFcvt_d_wu(const DecodedInst* di)
 
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -10125,7 +10227,7 @@ template <typename URV>
 void
 Hart<URV>::execFclass_d(const DecodedInst* di)
 {
-  if (not isRvd())
+  if (not isRvd() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -10238,6 +10340,8 @@ Hart<uint64_t>::execFcvt_l_d(const DecodedInst* di)
   updateAccruedFpBits(true);
   if (not valid)
     setInvalidInFcsr();
+
+  markFsDirty();
 }
 
 
@@ -10310,6 +10414,8 @@ Hart<uint64_t>::execFcvt_lu_d(const DecodedInst* di)
   updateAccruedFpBits(true);
   if (not valid)
     setInvalidInFcsr();
+
+  markFsDirty();
 }
 
 
@@ -10332,6 +10438,8 @@ Hart<URV>::execFcvt_d_l(const DecodedInst* di)
 
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -10354,6 +10462,8 @@ Hart<URV>::execFcvt_d_lu(const DecodedInst* di)
 
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -10361,7 +10471,7 @@ template <typename URV>
 void
 Hart<URV>::execFmv_d_x(const DecodedInst* di)
 {
-  if (not isRv64() or not isRvd())
+  if (not isRv64() or not isRvd() or not isFpEnabled())
     {
       illegalInst(di);
       return;
@@ -10379,6 +10489,8 @@ Hart<URV>::execFmv_d_x(const DecodedInst* di)
   udu.u = u1;
 
   fpRegs_.write(di->op0(), udu.d);
+
+  markFsDirty();
 }
 
 
@@ -10395,7 +10507,7 @@ template <>
 void
 Hart<uint64_t>::execFmv_x_d(const DecodedInst* di)
 {
-  if (not isRv64() or not isRvd())
+  if (not isRv64() or not isRvd() or not isFpEnabled())
     {
       illegalInst(di);
       return;

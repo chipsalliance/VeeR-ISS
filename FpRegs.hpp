@@ -140,6 +140,14 @@ namespace WdRiscv
      QuietNan     = 1 << 9   // bit 9
     };
 
+  /// Values of FS field in mstatus.
+  enum class FpFs : uint32_t
+    {
+     Off = 0,
+     Initial = 1,
+     Clean = 2,
+     Dirty = 3
+    };
 
   template <typename URV>
   class Hart;
