@@ -2048,7 +2048,7 @@ Hart<URV>::defineIccm(size_t addr, size_t size)
   bool trim = this->findCsr("mpicbaddr") == nullptr;
 
   bool ok = memory_.defineIccm(addr, size, trim);
-  if (ok)
+  if (ok and trim)
     {
       size_t region = addr/regionSize();
       regionHasLocalMem_.at(region) = true;
@@ -2065,7 +2065,7 @@ Hart<URV>::defineDccm(size_t addr, size_t size)
   bool trim = this->findCsr("mpicbaddr") == nullptr;
 
   bool ok = memory_.defineDccm(addr, size, trim);
-  if (ok)
+  if (ok and trim)
     {
       size_t region = addr/regionSize();
       regionHasLocalMem_.at(region) = true;
@@ -2080,10 +2080,13 @@ template <typename URV>
 bool
 Hart<URV>::defineMemoryMappedRegisterArea(size_t addr, size_t size)
 {
+  // If mpicbaddr CSR is present, the nothing special is done for 256
+  // MB region containing memory-mapped-registers. Otherwise, region
+  // is marked non accessible except for memory-mapped-register area.
   bool trim = this->findCsr("mpicbaddr") == nullptr;
 
   bool ok = memory_.defineMemoryMappedRegisterArea(addr, size, trim);
-  if (ok)
+  if (ok and trim)
     {
       size_t region = addr / memory_.regionSize();
       regionHasLocalMem_.at(region) = true;
