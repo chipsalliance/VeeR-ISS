@@ -672,8 +672,8 @@ CsRegs<URV>::defineMachineRegs()
     }
   defineCsr("mstatus", Csrn::MSTATUS, mand, imp, val, mask, mask);
   defineCsr("misa", Csrn::MISA, mand,  imp, 0x40001104, rom, rom);
-  defineCsr("medeleg", Csrn::MEDELEG, !mand, !imp, 0, 0, 0);
-  defineCsr("mideleg", Csrn::MIDELEG, !mand, !imp, 0, 0, 0);
+  defineCsr("medeleg", Csrn::MEDELEG, !mand, !imp, 0, wam, wam);
+  defineCsr("mideleg", Csrn::MIDELEG, !mand, !imp, 0, wam, wam);
 
   // Interrupt enable: Least sig 12 bits corresponding to the 12
   // interrupt causes are writable.
@@ -870,8 +870,8 @@ CsRegs<URV>::defineSupervisorRegs()
   if (sstatus and mstatus)
     sstatus->tie(mstatus->valuePtr_);
 
-  defineCsr("sedeleg",    Csrn::SEDELEG,    !mand, !imp, 0, 0, 0);
-  defineCsr("sideleg",    Csrn::SIDELEG,    !mand, !imp, 0, 0, 0);
+  defineCsr("sedeleg",    Csrn::SEDELEG,    !mand, !imp, 0, wam, wam);
+  defineCsr("sideleg",    Csrn::SIDELEG,    !mand, !imp, 0, wam, wam);
 
   defineCsr("stvec",      Csrn::STVEC,      !mand, !imp, 0, wam, wam);
   defineCsr("scounteren", Csrn::SCOUNTEREN, !mand, !imp, 0, wam, wam);
