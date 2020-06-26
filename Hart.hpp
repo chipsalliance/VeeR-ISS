@@ -1484,8 +1484,8 @@ namespace WdRiscv
     /// otherwise.
     bool processExternalInterrupt(FILE* traceFile, std::string& insStr);
 
-    /// Helper to FP execution: Set the invalid bit in FCSR.
-    void setInvalidInFcsr();
+    /// Helper to FP execution: Set the given flag value (ored values ok) in FCSR.
+    void setFcsrFlags(FpFlags value);
 
     /// Execute decoded instruction. Branch/jump instructions will
     /// modify pc_.

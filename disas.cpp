@@ -1186,7 +1186,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::fcvt_lu_d:
-      out << "fcvt.lu.s "  << intRegName(di.op0()) << ", "
+      out << "fcvt.lu.d "  << intRegName(di.op0()) << ", "
 	  << fpRegName(di.op1()) << ", "
 	  << roundingModeString(di.roundingMode());
       break;

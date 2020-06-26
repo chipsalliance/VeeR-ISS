@@ -5069,10 +5069,10 @@ Hart<URV>::collectAndUndoWhatIfChanges(URV prevPc, ChangeRecord& record)
 
 template <typename URV>
 void
-Hart<URV>::setInvalidInFcsr()
+Hart<URV>::setFcsrFlags(FpFlags flag)
 {
   auto prev = getFpFlags();
-  auto val = prev | unsigned(FpFlags::Invalid);
+  auto val = prev | unsigned(flag);
   if (val != prev)
     {
       setFpFlags(val);
@@ -8404,7 +8404,10 @@ Hart<URV>::markFsDirty()
   MstatusFields<URV> fields(val);
   fields.bits_.FS = unsigned(FpFs::Dirty);
   fields.bits_.SD = 1;
-  csRegs_.write(CsrNumber::MSTATUS, PrivilegeMode::Machine, fields.value_);
+
+  //csRegs_.write(CsrNumber::MSTATUS, PrivilegeMode::Machine, fields.value_);
+  csRegs_.poke(CsrNumber::MSTATUS, fields.value_);
+
   updateCachedMstatusFields();
 }
 
@@ -8664,7 +8667,7 @@ Hart<URV>::execFmadd_s(const DecodedInst* di)
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
   if (invalid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -8691,7 +8694,7 @@ Hart<URV>::execFmsub_s(const DecodedInst* di)
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
   if (invalid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -8718,7 +8721,7 @@ Hart<URV>::execFnmsub_s(const DecodedInst* di)
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
   if (invalid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -8747,7 +8750,7 @@ Hart<URV>::execFnmadd_s(const DecodedInst* di)
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
   if (invalid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -8980,7 +8983,7 @@ Hart<URV>::execFmin_s(const DecodedInst* di)
     res = std::fminf(in1, in2);
 
   if (issnan(in1) or issnan(in2))
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
   else if (std::signbit(in1) != std::signbit(in2) and in1 == in2)
     res = std::copysign(res, -1.0F);  // Make sure min(-0, +0) is -0.
 
@@ -9015,7 +9018,7 @@ Hart<URV>::execFmax_s(const DecodedInst* di)
     res = std::fmaxf(in1, in2);
 
   if (issnan(in1) or issnan(in2))
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
   else if (std::signbit(in1) != std::signbit(in2) and in1 == in2)
     res = std::copysign(res, 1.0F);  // Make sure max(-0, +0) is +0.
 
@@ -9084,7 +9087,7 @@ Hart<URV>::execFcvt_w_s(const DecodedInst* di)
 
   updateAccruedFpBits(true);
   if (not valid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -9100,41 +9103,44 @@ Hart<URV>::execFcvt_wu_s(const DecodedInst* di)
   float f1 = fpRegs_.readSingle(di->op1());
   SRV result = 0;
   bool valid = false;
+  bool exact = true;
 
-  uint32_t maxInt = ~uint32_t(0);
-
-  unsigned signBit = signOf(f1);
-  if (std::isinf(f1))
+  uint32_t maxUint32 = ~uint32_t(0);
+  if (std::isnan(f1))
     {
-      if (signBit)
-	result = 0;
-      else
-	result = SRV(int32_t(maxInt));  // Sign extend to SRV.
+      result = ~URV(0);
     }
-  else if (std::isnan(f1))
-    result = SRV(int32_t(maxInt));
   else
     {
-      if (signBit and f1 != 0)
-	result = 0;
+      double near = std::nearbyint(f1);
+      if (near > double(maxUint32))
+        {
+          result = ~URV(0);
+        }
+      else if (near == 0)
+        {
+          result = 0;
+          valid = true;
+          exact = near == f1;
+        }
+      else if (near < 0)
+        {
+          result = 0;
+        }
       else
-	{
-	  float near = std::nearbyint(f1);
-	  if (near >= float(maxInt))
-	    result = SRV(int32_t(maxInt));
-	  else
-	    {
-	      valid = true;
-              result = SRV(int32_t(std::lrint(f1)));
-	    }
-	}
+        {
+          result = SRV(int32_t(std::lrint(f1)));
+          valid = true;
+          exact = near == f1;
+        }
     }
 
   intRegs_.write(di->op0(), result);
 
-  updateAccruedFpBits(true);
   if (not valid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
+  if (not exact)
+    setFcsrFlags(FpFlags::Inexact);
 
   markFsDirty();
 }
@@ -9178,7 +9184,7 @@ Hart<URV>::execFeq_s(const DecodedInst* di)
   if (std::isnan(f1) or std::isnan(f2))
     {
       if (issnan(f1) or issnan(f2))
-	setInvalidInFcsr();
+	setFcsrFlags(FpFlags::Invalid);
     }
   else
     res = (f1 == f2)? 1 : 0;
@@ -9203,7 +9209,7 @@ Hart<URV>::execFlt_s(const DecodedInst* di)
   URV res = 0;
 
   if (std::isnan(f1) or std::isnan(f2))
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
   else
     res = (f1 < f2)? 1 : 0;
     
@@ -9227,7 +9233,7 @@ Hart<URV>::execFle_s(const DecodedInst* di)
   URV res = 0;
 
   if (std::isnan(f1) or std::isnan(f2))
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
   else
     res = (f1 <= f2)? 1 : 0;
 
@@ -9420,7 +9426,7 @@ Hart<uint64_t>::execFcvt_l_s(const DecodedInst* di)
 
   updateAccruedFpBits(true);
   if (not valid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -9450,6 +9456,7 @@ Hart<uint64_t>::execFcvt_lu_s(const DecodedInst* di)
   float f1 = fpRegs_.readSingle(di->op1());
   uint64_t result = 0;
   bool valid = false;
+  bool exact = true;
 
   uint64_t maxUint = ~uint64_t(0);
 
@@ -9465,36 +9472,46 @@ Hart<uint64_t>::execFcvt_lu_s(const DecodedInst* di)
     result = maxUint;
   else
     {
-      if (signBit and f1 != 0)
-	result = 0;
+      double near = std::nearbyint(double(f1));
+      if (near == 0)
+        {
+          result = 0;
+          valid = true;
+          exact = near == f1;
+        }
+      else if (near < 0)
+        {
+          result = 0;
+        }
       else
-	{
-	  double near = std::nearbyint(double(f1));
-	  // Using "near > maxUint" will not work beacuse of rounding.
-	  if (near >= 2*double(uint64_t(1)<<63))
-	    result = maxUint;
-	  else
-	    {
-	      valid = true;
-	      // std::lprint will produce an overflow if most sig bit
-	      // of result is 1 (it thinks there's an overflow).  We
-	      // compensate with the divide multiply by 2.
-	      if (f1 < (uint64_t(1) << 63))
-		result = std::llrint(f1);
-	      else
-		{
-		  result = std::llrint(f1/2);
-		  result *= 2;
-		}
-	    }
-	}
+        {
+          // Using "near > maxUint" will not work beacuse of rounding.
+          if (near >= 2*double(uint64_t(1)<<63))
+            result = maxUint;
+          else
+            {
+              // std::lprint will produce an overflow if most sig bit
+              // of result is 1 (it thinks there's an overflow).  We
+              // compensate with the divide multiply by 2.
+              if (f1 < (uint64_t(1) << 63))
+                result = std::llrint(f1);
+              else
+                {
+                  result = std::llrint(f1/2);
+                  result *= 2;
+                }
+              valid = true;
+              exact = near == f1;
+            }
+        }
     }
 
   intRegs_.write(di->op0(), result);
 
-  updateAccruedFpBits(true);
   if (not valid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
+  if (not exact)
+    setFcsrFlags(FpFlags::Inexact);
 
   markFsDirty();
 }
@@ -9668,7 +9685,7 @@ Hart<URV>::execFmadd_d(const DecodedInst* di)
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
   if (invalid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -9696,7 +9713,7 @@ Hart<URV>::execFmsub_d(const DecodedInst* di)
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
   if (invalid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -9723,7 +9740,7 @@ Hart<URV>::execFnmsub_d(const DecodedInst* di)
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
   if (invalid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -9752,7 +9769,7 @@ Hart<URV>::execFnmadd_d(const DecodedInst* di)
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
   if (invalid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -9936,7 +9953,7 @@ Hart<URV>::execFmin_d(const DecodedInst* di)
     res = fmin(in1, in2);
 
   if (issnan(in1) or issnan(in2))
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
   else if (std::signbit(in1) != std::signbit(in2) and in1 == in2)
     res = std::copysign(res, -1.0);  // Make sure min(-0, +0) is -0.
 
@@ -9971,7 +9988,7 @@ Hart<URV>::execFmax_d(const DecodedInst* di)
     res = std::fmax(in1, in2);
 
   if (issnan(in1) or issnan(in2))
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
   else if (std::signbit(in1) != std::signbit(in2) and in1 == in2)
     res = std::copysign(res, 1.0);  // Make sure max(-0, +0) is +0.
 
@@ -10060,7 +10077,7 @@ Hart<URV>::execFle_d(const DecodedInst* di)
   URV res = 0;
 
   if (std::isnan(d1) or std::isnan(d2))
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
   else
     res = (d1 <= d2)? 1 : 0;
 
@@ -10084,7 +10101,7 @@ Hart<URV>::execFlt_d(const DecodedInst* di)
   URV res = 0;
 
   if (std::isnan(d1) or std::isnan(d2))
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
   else
     res = (d1 < d2)? 1 : 0;
 
@@ -10110,7 +10127,7 @@ Hart<URV>::execFeq_d(const DecodedInst* di)
   if (std::isnan(d1) or std::isnan(d2))
     {
       if (issnan(d1) or issnan(d2))
-	setInvalidInFcsr();
+	setFcsrFlags(FpFlags::Invalid);
     }
   else
     res = (d1 == d2)? 1 : 0;
@@ -10156,7 +10173,7 @@ Hart<URV>::execFcvt_w_d(const DecodedInst* di)
 
   updateAccruedFpBits(true);
   if (not valid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -10173,34 +10190,44 @@ Hart<URV>::execFcvt_wu_d(const DecodedInst* di)
   double d1 = fpRegs_.read(di->op1());
   SRV result = 0;
   bool valid = false;
+  bool exact = true;
 
-  unsigned signBit = signOf(d1);
-  if (std::isinf(d1))
-    result = signBit? 0 : ~URV(0);
-  else if (std::isnan(d1))
-    result = ~URV(0);
+  uint32_t maxUint32 = ~uint32_t(0);
+  if (std::isnan(d1))
+    {
+      result = ~URV(0);
+    }
   else
     {
-      if (signBit and d1 != 0)
-	result = 0;
+      double near = std::nearbyint(d1);
+      if (near > double(maxUint32))
+        {
+          result = ~URV(0);
+        }
+      else if (near == 0)
+        {
+          result = 0;
+          valid = true;
+          exact = near == d1;
+        }
+      else if (near < 0)
+        {
+          result = 0;
+        }
       else
-	{
-	  double near = std::nearbyint(d1);
-	  if (near > double(~uint32_t(0)))
-	    result = ~URV(0);
-	  else
-	    {
-	      valid = true;
-	      result = SRV(int32_t(std::lrint(d1)));
-	    }
-	}
+        {
+          result = SRV(int32_t(std::lrint(d1)));
+          valid = true;
+          exact = near == d1;
+        }
     }
 
   intRegs_.write(di->op0(), result);
 
-  updateAccruedFpBits(true);
   if (not valid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
+  if (not exact)
+    setFcsrFlags(FpFlags::Inexact);
 
   markFsDirty();
 }
@@ -10358,7 +10385,7 @@ Hart<uint64_t>::execFcvt_l_d(const DecodedInst* di)
 
   updateAccruedFpBits(true);
   if (not valid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -10388,6 +10415,7 @@ Hart<uint64_t>::execFcvt_lu_d(const DecodedInst* di)
   double f1 = fpRegs_.read(di->op1());
   uint64_t result = 0;
   bool valid = false;
+  bool exact = true;
 
   uint64_t maxUint = ~uint64_t(0);
 
@@ -10403,36 +10431,46 @@ Hart<uint64_t>::execFcvt_lu_d(const DecodedInst* di)
     result = maxUint;
   else
     {
-      if (signBit and f1 != 0)
-	result = 0;
+      double near = std::nearbyint(f1);
+      if (near == 0)
+        {
+          result = 0;
+          valid = true;
+          exact = near == f1;
+        }
+      else if (near < 0)
+        {
+          result = 0;
+        }
       else
-	{
-	  double near = std::nearbyint(f1);
-	  // Using "near > maxUint" will not work beacuse of rounding.
-	  if (near >= 2*double(uint64_t(1)<<63))
-	    result = maxUint;
-	  else
-	    {
-	      valid = true;
-	      // std::llrint will produce an overflow if most sig bit
-	      // of result is 1 (it thinks there's an overflow).  We
-	      // compensate with the divide multiply by 2.
-	      if (f1 < (uint64_t(1) << 63))
-		result = std::llrint(f1);
-	      else
-		{
-		  result = std::llrint(f1/2);
-		  result *= 2;
-		}
-	    }
-	}
+        {
+          // Using "near > maxUint" will not work beacuse of rounding.
+          if (near >= 2*double(uint64_t(1)<<63))
+            result = maxUint;
+          else
+            {
+              // std::llrint will produce an overflow if most sig bit
+              // of result is 1 (it thinks there's an overflow).  We
+              // compensate with the divide multiply by 2.
+              if (f1 < (uint64_t(1) << 63))
+                result = std::llrint(f1);
+              else
+                {
+                  result = std::llrint(f1/2);
+                  result *= 2;
+                }
+              valid = true;
+              exact = near == f1;
+            }
+        }
     }
 
   intRegs_.write(di->op0(), result);
 
-  updateAccruedFpBits(true);
   if (not valid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
+  if (not exact)
+    setFcsrFlags(FpFlags::Inexact);
 
   markFsDirty();
 }
