@@ -36,7 +36,7 @@ namespace WdRiscv
     unsigned rsw_      : 2;   // Reserved for supervisor.
     unsigned ppn0_     : 10;  // Physical page num
     unsigned ppn1_     : 12;  // Physical page num
-  };
+  } __attribute__((packed));
 
 
   /// 32-bit page table entry.
@@ -106,7 +106,7 @@ namespace WdRiscv
     unsigned ppn1_     : 9;   // Physical page num
     unsigned ppn2_     : 26;  // Physical page num
     unsigned res_      : 10;  // Reserved
-  };
+  } __attribute((packed));
 
 
   /// Page table entry for Sv39
@@ -182,7 +182,7 @@ namespace WdRiscv
     unsigned ppn2_     : 9;   // Physical page num
     unsigned ppn3_     : 17;  // Physical page num
     unsigned res_      : 10;  // Reserved
-  };
+  } __attribute__((packed));
 
 
   /// Page table entry for Sv48
@@ -253,7 +253,7 @@ namespace WdRiscv
     unsigned offset_ : 12;
     unsigned vpn0_   : 10;
     unsigned vpn1_   : 10;
-  };
+  } __attribute__((packed));
 
 
   /// 32-bit virtual address.
@@ -288,7 +288,7 @@ namespace WdRiscv
     unsigned vpn0_   : 9;
     unsigned vpn1_   : 9;
     unsigned vpn2_   : 9;
-  };
+  } __attribute__((packed));
 
 
   /// 39-bit virtual address.
@@ -327,7 +327,7 @@ namespace WdRiscv
     unsigned vpn1_   : 9;
     unsigned vpn2_   : 9;
     unsigned vpn3_   : 9;
-  };
+  } __attribute__((packed));
 
 
   /// 48-bit virtual address.
@@ -387,7 +387,7 @@ namespace WdRiscv
     /// Heler to translate method.
     template <typename PTE, typename VA>
     ExceptionCause pageTableWalk(size_t va, PrivilegeMode pm, bool read, bool write,
-                                 bool exec, size_t& pa, bool& global, bool& isUSer);
+                                 bool exec, size_t& pa, TlbEntry& tlbEntry);
 
     void setPageTableRootPage(uint64_t root)
     { pageTableRootPage_ = root; }
@@ -428,7 +428,7 @@ namespace WdRiscv
     // Cached mstatus bits
     bool execReadable_ = false;  // MXR bit
     bool supervisorOk_ = false;  // SUM bit
-    bool faultOnFirstAccess_ = false;
+    bool faultOnFirstAccess_ = true;  // Make this configurable.
 
     Tlb tlb_;
   };

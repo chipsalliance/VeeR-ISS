@@ -32,3 +32,19 @@ Tlb::insertEntry(uint64_t virtPageNum, uint64_t physPageNum, uint32_t asid,
   best->write_ = write;
   best->exec_ = exec;
 }
+
+
+void
+Tlb::insertEntry(const TlbEntry& te)
+{
+  TlbEntry* best = nullptr;
+  for (size_t i = 0; i < entries_.size(); ++i)
+    {
+      auto& entry = entries_[i];
+      if (not entry.valid_ or (best and entry.time_ < best->time_))
+        best = &entry;
+    }
+
+  *best = te;
+  best->time_ = time_++;
+}

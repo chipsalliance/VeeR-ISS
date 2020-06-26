@@ -65,6 +65,14 @@ namespace WdRiscv
                      uint32_t asid, bool global, bool isUser, bool read,
                      bool write, bool exec);
 
+    /// Insert copy of given entry.
+    void insertEntry(const TlbEntry& entry);
+
+    void invalidate()
+    { for (auto& entry : entries_) entry.valid_ = false; }
+
+  protected:
+
   private:
 
     std::vector<TlbEntry> entries_;

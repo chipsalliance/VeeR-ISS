@@ -1225,11 +1225,11 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::sfence_vma:
-      printRs1Rs2(*this, out, "sfence.vma", di);
+      printRs1Rs2(*this, out, "sfence.vma ", di);
       break;
 
     case InstId::c_addi4spn:
-      printRegImm(*this, out, "c.addi4spn", di.op0(), di.op2As<int32_t>() >> 2);
+      printRegImm(*this, out, "c.addi4spn ", di.op0(), di.op2As<int32_t>() >> 2);
       break;
 
     case InstId::c_fld:
@@ -1669,15 +1669,15 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::sh1addu_w:
-      printRdRs1Rs2(*this, out, "sh1addu.w", di);
+      printRdRs1Rs2(*this, out, "sh1addu.w ", di);
       break;
 
     case InstId::sh2addu_w:
-      printRdRs1Rs2(*this, out, "sh2addu.w", di);
+      printRdRs1Rs2(*this, out, "sh2addu.w ", di);
       break;
 
     case InstId::sh3addu_w:
-      printRdRs1Rs2(*this, out, "sh3addu.w", di);
+      printRdRs1Rs2(*this, out, "sh3addu.w ", di);
       break;
 
     case InstId::crc32_b:

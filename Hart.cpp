@@ -1615,10 +1615,11 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
   // Address translation
   if (isRvs())
     {
-      if (privMode_ != PrivilegeMode::Machine)
+      PrivilegeMode mode = mstatusMprv_? mstatusMpp_ : privMode_;
+      if (mode != PrivilegeMode::Machine)
         {
           uint64_t pa = 0;
-          cause = virtMem_.translate(addr, privMode_, true, false, false, pa);
+          cause = virtMem_.translate(addr, mode, true, false, false, pa);
           if (cause != ExceptionCause::NONE)
             return cause;
           addr = pa;
@@ -7176,6 +7177,8 @@ Hart<URV>::execSfence_vma(const DecodedInst* di)
       illegalInst(di);
       return;
     }
+
+  virtMem_.tlb_.invalidate();
 }
 
 
@@ -7657,10 +7660,11 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, uint64_t& addr,
   // Address translation
   if (isRvs())
     {
-      if (privMode_ != PrivilegeMode::Machine)
+      PrivilegeMode mode = mstatusMprv_? mstatusMpp_ : privMode_;
+      if (mode != PrivilegeMode::Machine)
         {
           uint64_t pa = 0;
-          cause = virtMem_.translate(addr, privMode_, false, true, false, pa);
+          cause = virtMem_.translate(addr, mode, false, true, false, pa);
           if (cause != ExceptionCause::NONE)
             return cause;
           addr = pa;
