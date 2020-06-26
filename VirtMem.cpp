@@ -43,11 +43,10 @@ VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
 
   // Lookup virtual page number in TLB.
   size_t virPageNum = va >> pageBits_;
-
-#if 0
-  const TlbEntry* entry = tlb_.findEntry(virPageNum, asid_);
+  TlbEntry* entry = tlb_.findEntry(virPageNum, asid_);
   if (entry)
     {
+      // Use TLB entry.
       if (priv == PrivilegeMode::User and not entry->user_)
         return pageFaultType(read, write, exec);
       if (priv == PrivilegeMode::Supervisor and entry->user_ and not supervisorOk_)
@@ -56,11 +55,19 @@ VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
       if ((read and not entryRead) or (write and not entry->write_) or
           (exec and not entry->exec_))
         return pageFaultType(read, write, exec);
+      if (not entry->accessed_ or (write and not entry->dirty_))
+        {
+          if (faultOnFirstAccess_)
+            return pageFaultType(read, write, exec);
+          entry->accessed_ = true;
+          if (write)
+            entry->dirty_ = true;
+        }
       pa = (entry->physPageNum_ << pageBits_) | (va & pageMask_);
       return ExceptionCause::NONE;
     }
-#endif
 
+  // Perform a page table walk.
   ExceptionCause cause = ExceptionCause::LOAD_PAGE_FAULT;
   TlbEntry tmpTlbEntry;
 
@@ -89,6 +96,7 @@ VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
   else
     assert(0 and "Unspupported virtual memory mode.");
 
+  // If successful, cache translation results in TLB.
   if (cause == ExceptionCause::NONE)
     tlb_.insertEntry(tmpTlbEntry);
 
@@ -189,15 +197,17 @@ VirtMem::pageTableWalk(size_t address, PrivilegeMode privMode, bool read, bool w
     pa = pa | pte.ppn(j) << pte.paPpnShift(j);
 
   // Update tlb-entry with data found in page table entry.
-  tlbEntry.valid_ = true;
   tlbEntry.virtPageNum_ = address >> pageBits_;
   tlbEntry.physPageNum_ = pa >> pageBits_;
   tlbEntry.asid_ = asid_;
+  tlbEntry.valid_ = true;
   tlbEntry.global_ = pte.global();
   tlbEntry.user_ = pte.user();
   tlbEntry.read_ = pte.read();
   tlbEntry.write_ = pte.write();
   tlbEntry.exec_ = pte.exec();
+  tlbEntry.accessed_ = pte.accessed();
+  tlbEntry.dirty_ = pte.dirty();
 
   return ExceptionCause::NONE;
 }

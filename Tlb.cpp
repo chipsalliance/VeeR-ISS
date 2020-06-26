@@ -41,7 +41,12 @@ Tlb::insertEntry(const TlbEntry& te)
   for (size_t i = 0; i < entries_.size(); ++i)
     {
       auto& entry = entries_[i];
-      if (not entry.valid_ or (best and entry.time_ < best->time_))
+      if (not entry.valid_)
+        {
+          best = &entry;
+          break;
+        }
+      if (not best or entry.time_ < best->time_)
         best = &entry;
     }
 

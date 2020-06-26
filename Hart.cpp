@@ -7178,6 +7178,7 @@ Hart<URV>::execSfence_vma(const DecodedInst* di)
       return;
     }
 
+  // Invalidate whole TLB. This is overkill. TBD FIX: Improve.
   virtMem_.tlb_.invalidate();
 }
 

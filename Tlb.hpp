@@ -24,14 +24,16 @@ namespace WdRiscv
   {
     uint64_t virtPageNum_ = 0;
     uint64_t physPageNum_ = 0;
-    uint64_t time_ = 0;   // Access time (we use order to approximate time).
-    uint32_t asid_ = 0;   // Address space identifier.
-    bool global_ = false; // 
-    bool user_ = false;   // User-mode entry if true.
+    uint64_t time_ = 0;      // Access time (we use order to approximate time).
+    uint32_t asid_ = 0;      // Address space identifier.
     bool valid_ = false;
-    bool read_ = false;   // Has read access.
-    bool write_ = false;  // Write access.
-    bool exec_ = false;   // Execute Access.
+    bool global_ = false;    // 
+    bool user_ = false;      // User-mode entry if true.
+    bool read_ = false;      // Has read access.
+    bool write_ = false;     // Write access.
+    bool exec_ = false;      // Execute Access.
+    bool accessed_ = false;
+    bool dirty_ = false;
   };
 
 
@@ -46,7 +48,7 @@ namespace WdRiscv
     /// Return pointer to TLB entry associated with given virtual page
     /// number and address space identifier.  Return nullptr if no
     /// such entry.
-    const TlbEntry* findEntry(uint64_t pageNum, uint32_t asid)
+    TlbEntry* findEntry(uint64_t pageNum, uint32_t asid)
     {
       for (auto& entry : entries_)
         if (entry.valid_ and entry.virtPageNum_ == pageNum)
