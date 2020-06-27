@@ -2930,6 +2930,8 @@ Hart<URV>::pokeCsr(CsrNumber csr, URV val)
     updateMemoryProtection();
   else if (csr == CsrNumber::SATP)
     updateAddressTranslation();
+  else if (csr == CsrNumber::FCSR or csr == CsrNumber::FRM or csr == CsrNumber::FFLAGS)
+    markFsDirty();   // Update FS field of MSTATS if FCSR is written
 
   // Update cached values of MSTATUS MPP and MPRV.
   if (csr == CsrNumber::MSTATUS or csr == CsrNumber::SSTATUS)
@@ -7409,13 +7411,17 @@ Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
     enableWideLdStMode(true);
   else if (csr == CsrNumber::MCOUNTINHIBIT)
     perfControl_ = ~csrVal;
-  else if (csr == CsrNumber::MSTATUS or csr == CsrNumber::SSTATUS)
-    updateCachedMstatusFields();
   else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
            (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
     updateMemoryProtection();
   else if (csr == CsrNumber::SATP)
     updateAddressTranslation();
+  else if (csr == CsrNumber::FCSR or csr == CsrNumber::FRM or csr == CsrNumber::FFLAGS)
+    markFsDirty(); // Update FS field of MSTATS if FCSR is written
+
+  // Update cached values of MSTATUS MPP and MPRV.
+  if (csr == CsrNumber::MSTATUS or csr == CsrNumber::SSTATUS)
+    updateCachedMstatusFields();
 
   // Csr was written. If it was minstret, compensate for
   // auto-increment that will be done by run, runUntilAddress or
@@ -8588,10 +8594,11 @@ Hart<URV>::execFsw(const DecodedInst* di)
 
   URV base = intRegs_.read(rs1);
   URV addr = base + imm;
-  float val = fpRegs_.readSingle(rs2);
 
-  Uint32FloatUnion ufu(val);
-  store<uint32_t>(rs1, base, addr, ufu.u);
+  // This operation does not check for proper NAN boxing. We read raw bits.
+  uint64_t val = fpRegs_.readBitsRaw(rs2);
+
+  store<uint32_t>(rs1, base, addr, uint32_t(val));
 }
 
 
