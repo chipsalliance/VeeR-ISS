@@ -968,15 +968,15 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::fsgnj_s:
-      printFp2(*this, out, "fsgnj.s", di);
+      printFp3(*this, out, "fsgnj.s", di);
       break;
 
     case InstId::fsgnjn_s:
-      printFp2(*this, out, "fsgnjn.s", di);
+      printFp3(*this, out, "fsgnjn.s", di);
       break;
 
     case InstId::fsgnjx_s:
-      printFp2(*this, out, "fsgnjx.s", di);
+      printFp3(*this, out, "fsgnjx.s", di);
       break;
 
     case InstId::fmin_s:
@@ -1107,15 +1107,15 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::fsgnj_d:
-      printFp2(*this, out, "fsgnj.d", di);
+      printFp3(*this, out, "fsgnj.d", di);
       break;
 
     case InstId::fsgnjn_d:
-      printFp2(*this, out, "fsgnjn.d", di);
+      printFp3(*this, out, "fsgnjn.d", di);
       break;
 
     case InstId::fsgnjx_d:
-      printFp2(*this, out, "fsgnjx.d", di);
+      printFp3(*this, out, "fsgnjx.d", di);
       break;
 
     case InstId::fmin_d:
@@ -1207,6 +1207,8 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::fmv_d_x:
+      out << "fmv.d.x " << fpRegName(di.op0()) << ", " << intRegName(di.op1());
+      break;
 
     case InstId::mret:
       out << "mret";

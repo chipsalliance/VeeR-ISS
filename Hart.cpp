@@ -9156,11 +9156,11 @@ Hart<URV>::execFmv_x_w(const DecodedInst* di)
       return;
     }
 
-  float f1 = fpRegs_.readSingle(di->op1());
+  // This operation does not check for proper NAN boxing. We read raw bits.
+  uint64_t v1 = fpRegs_.readBitsRaw(di->op1());
+  int32_t s1 = v1;  // Keep lower 32 bits
 
-  Uint32FloatUnion ufu(f1);
-
-  SRV value = SRV(int32_t(ufu.u)); // Sign extend.
+  SRV value = SRV(s1); // Sign extend.
 
   intRegs_.write(di->op0(), value);
 }
@@ -10570,18 +10570,8 @@ Hart<uint64_t>::execFmv_x_d(const DecodedInst* di)
       return;
     }
 
-  double d1 = fpRegs_.read(di->op1());
-
-  union UDU  // Unsigned double union: reinterpret bits as unsigned or double
-  {
-    uint64_t u;
-    double d;
-  };
-
-  UDU udu;
-  udu.d = d1;
-
-  intRegs_.write(di->op0(), udu.u);
+  uint64_t v1 = fpRegs_.readBitsRaw(di->op1());
+  intRegs_.write(di->op0(), v1);
 }
 
 

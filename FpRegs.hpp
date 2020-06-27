@@ -342,6 +342,9 @@ namespace WdRiscv
   {
     FpUnion u;
     u.dp = regs_.at(i);
+    // Check for proper nan-boxing. If not properly boxed, replace with NaN.
+    if (~u.sp.pad != 0)
+      return std::numeric_limits<float>::quiet_NaN();
     return u.sp.sp;
   }
 
