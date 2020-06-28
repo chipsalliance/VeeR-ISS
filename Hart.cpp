@@ -2231,9 +2231,11 @@ bool
 Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
 {
   uint64_t addr = virtAddr;
-  if (isRvs() and privMode_ != PrivilegeMode::Machine)
+  auto privMode = (isRvs() and mstatusMprv_)? mstatusMpp_ : privMode_;
+
+  if (isRvs() and privMode != PrivilegeMode::Machine)
     {
-      auto cause = virtMem_.translate(virtAddr, privMode_, false, false, true, addr);
+      auto cause = virtMem_.translate(virtAddr, privMode, false, false, true, addr);
       if (cause != ExceptionCause::NONE)
         {
           initiateException(cause, virtAddr, virtAddr);
@@ -2315,9 +2317,9 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
   if (isCompressedInst(inst))
     return true;
 
-  if (isRvs() and privMode_ != PrivilegeMode::Machine)
+  if (isRvs() and privMode != PrivilegeMode::Machine)
     {
-      auto cause = virtMem_.translate(virtAddr+2, privMode_, false, false, true, addr);
+      auto cause = virtMem_.translate(virtAddr+2, privMode, false, false, true, addr);
       if (cause != ExceptionCause::NONE)
         {
           initiateException(cause, virtAddr, virtAddr+2);
@@ -7259,6 +7261,8 @@ Hart<URV>::execSret(const DecodedInst* di)
   fields.bits_.SIE = fields.bits_.SPIE;
   fields.bits_.SPP = 0;
   fields.bits_.SPIE = 1;
+  if (savedMode != PrivilegeMode::Machine)
+    fields.bits_.MPRV = 0;
 
   // ... and putting it back
   if (not csRegs_.write(CsrNumber::SSTATUS, privMode_, fields.value_))
