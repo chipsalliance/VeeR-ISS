@@ -252,12 +252,8 @@ Hart<URV>::countImplementedPmpRegisters() const
 
   unsigned num = unsigned(CsrNumber::PMPADDR0);
   for (unsigned ix = 0; ix < 16; ++ix, ++num)
-    {
-      CsrNumber csrn = CsrNumber(num);
-      const Csr<URV>* csr = csRegs_.getImplementedCsr(csrn);
-      if (csr)
-        count++;
-    }
+    if (csRegs_.isImplemented(CsrNumber(num)))
+      count++;
 
   if (count and count < 16)
     std::cerr << "Warning: Some but not all PMPADDR CSRs are implemented\n";
@@ -267,12 +263,8 @@ Hart<URV>::countImplementedPmpRegisters() const
     {
       num = unsigned(CsrNumber::PMPCFG0);
       for (unsigned ix = 0; ix < 4; ++ix, ++num)
-        {
-          CsrNumber csrn = CsrNumber(num);
-          const Csr<URV>* csr = csRegs_.getImplementedCsr(csrn);
-          if (csr)
-            cfgCount++;
-        }
+        if (csRegs_.isImplemented(CsrNumber(num)))
+          cfgCount++;
       if (count and cfgCount != 4)
         std::cerr << "Warning: Physical memory protection enabled but not all "
                   << "of the config register (PMPCFG) are implemented\n";
@@ -281,12 +273,8 @@ Hart<URV>::countImplementedPmpRegisters() const
     {
       num = unsigned(CsrNumber::PMPCFG0);
       for (unsigned ix = 0; ix < 2; ++ix, num += 2)
-        {
-          CsrNumber csrn = CsrNumber(num);
-          const Csr<URV>* csr = csRegs_.getImplementedCsr(csrn);
-          if (csr)
-            cfgCount++;
-        }
+        if (csRegs_.isImplemented(CsrNumber(num)))
+          cfgCount++;
       if (count and cfgCount != 2)
         std::cerr << "Warning: Physical memory protection enabled but not all "
                   << "of the config register (PMPCFG) are implemented\n";
@@ -8409,7 +8397,6 @@ Hart<URV>::markFsDirty()
   csRegs_.read(CsrNumber::MSTATUS, PrivilegeMode::Machine, val);
   MstatusFields<URV> fields(val);
   fields.bits_.FS = unsigned(FpFs::Dirty);
-  fields.bits_.SD = 1;
 
   //csRegs_.write(CsrNumber::MSTATUS, PrivilegeMode::Machine, fields.value_);
   csRegs_.poke(CsrNumber::MSTATUS, fields.value_);

@@ -197,6 +197,10 @@ CsRegs<URV>::legalizeMstatusValue(URV value) const
     mode = PrivilegeMode::Machine;
 
   fields.bits_.MPP = unsigned(mode);
+
+  if (fields.bits_.FS == unsigned(FpFs::Dirty) or fields.bits_.XS == unsigned(FpFs::Dirty))
+    fields.bits_.SD = 1;
+
   return fields.value_;
 }
 
@@ -259,7 +263,7 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
       peek(number, prev);
       value = legalizePmpcfgValue(prev, value);
     }
-  else if (number == CsrNumber::MSTATUS)
+  else if (number == CsrNumber::MSTATUS or number == CsrNumber::SSTATUS)
     value = legalizeMstatusValue(value);
 
   csr->write(value);
@@ -1152,7 +1156,7 @@ CsRegs<URV>::poke(CsrNumber number, URV value)
       peek(number, prev);
       value = legalizePmpcfgValue(prev, value);
     }
-  else if (number == CsrNumber::MSTATUS)
+  else if (number == CsrNumber::MSTATUS or number == CsrNumber::SSTATUS)
     value = legalizeMstatusValue(value);
 
   csr->poke(value);
