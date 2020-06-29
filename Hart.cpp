@@ -7014,7 +7014,7 @@ Hart<URV>::amoLoad32(uint32_t rs1, URV& value)
   if (cause != ExceptionCause::NONE)
     {
       if (not triggerTripped_)
-        initiateLoadException(ExceptionCause::STORE_ACC_FAULT, virtAddr, secCause);
+        initiateLoadException(cause, virtAddr, secCause);
       return false;
     }
 
@@ -7059,7 +7059,7 @@ Hart<URV>::amoLoad64(uint32_t rs1, URV& value)
   if (cause != ExceptionCause::NONE)
     {
       if (not triggerTripped_)
-        initiateLoadException(ExceptionCause::STORE_ACC_FAULT, virtAddr, secCause);
+        initiateLoadException(cause, virtAddr, secCause);
       return false;
     }
 
