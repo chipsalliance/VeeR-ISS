@@ -448,6 +448,12 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   csRegs_.updateCounterPrivilege();
 
   alarmCounter_ = alarmInterval_;
+
+  // Elx2s special: If mpicbaddr is defined then relocate memory-mapped registers
+  // to the address it holds.
+  auto csrPtr = findCsr("mpicbaddr");
+  if (csrPtr)
+    changeMemMappedBase(csrPtr->read());
 }
 
 
