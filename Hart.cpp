@@ -1786,7 +1786,7 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
     return wideLoad(rd, addr, ldSize);
 
   // Loading from console-io does a standard input read.
-  if (conIoValid_ and addr == conIo_ and not triggerTripped_)
+  if (conIoValid_ and addr == conIo_ and enableConIn_ and not triggerTripped_)
     {
       SRV val = fgetc(stdin);
       intRegs_.write(rd, val);

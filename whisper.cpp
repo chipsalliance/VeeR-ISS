@@ -218,6 +218,7 @@ struct Args
   bool unmappedElfOk = false;
   bool iccmRw = false;
   bool quitOnAnyHart = false;    // True if run quits when any hart finishes.
+  bool noConInput = false;       // If true console io address is not used for input (ld).
 
   // Expand each target program string into program name and args.
   void expandTargets();
@@ -243,7 +244,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 536;
+  unsigned subversion = 537;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -489,6 +490,9 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
         ("quitany", po::bool_switch(&args.quitOnAnyHart),
          "Terminate multi-threaded run when any hart finishes (default is to wait "
          "for all harts.)")
+        ("noconinput", po::bool_switch(&args.noConInput),
+         "Do not use console IO address for input. Loads from the cosole io address "
+         "simply return last value stored there.")
 	("verbose,v", po::bool_switch(&args.verbose),
 	 "Be verbose.")
 	("version", po::bool_switch(&args.version),
@@ -957,6 +961,8 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
   // Command-line console io address overrides config file.
   if (args.consoleIo)
     hart.setConsoleIo(URV(*args.consoleIo));
+
+  hart.enableConsoleInput(! args.noConInput);
 
   if (args.swInterrupt)
     {

@@ -377,6 +377,11 @@ namespace WdRiscv
     void setConsoleIo(URV address)
     { conIo_ = address; conIoValid_ = true; }
 
+    /// Do not use console io address for input if flag is false:
+    /// Loads from that address simply return last value stored there.
+    void enableConsoleInput(bool flag)
+    { enableConIn_ = flag; }
+
     /// Undefine console io address (see setConsoleIo).
     void clearConsoleIo()
     { conIoValid_ = false; }
@@ -1969,6 +1974,7 @@ namespace WdRiscv
 
     URV conIo_ = 0;              // Writing a byte to this writes to console.
     bool conIoValid_ = false;    // True if conIo_ is valid.
+    bool enableConIn_ = true;
 
     URV swInterrupt_ = 0;
     bool swInterruptValid_ = false;
