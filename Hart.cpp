@@ -448,12 +448,6 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   csRegs_.updateCounterPrivilege();
 
   alarmCounter_ = alarmInterval_;
-
-  // Elx2s special: If mpicbaddr is defined then relocate memory-mapped registers
-  // to the address it holds.
-  auto csrPtr = findCsr("mpicbaddr");
-  if (csrPtr)
-    changeMemMappedBase(csrPtr->read());
 }
 
 
@@ -2237,11 +2231,11 @@ bool
 Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
 {
   uint64_t addr = virtAddr;
-  auto privMode = (isRvs() and mstatusMprv_)? mstatusMpp_ : privMode_;
 
-  if (isRvs() and privMode != PrivilegeMode::Machine)
+  if (isRvs() and privMode_ != PrivilegeMode::Machine)
     {
-      auto cause = virtMem_.translate(virtAddr, privMode, false, false, true, addr);
+      // Address translation is not affected by mstatus.mprv.
+      auto cause = virtMem_.translate(virtAddr, privMode_, false, false, true, addr);
       if (cause != ExceptionCause::NONE)
         {
           initiateException(cause, virtAddr, virtAddr);
@@ -2323,9 +2317,9 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
   if (isCompressedInst(inst))
     return true;
 
-  if (isRvs() and privMode != PrivilegeMode::Machine)
+  if (isRvs() and privMode_ != PrivilegeMode::Machine)
     {
-      auto cause = virtMem_.translate(virtAddr+2, privMode, false, false, true, addr);
+      auto cause = virtMem_.translate(virtAddr+2, privMode_, false, false, true, addr);
       if (cause != ExceptionCause::NONE)
         {
           initiateException(cause, virtAddr, virtAddr+2);
