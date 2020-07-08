@@ -159,7 +159,7 @@ VirtMem::pageTableWalk(size_t address, PrivilegeMode privMode, bool read, bool w
 
   bool pteRead = pte.read() or (execReadable_ and pte.exec());
   if ((read and not pteRead) or (write and not pte.write()) or
-      (exec and pte.exec()))
+      (exec and not pte.exec()))
     return pageFaultType(read, write, exec);
 
   // 7.
