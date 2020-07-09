@@ -10576,7 +10576,7 @@ Hart<uint64_t>::execFmv_x_d(const DecodedInst* di)
 template <typename URV>
 template <typename LOAD_TYPE>
 bool
-Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1)
+Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
 {
   enableWideLdStMode(false);
 
@@ -10659,6 +10659,7 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1)
 
   intRegs_.write(rd, value);
 
+  physAddr = addr;
   return true;
 }
 
@@ -10668,11 +10669,11 @@ void
 Hart<URV>::execLr_w(const DecodedInst* di)
 {
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
-  if (not loadReserve<int32_t>(di->op0(), di->op1()))
+  uint64_t physAddr = 0;
+  if (not loadReserve<int32_t>(di->op0(), di->op1(), physAddr))
     return;
 
-  URV addr = intRegs_.read(di->op1());
-  memory_.makeLr(hartIx_, addr, 4 /*size*/);
+  memory_.makeLr(hartIx_, physAddr, 4 /*size*/);
 }
 
 
@@ -11057,11 +11058,11 @@ Hart<URV>::execLr_d(const DecodedInst* di)
 {
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
-  if (not loadReserve<int64_t>(di->op0(), di->op1()))
+  uint64_t physAddr = 0;
+  if (not loadReserve<int64_t>(di->op0(), di->op1(), physAddr))
     return;
 
-  URV addr = intRegs_.read(di->op1());
-  memory_.makeLr(hartIx_, addr, 8 /*size*/);
+  memory_.makeLr(hartIx_, physAddr, 8 /*size*/);
 }
 
 
