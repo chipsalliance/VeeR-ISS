@@ -377,6 +377,11 @@ namespace WdRiscv
     void setConsoleIo(URV address)
     { conIo_ = address; conIoValid_ = true; }
 
+    /// Do not use console io address for input if flag is false:
+    /// Loads from that address simply return last value stored there.
+    void enableConsoleInput(bool flag)
+    { enableConIn_ = flag; }
+
     /// Undefine console io address (see setConsoleIo).
     void clearConsoleIo()
     { conIoValid_ = false; }
@@ -1327,9 +1332,11 @@ namespace WdRiscv
 
     /// Helper to execLr. Load type should be int32_t, or int64_t.
     /// Return true if instruction is successful. Return false if an
-    /// exception occurs or a trigger is tripped.
+    /// exception occurs or a trigger is tripped. If successful,
+    /// physAddr is set to the result of the virtual to physical
+    /// translation of the referenced memory address.
     template<typename LOAD_TYPE>
-    bool loadReserve(uint32_t rd, uint32_t rs1);
+    bool loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr);
 
     /// Helper to execSc. Store type should be uint32_t, or uint64_t.
     /// Return true if store is successful. Return false otherwise
@@ -1484,8 +1491,8 @@ namespace WdRiscv
     /// otherwise.
     bool processExternalInterrupt(FILE* traceFile, std::string& insStr);
 
-    /// Helper to FP execution: Set the invalid bit in FCSR.
-    void setInvalidInFcsr();
+    /// Helper to FP execution: Set the given flag value (ored values ok) in FCSR.
+    void setFcsrFlags(FpFlags value);
 
     /// Execute decoded instruction. Branch/jump instructions will
     /// modify pc_.
@@ -1969,6 +1976,7 @@ namespace WdRiscv
 
     URV conIo_ = 0;              // Writing a byte to this writes to console.
     bool conIoValid_ = false;    // True if conIo_ is valid.
+    bool enableConIn_ = true;
 
     URV swInterrupt_ = 0;
     bool swInterruptValid_ = false;

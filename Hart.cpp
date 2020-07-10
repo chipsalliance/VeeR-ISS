@@ -252,12 +252,8 @@ Hart<URV>::countImplementedPmpRegisters() const
 
   unsigned num = unsigned(CsrNumber::PMPADDR0);
   for (unsigned ix = 0; ix < 16; ++ix, ++num)
-    {
-      CsrNumber csrn = CsrNumber(num);
-      const Csr<URV>* csr = csRegs_.getImplementedCsr(csrn);
-      if (csr)
-        count++;
-    }
+    if (csRegs_.isImplemented(CsrNumber(num)))
+      count++;
 
   if (count and count < 16)
     std::cerr << "Warning: Some but not all PMPADDR CSRs are implemented\n";
@@ -267,12 +263,8 @@ Hart<URV>::countImplementedPmpRegisters() const
     {
       num = unsigned(CsrNumber::PMPCFG0);
       for (unsigned ix = 0; ix < 4; ++ix, ++num)
-        {
-          CsrNumber csrn = CsrNumber(num);
-          const Csr<URV>* csr = csRegs_.getImplementedCsr(csrn);
-          if (csr)
-            cfgCount++;
-        }
+        if (csRegs_.isImplemented(CsrNumber(num)))
+          cfgCount++;
       if (count and cfgCount != 4)
         std::cerr << "Warning: Physical memory protection enabled but not all "
                   << "of the config register (PMPCFG) are implemented\n";
@@ -281,12 +273,8 @@ Hart<URV>::countImplementedPmpRegisters() const
     {
       num = unsigned(CsrNumber::PMPCFG0);
       for (unsigned ix = 0; ix < 2; ++ix, num += 2)
-        {
-          CsrNumber csrn = CsrNumber(num);
-          const Csr<URV>* csr = csRegs_.getImplementedCsr(csrn);
-          if (csr)
-            cfgCount++;
-        }
+        if (csRegs_.isImplemented(CsrNumber(num)))
+          cfgCount++;
       if (count and cfgCount != 2)
         std::cerr << "Warning: Physical memory protection enabled but not all "
                   << "of the config register (PMPCFG) are implemented\n";
@@ -1615,10 +1603,11 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
   // Address translation
   if (isRvs())
     {
-      if (privMode_ != PrivilegeMode::Machine)
+      PrivilegeMode mode = mstatusMprv_? mstatusMpp_ : privMode_;
+      if (mode != PrivilegeMode::Machine)
         {
           uint64_t pa = 0;
-          cause = virtMem_.translate(addr, privMode_, true, false, false, pa);
+          cause = virtMem_.translate(addr, mode, true, false, false, pa);
           if (cause != ExceptionCause::NONE)
             return cause;
           addr = pa;
@@ -1791,7 +1780,7 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
     return wideLoad(rd, addr, ldSize);
 
   // Loading from console-io does a standard input read.
-  if (conIoValid_ and addr == conIo_ and not triggerTripped_)
+  if (conIoValid_ and addr == conIo_ and enableConIn_ and not triggerTripped_)
     {
       SRV val = fgetc(stdin);
       intRegs_.write(rd, val);
@@ -2048,7 +2037,7 @@ Hart<URV>::defineIccm(size_t addr, size_t size)
   bool trim = this->findCsr("mpicbaddr") == nullptr;
 
   bool ok = memory_.defineIccm(addr, size, trim);
-  if (ok)
+  if (ok and trim)
     {
       size_t region = addr/regionSize();
       regionHasLocalMem_.at(region) = true;
@@ -2065,7 +2054,7 @@ Hart<URV>::defineDccm(size_t addr, size_t size)
   bool trim = this->findCsr("mpicbaddr") == nullptr;
 
   bool ok = memory_.defineDccm(addr, size, trim);
-  if (ok)
+  if (ok and trim)
     {
       size_t region = addr/regionSize();
       regionHasLocalMem_.at(region) = true;
@@ -2080,10 +2069,13 @@ template <typename URV>
 bool
 Hart<URV>::defineMemoryMappedRegisterArea(size_t addr, size_t size)
 {
+  // If mpicbaddr CSR is present, the nothing special is done for 256
+  // MB region containing memory-mapped-registers. Otherwise, region
+  // is marked non accessible except for memory-mapped-register area.
   bool trim = this->findCsr("mpicbaddr") == nullptr;
 
   bool ok = memory_.defineMemoryMappedRegisterArea(addr, size, trim);
-  if (ok)
+  if (ok and trim)
     {
       size_t region = addr / memory_.regionSize();
       regionHasLocalMem_.at(region) = true;
@@ -2239,8 +2231,10 @@ bool
 Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
 {
   uint64_t addr = virtAddr;
+
   if (isRvs() and privMode_ != PrivilegeMode::Machine)
     {
+      // Address translation is not affected by mstatus.mprv.
       auto cause = virtMem_.translate(virtAddr, privMode_, false, false, true, addr);
       if (cause != ExceptionCause::NONE)
         {
@@ -2926,6 +2920,8 @@ Hart<URV>::pokeCsr(CsrNumber csr, URV val)
     updateMemoryProtection();
   else if (csr == CsrNumber::SATP)
     updateAddressTranslation();
+  else if (csr == CsrNumber::FCSR or csr == CsrNumber::FRM or csr == CsrNumber::FFLAGS)
+    markFsDirty();   // Update FS field of MSTATS if FCSR is written
 
   // Update cached values of MSTATUS MPP and MPRV.
   if (csr == CsrNumber::MSTATUS or csr == CsrNumber::SSTATUS)
@@ -5065,10 +5061,10 @@ Hart<URV>::collectAndUndoWhatIfChanges(URV prevPc, ChangeRecord& record)
 
 template <typename URV>
 void
-Hart<URV>::setInvalidInFcsr()
+Hart<URV>::setFcsrFlags(FpFlags flag)
 {
   auto prev = getFpFlags();
-  auto val = prev | unsigned(FpFlags::Invalid);
+  auto val = prev | unsigned(flag);
   if (val != prev)
     {
       setFpFlags(val);
@@ -7018,7 +7014,7 @@ Hart<URV>::amoLoad32(uint32_t rs1, URV& value)
   if (cause != ExceptionCause::NONE)
     {
       if (not triggerTripped_)
-        initiateLoadException(ExceptionCause::STORE_ACC_FAULT, virtAddr, secCause);
+        initiateLoadException(cause, virtAddr, secCause);
       return false;
     }
 
@@ -7063,7 +7059,7 @@ Hart<URV>::amoLoad64(uint32_t rs1, URV& value)
   if (cause != ExceptionCause::NONE)
     {
       if (not triggerTripped_)
-        initiateLoadException(ExceptionCause::STORE_ACC_FAULT, virtAddr, secCause);
+        initiateLoadException(cause, virtAddr, secCause);
       return false;
     }
 
@@ -7173,6 +7169,9 @@ Hart<URV>::execSfence_vma(const DecodedInst* di)
       illegalInst(di);
       return;
     }
+
+  // Invalidate whole TLB. This is overkill. TBD FIX: Improve.
+  virtMem_.tlb_.invalidate();
 }
 
 
@@ -7262,6 +7261,8 @@ Hart<URV>::execSret(const DecodedInst* di)
   fields.bits_.SIE = fields.bits_.SPIE;
   fields.bits_.SPP = 0;
   fields.bits_.SPIE = 1;
+  if (savedMode != PrivilegeMode::Machine)
+    fields.bits_.MPRV = 0;
 
   // ... and putting it back
   if (not csRegs_.write(CsrNumber::SSTATUS, privMode_, fields.value_))
@@ -7402,13 +7403,17 @@ Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
     enableWideLdStMode(true);
   else if (csr == CsrNumber::MCOUNTINHIBIT)
     perfControl_ = ~csrVal;
-  else if (csr == CsrNumber::MSTATUS or csr == CsrNumber::SSTATUS)
-    updateCachedMstatusFields();
   else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
            (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
     updateMemoryProtection();
   else if (csr == CsrNumber::SATP)
     updateAddressTranslation();
+  else if (csr == CsrNumber::FCSR or csr == CsrNumber::FRM or csr == CsrNumber::FFLAGS)
+    markFsDirty(); // Update FS field of MSTATS if FCSR is written
+
+  // Update cached values of MSTATUS MPP and MPRV.
+  if (csr == CsrNumber::MSTATUS or csr == CsrNumber::SSTATUS)
+    updateCachedMstatusFields();
 
   // Csr was written. If it was minstret, compensate for
   // auto-increment that will be done by run, runUntilAddress or
@@ -7654,10 +7659,11 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, uint64_t& addr,
   // Address translation
   if (isRvs())
     {
-      if (privMode_ != PrivilegeMode::Machine)
+      PrivilegeMode mode = mstatusMprv_? mstatusMpp_ : privMode_;
+      if (mode != PrivilegeMode::Machine)
         {
           uint64_t pa = 0;
-          cause = virtMem_.translate(addr, privMode_, false, true, false, pa);
+          cause = virtMem_.translate(addr, mode, false, true, false, pa);
           if (cause != ExceptionCause::NONE)
             return cause;
           addr = pa;
@@ -8395,8 +8401,10 @@ Hart<URV>::markFsDirty()
   csRegs_.read(CsrNumber::MSTATUS, PrivilegeMode::Machine, val);
   MstatusFields<URV> fields(val);
   fields.bits_.FS = unsigned(FpFs::Dirty);
-  fields.bits_.SD = 1;
-  csRegs_.write(CsrNumber::MSTATUS, PrivilegeMode::Machine, fields.value_);
+
+  //csRegs_.write(CsrNumber::MSTATUS, PrivilegeMode::Machine, fields.value_);
+  csRegs_.poke(CsrNumber::MSTATUS, fields.value_);
+
   updateCachedMstatusFields();
 }
 
@@ -8577,10 +8585,11 @@ Hart<URV>::execFsw(const DecodedInst* di)
 
   URV base = intRegs_.read(rs1);
   URV addr = base + imm;
-  float val = fpRegs_.readSingle(rs2);
 
-  Uint32FloatUnion ufu(val);
-  store<uint32_t>(rs1, base, addr, ufu.u);
+  // This operation does not check for proper NAN boxing. We read raw bits.
+  uint64_t val = fpRegs_.readBitsRaw(rs2);
+
+  store<uint32_t>(rs1, base, addr, uint32_t(val));
 }
 
 
@@ -8656,7 +8665,7 @@ Hart<URV>::execFmadd_s(const DecodedInst* di)
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
   if (invalid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -8683,7 +8692,7 @@ Hart<URV>::execFmsub_s(const DecodedInst* di)
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
   if (invalid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -8710,7 +8719,7 @@ Hart<URV>::execFnmsub_s(const DecodedInst* di)
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
   if (invalid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -8739,7 +8748,7 @@ Hart<URV>::execFnmadd_s(const DecodedInst* di)
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
   if (invalid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -8972,7 +8981,7 @@ Hart<URV>::execFmin_s(const DecodedInst* di)
     res = std::fminf(in1, in2);
 
   if (issnan(in1) or issnan(in2))
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
   else if (std::signbit(in1) != std::signbit(in2) and in1 == in2)
     res = std::copysign(res, -1.0F);  // Make sure min(-0, +0) is -0.
 
@@ -9007,7 +9016,7 @@ Hart<URV>::execFmax_s(const DecodedInst* di)
     res = std::fmaxf(in1, in2);
 
   if (issnan(in1) or issnan(in2))
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
   else if (std::signbit(in1) != std::signbit(in2) and in1 == in2)
     res = std::copysign(res, 1.0F);  // Make sure max(-0, +0) is +0.
 
@@ -9076,7 +9085,7 @@ Hart<URV>::execFcvt_w_s(const DecodedInst* di)
 
   updateAccruedFpBits(true);
   if (not valid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -9092,41 +9101,44 @@ Hart<URV>::execFcvt_wu_s(const DecodedInst* di)
   float f1 = fpRegs_.readSingle(di->op1());
   SRV result = 0;
   bool valid = false;
+  bool exact = true;
 
-  uint32_t maxInt = ~uint32_t(0);
-
-  unsigned signBit = signOf(f1);
-  if (std::isinf(f1))
+  uint32_t maxUint32 = ~uint32_t(0);
+  if (std::isnan(f1))
     {
-      if (signBit)
-	result = 0;
-      else
-	result = SRV(int32_t(maxInt));  // Sign extend to SRV.
+      result = ~URV(0);
     }
-  else if (std::isnan(f1))
-    result = SRV(int32_t(maxInt));
   else
     {
-      if (signBit and f1 != 0)
-	result = 0;
+      double near = std::nearbyint(f1);
+      if (near > double(maxUint32))
+        {
+          result = ~URV(0);
+        }
+      else if (near == 0)
+        {
+          result = 0;
+          valid = true;
+          exact = near == f1;
+        }
+      else if (near < 0)
+        {
+          result = 0;
+        }
       else
-	{
-	  float near = std::nearbyint(f1);
-	  if (near >= float(maxInt))
-	    result = SRV(int32_t(maxInt));
-	  else
-	    {
-	      valid = true;
-              result = SRV(int32_t(std::lrint(f1)));
-	    }
-	}
+        {
+          result = SRV(int32_t(std::lrint(f1)));
+          valid = true;
+          exact = near == f1;
+        }
     }
 
   intRegs_.write(di->op0(), result);
 
-  updateAccruedFpBits(true);
   if (not valid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
+  if (not exact)
+    setFcsrFlags(FpFlags::Inexact);
 
   markFsDirty();
 }
@@ -9142,11 +9154,11 @@ Hart<URV>::execFmv_x_w(const DecodedInst* di)
       return;
     }
 
-  float f1 = fpRegs_.readSingle(di->op1());
+  // This operation does not check for proper NAN boxing. We read raw bits.
+  uint64_t v1 = fpRegs_.readBitsRaw(di->op1());
+  int32_t s1 = v1;  // Keep lower 32 bits
 
-  Uint32FloatUnion ufu(f1);
-
-  SRV value = SRV(int32_t(ufu.u)); // Sign extend.
+  SRV value = SRV(s1); // Sign extend.
 
   intRegs_.write(di->op0(), value);
 }
@@ -9170,7 +9182,7 @@ Hart<URV>::execFeq_s(const DecodedInst* di)
   if (std::isnan(f1) or std::isnan(f2))
     {
       if (issnan(f1) or issnan(f2))
-	setInvalidInFcsr();
+	setFcsrFlags(FpFlags::Invalid);
     }
   else
     res = (f1 == f2)? 1 : 0;
@@ -9195,7 +9207,7 @@ Hart<URV>::execFlt_s(const DecodedInst* di)
   URV res = 0;
 
   if (std::isnan(f1) or std::isnan(f2))
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
   else
     res = (f1 < f2)? 1 : 0;
     
@@ -9219,7 +9231,7 @@ Hart<URV>::execFle_s(const DecodedInst* di)
   URV res = 0;
 
   if (std::isnan(f1) or std::isnan(f2))
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
   else
     res = (f1 <= f2)? 1 : 0;
 
@@ -9412,7 +9424,7 @@ Hart<uint64_t>::execFcvt_l_s(const DecodedInst* di)
 
   updateAccruedFpBits(true);
   if (not valid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -9442,6 +9454,7 @@ Hart<uint64_t>::execFcvt_lu_s(const DecodedInst* di)
   float f1 = fpRegs_.readSingle(di->op1());
   uint64_t result = 0;
   bool valid = false;
+  bool exact = true;
 
   uint64_t maxUint = ~uint64_t(0);
 
@@ -9457,36 +9470,46 @@ Hart<uint64_t>::execFcvt_lu_s(const DecodedInst* di)
     result = maxUint;
   else
     {
-      if (signBit and f1 != 0)
-	result = 0;
+      double near = std::nearbyint(double(f1));
+      if (near == 0)
+        {
+          result = 0;
+          valid = true;
+          exact = near == f1;
+        }
+      else if (near < 0)
+        {
+          result = 0;
+        }
       else
-	{
-	  double near = std::nearbyint(double(f1));
-	  // Using "near > maxUint" will not work beacuse of rounding.
-	  if (near >= 2*double(uint64_t(1)<<63))
-	    result = maxUint;
-	  else
-	    {
-	      valid = true;
-	      // std::lprint will produce an overflow if most sig bit
-	      // of result is 1 (it thinks there's an overflow).  We
-	      // compensate with the divide multiply by 2.
-	      if (f1 < (uint64_t(1) << 63))
-		result = std::llrint(f1);
-	      else
-		{
-		  result = std::llrint(f1/2);
-		  result *= 2;
-		}
-	    }
-	}
+        {
+          // Using "near > maxUint" will not work beacuse of rounding.
+          if (near >= 2*double(uint64_t(1)<<63))
+            result = maxUint;
+          else
+            {
+              // std::lprint will produce an overflow if most sig bit
+              // of result is 1 (it thinks there's an overflow).  We
+              // compensate with the divide multiply by 2.
+              if (f1 < (uint64_t(1) << 63))
+                result = std::llrint(f1);
+              else
+                {
+                  result = std::llrint(f1/2);
+                  result *= 2;
+                }
+              valid = true;
+              exact = near == f1;
+            }
+        }
     }
 
   intRegs_.write(di->op0(), result);
 
-  updateAccruedFpBits(true);
   if (not valid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
+  if (not exact)
+    setFcsrFlags(FpFlags::Inexact);
 
   markFsDirty();
 }
@@ -9660,7 +9683,7 @@ Hart<URV>::execFmadd_d(const DecodedInst* di)
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
   if (invalid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -9688,7 +9711,7 @@ Hart<URV>::execFmsub_d(const DecodedInst* di)
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
   if (invalid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -9715,7 +9738,7 @@ Hart<URV>::execFnmsub_d(const DecodedInst* di)
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
   if (invalid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -9744,7 +9767,7 @@ Hart<URV>::execFnmadd_d(const DecodedInst* di)
   bool noUnderflow = dpExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
   if (invalid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -9928,7 +9951,7 @@ Hart<URV>::execFmin_d(const DecodedInst* di)
     res = fmin(in1, in2);
 
   if (issnan(in1) or issnan(in2))
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
   else if (std::signbit(in1) != std::signbit(in2) and in1 == in2)
     res = std::copysign(res, -1.0);  // Make sure min(-0, +0) is -0.
 
@@ -9963,7 +9986,7 @@ Hart<URV>::execFmax_d(const DecodedInst* di)
     res = std::fmax(in1, in2);
 
   if (issnan(in1) or issnan(in2))
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
   else if (std::signbit(in1) != std::signbit(in2) and in1 == in2)
     res = std::copysign(res, 1.0);  // Make sure max(-0, +0) is +0.
 
@@ -10052,7 +10075,7 @@ Hart<URV>::execFle_d(const DecodedInst* di)
   URV res = 0;
 
   if (std::isnan(d1) or std::isnan(d2))
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
   else
     res = (d1 <= d2)? 1 : 0;
 
@@ -10076,7 +10099,7 @@ Hart<URV>::execFlt_d(const DecodedInst* di)
   URV res = 0;
 
   if (std::isnan(d1) or std::isnan(d2))
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
   else
     res = (d1 < d2)? 1 : 0;
 
@@ -10102,7 +10125,7 @@ Hart<URV>::execFeq_d(const DecodedInst* di)
   if (std::isnan(d1) or std::isnan(d2))
     {
       if (issnan(d1) or issnan(d2))
-	setInvalidInFcsr();
+	setFcsrFlags(FpFlags::Invalid);
     }
   else
     res = (d1 == d2)? 1 : 0;
@@ -10148,7 +10171,7 @@ Hart<URV>::execFcvt_w_d(const DecodedInst* di)
 
   updateAccruedFpBits(true);
   if (not valid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -10165,34 +10188,44 @@ Hart<URV>::execFcvt_wu_d(const DecodedInst* di)
   double d1 = fpRegs_.read(di->op1());
   SRV result = 0;
   bool valid = false;
+  bool exact = true;
 
-  unsigned signBit = signOf(d1);
-  if (std::isinf(d1))
-    result = signBit? 0 : ~URV(0);
-  else if (std::isnan(d1))
-    result = ~URV(0);
+  uint32_t maxUint32 = ~uint32_t(0);
+  if (std::isnan(d1))
+    {
+      result = ~URV(0);
+    }
   else
     {
-      if (signBit and d1 != 0)
-	result = 0;
+      double near = std::nearbyint(d1);
+      if (near > double(maxUint32))
+        {
+          result = ~URV(0);
+        }
+      else if (near == 0)
+        {
+          result = 0;
+          valid = true;
+          exact = near == d1;
+        }
+      else if (near < 0)
+        {
+          result = 0;
+        }
       else
-	{
-	  double near = std::nearbyint(d1);
-	  if (near > double(~uint32_t(0)))
-	    result = ~URV(0);
-	  else
-	    {
-	      valid = true;
-	      result = SRV(int32_t(std::lrint(d1)));
-	    }
-	}
+        {
+          result = SRV(int32_t(std::lrint(d1)));
+          valid = true;
+          exact = near == d1;
+        }
     }
 
   intRegs_.write(di->op0(), result);
 
-  updateAccruedFpBits(true);
   if (not valid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
+  if (not exact)
+    setFcsrFlags(FpFlags::Inexact);
 
   markFsDirty();
 }
@@ -10350,7 +10383,7 @@ Hart<uint64_t>::execFcvt_l_d(const DecodedInst* di)
 
   updateAccruedFpBits(true);
   if (not valid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
 
   markFsDirty();
 }
@@ -10380,6 +10413,7 @@ Hart<uint64_t>::execFcvt_lu_d(const DecodedInst* di)
   double f1 = fpRegs_.read(di->op1());
   uint64_t result = 0;
   bool valid = false;
+  bool exact = true;
 
   uint64_t maxUint = ~uint64_t(0);
 
@@ -10395,36 +10429,46 @@ Hart<uint64_t>::execFcvt_lu_d(const DecodedInst* di)
     result = maxUint;
   else
     {
-      if (signBit and f1 != 0)
-	result = 0;
+      double near = std::nearbyint(f1);
+      if (near == 0)
+        {
+          result = 0;
+          valid = true;
+          exact = near == f1;
+        }
+      else if (near < 0)
+        {
+          result = 0;
+        }
       else
-	{
-	  double near = std::nearbyint(f1);
-	  // Using "near > maxUint" will not work beacuse of rounding.
-	  if (near >= 2*double(uint64_t(1)<<63))
-	    result = maxUint;
-	  else
-	    {
-	      valid = true;
-	      // std::llrint will produce an overflow if most sig bit
-	      // of result is 1 (it thinks there's an overflow).  We
-	      // compensate with the divide multiply by 2.
-	      if (f1 < (uint64_t(1) << 63))
-		result = std::llrint(f1);
-	      else
-		{
-		  result = std::llrint(f1/2);
-		  result *= 2;
-		}
-	    }
-	}
+        {
+          // Using "near > maxUint" will not work beacuse of rounding.
+          if (near >= 2*double(uint64_t(1)<<63))
+            result = maxUint;
+          else
+            {
+              // std::llrint will produce an overflow if most sig bit
+              // of result is 1 (it thinks there's an overflow).  We
+              // compensate with the divide multiply by 2.
+              if (f1 < (uint64_t(1) << 63))
+                result = std::llrint(f1);
+              else
+                {
+                  result = std::llrint(f1/2);
+                  result *= 2;
+                }
+              valid = true;
+              exact = near == f1;
+            }
+        }
     }
 
   intRegs_.write(di->op0(), result);
 
-  updateAccruedFpBits(true);
   if (not valid)
-    setInvalidInFcsr();
+    setFcsrFlags(FpFlags::Invalid);
+  if (not exact)
+    setFcsrFlags(FpFlags::Inexact);
 
   markFsDirty();
 }
@@ -10524,25 +10568,15 @@ Hart<uint64_t>::execFmv_x_d(const DecodedInst* di)
       return;
     }
 
-  double d1 = fpRegs_.read(di->op1());
-
-  union UDU  // Unsigned double union: reinterpret bits as unsigned or double
-  {
-    uint64_t u;
-    double d;
-  };
-
-  UDU udu;
-  udu.d = d1;
-
-  intRegs_.write(di->op0(), udu.u);
+  uint64_t v1 = fpRegs_.readBitsRaw(di->op1());
+  intRegs_.write(di->op0(), v1);
 }
 
 
 template <typename URV>
 template <typename LOAD_TYPE>
 bool
-Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1)
+Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
 {
   enableWideLdStMode(false);
 
@@ -10625,6 +10659,7 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1)
 
   intRegs_.write(rd, value);
 
+  physAddr = addr;
   return true;
 }
 
@@ -10634,11 +10669,11 @@ void
 Hart<URV>::execLr_w(const DecodedInst* di)
 {
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
-  if (not loadReserve<int32_t>(di->op0(), di->op1()))
+  uint64_t physAddr = 0;
+  if (not loadReserve<int32_t>(di->op0(), di->op1(), physAddr))
     return;
 
-  URV addr = intRegs_.read(di->op1());
-  memory_.makeLr(hartIx_, addr, 4 /*size*/);
+  memory_.makeLr(hartIx_, physAddr, 4 /*size*/);
 }
 
 
@@ -11023,11 +11058,11 @@ Hart<URV>::execLr_d(const DecodedInst* di)
 {
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
-  if (not loadReserve<int64_t>(di->op0(), di->op1()))
+  uint64_t physAddr = 0;
+  if (not loadReserve<int64_t>(di->op0(), di->op1(), physAddr))
     return;
 
-  URV addr = intRegs_.read(di->op1());
-  memory_.makeLr(hartIx_, addr, 8 /*size*/);
+  memory_.makeLr(hartIx_, physAddr, 8 /*size*/);
 }
 
 

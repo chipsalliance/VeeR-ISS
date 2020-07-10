@@ -23,8 +23,8 @@ namespace WdRiscv
   enum class PrivilegeMode : uint32_t
     {
       User = 0,
-      Reserved = 2,
       Supervisor = 1,
+      Reserved = 2,
       Machine = 3
     };
 

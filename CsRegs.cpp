@@ -197,6 +197,10 @@ CsRegs<URV>::legalizeMstatusValue(URV value) const
     mode = PrivilegeMode::Machine;
 
   fields.bits_.MPP = unsigned(mode);
+
+  if (fields.bits_.FS == unsigned(FpFs::Dirty) or fields.bits_.XS == unsigned(FpFs::Dirty))
+    fields.bits_.SD = 1;
+
   return fields.value_;
 }
 
@@ -259,7 +263,7 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
       peek(number, prev);
       value = legalizePmpcfgValue(prev, value);
     }
-  else if (number == CsrNumber::MSTATUS)
+  else if (number == CsrNumber::MSTATUS or number == CsrNumber::SSTATUS)
     value = legalizeMstatusValue(value);
 
   csr->write(value);
@@ -663,17 +667,19 @@ CsRegs<URV>::defineMachineRegs()
   //           D E        S W V X U P S  S  P  E  P P E P P I E I I
   //             S        R   M R M R       P  S  P I S I I E S E E
   //                                V               E   E E
-  URV mask = 0b0'00000000'1'1'1'1'1'1'11'11'11'00'1'1'0'1'1'1'0'1'1;
+  URV mask = 0b1'00000000'1'1'1'1'1'1'11'11'11'00'1'1'0'1'1'1'0'1'1;
   URV val = 0;
   if constexpr (sizeof(URV) == 8)
     {
       mask |= (URV(0b0000) << 32);  // Mask for SXL and UXL (currently not writable).
       val |= (URV(0b1010) << 32);   // Value of SXL and UXL : sxlen=uxlen=64
+      mask |= (URV(1) << 63);       // Make SD writable
+      mask &= ~(URV(1) << 31);      // Clear bit 31 (SD bit in 32-bit mode).
     }
   defineCsr("mstatus", Csrn::MSTATUS, mand, imp, val, mask, mask);
   defineCsr("misa", Csrn::MISA, mand,  imp, 0x40001104, rom, rom);
-  defineCsr("medeleg", Csrn::MEDELEG, !mand, !imp, 0, 0, 0);
-  defineCsr("mideleg", Csrn::MIDELEG, !mand, !imp, 0, 0, 0);
+  defineCsr("medeleg", Csrn::MEDELEG, !mand, !imp, 0, wam, wam);
+  defineCsr("mideleg", Csrn::MIDELEG, !mand, !imp, 0, wam, wam);
 
   // Interrupt enable: Least sig 12 bits corresponding to the 12
   // interrupt causes are writable.
@@ -870,8 +876,8 @@ CsRegs<URV>::defineSupervisorRegs()
   if (sstatus and mstatus)
     sstatus->tie(mstatus->valuePtr_);
 
-  defineCsr("sedeleg",    Csrn::SEDELEG,    !mand, !imp, 0, 0, 0);
-  defineCsr("sideleg",    Csrn::SIDELEG,    !mand, !imp, 0, 0, 0);
+  defineCsr("sedeleg",    Csrn::SEDELEG,    !mand, !imp, 0, wam, wam);
+  defineCsr("sideleg",    Csrn::SIDELEG,    !mand, !imp, 0, wam, wam);
 
   defineCsr("stvec",      Csrn::STVEC,      !mand, !imp, 0, wam, wam);
   defineCsr("scounteren", Csrn::SCOUNTEREN, !mand, !imp, 0, wam, wam);
@@ -1150,7 +1156,7 @@ CsRegs<URV>::poke(CsrNumber number, URV value)
       peek(number, prev);
       value = legalizePmpcfgValue(prev, value);
     }
-  else if (number == CsrNumber::MSTATUS)
+  else if (number == CsrNumber::MSTATUS or number == CsrNumber::SSTATUS)
     value = legalizeMstatusValue(value);
 
   csr->poke(value);

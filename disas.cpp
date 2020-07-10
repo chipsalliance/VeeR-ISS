@@ -968,15 +968,15 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::fsgnj_s:
-      printFp2(*this, out, "fsgnj.s", di);
+      printFp3(*this, out, "fsgnj.s", di);
       break;
 
     case InstId::fsgnjn_s:
-      printFp2(*this, out, "fsgnjn.s", di);
+      printFp3(*this, out, "fsgnjn.s", di);
       break;
 
     case InstId::fsgnjx_s:
-      printFp2(*this, out, "fsgnjx.s", di);
+      printFp3(*this, out, "fsgnjx.s", di);
       break;
 
     case InstId::fmin_s:
@@ -1107,15 +1107,15 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::fsgnj_d:
-      printFp2(*this, out, "fsgnj.d", di);
+      printFp3(*this, out, "fsgnj.d", di);
       break;
 
     case InstId::fsgnjn_d:
-      printFp2(*this, out, "fsgnjn.d", di);
+      printFp3(*this, out, "fsgnjn.d", di);
       break;
 
     case InstId::fsgnjx_d:
-      printFp2(*this, out, "fsgnjx.d", di);
+      printFp3(*this, out, "fsgnjx.d", di);
       break;
 
     case InstId::fmin_d:
@@ -1186,7 +1186,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::fcvt_lu_d:
-      out << "fcvt.lu.s "  << intRegName(di.op0()) << ", "
+      out << "fcvt.lu.d "  << intRegName(di.op0()) << ", "
 	  << fpRegName(di.op1()) << ", "
 	  << roundingModeString(di.roundingMode());
       break;
@@ -1207,6 +1207,8 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::fmv_d_x:
+      out << "fmv.d.x " << fpRegName(di.op0()) << ", " << intRegName(di.op1());
+      break;
 
     case InstId::mret:
       out << "mret";
@@ -1225,11 +1227,11 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::sfence_vma:
-      printRs1Rs2(*this, out, "sfence.vma", di);
+      printRs1Rs2(*this, out, "sfence.vma ", di);
       break;
 
     case InstId::c_addi4spn:
-      printRegImm(*this, out, "c.addi4spn", di.op0(), di.op2As<int32_t>() >> 2);
+      printRegImm(*this, out, "c.addi4spn ", di.op0(), di.op2As<int32_t>() >> 2);
       break;
 
     case InstId::c_fld:
@@ -1669,15 +1671,15 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::sh1addu_w:
-      printRdRs1Rs2(*this, out, "sh1addu.w", di);
+      printRdRs1Rs2(*this, out, "sh1addu.w ", di);
       break;
 
     case InstId::sh2addu_w:
-      printRdRs1Rs2(*this, out, "sh2addu.w", di);
+      printRdRs1Rs2(*this, out, "sh2addu.w ", di);
       break;
 
     case InstId::sh3addu_w:
-      printRdRs1Rs2(*this, out, "sh3addu.w", di);
+      printRdRs1Rs2(*this, out, "sh3addu.w ", di);
       break;
 
     case InstId::crc32_b:

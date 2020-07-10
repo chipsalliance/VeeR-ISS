@@ -820,7 +820,7 @@ Memory::defineDccm(size_t addr, size_t size, bool trim)
     return false;
 
   size_t region = addr / regionSize_;
-  if (region < regionCount_)
+  if (region < regionCount_ and trim)
     regionHasLocalData_.at(region) = true;
 
   narrowCcmRegion(addr, trim);
@@ -841,7 +841,7 @@ Memory::defineMemoryMappedRegisterArea(size_t addr, size_t size, bool trim)
     return false;
 
   size_t region = addr / regionSize_;
-  if (region < regionCount_)
+  if (region < regionCount_ and trim)
     regionHasLocalData_.at(region) = true;
 
   narrowCcmRegion(addr, trim);

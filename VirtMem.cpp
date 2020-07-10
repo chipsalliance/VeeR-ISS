@@ -43,10 +43,10 @@ VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
 
   // Lookup virtual page number in TLB.
   size_t virPageNum = va >> pageBits_;
-
-  const TlbEntry* entry = tlb_.findEntry(virPageNum, asid_);
+  TlbEntry* entry = tlb_.findEntry(virPageNum, asid_);
   if (entry)
     {
+      // Use TLB entry.
       if (priv == PrivilegeMode::User and not entry->user_)
         return pageFaultType(read, write, exec);
       if (priv == PrivilegeMode::Supervisor and entry->user_ and not supervisorOk_)
@@ -55,15 +55,24 @@ VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
       if ((read and not entryRead) or (write and not entry->write_) or
           (exec and not entry->exec_))
         return pageFaultType(read, write, exec);
+      if (not entry->accessed_ or (write and not entry->dirty_))
+        {
+          if (faultOnFirstAccess_)
+            return pageFaultType(read, write, exec);
+          entry->accessed_ = true;
+          if (write)
+            entry->dirty_ = true;
+        }
       pa = (entry->physPageNum_ << pageBits_) | (va & pageMask_);
       return ExceptionCause::NONE;
     }
 
-  bool isUser = false, glbl = false;
+  // Perform a page table walk.
   ExceptionCause cause = ExceptionCause::LOAD_PAGE_FAULT;
+  TlbEntry tmpTlbEntry;
 
   if (mode_ == Sv32)
-    cause = pageTableWalk<Pte32, Va32>(va, priv, read, write, exec, pa, glbl, isUser);
+    cause = pageTableWalk<Pte32, Va32>(va, priv, read, write, exec, pa, tmpTlbEntry);
   else if (mode_ == Sv39)
     {
       // Part 1 of address translation: Bits 63-39 must equal bit 38
@@ -72,7 +81,7 @@ VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
         mask = 0x1ffffff;  // Least sig 25 bits set
       if ((va >> 39) != mask)
         return pageFaultType(read, write, exec);
-      cause = pageTableWalk<Pte39, Va39>(va, priv, read, write, exec, pa, glbl, isUser);
+      cause = pageTableWalk<Pte39, Va39>(va, priv, read, write, exec, pa, tmpTlbEntry);
     }
   else if (mode_ == Sv48)
     {
@@ -82,16 +91,14 @@ VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
         mask = 0xffff;  // Least sig 16 bits set
       if ((va >> 48) != mask)
         return pageFaultType(read, write, exec);
-      cause = pageTableWalk<Pte48, Va48>(va, priv, read, write, exec, pa, glbl, isUser);
+      cause = pageTableWalk<Pte48, Va48>(va, priv, read, write, exec, pa, tmpTlbEntry);
     }
   else
     assert(0 and "Unspupported virtual memory mode.");
 
+  // If successful, cache translation results in TLB.
   if (cause == ExceptionCause::NONE)
-    {
-      uint64_t physPageNum = pa >> pageBits_;
-      tlb_.insertEntry(virPageNum, physPageNum, asid_, glbl, isUser, read, write, exec);
-    }
+    tlb_.insertEntry(tmpTlbEntry);
 
   return cause;
 }
@@ -100,7 +107,7 @@ VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
 template<typename PTE, typename VA>
 ExceptionCause
 VirtMem::pageTableWalk(size_t address, PrivilegeMode privMode, bool read, bool write,
-                       bool exec, size_t& pa, bool& global, bool& isUser)
+                       bool exec, size_t& pa, TlbEntry& tlbEntry)
 {
   // 1. Done in translate method.
 
@@ -152,12 +159,13 @@ VirtMem::pageTableWalk(size_t address, PrivilegeMode privMode, bool read, bool w
 
   bool pteRead = pte.read() or (execReadable_ and pte.exec());
   if ((read and not pteRead) or (write and not pte.write()) or
-      (exec and pte.exec()))
+      (exec and not pte.exec()))
     return pageFaultType(read, write, exec);
 
   // 7.
-  if (ii > 0 and pte.ppn1() != 0 and pte.ppn0() != 0)
-    return pageFaultType(read, write, exec);
+  for (int j = 0; j < ii; ++j)
+    if (pte.ppn(j) != 0)
+      return pageFaultType(read, write, exec);
 
   // 8.
   if (not pte.accessed() or (write and not pte.dirty()))
@@ -181,16 +189,25 @@ VirtMem::pageTableWalk(size_t address, PrivilegeMode privMode, bool read, bool w
 
   // 9.
   pa = va.offset();
-  if (ii > 0)
-    for (int i = ii - 1; i >= 0; --i)
-      pa = pa | (va.vpn(i) << pte.paPpnShift(i));
 
-  for (int i = levels - 1; i >= ii; --i)
-    pa = pa | pte.ppn(i) << pte.paPpnShift(i);
+  for (int j = 0; j < ii; ++j)
+    pa = pa | (va.vpn(j) << pte.paPpnShift(j)); // Copy from va to pa
 
-  // Update isUser with mode found in PTE
-  isUser = pte.user();
-  global = pte.global();
+  for (unsigned j = ii; j < levels; ++j)
+    pa = pa | pte.ppn(j) << pte.paPpnShift(j);
+
+  // Update tlb-entry with data found in page table entry.
+  tlbEntry.virtPageNum_ = address >> pageBits_;
+  tlbEntry.physPageNum_ = pa >> pageBits_;
+  tlbEntry.asid_ = asid_;
+  tlbEntry.valid_ = true;
+  tlbEntry.global_ = pte.global();
+  tlbEntry.user_ = pte.user();
+  tlbEntry.read_ = pte.read();
+  tlbEntry.write_ = pte.write();
+  tlbEntry.exec_ = pte.exec();
+  tlbEntry.accessed_ = pte.accessed();
+  tlbEntry.dirty_ = pte.dirty();
 
   return ExceptionCause::NONE;
 }
