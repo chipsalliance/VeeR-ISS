@@ -2270,7 +2270,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
           size_t region = memory_.getRegionIndex(addr);
           if (regionHasLocalInstMem_.at(region))
             secCause = SecondaryCause::INST_LOCAL_UNMAPPED;
-          initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr,
+          initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr,
                             secCause);
           return false;
         }
@@ -2281,7 +2281,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
           if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
             {
               auto secCause = SecondaryCause::INST_PMP;
-              initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr,
+              initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr,
                                 secCause);
               return false;
             }
@@ -2297,7 +2297,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
       size_t region = memory_.getRegionIndex(addr);
       if (regionHasLocalInstMem_.at(region))
 	secCause = SecondaryCause::INST_LOCAL_UNMAPPED;
-      initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr, secCause);
+      initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr, secCause);
       return false;
     }
 
@@ -2307,7 +2307,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
       if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
         {
           auto secCause = SecondaryCause::INST_PMP;
-          initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr,
+          initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr,
                             secCause);
           return false;
         }
