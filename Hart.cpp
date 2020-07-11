@@ -2565,8 +2565,8 @@ Hart<URV>::initiateTrap(bool interrupt, URV cause, URV pcToSave, URV info,
   // But they can be delegated.
   if (isRvs() and origMode != PrivilegeMode::Machine)
     {
-      URV delegVal = 0;
       CsrNumber csrn = interrupt? CsrNumber::MIDELEG : CsrNumber::MEDELEG;
+      URV delegVal = 0;
       peekCsr(csrn, delegVal);
       if (delegVal & (URV(1) << cause))
         nextMode = PrivilegeMode::Supervisor;
@@ -4543,74 +4543,37 @@ Hart<URV>::isInterruptPossible(InterruptCause& cause)
         }
     }
 
-  // Non-delegated Supervisor/User interrupts.
-  if (fields.bits_.MIE)
+  // Supervisor mode interrupts: SIE enabled and supervior mode, or user-mode.
+  if (isRvs())
     {
-      URV medeleg = 0;
-      csRegs_.read(CsrNumber::MEDELEG, PrivilegeMode::Machine, medeleg);
-      
-      for (InterruptCause ic : { IC::S_EXTERNAL, IC::S_SOFTWARE,
-                                  IC::S_TIMER, IC::U_EXTERNAL, IC::U_SOFTWARE,
-                                  IC::U_TIMER } )
-        {
-          URV mask = URV(1) << unsigned(ic);
-          if ((mie & mask & mip) and not (medeleg & mask))
-            {
-              cause = ic;
-              return true;
-            }
-        }
-    }
-
-  // Supervisor mode interrupts: SIE enabled or user-mode.
-  if (isRvs() and (fields.bits_.SIE or privMode_ < PrivilegeMode::Supervisor))
-    for (auto ic : { IC::S_EXTERNAL, IC::S_SOFTWARE, IC::S_TIMER } )
-      {
-        URV mask = URV(1) << unsigned(ic);
-        if (mie & mask & mip)
+      bool check = ((fields.bits_.SIE and privMode_ == PrivilegeMode::Supervisor)
+                    or privMode_ < PrivilegeMode::Supervisor);
+      if (check)
+        for (auto ic : { IC::S_EXTERNAL, IC::S_SOFTWARE, IC::S_TIMER } )
           {
-            cause = ic;
-            return true;
+            URV mask = URV(1) << unsigned(ic);
+            if (mie & mask & mip)
+              {
+                cause = ic;
+                return true;
+              }
           }
-      }
-
-  // Non-delegated User interrupts.
-  if (fields.bits_.SIE)
-    {
-      URV sedeleg = 0;
-      csRegs_.read(CsrNumber::SEDELEG, PrivilegeMode::Machine, sedeleg);
-      
-      for (InterruptCause ic : { IC::U_EXTERNAL, IC::U_SOFTWARE, IC::U_TIMER } )
-        {
-          URV mask = URV(1) << unsigned(ic);
-          if ((mie & mask & mip) and not (sedeleg & mask))
-            {
-              cause = ic;
-              return true;
-            }
-        }
     }
 
-  // User mode interrupts.
-  if (isRvn() and fields.bits_.UIE)
+  // User mode interrupts: UIE enabled and user-mode.
+  if (isRvn())
     {
-
-      // Order of priority: external, software, timer.
-      if (mie & (URV(1) << unsigned(InterruptCause::U_EXTERNAL)) & mip)
-        {
-          cause = InterruptCause::U_EXTERNAL;
-          return true;
-        }
-      if (mie & (URV(1) << unsigned(InterruptCause::U_SOFTWARE)) & mip)
-        {
-          cause = InterruptCause::U_SOFTWARE;
-          return true;
-        }
-      if (mie & (URV(1) << unsigned(InterruptCause::U_TIMER)) & mip)
-        {
-          cause = InterruptCause::U_TIMER;
-          return true;
-        }
+      bool check = fields.bits_.UIE and privMode_ == PrivilegeMode::User;
+      if (check)
+        for (auto ic : { IC::U_EXTERNAL, IC::U_SOFTWARE, IC::U_TIMER } )
+          {
+            URV mask = URV(1) << unsigned(ic);
+            if (mie & mask & mip)
+              {
+                cause = ic;
+                return true;
+              }
+          }
     }
 
   return false;
