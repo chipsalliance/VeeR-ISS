@@ -2232,9 +2232,11 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
 {
   uint64_t addr = virtAddr;
 
+  // Inst address translation and memory protection is not affected by MPRV.
+  bool instMprv = false;
+
   if (isRvs() and privMode_ != PrivilegeMode::Machine)
     {
-      // Address translation is not affected by mstatus.mprv.
       auto cause = virtMem_.translate(virtAddr, privMode_, false, false, true, addr);
       if (cause != ExceptionCause::NONE)
         {
@@ -2278,7 +2280,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
       if (pmpEnabled_)
         {
           Pmp pmp = pmpManager_.accessPmp(addr);
-          if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
+          if (not pmp.isExec(privMode_, mstatusMpp_, instMprv))
             {
               auto secCause = SecondaryCause::INST_PMP;
               initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr,
@@ -2304,7 +2306,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
   if (pmpEnabled_)
     {
       Pmp pmp = pmpManager_.accessPmp(addr);
-      if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
+      if (not pmp.isExec(privMode_, mstatusMpp_, instMprv))
         {
           auto secCause = SecondaryCause::INST_PMP;
           initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr,
@@ -2347,7 +2349,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
   if (pmpEnabled_)
     {
       Pmp pmp = pmpManager_.accessPmp(addr);
-      if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
+      if (not pmp.isExec(privMode_, mstatusMpp_, instMprv))
         {
           auto secCause = SecondaryCause::INST_PMP;
           initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr + 2,
