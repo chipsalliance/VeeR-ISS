@@ -10695,7 +10695,7 @@ Hart<URV>::storeConditional(unsigned rs1, URV virtAddr, STORE_TYPE storeVal)
 
   if (cause != ExceptionCause::NONE)
     {
-      initiateStoreException(ExceptionCause::STORE_ACC_FAULT, virtAddr, secCause);
+      initiateStoreException(cause, virtAddr, secCause);
       return false;
     }
 
