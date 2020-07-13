@@ -657,7 +657,7 @@ Hart<URV>::setPendingNmi(NmiCause cause)
   URV val = 0;  // DCSR value
   if (peekCsr(CsrNumber::DCSR, val))
     {
-      val |= 1 << 3;  // nmip bit
+      val |= URV(1) << 3;  // nmip bit
       pokeCsr(CsrNumber::DCSR, val);
       recordCsrWrite(CsrNumber::DCSR);
     }
@@ -2479,7 +2479,7 @@ Hart<URV>::initiateFastInterrupt(InterruptCause cause, URV pcToSave)
     }
 
   URV causeVal = URV(cause);
-  causeVal |= 1 << (mxlen_ - 1);  // Set most sig bit.
+  causeVal |= URV(1) << (mxlen_ - 1);  // Set most sig bit.
   undelegatedInterrupt(causeVal, pcToSave, nextPc);
 
   if (instFreq_)
@@ -2603,7 +2603,7 @@ Hart<URV>::initiateTrap(bool interrupt, URV cause, URV pcToSave, URV info,
   // Save the exception cause.
   URV causeRegVal = cause;
   if (interrupt)
-    causeRegVal |= 1 << (mxlen_ - 1);
+    causeRegVal |= URV(1) << (mxlen_ - 1);
   if (not csRegs_.write(causeNum, privMode_, causeRegVal))
     assert(0 and "Failed to write CAUSE register");
 
