@@ -1160,10 +1160,9 @@ namespace WdRiscv
     void processExtensions();
 
     /// Simulate a periodic external timer interrupt: Count-down the
-    /// periodic counter. Return false if counter value is non-zero
-    /// after the countdown. Otherwise, return true after resetting
-    /// the counter and setting the external timer bit in the MIP
-    /// (interrupt pending) CSR.
+    /// periodic counter. Return true if counter reaches zero (and
+    /// keep returning true thereafter until timer interrupt is taken).
+    /// If counter reches zero, it is reset to its initial value.
     bool doAlarmCountdown();
 
     /// Return the 8-bit content of the pmpconfig register
@@ -2112,6 +2111,7 @@ namespace WdRiscv
 
     uint64_t alarmInterval_ = 0; // Ext. timer interrupt interval.
     uint64_t alarmCounter_ = 0;  // Ext. timer interrupt when this reaches 0.
+    bool alarmExpired_ = false;  // True when alarm expires, remains true until timer interrupt taken
 
     bool misalDataOk_ = true;
 

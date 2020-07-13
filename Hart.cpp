@@ -448,6 +448,7 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   csRegs_.updateCounterPrivilege();
 
   alarmCounter_ = alarmInterval_;
+  alarmExpired_ = false;
 }
 
 
@@ -4032,8 +4033,9 @@ Hart<URV>::doAlarmCountdown()
 {
   alarmCounter_--;
   if (alarmCounter_ != 0)
-    return false;
+    return alarmExpired_;
   
+  alarmExpired_ = true;
   alarmCounter_ = alarmInterval_;
 
   URV mip = 0;
@@ -4043,7 +4045,7 @@ Hart<URV>::doAlarmCountdown()
       pokeCsr(CsrNumber::MIP, mip);
     }
 
-  return true;
+  return alarmExpired_;
 }
 
 
@@ -4542,6 +4544,7 @@ Hart<URV>::isInterruptPossible(InterruptCause& cause)
             cause = ic;
             if (ic == IC::M_TIMER and alarmInterval_ > 0)
               {
+                alarmExpired_ = false;  // Stop trying to deliver timer interrupt.
                 // Reset the timer-interrupt pending bit.
                 mip = mip & ~mask;
                 pokeCsr(CsrNumber::MIP, mip);
