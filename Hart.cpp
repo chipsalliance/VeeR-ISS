@@ -4510,15 +4510,14 @@ Hart<URV>::isInterruptPossible(InterruptCause& cause)
   if (debugMode_ and not debugStepMode_)
     return false;
 
+  URV mip = csRegs_.peekMip();
+  URV mie = csRegs_.peekMie();
+  if ((mie & mip) == 0)
+    return false;  // Nothing enabled that is also pending.
+
   URV mstatus;
   if (not csRegs_.read(CsrNumber::MSTATUS, PrivilegeMode::Machine, mstatus))
     return false;
-
-  URV mip, mie;
-  csRegs_.read(CsrNumber::MIP, PrivilegeMode::Machine, mip);
-  csRegs_.read(CsrNumber::MIE, PrivilegeMode::Machine, mie);
-  if ((mie & mip) == 0)
-    return false;  // Nothing enabled that is also pending.
 
   typedef InterruptCause IC;
 

@@ -892,6 +892,20 @@ namespace WdRiscv
 
   protected:
 
+    /// Fast peek method for MIP.
+    URV peekMip() const
+    {
+      const auto& csr = regs_.at(size_t(CsrNumber::MIP));
+      return csr.read();
+    }
+
+    /// Fast peek method for MIE.
+    URV peekMie() const
+    {
+      const auto& csr = regs_.at(size_t(CsrNumber::MIE));
+      return csr.read();
+    }
+
     /// Set the current integer-register/CSR width.
     void setXlen(unsigned xlen)
     {
