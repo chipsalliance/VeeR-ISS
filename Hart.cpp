@@ -4524,25 +4524,31 @@ Hart<URV>::isInterruptPossible(InterruptCause& cause)
 
   // Check for machine-level interrupts if MIE enabled or if user/supervisor.
   MstatusFields<URV> fields(mstatus);
-  if (fields.bits_.MIE or privMode_ < PrivilegeMode::Machine)
+  bool globalEnable = fields.bits_.MIE or privMode_ < PrivilegeMode::Machine;
+  URV delegVal = 0;
+  peekCsr(CsrNumber::MIDELEG, delegVal);
+  for (InterruptCause ic : { IC::M_EXTERNAL, IC::M_LOCAL, IC::M_SOFTWARE,
+                              IC::M_TIMER, IC::M_INT_TIMER0,
+                              IC::M_INT_TIMER1 } )
     {
-      for (InterruptCause ic : { IC::M_EXTERNAL, IC::M_LOCAL, IC::M_SOFTWARE,
-                                  IC::M_TIMER, IC::M_INT_TIMER0,
-                                  IC::M_INT_TIMER1 } )
-        {
-          URV mask = URV(1) << unsigned(ic);
-          if (mie & mask & mip)
-            {
-              cause = ic;
-              if (ic == IC::M_TIMER and alarmInterval_ > 0)
-                {
-                  // Reset the timer-interrupt pending bit.
-                  mip = mip & ~mask;
-                  pokeCsr(CsrNumber::MIP, mip);
-                }
-              return true;
-            }
-        }
+      URV mask = URV(1) << unsigned(ic);
+      bool delegated = (mask & delegVal) != 0;
+      bool enabled = globalEnable;
+      if (delegated)
+        enabled = ((privMode_ == PrivilegeMode::Supervisor and fields.bits_.SIE) or
+                   privMode_ < PrivilegeMode::Supervisor);
+      if (enabled)
+        if (mie & mask & mip)
+          {
+            cause = ic;
+            if (ic == IC::M_TIMER and alarmInterval_ > 0)
+              {
+                // Reset the timer-interrupt pending bit.
+                mip = mip & ~mask;
+                pokeCsr(CsrNumber::MIP, mip);
+              }
+            return true;
+          }
     }
 
   // Supervisor mode interrupts: SIE enabled and supervior mode, or user-mode.
