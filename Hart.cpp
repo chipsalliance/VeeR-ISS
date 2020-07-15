@@ -4215,9 +4215,8 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
             }
         }
 
-      if (alarmCounter_ and doAlarmCountdown())
-        if (processExternalInterrupt(traceFile, instStr))
-          continue;
+      if (alarmCounter_)
+        doAlarmCountdown();
 
       try
 	{
@@ -4230,6 +4229,9 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
           lastPriv_ = privMode_;
 
 	  ++instCounter_;
+
+          if (processExternalInterrupt(traceFile, instStr))
+            continue;
 
           if (not fetchInstWithTrigger(pc_, inst, traceFile))
             {
@@ -4571,7 +4573,7 @@ Hart<URV>::isInterruptPossible(InterruptCause& cause)
     }
 
   // User mode interrupts: UIE enabled and user-mode.
-  if (isRvn())
+  if (isRvu())
     {
       bool check = fields.bits_.UIE and privMode_ == PrivilegeMode::User;
       if (check)
@@ -6005,6 +6007,7 @@ Hart<URV>::execute(const DecodedInst* di)
   return;
 
  wfi:
+  execWfi(di);
   return;
 
  sfence_vma:

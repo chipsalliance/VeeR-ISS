@@ -175,6 +175,35 @@ CsRegs<URV>::enableSupervisorMode(bool flag)
       else if (not csr->isImplemented())
         csr->setImplemented(true);
     }
+
+  typedef InterruptCause IC;
+
+  // In MIP, make writable/pokable bits corresponding to SEIP/STIP/SSIP
+  // (supervisor external/timer/software interrupt pending).
+  URV extra = URV(1) << unsigned(IC::S_EXTERNAL);
+  extra |= URV(1) << unsigned(IC::S_TIMER);
+  extra |= URV(1) << unsigned(IC::S_SOFTWARE);
+
+  auto csr = findCsr(CsrNumber::MIP);
+  if (csr)
+    {
+      URV mask = csr->getWriteMask();
+      csr->setWriteMask(mask | extra);
+
+      mask = csr->getPokeMask();
+      csr->setPokeMask(mask | extra);
+    }
+
+  // Same for MIE.
+  csr = findCsr(CsrNumber::MIE);
+  if (csr)
+    {
+      URV mask = csr->getWriteMask();
+      csr->setWriteMask(mask | extra);
+
+      mask = csr->getPokeMask();
+      csr->setPokeMask(mask | extra);
+    }
 }
 
 
@@ -889,7 +918,7 @@ CsRegs<URV>::defineSupervisorRegs()
   defineCsr("scause",     Csrn::SCAUSE,     !mand, !imp, 0, wam, wam);
   defineCsr("stval",      Csrn::STVAL,      !mand, !imp, 0, wam, wam);
 
-  mask = 0x112;   // seip/stip/ssip bits
+  mask = 0x222;   // seip/stip/ssip bits
   defineCsr("sie",        Csrn::SIE,        !mand, !imp, 0, mask, mask);
   auto sie = findCsr(Csrn::SIE);
   auto mie = findCsr(Csrn::MIE);
@@ -899,13 +928,15 @@ CsRegs<URV>::defineSupervisorRegs()
       sie->setReadMask(mask);
     }
 
+  mask = 0x2;  // Only ssie bit writable
   defineCsr("sip",        Csrn::SIP,        !mand, !imp, 0, mask, mask);
+
   auto sip = findCsr(Csrn::SIP);
   auto mip = findCsr(Csrn::MIP);
   if (sip and mip)
     {
-      sip->tie(mip->valuePtr_);
-      sip->setReadMask(mask);
+      sip->tie(mip->valuePtr_); // Sip is a shadow if mip
+      sip->setReadMask(0x222);  // but only seip/stip/ssip are read thru sip.
     }
 
   // Supervisor Protection and Translation 
