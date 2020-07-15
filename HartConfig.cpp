@@ -1254,6 +1254,39 @@ HartConfig::finalizeCsrConfig(System<URV>& system) const
       csrPtr->registerPostWrite(postWrite);
     }
 
+
+  // Define callback to react to write/poke to mgpmc CSR. This is a
+  // CSR that is only in ehx1 and that controls the performance
+  // counters. Mgpmc will not be present if mcountinhibit is present.
+  for (unsigned i = 0; i < system.hartCount(); ++i)
+    {
+      auto hart = system.ithHart(i);
+      auto csrPtr = hart->findCsr("mgpmc");
+      if (not csrPtr)
+        continue;
+
+      // For poke, the effect takes place immediately (next instruction
+      // will see the new control).
+      auto postPoke = [hart] (Csr<URV>&, URV val) -> void {
+                        bool enable = (val & 1) == 1;
+                        URV mask = enable? ~URV(0) : 0;
+                        hart->setPerformanceCounterControl(mask);
+                        hart->setPerformanceCounterControl(mask);
+                      };
+
+      // For write (invoked from current instruction), the effect
+      // takes place on the following instruction.
+      auto postWrite = [hart] (Csr<URV>&, URV val) -> void {
+                        bool enable = (val & 1) == 1;
+                        URV mask = enable? ~URV(0) : 0;
+                        hart->setPerformanceCounterControl(mask);
+                       };
+
+      csrPtr->registerPostPoke(postPoke);
+      csrPtr->registerPostWrite(postWrite);
+    }
+
+
   return true;
 }
 
