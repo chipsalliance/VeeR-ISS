@@ -1982,8 +1982,7 @@ Hart<URV>::processSoftwareInterruptWrite(size_t addr, unsigned stSize,
   if ((storeVal >> 1) != 0)
     return;  // Must write 0 or 1.
 
-  URV mipVal = 0;
-  hart->peekCsr(CsrNumber::MIP, mipVal);
+  URV mipVal = csRegs_.peekMip();
   if (storeVal)
     mipVal = mipVal | (URV(1) << URV(InterruptCause::M_SOFTWARE));
   else
@@ -4481,7 +4480,8 @@ Hart<URV>::run(FILE* file)
   URV stopAddr = stopAddrValid_? stopAddr_ : ~URV(0); // ~URV(0): No-stop PC.
   bool hasWideLdSt = csRegs_.isImplemented(CsrNumber::MDBAC);
   bool complex = (stopAddrValid_ or instFreq_ or enableTriggers_ or enableGdb_
-                  or enableCounters_ or alarmInterval_ or file or hasWideLdSt);
+                  or enableCounters_ or alarmInterval_ or file or hasWideLdSt
+                  or swInterruptValid_ or isRvs());
   if (complex)
     return runUntilAddress(stopAddr, file); 
 
