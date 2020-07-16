@@ -570,7 +570,7 @@ CsRegs<URV>::updateFcsrGroupForWrite(CsrNumber number, URV value)
 	  URV fcsrVal = fcsr->read();
           fcsrVal = (fcsrVal & ~mask) | (value & mask);
 	  fcsr->write(fcsrVal);
-	  recordWrite(CsrNumber::FCSR);
+	  // recordWrite(CsrNumber::FCSR);
 	}
       return;
     }
@@ -585,7 +585,7 @@ CsRegs<URV>::updateFcsrGroupForWrite(CsrNumber number, URV value)
           URV shift = URV(RoundingMode::FcsrShift);
           fcsrVal = (fcsrVal & ~mask) | ((value << shift) & mask);
 	  fcsr->write(fcsrVal);
-	  recordWrite(CsrNumber::FCSR);
+	  // recordWrite(CsrNumber::FCSR);
           setSimulatorRoundingMode(RoundingMode(value));
 	}
       return;
@@ -598,7 +598,7 @@ CsRegs<URV>::updateFcsrGroupForWrite(CsrNumber number, URV value)
       if (fflags and fflags->read() != newVal)
 	{
 	  fflags->write(newVal);
-	  recordWrite(CsrNumber::FFLAGS);
+	  // recordWrite(CsrNumber::FFLAGS);
 	}
 
       newVal = (value & URV(RoundingMode::FcsrMask)) >> URV(RoundingMode::FcsrShift);
@@ -606,7 +606,7 @@ CsRegs<URV>::updateFcsrGroupForWrite(CsrNumber number, URV value)
       if (frm and frm->read() != newVal)
 	{
 	  frm->write(newVal);
-	  recordWrite(CsrNumber::FRM);
+	  // recordWrite(CsrNumber::FRM);
 	}
       setSimulatorRoundingMode(RoundingMode(newVal));
     }
