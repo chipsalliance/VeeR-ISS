@@ -1270,6 +1270,7 @@ HartConfig::finalizeCsrConfig(System<URV>& system) const
       auto postPoke = [hart] (Csr<URV>&, URV val) -> void {
                         bool enable = (val & 1) == 1;
                         URV mask = enable? ~URV(0) : 0;
+                        mask |= 7; // cycle/time/instret not controlled by mgpmc
                         hart->setPerformanceCounterControl(mask);
                         hart->setPerformanceCounterControl(mask);
                       };
@@ -1279,6 +1280,7 @@ HartConfig::finalizeCsrConfig(System<URV>& system) const
       auto postWrite = [hart] (Csr<URV>&, URV val) -> void {
                         bool enable = (val & 1) == 1;
                         URV mask = enable? ~URV(0) : 0;
+                        mask |= 7; // cycle/time/instret not controlled by mgpmc
                         hart->setPerformanceCounterControl(mask);
                        };
 
