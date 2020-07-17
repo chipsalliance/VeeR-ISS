@@ -1207,57 +1207,14 @@ defineMpmcSideEffects(System<URV>& system)
 }
 
 
+// Define callback to react to write/poke to mgpmc CSR. This is a
+// mon-standard WD CSR that is only in ehx1 and that controls the
+// performance counters. Mgpmc will not be present if mcountinhibit is
+// present.
 template <typename URV>
-bool
-HartConfig::finalizeCsrConfig(System<URV>& system) const
+void
+defineMgpmcSideEffects(System<URV>& system)
 {
-  if (system.hartCount() == 0)
-    return false;
-
-  // Make shared CSRs in each hart with hart-id greater than zero
-  // point to the corresponding values in hart zero.
-  auto hart0 = system.ithHart(0);
-  assert(hart0);
-  for (unsigned i = 1; i < system.hartCount(); ++i)
-    system.ithHart(i)->tieSharedCsrsTo(*hart0);
-
-  // The following are WD non-standard CSRs. We implement their
-  // actions by associating callbacks the write/poke CSR methods.
-  defineMhartstartSideEffects(system);
-  defineMnmipdelSideEffects(system);
-  defineMpicbaddrSideEffects(system);
-  defineMpmcSideEffects(system);
-
-
-  // Define callback to react to write/poke to mcountinhibit CSR.
-  for (unsigned i = 0; i < system.hartCount(); ++i)
-    {
-      auto hart = system.ithHart(i);
-      auto csrPtr = hart->findCsr("mcountinhibit");
-      if (not csrPtr)
-        continue;
-
-      // For poke, the effect takes place immediately (next instruction
-      // will see the new control).
-      auto postPoke = [hart] (Csr<URV>&, URV val) -> void {
-                        hart->setPerformanceCounterControl(~val);
-                        hart->setPerformanceCounterControl(~val);
-                      };
-
-      // For write (invoked from current instruction), the effect
-      // takes place on the following instruction.
-      auto postWrite = [hart] (Csr<URV>&, URV val) -> void {
-                         hart->setPerformanceCounterControl(~val);
-                       };
-
-      csrPtr->registerPostPoke(postPoke);
-      csrPtr->registerPostWrite(postWrite);
-    }
-
-
-  // Define callback to react to write/poke to mgpmc CSR. This is a
-  // CSR that is only in ehx1 and that controls the performance
-  // counters. Mgpmc will not be present if mcountinhibit is present.
   for (unsigned i = 0; i < system.hartCount(); ++i)
     {
       auto hart = system.ithHart(i);
@@ -1287,7 +1244,64 @@ HartConfig::finalizeCsrConfig(System<URV>& system) const
       csrPtr->registerPostPoke(postPoke);
       csrPtr->registerPostWrite(postWrite);
     }
+}
 
+
+/// Associate callback with write/poke of mcounthinibit
+template <typename URV>
+void
+defineMcountinhibitSideEffects(System<URV>& system)
+{
+  for (unsigned i = 0; i < system.hartCount(); ++i)
+    {
+      auto hart = system.ithHart(i);
+      auto csrPtr = hart->findCsr("mcountinhibit");
+      if (not csrPtr)
+        continue;
+
+      // For poke, the effect takes place immediately (next instruction
+      // will see the new control).
+      auto postPoke = [hart] (Csr<URV>&, URV val) -> void {
+                        hart->setPerformanceCounterControl(~val);
+                        hart->setPerformanceCounterControl(~val);
+                      };
+
+      // For write (invoked from current instruction), the effect
+      // takes place on the following instruction.
+      auto postWrite = [hart] (Csr<URV>&, URV val) -> void {
+                         hart->setPerformanceCounterControl(~val);
+                       };
+
+      csrPtr->registerPostPoke(postPoke);
+      csrPtr->registerPostWrite(postWrite);
+    }
+}
+
+
+template <typename URV>
+bool
+HartConfig::finalizeCsrConfig(System<URV>& system) const
+{
+  if (system.hartCount() == 0)
+    return false;
+
+  // Make shared CSRs in each hart with hart-id greater than zero
+  // point to the corresponding values in hart zero.
+  auto hart0 = system.ithHart(0);
+  assert(hart0);
+  for (unsigned i = 1; i < system.hartCount(); ++i)
+    system.ithHart(i)->tieSharedCsrsTo(*hart0);
+
+  // The following are WD non-standard CSRs. We implement their
+  // actions by associating callbacks with the write/poke CSR methods.
+  defineMhartstartSideEffects(system);
+  defineMnmipdelSideEffects(system);
+  defineMpicbaddrSideEffects(system);
+  defineMpmcSideEffects(system);
+  defineMgpmcSideEffects(system);
+
+  // Define callback to react to write/poke to mcountinhibit CSR.
+  defineMcountinhibitSideEffects(system);
 
   return true;
 }

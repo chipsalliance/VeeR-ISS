@@ -404,7 +404,7 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   dcsrStepIe_ = false;
   dcsrStep_ = false;
 
-  if (csRegs_.peek(CsrNumber::DCSR, value))
+  if (peekCsr(CsrNumber::DCSR, value))
     {
       dcsrStep_ = (value >> 2) & 1;
       dcsrStepIe_ = (value >> 11) & 1;
@@ -2857,7 +2857,7 @@ Hart<URV>::peekCsr(CsrNumber csrn, URV& val, URV& reset, URV& writeMask,
   if (not csr)
     return false;
 
-  if (not csRegs_.peek(csrn, val))
+  if (not peekCsr(csrn, val))
     return false;
 
   reset = csr->getResetValue();
@@ -2875,7 +2875,7 @@ Hart<URV>::peekCsr(CsrNumber csrn, URV& val, std::string& name) const
   if (not csr)
     return false;
 
-  if (not csRegs_.peek(csrn, val))
+  if (not peekCsr(csrn, val))
     return false;
 
   name = csr->getName();
@@ -2915,8 +2915,6 @@ Hart<URV>::pokeCsr(CsrNumber csr, URV val)
     updateStackChecker();
   else if (csr == CsrNumber::MDBAC)
     enableWideLdStMode(true);
-  else if (csr == CsrNumber::MCOUNTINHIBIT)
-    perfControl_ = ~val;
   else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
            (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
     updateMemoryProtection();
@@ -4037,12 +4035,9 @@ Hart<URV>::doAlarmCountdown()
   alarmExpired_ = true;
   alarmCounter_ = alarmInterval_;
 
-  URV mip = 0;
-  if (csRegs_.read(CsrNumber::MIP, PrivilegeMode::Machine, mip))
-    {
-      mip |= URV(1) << unsigned(InterruptCause::M_TIMER);
-      pokeCsr(CsrNumber::MIP, mip);
-    }
+  URV mip = csRegs_.peekMip();
+  mip |= URV(1) << unsigned(InterruptCause::M_TIMER);
+  pokeCsr(CsrNumber::MIP, mip);
 
   return alarmExpired_;
 }
@@ -6552,7 +6547,7 @@ Hart<URV>::enterDebugMode(DebugModeCause cause, URV pc)
     }
 
   URV value = 0;
-  if (csRegs_.peek(CsrNumber::DCSR, value))
+  if (peekCsr(CsrNumber::DCSR, value))
     {
       value &= ~(URV(7) << 6);        // Clear cause field (starts at bit 6).
       value |= URV(cause) << 6;       // Set cause field
@@ -6605,7 +6600,7 @@ Hart<URV>::exitDebugMode()
       return;
     }
 
-  csRegs_.peek(CsrNumber::DPC, pc_);
+  peekCsr(CsrNumber::DPC, pc_);
 
   // If in debug-step go to debug-halt. If in debug-halt go to normal
   // or debug-step based on step-bit in DCSR.
@@ -7377,8 +7372,6 @@ Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
     updateStackChecker();
   else if (csr == CsrNumber::MDBAC)
     enableWideLdStMode(true);
-  else if (csr == CsrNumber::MCOUNTINHIBIT)
-    perfControl_ = ~csrVal;
   else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
            (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
     updateMemoryProtection();
@@ -8378,7 +8371,6 @@ Hart<URV>::markFsDirty()
   MstatusFields<URV> fields(val);
   fields.bits_.FS = unsigned(FpFs::Dirty);
 
-  //csRegs_.write(CsrNumber::MSTATUS, PrivilegeMode::Machine, fields.value_);
   csRegs_.poke(CsrNumber::MSTATUS, fields.value_);
 
   updateCachedMstatusFields();
