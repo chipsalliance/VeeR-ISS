@@ -1608,7 +1608,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
       if (mode != PrivilegeMode::Machine)
         {
           uint64_t pa = 0;
-          cause = virtMem_.translate(addr, mode, true, false, false, pa);
+          cause = virtMem_.translateForLoad(addr, mode, pa);
           if (cause != ExceptionCause::NONE)
             return cause;
           addr = pa;
@@ -2237,7 +2237,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
 
   if (isRvs() and privMode_ != PrivilegeMode::Machine)
     {
-      auto cause = virtMem_.translate(virtAddr, privMode_, false, false, true, addr);
+      auto cause = virtMem_.translateForFetch(virtAddr, privMode_, addr);
       if (cause != ExceptionCause::NONE)
         {
           initiateException(cause, virtAddr, virtAddr);
@@ -2321,7 +2321,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
 
   if (isRvs() and privMode_ != PrivilegeMode::Machine)
     {
-      auto cause = virtMem_.translate(virtAddr+2, privMode_, false, false, true, addr);
+      auto cause = virtMem_.translateForFetch(virtAddr+2, privMode_, addr);
       if (cause != ExceptionCause::NONE)
         {
           initiateException(cause, virtAddr, virtAddr+2);
@@ -2371,7 +2371,7 @@ Hart<URV>::fetchInstPostTrigger(URV virtAddr, uint32_t& inst, FILE* traceFile)
   bool pageFault = false;
   if (isRvs() and privMode_ != PrivilegeMode::Machine)
     {
-      auto cause = virtMem_.translate(virtAddr, privMode_, false, false, true, addr);
+      auto cause = virtMem_.translateForFetch(virtAddr, privMode_, addr);
       pageFault = cause != ExceptionCause::NONE;
     }
 
@@ -7143,6 +7143,8 @@ Hart<URV>::execSfence_vma(const DecodedInst* di)
 
   // Invalidate whole TLB. This is overkill. TBD FIX: Improve.
   virtMem_.tlb_.invalidate();
+
+  invalidateDecodeCache();
 }
 
 
@@ -7632,7 +7634,7 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, uint64_t& addr,
       if (mode != PrivilegeMode::Machine)
         {
           uint64_t pa = 0;
-          cause = virtMem_.translate(addr, mode, false, true, false, pa);
+          cause = virtMem_.translateForStore(addr, mode, pa);
           if (cause != ExceptionCause::NONE)
             return cause;
           addr = pa;
