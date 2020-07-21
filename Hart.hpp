@@ -397,10 +397,12 @@ namespace WdRiscv
     { if (conIoValid_) address = conIo_; return conIoValid_; }
 
     /// Define a memory mapped locations for software interrupts.
-    void configClint(std::function<Hart<URV>*(size_t addr)> swFunc,
+    void configClint(uint64_t clintStart, uint64_t clintLimit,
+                     std::function<Hart<URV>*(size_t addr)> swFunc,
                      std::function<Hart<URV>*(size_t addr)> timerFunc)
     {
-      enableClint_ = true;
+      clintStart_ = clintStart;
+      clintLimit_ = clintLimit;
       clintSoftAddrToHart_ = swFunc;
       clintTimerAddrToHart_ = timerFunc;
     }
@@ -1989,7 +1991,8 @@ namespace WdRiscv
     bool conIoValid_ = false;    // True if conIo_ is valid.
     bool enableConIn_ = true;
 
-    bool enableClint_ = false;
+    uint64_t clintStart_ = 0;
+    uint64_t clintLimit_ = 0;
     std::function<Hart<URV>*(size_t addr)> clintSoftAddrToHart_ = nullptr;
     std::function<Hart<URV>*(size_t addr)> clintTimerAddrToHart_ = nullptr;
 
@@ -2122,7 +2125,7 @@ namespace WdRiscv
     URV lastDivRd_ = 0;  // Target register of most recent div/rem instruction.
 
     uint64_t alarmInterval_ = 0; // Timer interrupt interval.
-    uint64_t alarmLimit_ = 0; // Timer interrupt when inst counter reaches this.
+    uint64_t alarmLimit_ = ~uint64_t(0); // Timer interrupt when inst counter reaches this.
 
     bool misalDataOk_ = true;
 

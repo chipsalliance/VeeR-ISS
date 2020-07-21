@@ -904,15 +904,17 @@ loadSnapshot(Hart<URV>& hart, const std::string& snapDir)
 template<typename URV>
 static
 void
-configureClint(Hart<URV>& hart, System<URV>& system, uint64_t swAddr, uint64_t timerAddr)
+configureClint(Hart<URV>& hart, System<URV>& system, uint64_t clintStart,
+               uint64_t clintLimit, uint64_t timerAddr)
 {
   // Define callback to associate a memory mapped software interrupt
   // location to its corresponding hart so that when such a location
   // is written the software interrupt bit is set/cleared in the MIP
   // register of that hart.
+  uint64_t swAddr = clintStart;
   auto swAddrToHart = [swAddr, &system](URV addr) -> Hart<URV>* {
-    uint64_t swAddr2 = swAddr + system.hartCount()*4; // 1 word per hart
-    if (addr >= swAddr and addr < swAddr2)
+    uint64_t addr2 = swAddr + system.hartCount()*4; // 1 word per hart
+    if (addr >= swAddr and addr < addr2)
       {
         size_t ix = (addr - swAddr) / 4;
         return system.ithHart(ix).get();
@@ -921,24 +923,17 @@ configureClint(Hart<URV>& hart, System<URV>& system, uint64_t swAddr, uint64_t t
   };
 
   // Same for timer limit addresses.
-  uint64_t timerOffset = 0x4000;
-  if (timerAddr >= swAddr + timerOffset)
-    {
-      uint64_t timerAddr = swAddr + timerOffset;
-      auto timerAddrToHart = [timerAddr, &system](URV addr) -> Hart<URV>* {
-        uint64_t timerAddr2 = timerAddr + system.hartCount()*8; // 1 double word per hart
-        if (addr >= timerAddr and addr < timerAddr2)
-          {
-            size_t ix = (addr - timerAddr) / 8;
-            return system.ithHart(ix).get();
-          }
-        return nullptr;
-      };
+  auto timerAddrToHart = [timerAddr, &system](URV addr) -> Hart<URV>* {
+    uint64_t addr2 = timerAddr + system.hartCount()*8; // 1 double word per hart
+    if (addr >= timerAddr and addr < addr2)
+      {
+        size_t ix = (addr - timerAddr) / 8;
+        return system.ithHart(ix).get();
+      }
+    return nullptr;
+  };
 
-      hart.configClint(swAddrToHart, timerAddrToHart);
-    }
-  else
-    hart.configClint(swAddrToHart, nullptr);
+  hart.configClint(clintStart, clintLimit, swAddrToHart, timerAddrToHart);
 }
 
 
@@ -1036,14 +1031,17 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
     {
       uint64_t swAddr = *args.clint;
       uint64_t timerAddr = swAddr + 0x4000;
-      configureClint(hart, system, swAddr, timerAddr);
+      uint64_t clintLimit = swAddr + 0x40000000 - 1;
+      configureClint(hart, system, swAddr, clintLimit, timerAddr);
     }
   else if (args.swInterrupt)
     {
-      uint64_t swAddr = *args.clint;
-      configureClint(hart, system, swAddr, swAddr);
+      uint64_t swAddr = *args.swInterrupt;
+      uint64_t timerAddr = swAddr + 0x4000;
+      uint64_t clintLimit = swAddr + system.hartCount() * 4 - 1;
+      configureClint(hart, system, swAddr, clintLimit, timerAddr);
     }
-      
+
   // Set instruction count limit.
   if (args.instCountLim)
     hart.setInstructionCountLimit(*args.instCountLim);
