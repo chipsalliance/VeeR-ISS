@@ -447,8 +447,7 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
 
   csRegs_.updateCounterPrivilege();
 
-  alarmCounter_ = alarmInterval_;
-  alarmExpired_ = false;
+  alarmLimit_ = alarmInterval_? alarmInterval_ + instCounter_ : ~uint64_t(0);
 }
 
 
@@ -1954,8 +1953,8 @@ Hart<URV>::store(unsigned rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
           return true;
 	}
 
-      if (swInterruptValid_)
-        processSoftwareInterruptWrite(addr, stSize, storeVal);
+      if (enableClint_)
+        processClintWrite(addr, stSize, storeVal);
 
       return true;
     }
@@ -1969,26 +1968,40 @@ Hart<URV>::store(unsigned rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
 
 template <typename URV>
 void
-Hart<URV>::processSoftwareInterruptWrite(size_t addr, unsigned stSize,
-                                         URV storeVal)
+Hart<URV>::processClintWrite(size_t addr, unsigned stSize, URV storeVal)
 {
-  Hart<URV>* hart = swAddrToHart_(addr);
-  if (not hart)
-    return;  // Address is not in the software-interrupt memory mapped locations.
+  if (clintSoftAddrToHart_)
+    {
+      auto hart = clintSoftAddrToHart_(addr);
+      if (hart)
+        {
+          if (stSize == 4 and (storeVal >> 1) == 0)
+            {
+              storeVal = storeVal & 1;
 
-  if (stSize != 4)
-    return;  // Must be sw
+              URV mipVal = csRegs_.peekMip();
+              if (storeVal)
+                mipVal = mipVal | (URV(1) << URV(InterruptCause::M_SOFTWARE));
+              else
+                mipVal = mipVal & ~(URV(1) << URV(InterruptCause::M_SOFTWARE));
+      
+              hart->pokeCsr(CsrNumber::MIP, mipVal);
+              recordCsrWrite(CsrNumber::MIP);
+            }
+          return;
+        }
+    }
 
-  if ((storeVal >> 1) != 0)
-    return;  // Must write 0 or 1.
-
-  URV mipVal = csRegs_.peekMip();
-  if (storeVal)
-    mipVal = mipVal | (URV(1) << URV(InterruptCause::M_SOFTWARE));
-  else
-    mipVal = mipVal & ~(URV(1) << URV(InterruptCause::M_SOFTWARE));
-  hart->pokeCsr(CsrNumber::MIP, mipVal);
-  recordCsrWrite(CsrNumber::MIP);
+  // Alarm interval (defined by --alarm) takes precednet over clint.
+  if (alarmInterval_ == 0)
+    {
+      if (clintTimerAddrToHart_)
+        {
+          auto hart = clintTimerAddrToHart_(addr);
+          if (hart)
+            hart->alarmLimit_ = storeVal;
+        }
+    }
 }
 
 
@@ -4024,25 +4037,6 @@ private:
 
 
 
-template <typename URV>
-bool
-Hart<URV>::doAlarmCountdown()
-{
-  alarmCounter_--;
-  if (alarmCounter_ != 0)
-    return alarmExpired_;
-  
-  alarmExpired_ = true;
-  alarmCounter_ = alarmInterval_;
-
-  URV mip = csRegs_.peekMip();
-  mip |= URV(1) << unsigned(InterruptCause::M_TIMER);
-  pokeCsr(CsrNumber::MIP, mip);
-
-  return alarmExpired_;
-}
-
-
 /// Report the number of retired instruction count and the simulation
 /// rate.
 static void
@@ -4208,9 +4202,6 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
               continue;
             }
         }
-
-      if (alarmCounter_)
-        doAlarmCountdown();
 
       try
 	{
@@ -4476,7 +4467,7 @@ Hart<URV>::run(FILE* file)
   bool hasWideLdSt = csRegs_.isImplemented(CsrNumber::MDBAC);
   bool complex = (stopAddrValid_ or instFreq_ or enableTriggers_ or enableGdb_
                   or enableCounters_ or alarmInterval_ or file or hasWideLdSt
-                  or swInterruptValid_ or isRvs());
+                  or enableClint_ or isRvs());
   if (complex)
     return runUntilAddress(stopAddr, file); 
 
@@ -4541,7 +4532,6 @@ Hart<URV>::isInterruptPossible(InterruptCause& cause)
             cause = ic;
             if (ic == IC::M_TIMER and alarmInterval_ > 0)
               {
-                alarmExpired_ = false;  // Stop trying to deliver timer interrupt.
                 // Reset the timer-interrupt pending bit.
                 mip = mip & ~mask;
                 pokeCsr(CsrNumber::MIP, mip);
@@ -4591,6 +4581,14 @@ template <typename URV>
 bool
 Hart<URV>::processExternalInterrupt(FILE* traceFile, std::string& instStr)
 {
+  if (instCounter_ >= alarmLimit_)
+    {
+      URV mipVal = csRegs_.peekMip();
+      mipVal = mipVal | (URV(1) << unsigned(InterruptCause::M_TIMER));
+      csRegs_.poke(CsrNumber::MIP, mipVal);
+      alarmLimit_ += alarmInterval_;
+    }
+
   if (debugStepMode_ and not dcsrStepIe_)
     return false;
 
@@ -4677,9 +4675,6 @@ Hart<URV>::singleStep(FILE* traceFile)
       hasException_ = false;
       ebreakInstDebug_ = false;
       lastPriv_ = privMode_;
-
-      if (alarmCounter_)
-        doAlarmCountdown();
 
       ++instCounter_;
 

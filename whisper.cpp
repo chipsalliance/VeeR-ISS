@@ -191,6 +191,7 @@ struct Args
   std::optional<uint64_t> snapshotPeriod;
   std::optional<uint64_t> alarmInterval;
   std::optional<uint64_t> swInterrupt;  // Sotware interrupt mem mapped address
+  std::optional<uint64_t> clint;  // Clint mem mapped address
 
   unsigned regWidth = 32;
   unsigned harts = 1;
@@ -244,7 +245,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 548;
+  unsigned subversion = 549;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -330,6 +331,18 @@ collectCommandLineValues(const boost::program_options::variables_map& varMap,
         ok = false;
       else if (*args.alarmInterval == 0)
         std::cerr << "Warning: Zero alarm period ignored.\n";
+    }
+
+  if (varMap.count("clint"))
+    {
+      auto numStr = varMap["clint"].as<std::string>();
+      if (not parseCmdLineNumber("clint", numStr, args.clint))
+        ok = false;
+      else if ((*args.clint & 7) != 0)
+        {
+          std::cerr << "Error: clint address must be a multiple of 8\n";
+          ok = false;
+        }
     }
 
   if (varMap.count("softinterrupt"))
@@ -877,6 +890,48 @@ loadSnapshot(Hart<URV>& hart, const std::string& snapDir)
 }
 
 
+
+template<typename URV>
+static
+void
+configureClint(Hart<URV>& hart, System<URV>& system, uint64_t swAddr, uint64_t timerAddr)
+{
+  // Define callback to associate a memory mapped software interrupt
+  // location to its corresponding hart so that when such a location
+  // is written the software interrupt bit is set/cleared in the MIP
+  // register of that hart.
+  auto swAddrToHart = [swAddr, &system](URV addr) -> Hart<URV>* {
+    uint64_t swAddr2 = swAddr + system.hartCount()*4; // 1 word per hart
+    if (addr >= swAddr and addr < swAddr2)
+      {
+        size_t ix = (addr - swAddr) / 4;
+        return system.ithHart(ix).get();
+      }
+    return nullptr;
+  };
+
+  // Same for timer limit addresses.
+  uint64_t timerOffset = 0x4000;
+  if (timerAddr >= swAddr + timerOffset)
+    {
+      uint64_t timerAddr = swAddr + timerOffset;
+      auto timerAddrToHart = [timerAddr, &system](URV addr) -> Hart<URV>* {
+        uint64_t timerAddr2 = timerAddr + system.hartCount()*8; // 1 double word per hart
+        if (addr >= timerAddr and addr < timerAddr2)
+          {
+            size_t ix = (addr - timerAddr) / 8;
+            return system.ithHart(ix).get();
+          }
+        return nullptr;
+      };
+
+      hart.configClint(swAddrToHart, timerAddrToHart);
+    }
+  else
+    hart.configClint(swAddrToHart, nullptr);
+}
+
+
 /// Apply command line arguments: Load ELF and HEX files, set
 /// start/end/tohost. Return true on success and false on failure.
 template<typename URV>
@@ -964,25 +1019,21 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
 
   hart.enableConsoleInput(! args.noConInput);
 
-  if (args.swInterrupt)
-    {
-      // Define callback to associate a memory mapped software
-      // interrupt location to its corresponding hart so that when
-      // such a location is written the software interrupt bit is
-      // set/cleared in the MIP register of that hart.
-      uint64_t swAddr = *args.swInterrupt;
-      auto addrToHart = [swAddr, &system](URV addr) -> Hart<URV>* {
-        uint64_t swAddr2 = swAddr + system.hartCount()*4; // 1 word per hart
-        if (addr >= swAddr and addr < swAddr2)
-          {
-            size_t ix = (addr - swAddr) / 4;
-            return system.ithHart(ix).get();
-          }
-        return nullptr;
-      };
-      hart.setSoftwareInterruptAddress(swAddr, addrToHart);
-    }
+  if (args.clint and args.swInterrupt)
+    std::cerr << "Ignoring --sontinterrupt: incompatible with --clint.\n";
 
+  if (args.clint)
+    {
+      uint64_t swAddr = *args.clint;
+      uint64_t timerAddr = swAddr + 0x400;
+      configureClint(hart, system, swAddr, timerAddr);
+    }
+  else if (args.swInterrupt)
+    {
+      uint64_t swAddr = *args.clint;
+      configureClint(hart, system, swAddr, swAddr);
+    }
+      
   // Set instruction count limit.
   if (args.instCountLim)
     hart.setInstructionCountLimit(*args.instCountLim);
