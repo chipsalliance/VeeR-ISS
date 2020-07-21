@@ -1035,7 +1035,7 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
   if (args.clint)
     {
       uint64_t swAddr = *args.clint;
-      uint64_t timerAddr = swAddr + 0x400;
+      uint64_t timerAddr = swAddr + 0x4000;
       configureClint(hart, system, swAddr, timerAddr);
     }
   else if (args.swInterrupt)
