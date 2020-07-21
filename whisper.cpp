@@ -498,6 +498,16 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
          "bit in MIP. Writing values besides 0/1 will not affect the "
          "MIP bit and neither will writing using sb/sh/sd or writing to "
          "non-multiple-of-4 addresses.")
+        ("clint", po::value<std::string>(),
+         "Define address, a, of memory mapped area for clint (core local "
+         "interruptor). In an n-hart system, words at addresses a, a+4, ... "
+         "a+(n-1)*4, are  associated with the n harts. Store a 0/1 to one of "
+         "these locations clears/sets the software interrupt bit in the MIP CSR "
+         "of the corresponding hart. Similary, addresses b, b+8, ... b+(n-1)*8, "
+         "where b is a+0x4000, are associated with the n harts. Writing to one "
+         "of these double words sets the timer-limit of the corresponding hart. "
+         "A timer interrupt in such a hart becomes pending when the timer value "
+         "equals or exceeds the timer limit.")
         ("iccmrw", po::bool_switch(&args.iccmRw),
          "Temporary switch to make ICCM region available to ld/st isntructions.")
         ("quitany", po::bool_switch(&args.quitOnAnyHart),
