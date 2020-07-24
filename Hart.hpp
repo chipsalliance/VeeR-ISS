@@ -397,9 +397,15 @@ namespace WdRiscv
     { if (conIoValid_) address = conIo_; return conIoValid_; }
 
     /// Define a memory mapped locations for software interrupts.
-    void setSoftwareInterruptAddress(URV address,
-                                     std::function<Hart<URV>*(size_t addr)> func)
-    { swInterrupt_ = address; swInterruptValid_ = true; swAddrToHart_ = func; }
+    void configClint(uint64_t clintStart, uint64_t clintLimit,
+                     std::function<Hart<URV>*(size_t addr)> swFunc,
+                     std::function<Hart<URV>*(size_t addr)> timerFunc)
+    {
+      clintStart_ = clintStart;
+      clintLimit_ = clintLimit;
+      clintSoftAddrToHart_ = swFunc;
+      clintTimerAddrToHart_ = timerFunc;
+    }
 
     /// Disassemble given instruction putting results on the given
     /// stream.
@@ -1084,7 +1090,10 @@ namespace WdRiscv
     /// Enable forcing a timer interrupt every n instructions.
     /// Nothing is forced if n is zero.
     void setupPeriodicTimerInterrupts(uint64_t n)
-    { alarmCounter_ = alarmInterval_ = n; }
+    {
+      alarmInterval_ = n;
+      alarmLimit_ = n? instCounter_ + alarmInterval_ : ~uint64_t(0);
+    }
 
     /// Return the memory page size (e.g. 4096).
     size_t pageSize() const
@@ -1137,6 +1146,10 @@ namespace WdRiscv
     /// one first).
     void getCacheLineAddresses(std::vector<uint64_t>& addresses);
 
+    /// Configure clint (core local interruptor).
+    void configureClint(unsigned hartCount, uint64_t softInterruptBase,
+                        uint64_t timerLimitBase, uint64_t timerAddr);
+
   protected:
 
     // Return true if FS field of mstatus is not off.
@@ -1160,10 +1173,9 @@ namespace WdRiscv
     void processExtensions();
 
     /// Simulate a periodic external timer interrupt: Count-down the
-    /// periodic counter. Return false if counter value is non-zero
-    /// after the countdown. Otherwise, return true after resetting
-    /// the counter and setting the external timer bit in the MIP
-    /// (interrupt pending) CSR.
+    /// periodic counter. Return true if counter reaches zero (and
+    /// keep returning true thereafter until timer interrupt is taken).
+    /// If counter reches zero, it is reset to its initial value.
     bool doAlarmCountdown();
 
     /// Return the 8-bit content of the pmpconfig register
@@ -1586,10 +1598,11 @@ namespace WdRiscv
     bool minstretEnabled() const
     { return prevPerfControl_ & 0x4; }
 
-    /// Called when a software-interrupt memory mapped register is written.
-    /// Clear/set software-interrupt bit in the MIP CSR of corresponding hart
-    /// if all the conditions are met.
-    void processSoftwareInterruptWrite(size_t addr, unsigned stSize, URV stVal);
+    /// Called to check if a clint memory mapped register is written.
+    /// Clear/set software-interrupt bit in the MIP CSR of
+    /// corresponding hart if all the conditions are met. Set timer
+    /// limit if timer-limit regiser is written.
+    void processClintWrite(size_t addr, unsigned stSize, URV stVal);
 
     // rs1: index of source register (value range: 0 to 31)
     // rs2: index of source register (value range: 0 to 31)
@@ -1978,9 +1991,10 @@ namespace WdRiscv
     bool conIoValid_ = false;    // True if conIo_ is valid.
     bool enableConIn_ = true;
 
-    URV swInterrupt_ = 0;
-    bool swInterruptValid_ = false;
-    std::function<Hart<URV>*(size_t addr)> swAddrToHart_ = nullptr;
+    uint64_t clintStart_ = 0;
+    uint64_t clintLimit_ = 0;
+    std::function<Hart<URV>*(size_t addr)> clintSoftAddrToHart_ = nullptr;
+    std::function<Hart<URV>*(size_t addr)> clintTimerAddrToHart_ = nullptr;
 
     URV nmiPc_ = 0;              // Non-maskable interrupt handler address.
     bool nmiPending_ = false;
@@ -2110,8 +2124,8 @@ namespace WdRiscv
     URV priorDivRdVal_ = 0;  // Prior value of most recent div/rem dest register.
     URV lastDivRd_ = 0;  // Target register of most recent div/rem instruction.
 
-    uint64_t alarmInterval_ = 0; // Ext. timer interrupt interval.
-    uint64_t alarmCounter_ = 0;  // Ext. timer interrupt when this reaches 0.
+    uint64_t alarmInterval_ = 0; // Timer interrupt interval.
+    uint64_t alarmLimit_ = ~uint64_t(0); // Timer interrupt when inst counter reaches this.
 
     bool misalDataOk_ = true;
 

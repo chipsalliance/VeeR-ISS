@@ -191,6 +191,7 @@ struct Args
   std::optional<uint64_t> snapshotPeriod;
   std::optional<uint64_t> alarmInterval;
   std::optional<uint64_t> swInterrupt;  // Sotware interrupt mem mapped address
+  std::optional<uint64_t> clint;  // Clint mem mapped address
 
   unsigned regWidth = 32;
   unsigned harts = 1;
@@ -244,7 +245,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 541;
+  unsigned subversion = 549;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -330,6 +331,18 @@ collectCommandLineValues(const boost::program_options::variables_map& varMap,
         ok = false;
       else if (*args.alarmInterval == 0)
         std::cerr << "Warning: Zero alarm period ignored.\n";
+    }
+
+  if (varMap.count("clint"))
+    {
+      auto numStr = varMap["clint"].as<std::string>();
+      if (not parseCmdLineNumber("clint", numStr, args.clint))
+        ok = false;
+      else if ((*args.clint & 7) != 0)
+        {
+          std::cerr << "Error: clint address must be a multiple of 8\n";
+          ok = false;
+        }
     }
 
   if (varMap.count("softinterrupt"))
@@ -485,6 +498,16 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
          "bit in MIP. Writing values besides 0/1 will not affect the "
          "MIP bit and neither will writing using sb/sh/sd or writing to "
          "non-multiple-of-4 addresses.")
+        ("clint", po::value<std::string>(),
+         "Define address, a, of memory mapped area for clint (core local "
+         "interruptor). In an n-hart system, words at addresses a, a+4, ... "
+         "a+(n-1)*4, are  associated with the n harts. Store a 0/1 to one of "
+         "these locations clears/sets the software interrupt bit in the MIP CSR "
+         "of the corresponding hart. Similary, addresses b, b+8, ... b+(n-1)*8, "
+         "where b is a+0x4000, are associated with the n harts. Writing to one "
+         "of these double words sets the timer-limit of the corresponding hart. "
+         "A timer interrupt in such a hart becomes pending when the timer value "
+         "equals or exceeds the timer limit.")
         ("iccmrw", po::bool_switch(&args.iccmRw),
          "Temporary switch to make ICCM region available to ld/st isntructions.")
         ("quitany", po::bool_switch(&args.quitOnAnyHart),
@@ -877,6 +900,43 @@ loadSnapshot(Hart<URV>& hart, const std::string& snapDir)
 }
 
 
+
+template<typename URV>
+static
+void
+configureClint(Hart<URV>& hart, System<URV>& system, uint64_t clintStart,
+               uint64_t clintLimit, uint64_t timerAddr)
+{
+  // Define callback to associate a memory mapped software interrupt
+  // location to its corresponding hart so that when such a location
+  // is written the software interrupt bit is set/cleared in the MIP
+  // register of that hart.
+  uint64_t swAddr = clintStart;
+  auto swAddrToHart = [swAddr, &system](URV addr) -> Hart<URV>* {
+    uint64_t addr2 = swAddr + system.hartCount()*4; // 1 word per hart
+    if (addr >= swAddr and addr < addr2)
+      {
+        size_t ix = (addr - swAddr) / 4;
+        return system.ithHart(ix).get();
+      }
+    return nullptr;
+  };
+
+  // Same for timer limit addresses.
+  auto timerAddrToHart = [timerAddr, &system](URV addr) -> Hart<URV>* {
+    uint64_t addr2 = timerAddr + system.hartCount()*8; // 1 double word per hart
+    if (addr >= timerAddr and addr < addr2)
+      {
+        size_t ix = (addr - timerAddr) / 8;
+        return system.ithHart(ix).get();
+      }
+    return nullptr;
+  };
+
+  hart.configClint(clintStart, clintLimit, swAddrToHart, timerAddrToHart);
+}
+
+
 /// Apply command line arguments: Load ELF and HEX files, set
 /// start/end/tohost. Return true on success and false on failure.
 template<typename URV>
@@ -964,23 +1024,22 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
 
   hart.enableConsoleInput(! args.noConInput);
 
-  if (args.swInterrupt)
+  if (args.clint and args.swInterrupt)
+    std::cerr << "Ignoring --sontinterrupt: incompatible with --clint.\n";
+
+  if (args.clint)
     {
-      // Define callback to associate a memory mapped software
-      // interrupt location to its corresponding hart so that when
-      // such a location is written the software interrupt bit is
-      // set/cleared in the MIP register of that hart.
+      uint64_t swAddr = *args.clint;
+      uint64_t timerAddr = swAddr + 0x4000;
+      uint64_t clintLimit = swAddr + 0x40000000 - 1;
+      configureClint(hart, system, swAddr, clintLimit, timerAddr);
+    }
+  else if (args.swInterrupt)
+    {
       uint64_t swAddr = *args.swInterrupt;
-      auto addrToHart = [swAddr, &system](URV addr) -> Hart<URV>* {
-        uint64_t swAddr2 = swAddr + system.hartCount()*4; // 1 word per hart
-        if (addr >= swAddr and addr < swAddr2)
-          {
-            size_t ix = (addr - swAddr) / 4;
-            return system.ithHart(ix).get();
-          }
-        return nullptr;
-      };
-      hart.setSoftwareInterruptAddress(swAddr, addrToHart);
+      uint64_t timerAddr = swAddr + 0x4000;
+      uint64_t clintLimit = swAddr + system.hartCount() * 4 - 1;
+      configureClint(hart, system, swAddr, clintLimit, timerAddr);
     }
 
   // Set instruction count limit.

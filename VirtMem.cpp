@@ -32,6 +32,114 @@ pageFaultType(bool read, bool write, bool exec)
 
 
 ExceptionCause
+VirtMem::translateForFetch(size_t va, PrivilegeMode priv, size_t& pa)
+{
+  if (mode_ == Bare)
+    {
+      pa = va;
+      return ExceptionCause::NONE;
+    }
+
+  // Lookup virtual page number in TLB.
+  size_t virPageNum = va >> pageBits_;
+  TlbEntry* entry = tlb_.findEntry(virPageNum, asid_);
+  if (entry)
+    {
+      // Use TLB entry.
+      if (priv == PrivilegeMode::User and not entry->user_)
+        return pageFaultType(false, true, true);
+      if (priv == PrivilegeMode::Supervisor and entry->user_ and not supervisorOk_)
+        return pageFaultType(false, false, true);
+      if (not entry->exec_)
+        return pageFaultType(false, false, true);
+      if (not entry->accessed_)
+        {
+          if (faultOnFirstAccess_)
+            return pageFaultType(false, false, true);
+          entry->accessed_ = true;
+        }
+      pa = (entry->physPageNum_ << pageBits_) | (va & pageMask_);
+      return ExceptionCause::NONE;
+    }
+
+  return pageTableWalkUpdateTlb(va, priv, false, false, true, pa);
+}
+
+
+
+ExceptionCause
+VirtMem::translateForLoad(size_t va, PrivilegeMode priv, size_t& pa)
+{
+  if (mode_ == Bare)
+    {
+      pa = va;
+      return ExceptionCause::NONE;
+    }
+
+  // Lookup virtual page number in TLB.
+  size_t virPageNum = va >> pageBits_;
+  TlbEntry* entry = tlb_.findEntry(virPageNum, asid_);
+  if (entry)
+    {
+      // Use TLB entry.
+      if (priv == PrivilegeMode::User and not entry->user_)
+        return pageFaultType(true, false, false);
+      if (priv == PrivilegeMode::Supervisor and entry->user_ and not supervisorOk_)
+        return pageFaultType(true, false, false);
+      bool entryRead = entry->read_ or (execReadable_ and entry->exec_);
+      if (not entryRead)
+        return pageFaultType(true, false, false);
+      if (not entry->accessed_)
+        {
+          if (faultOnFirstAccess_)
+            return pageFaultType(true, false, false);
+          entry->accessed_ = true;
+        }
+      pa = (entry->physPageNum_ << pageBits_) | (va & pageMask_);
+      return ExceptionCause::NONE;
+    }
+
+  return pageTableWalkUpdateTlb(va, priv, true, false, false, pa);
+}
+
+
+ExceptionCause
+VirtMem::translateForStore(size_t va, PrivilegeMode priv, size_t& pa)
+{
+  if (mode_ == Bare)
+    {
+      pa = va;
+      return ExceptionCause::NONE;
+    }
+
+  // Lookup virtual page number in TLB.
+  size_t virPageNum = va >> pageBits_;
+  TlbEntry* entry = tlb_.findEntry(virPageNum, asid_);
+  if (entry)
+    {
+      // Use TLB entry.
+      if (priv == PrivilegeMode::User and not entry->user_)
+        return pageFaultType(false, true, false);
+      if (priv == PrivilegeMode::Supervisor and entry->user_ and not supervisorOk_)
+        return pageFaultType(false, true, false);
+      if (not entry->write_)
+        return pageFaultType(false, true, false);
+      if (not entry->accessed_ or not entry->dirty_)
+        {
+          if (faultOnFirstAccess_)
+            return pageFaultType(false, true, false);
+          entry->accessed_ = true;
+          entry->dirty_ = true;
+        }
+      pa = (entry->physPageNum_ << pageBits_) | (va & pageMask_);
+      return ExceptionCause::NONE;
+    }
+
+  return pageTableWalkUpdateTlb(va, priv, false, true, false, pa);
+}
+
+
+ExceptionCause
 VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
                    bool exec, size_t& pa)
 {
@@ -67,6 +175,14 @@ VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
       return ExceptionCause::NONE;
     }
 
+  return pageTableWalkUpdateTlb(va, priv, read, write, exec, pa);
+}
+
+
+ExceptionCause
+VirtMem::pageTableWalkUpdateTlb(size_t va, PrivilegeMode priv, bool read,
+                                bool write, bool exec, size_t& pa)
+{
   // Perform a page table walk.
   ExceptionCause cause = ExceptionCause::LOAD_PAGE_FAULT;
   TlbEntry tmpTlbEntry;

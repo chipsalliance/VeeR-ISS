@@ -376,18 +376,33 @@ namespace WdRiscv
 
     VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize, unsigned tlbSize);
 
-    /// Perform virtual to physical memory address translation.
-    /// Return encoutered exception on failure or ExceptionType::NONE
-    /// on success.
+    /// Perform virtual to physical memory address translation and
+    /// check for read access if the read flag is true (similary aslo
+    /// check for write access is the write flag is true ...).  Return
+    /// encoutered exception on failure or ExceptionType::NONE on
+    /// success.
     ExceptionCause translate(size_t va, PrivilegeMode pm, bool read,
                              bool write, bool exec, size_t& pa);
 
+    /// Same as translate but only check for execute access.
+    ExceptionCause translateForFetch(size_t va, PrivilegeMode pm, size_t& pa);
+
+    /// Same as translate but only check for read access.
+    ExceptionCause translateForLoad(size_t va, PrivilegeMode pm, size_t& pa);
+
+    /// Same as translate but only check for write access.
+    ExceptionCause translateForStore(size_t va, PrivilegeMode pm, size_t& pa);
+
   protected:
 
-    /// Heler to translate method.
+    /// Helper to translate method.
     template <typename PTE, typename VA>
     ExceptionCause pageTableWalk(size_t va, PrivilegeMode pm, bool read, bool write,
                                  bool exec, size_t& pa, TlbEntry& tlbEntry);
+
+    /// Helper to translate method.
+    ExceptionCause pageTableWalkUpdateTlb(size_t va, PrivilegeMode pm, bool read,
+                                          bool write, bool exec, size_t& pa);
 
     void setPageTableRootPage(uint64_t root)
     { pageTableRootPage_ = root; }

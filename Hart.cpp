@@ -404,7 +404,7 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   dcsrStepIe_ = false;
   dcsrStep_ = false;
 
-  if (csRegs_.peek(CsrNumber::DCSR, value))
+  if (peekCsr(CsrNumber::DCSR, value))
     {
       dcsrStep_ = (value >> 2) & 1;
       dcsrStepIe_ = (value >> 11) & 1;
@@ -447,7 +447,7 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
 
   csRegs_.updateCounterPrivilege();
 
-  alarmCounter_ = alarmInterval_;
+  alarmLimit_ = alarmInterval_? alarmInterval_ + instCounter_ : ~uint64_t(0);
 }
 
 
@@ -657,7 +657,7 @@ Hart<URV>::setPendingNmi(NmiCause cause)
   URV val = 0;  // DCSR value
   if (peekCsr(CsrNumber::DCSR, val))
     {
-      val |= 1 << 3;  // nmip bit
+      val |= URV(1) << 3;  // nmip bit
       pokeCsr(CsrNumber::DCSR, val);
       recordCsrWrite(CsrNumber::DCSR);
     }
@@ -1607,7 +1607,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
       if (mode != PrivilegeMode::Machine)
         {
           uint64_t pa = 0;
-          cause = virtMem_.translate(addr, mode, true, false, false, pa);
+          cause = virtMem_.translateForLoad(addr, mode, pa);
           if (cause != ExceptionCause::NONE)
             return cause;
           addr = pa;
@@ -1809,6 +1809,11 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
             triggerTripped_ = true;
         }
 
+      if (addr >= clintStart_ and addr <= clintLimit_ and addr == 0x200bff8)
+        {
+          value = instCounter_;
+        }
+
       if (not triggerTripped_)
         {
           // Put entry in load queue with value of rd before this load.
@@ -1953,8 +1958,8 @@ Hart<URV>::store(unsigned rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
           return true;
 	}
 
-      if (swInterruptValid_)
-        processSoftwareInterruptWrite(addr, stSize, storeVal);
+      if (addr >= clintStart_ and addr <= clintLimit_)
+        processClintWrite(addr, stSize, storeVal);
 
       return true;
     }
@@ -1968,27 +1973,47 @@ Hart<URV>::store(unsigned rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
 
 template <typename URV>
 void
-Hart<URV>::processSoftwareInterruptWrite(size_t addr, unsigned stSize,
-                                         URV storeVal)
+Hart<URV>::processClintWrite(size_t addr, unsigned stSize, URV storeVal)
 {
-  Hart<URV>* hart = swAddrToHart_(addr);
-  if (not hart)
-    return;  // Address is not in the software-interrupt memory mapped locations.
+  if (clintTimerAddrToHart_)
+    {
+      auto hart = clintTimerAddrToHart_(addr);
+      if (hart)
+        {
+          hart->alarmLimit_ = storeVal;
+          URV mipVal = hart->csRegs_.peekMip();
+          mipVal = mipVal & ~(URV(1) << URV(InterruptCause::M_TIMER));
+          hart->pokeCsr(CsrNumber::MIP, mipVal);
+          return;
+        }
+    }
 
-  if (stSize != 4)
-    return;  // Must be sw
+  if (addr == 0x200bff8)
+    {
+      std::cerr << "Aie mtime updated\n";
+      return;
+    }
 
-  if ((storeVal >> 1) != 0)
-    return;  // Must write 0 or 1.
+  if (clintSoftAddrToHart_)
+    {
+      auto hart = clintSoftAddrToHart_(addr);
+      if (not hart)
+        return;  // Address is not in the software-interrupt memory mapped locations.
 
-  URV mipVal = 0;
-  hart->peekCsr(CsrNumber::MIP, mipVal);
-  if (storeVal)
-    mipVal = mipVal | (URV(1) << URV(InterruptCause::M_SOFTWARE));
-  else
-    mipVal = mipVal & ~(URV(1) << URV(InterruptCause::M_SOFTWARE));
-  hart->pokeCsr(CsrNumber::MIP, mipVal);
-  recordCsrWrite(CsrNumber::MIP);
+      if (stSize != 4)
+        return;  // Must be sw
+
+      if ((storeVal >> 1) != 0)
+        return;  // Must write 0 or 1.
+
+      URV mipVal = csRegs_.peekMip();
+      if (storeVal)
+        mipVal = mipVal | (URV(1) << URV(InterruptCause::M_SOFTWARE));
+      else
+        mipVal = mipVal & ~(URV(1) << URV(InterruptCause::M_SOFTWARE));
+      hart->pokeCsr(CsrNumber::MIP, mipVal);
+      recordCsrWrite(CsrNumber::MIP);
+    }
 }
 
 
@@ -2232,10 +2257,12 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
 {
   uint64_t addr = virtAddr;
 
+  // Inst address translation and memory protection is not affected by MPRV.
+  bool instMprv = false;
+
   if (isRvs() and privMode_ != PrivilegeMode::Machine)
     {
-      // Address translation is not affected by mstatus.mprv.
-      auto cause = virtMem_.translate(virtAddr, privMode_, false, false, true, addr);
+      auto cause = virtMem_.translateForFetch(virtAddr, privMode_, addr);
       if (cause != ExceptionCause::NONE)
         {
           initiateException(cause, virtAddr, virtAddr);
@@ -2270,7 +2297,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
           size_t region = memory_.getRegionIndex(addr);
           if (regionHasLocalInstMem_.at(region))
             secCause = SecondaryCause::INST_LOCAL_UNMAPPED;
-          initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr,
+          initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr,
                             secCause);
           return false;
         }
@@ -2278,10 +2305,10 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
       if (pmpEnabled_)
         {
           Pmp pmp = pmpManager_.accessPmp(addr);
-          if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
+          if (not pmp.isExec(privMode_, mstatusMpp_, instMprv))
             {
               auto secCause = SecondaryCause::INST_PMP;
-              initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr,
+              initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr,
                                 secCause);
               return false;
             }
@@ -2297,17 +2324,17 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
       size_t region = memory_.getRegionIndex(addr);
       if (regionHasLocalInstMem_.at(region))
 	secCause = SecondaryCause::INST_LOCAL_UNMAPPED;
-      initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr, secCause);
+      initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr, secCause);
       return false;
     }
 
   if (pmpEnabled_)
     {
       Pmp pmp = pmpManager_.accessPmp(addr);
-      if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
+      if (not pmp.isExec(privMode_, mstatusMpp_, instMprv))
         {
           auto secCause = SecondaryCause::INST_PMP;
-          initiateException(ExceptionCause::INST_ACC_FAULT, addr, addr,
+          initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr,
                             secCause);
           return false;
         }
@@ -2319,7 +2346,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
 
   if (isRvs() and privMode_ != PrivilegeMode::Machine)
     {
-      auto cause = virtMem_.translate(virtAddr+2, privMode_, false, false, true, addr);
+      auto cause = virtMem_.translateForFetch(virtAddr+2, privMode_, addr);
       if (cause != ExceptionCause::NONE)
         {
           initiateException(cause, virtAddr, virtAddr+2);
@@ -2347,7 +2374,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
   if (pmpEnabled_)
     {
       Pmp pmp = pmpManager_.accessPmp(addr);
-      if (not pmp.isExec(privMode_, mstatusMpp_, mstatusMprv_))
+      if (not pmp.isExec(privMode_, mstatusMpp_, instMprv))
         {
           auto secCause = SecondaryCause::INST_PMP;
           initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr + 2,
@@ -2369,7 +2396,7 @@ Hart<URV>::fetchInstPostTrigger(URV virtAddr, uint32_t& inst, FILE* traceFile)
   bool pageFault = false;
   if (isRvs() and privMode_ != PrivilegeMode::Machine)
     {
-      auto cause = virtMem_.translate(virtAddr, privMode_, false, false, true, addr);
+      auto cause = virtMem_.translateForFetch(virtAddr, privMode_, addr);
       pageFault = cause != ExceptionCause::NONE;
     }
 
@@ -2477,7 +2504,7 @@ Hart<URV>::initiateFastInterrupt(InterruptCause cause, URV pcToSave)
     }
 
   URV causeVal = URV(cause);
-  causeVal |= 1 << (mxlen_ - 1);  // Set most sig bit.
+  causeVal |= URV(1) << (mxlen_ - 1);  // Set most sig bit.
   undelegatedInterrupt(causeVal, pcToSave, nextPc);
 
   if (instFreq_)
@@ -2565,8 +2592,8 @@ Hart<URV>::initiateTrap(bool interrupt, URV cause, URV pcToSave, URV info,
   // But they can be delegated.
   if (isRvs() and origMode != PrivilegeMode::Machine)
     {
-      URV delegVal = 0;
       CsrNumber csrn = interrupt? CsrNumber::MIDELEG : CsrNumber::MEDELEG;
+      URV delegVal = 0;
       peekCsr(csrn, delegVal);
       if (delegVal & (URV(1) << cause))
         nextMode = PrivilegeMode::Supervisor;
@@ -2601,7 +2628,7 @@ Hart<URV>::initiateTrap(bool interrupt, URV cause, URV pcToSave, URV info,
   // Save the exception cause.
   URV causeRegVal = cause;
   if (interrupt)
-    causeRegVal |= 1 << (mxlen_ - 1);
+    causeRegVal |= URV(1) << (mxlen_ - 1);
   if (not csRegs_.write(causeNum, privMode_, causeRegVal))
     assert(0 and "Failed to write CAUSE register");
 
@@ -2855,7 +2882,7 @@ Hart<URV>::peekCsr(CsrNumber csrn, URV& val, URV& reset, URV& writeMask,
   if (not csr)
     return false;
 
-  if (not csRegs_.peek(csrn, val))
+  if (not peekCsr(csrn, val))
     return false;
 
   reset = csr->getResetValue();
@@ -2873,7 +2900,7 @@ Hart<URV>::peekCsr(CsrNumber csrn, URV& val, std::string& name) const
   if (not csr)
     return false;
 
-  if (not csRegs_.peek(csrn, val))
+  if (not peekCsr(csrn, val))
     return false;
 
   name = csr->getName();
@@ -2913,8 +2940,6 @@ Hart<URV>::pokeCsr(CsrNumber csr, URV val)
     updateStackChecker();
   else if (csr == CsrNumber::MDBAC)
     enableWideLdStMode(true);
-  else if (csr == CsrNumber::MCOUNTINHIBIT)
-    perfControl_ = ~val;
   else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
            (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
     updateMemoryProtection();
@@ -4024,27 +4049,6 @@ private:
 
 
 
-template <typename URV>
-bool
-Hart<URV>::doAlarmCountdown()
-{
-  alarmCounter_--;
-  if (alarmCounter_ != 0)
-    return false;
-  
-  alarmCounter_ = alarmInterval_;
-
-  URV mip = 0;
-  if (csRegs_.read(CsrNumber::MIP, PrivilegeMode::Machine, mip))
-    {
-      mip |= URV(1) << unsigned(InterruptCause::M_TIMER);
-      pokeCsr(CsrNumber::MIP, mip);
-    }
-
-  return true;
-}
-
-
 /// Report the number of retired instruction count and the simulation
 /// rate.
 static void
@@ -4211,10 +4215,6 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
             }
         }
 
-      if (alarmCounter_ and doAlarmCountdown())
-        if (processExternalInterrupt(traceFile, instStr))
-          continue;
-
       try
 	{
           uint32_t inst = 0;
@@ -4226,6 +4226,9 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
           lastPriv_ = privMode_;
 
 	  ++instCounter_;
+
+          if (processExternalInterrupt(traceFile, instStr))
+            continue;
 
           if (not fetchInstWithTrigger(pc_, inst, traceFile))
             {
@@ -4474,8 +4477,10 @@ Hart<URV>::run(FILE* file)
   // to runUntilAdress which supports all features.
   URV stopAddr = stopAddrValid_? stopAddr_ : ~URV(0); // ~URV(0): No-stop PC.
   bool hasWideLdSt = csRegs_.isImplemented(CsrNumber::MDBAC);
+  bool hasClint = clintStart_ < clintLimit_;
   bool complex = (stopAddrValid_ or instFreq_ or enableTriggers_ or enableGdb_
-                  or enableCounters_ or alarmInterval_ or file or hasWideLdSt);
+                  or enableCounters_ or alarmInterval_ or file or hasWideLdSt
+                  or hasClint or isRvs());
   if (complex)
     return runUntilAddress(stopAddr, file); 
 
@@ -4508,109 +4513,77 @@ Hart<URV>::isInterruptPossible(InterruptCause& cause)
   if (debugMode_ and not debugStepMode_)
     return false;
 
+  URV mip = csRegs_.peekMip();
+  URV mie = csRegs_.peekMie();
+  if ((mie & mip) == 0)
+    return false;  // Nothing enabled that is also pending.
+
   URV mstatus;
   if (not csRegs_.read(CsrNumber::MSTATUS, PrivilegeMode::Machine, mstatus))
     return false;
-
-  URV mip, mie;
-  csRegs_.read(CsrNumber::MIP, PrivilegeMode::Machine, mip);
-  csRegs_.read(CsrNumber::MIE, PrivilegeMode::Machine, mie);
-  if ((mie & mip) == 0)
-    return false;  // Nothing enabled that is also pending.
 
   typedef InterruptCause IC;
 
   // Check for machine-level interrupts if MIE enabled or if user/supervisor.
   MstatusFields<URV> fields(mstatus);
-  if (fields.bits_.MIE or privMode_ < PrivilegeMode::Machine)
+  bool globalEnable = fields.bits_.MIE or privMode_ < PrivilegeMode::Machine;
+  URV delegVal = 0;
+  peekCsr(CsrNumber::MIDELEG, delegVal);
+  for (InterruptCause ic : { IC::M_EXTERNAL, IC::M_LOCAL, IC::M_SOFTWARE,
+                              IC::M_TIMER, IC::M_INT_TIMER0,
+                              IC::M_INT_TIMER1 } )
     {
-      for (InterruptCause ic : { IC::M_EXTERNAL, IC::M_LOCAL, IC::M_SOFTWARE,
-                                  IC::M_TIMER, IC::M_INT_TIMER0,
-                                  IC::M_INT_TIMER1 } )
-        {
-          URV mask = URV(1) << unsigned(ic);
-          if (mie & mask & mip)
-            {
-              cause = ic;
-              if (ic == IC::M_TIMER and alarmInterval_ > 0)
-                {
-                  // Reset the timer-interrupt pending bit.
-                  mip = mip & ~mask;
-                  pokeCsr(CsrNumber::MIP, mip);
-                }
-              return true;
-            }
-        }
-    }
-
-  // Non-delegated Supervisor/User interrupts.
-  if (fields.bits_.MIE)
-    {
-      URV medeleg = 0;
-      csRegs_.read(CsrNumber::MEDELEG, PrivilegeMode::Machine, medeleg);
-      
-      for (InterruptCause ic : { IC::S_EXTERNAL, IC::S_SOFTWARE,
-                                  IC::S_TIMER, IC::U_EXTERNAL, IC::U_SOFTWARE,
-                                  IC::U_TIMER } )
-        {
-          URV mask = URV(1) << unsigned(ic);
-          if ((mie & mask & mip) and not (medeleg & mask))
-            {
-              cause = ic;
-              return true;
-            }
-        }
-    }
-
-  // Supervisor mode interrupts: SIE enabled or user-mode.
-  if (isRvs() and (fields.bits_.SIE or privMode_ < PrivilegeMode::Supervisor))
-    for (auto ic : { IC::S_EXTERNAL, IC::S_SOFTWARE, IC::S_TIMER } )
-      {
-        URV mask = URV(1) << unsigned(ic);
+      URV mask = URV(1) << unsigned(ic);
+      bool delegated = (mask & delegVal) != 0;
+      bool enabled = globalEnable;
+      if (delegated)
+        enabled = ((privMode_ == PrivilegeMode::Supervisor and fields.bits_.SIE) or
+                   privMode_ < PrivilegeMode::Supervisor);
+      if (enabled)
         if (mie & mask & mip)
           {
             cause = ic;
+            if (ic == IC::M_TIMER and alarmInterval_ > 0)
+              {
+                // Reset the timer-interrupt pending bit.
+                mip = mip & ~mask;
+                pokeCsr(CsrNumber::MIP, mip);
+              }
             return true;
           }
-      }
-
-  // Non-delegated User interrupts.
-  if (fields.bits_.SIE)
-    {
-      URV sedeleg = 0;
-      csRegs_.read(CsrNumber::SEDELEG, PrivilegeMode::Machine, sedeleg);
-      
-      for (InterruptCause ic : { IC::U_EXTERNAL, IC::U_SOFTWARE, IC::U_TIMER } )
-        {
-          URV mask = URV(1) << unsigned(ic);
-          if ((mie & mask & mip) and not (sedeleg & mask))
-            {
-              cause = ic;
-              return true;
-            }
-        }
     }
 
-  // User mode interrupts.
-  if (isRvn() and fields.bits_.UIE)
+  // Supervisor mode interrupts: SIE enabled and supervior mode, or user-mode.
+  if (isRvs())
     {
+      bool check = ((fields.bits_.SIE and privMode_ == PrivilegeMode::Supervisor)
+                    or privMode_ < PrivilegeMode::Supervisor);
+      if (check)
+        for (auto ic : { IC::S_EXTERNAL, IC::S_SOFTWARE, IC::S_TIMER } )
+          {
+            URV mask = URV(1) << unsigned(ic);
+            if (mie & mask & mip)
+              {
+                cause = ic;
+                return true;
+              }
+          }
+    }
 
-      // Order of priority: external, software, timer.
-      if (mie & (URV(1) << unsigned(InterruptCause::U_EXTERNAL)) & mip)
-        {
-          cause = InterruptCause::U_EXTERNAL;
-          return true;
-        }
-      if (mie & (URV(1) << unsigned(InterruptCause::U_SOFTWARE)) & mip)
-        {
-          cause = InterruptCause::U_SOFTWARE;
-          return true;
-        }
-      if (mie & (URV(1) << unsigned(InterruptCause::U_TIMER)) & mip)
-        {
-          cause = InterruptCause::U_TIMER;
-          return true;
-        }
+  // User mode interrupts: UIE enabled and user-mode.
+  if (isRvu())
+    {
+      bool check = fields.bits_.UIE and privMode_ == PrivilegeMode::User;
+      if (check)
+        for (auto ic : { IC::U_EXTERNAL, IC::U_SOFTWARE, IC::U_TIMER } )
+          {
+            URV mask = URV(1) << unsigned(ic);
+            if (mie & mask & mip)
+              {
+                cause = ic;
+                return true;
+              }
+          }
     }
 
   return false;
@@ -4621,6 +4594,14 @@ template <typename URV>
 bool
 Hart<URV>::processExternalInterrupt(FILE* traceFile, std::string& instStr)
 {
+  if (instCounter_ >= alarmLimit_)
+    {
+      URV mipVal = csRegs_.peekMip();
+      mipVal = mipVal | (URV(1) << URV(InterruptCause::M_TIMER));
+      csRegs_.poke(CsrNumber::MIP, mipVal);
+      alarmLimit_ += alarmInterval_;
+    }
+
   if (debugStepMode_ and not dcsrStepIe_)
     return false;
 
@@ -4707,9 +4688,6 @@ Hart<URV>::singleStep(FILE* traceFile)
       hasException_ = false;
       ebreakInstDebug_ = false;
       lastPriv_ = privMode_;
-
-      if (alarmCounter_)
-        doAlarmCountdown();
 
       ++instCounter_;
 
@@ -6032,6 +6010,7 @@ Hart<URV>::execute(const DecodedInst* di)
   return;
 
  wfi:
+  execWfi(di);
   return;
 
  sfence_vma:
@@ -6576,7 +6555,7 @@ Hart<URV>::enterDebugMode(DebugModeCause cause, URV pc)
     }
 
   URV value = 0;
-  if (csRegs_.peek(CsrNumber::DCSR, value))
+  if (peekCsr(CsrNumber::DCSR, value))
     {
       value &= ~(URV(7) << 6);        // Clear cause field (starts at bit 6).
       value |= URV(cause) << 6;       // Set cause field
@@ -6629,7 +6608,7 @@ Hart<URV>::exitDebugMode()
       return;
     }
 
-  csRegs_.peek(CsrNumber::DPC, pc_);
+  peekCsr(CsrNumber::DPC, pc_);
 
   // If in debug-step go to debug-halt. If in debug-halt go to normal
   // or debug-step based on step-bit in DCSR.
@@ -7172,6 +7151,8 @@ Hart<URV>::execSfence_vma(const DecodedInst* di)
 
   // Invalidate whole TLB. This is overkill. TBD FIX: Improve.
   virtMem_.tlb_.invalidate();
+
+  invalidateDecodeCache();
 }
 
 
@@ -7401,8 +7382,6 @@ Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
     updateStackChecker();
   else if (csr == CsrNumber::MDBAC)
     enableWideLdStMode(true);
-  else if (csr == CsrNumber::MCOUNTINHIBIT)
-    perfControl_ = ~csrVal;
   else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
            (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
     updateMemoryProtection();
@@ -7663,7 +7642,7 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, uint64_t& addr,
       if (mode != PrivilegeMode::Machine)
         {
           uint64_t pa = 0;
-          cause = virtMem_.translate(addr, mode, false, true, false, pa);
+          cause = virtMem_.translateForStore(addr, mode, pa);
           if (cause != ExceptionCause::NONE)
             return cause;
           addr = pa;
@@ -8402,7 +8381,6 @@ Hart<URV>::markFsDirty()
   MstatusFields<URV> fields(val);
   fields.bits_.FS = unsigned(FpFs::Dirty);
 
-  //csRegs_.write(CsrNumber::MSTATUS, PrivilegeMode::Machine, fields.value_);
   csRegs_.poke(CsrNumber::MSTATUS, fields.value_);
 
   updateCachedMstatusFields();
@@ -10730,7 +10708,7 @@ Hart<URV>::storeConditional(unsigned rs1, URV virtAddr, STORE_TYPE storeVal)
 
   if (cause != ExceptionCause::NONE)
     {
-      initiateStoreException(ExceptionCause::STORE_ACC_FAULT, virtAddr, secCause);
+      initiateStoreException(cause, virtAddr, secCause);
       return false;
     }
 
