@@ -327,9 +327,8 @@ handlePeekRegisterForGdb(WdRiscv::Hart<URV>& hart, unsigned regNum,
 	{
 	  unsigned fpReg = regNum - fpRegOffset;
 	  uint64_t val64 = 0;
-	  ok = hart.peekUnboxedFpReg(fpReg, val64);
-	  if (ok)
-	    stream << littleEndianIntToHex(val64);
+	  hart.peekUnboxedFpReg(fpReg, val64);
+          stream << littleEndianIntToHex(val64);
 	}
       else
 	stream << "E03";
@@ -337,7 +336,11 @@ handlePeekRegisterForGdb(WdRiscv::Hart<URV>& hart, unsigned regNum,
   else
     {
       URV csr = regNum - csrOffset;
-      ok = hart.peekCsr(WdRiscv::CsrNumber(csr), value);
+      // Undocumented: gdb uses 0x1000 to obtain privilege mode.
+      if (csr == 0x1000)
+        value = URV(hart.privilegeMode());
+      else
+        hart.peekCsr(WdRiscv::CsrNumber(csr), value);
     }
 
   if (ok)
