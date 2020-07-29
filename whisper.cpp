@@ -245,7 +245,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 550;
+  unsigned subversion = 551;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -443,7 +443,8 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
 	("counters", po::bool_switch(&args.counters),
 	 "Enable performance counters")
 	("gdb", po::bool_switch(&args.gdb),
-	 "Run in gdb mode enabling remote debugging from gdb.")
+	 "Run in gdb mode enabling remote debugging from gdb (this requires gdb version"
+         "8.2 or higher).")
 	("gdb-tcp-port", po::value(&args.gdbTcpPort)->multitoken(),
 	 	 "TCP port number for gdb; If port num is negative,"
 			" gdb will work with stdio (default -1).")
