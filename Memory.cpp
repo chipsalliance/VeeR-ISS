@@ -205,7 +205,6 @@ Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end,
   const ELFIO::segment* seg = reader.segments[segIx];
   ELFIO::Elf64_Addr vaddr = seg->get_virtual_address();
   ELFIO::Elf_Xword segSize = seg->get_file_size(); // Size in file.
-  const char* segData = seg->get_data();
   end = 0;
   if (seg->get_type() != PT_LOAD)
     return true;
@@ -220,16 +219,42 @@ Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end,
         return false;
     }
 
-#if 0
+  size_t unmappedCount = 0;
+
+#if 1
+
+  // Load sections of each segment.
   auto segSecCount = seg->get_sections_num();
   for (int secOrder = 0; secOrder < segSecCount; ++secOrder)
     {
       auto secIx = seg->get_section_index_at(secOrder);
       auto sec = reader.sections[secIx];
       const char* secData = sec->get_data();
+      if (not secData)
+        continue;
+
       size_t size = sec->get_size();
       size_t addr = sec->get_address();
-      // size_t offset = sec->get_offset();
+
+      for (size_t i = 0; i < size; ++i)
+        {
+          if (data_[addr + i] != 0)
+            overwrites++;
+
+          if (not specialInitializeByte(addr + i, secData[i]))
+            {
+              if (unmappedCount == 0)
+                std::cerr << "Failed to copy ELF byte at address 0x"
+                          << std::hex << (vaddr + i) << std::dec
+                          << ": corresponding location is not mapped\n";
+              unmappedCount++;
+              if (checkUnmappedElf_)
+                return false;
+            }
+        }
+
+      #if 0
+      // Debug code. Dump on standard output in verilog hex format.
       printf("@%lx\n", addr);
       size_t remain = size;
       while (remain)
@@ -244,10 +269,13 @@ Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end,
           printf("\n");
           remain -= chunk;
         }
+      #endif
     }
-#endif
 
-  size_t unmappedCount = 0;
+#else
+
+  // Load segment directly.
+  const char* segData = seg->get_data();
   for (size_t i = 0; i < segSize; ++i)
     {
       if (data_[vaddr + i] != 0)
@@ -263,6 +291,8 @@ Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end,
             return false;
         }
     }
+
+#endif
 
   end = vaddr + size_t(segSize);
   return true;
