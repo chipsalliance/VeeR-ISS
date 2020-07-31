@@ -223,7 +223,7 @@ Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end,
 
 #if 1
 
-  // Load sections of each segment.
+  // Load sections of segment.
   auto segSecCount = seg->get_sections_num();
   for (int secOrder = 0; secOrder < segSecCount; ++secOrder)
     {
