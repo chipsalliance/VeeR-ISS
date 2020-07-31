@@ -393,6 +393,15 @@ namespace WdRiscv
     /// Same as translate but only check for write access.
     ExceptionCause translateForStore(size_t va, PrivilegeMode pm, size_t& pa);
 
+    /// Return page size.
+    unsigned pageSize() const
+    { return pageSize_; }
+
+    /// Return the address of the first byte in the page containing
+    /// the given address.
+    uint64_t pageStartAddress(uint64_t address) const
+    { return (address >> pageBits_) << pageBits_; }
+
   protected:
 
     /// Helper to translate method.
