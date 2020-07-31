@@ -145,7 +145,7 @@ namespace WdRiscv
 
     /// Similar to getPmp but it also updates the access count associated with
     /// each PMP entry.
-    Pmp accessPmp(uint64_t addr) const
+    inline Pmp accessPmp(uint64_t addr) const
     {
       uint64_t ix = getPageIx(addr);
       if (ix >= pagePmps_.size())
