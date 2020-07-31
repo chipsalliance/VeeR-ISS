@@ -4159,6 +4159,8 @@ Hart<URV>::fetchInstWithTrigger(URV addr, uint32_t& inst, FILE* file)
       DecodedInst* di = &decodeCache_[ix];
       if (not di->isValid() or di->address() != pc_)
         fetchOk = fetchInst(addr, inst);
+      else
+        inst = di->inst();
     }
   if (not fetchOk)
     {
