@@ -86,6 +86,18 @@ hexCharToInt(char c, unsigned& value)
 }
 
 
+/// Convert an 8-bit value to 2 headecimal characters.
+static
+inline
+void
+byteToHexChars(uint8_t& byte, uint8_t& highDigit, uint8_t& lowDigit)
+{
+  static char hexDigits[] = "0123456789abcdef";
+  highDigit = hexDigits[(byte >> 4)];
+  lowDigit = hexDigits[byte & 0xf];
+}
+  
+
 static
 bool
 getStringComponents(const std::string& str, char delim,
@@ -394,7 +406,7 @@ getGdbTargetXml(WdRiscv::Hart<URV>& hart, std::string& xml)
           std::string name = hart.fpRegName(ix);
           std::string num = std::to_string(ix + fpRegOffset);
           xml += "    <reg name=\"" + name + "\" bitsize=\"64\" regnum=\"";
-          xml += num + "\" save-restore=\"yes\" type=\"double\" group=\"fp\"/>\n";
+          xml += num + "\" save-restore=\"yes\" type=\"float\" group=\"fp\"/>\n";
         }
 
       xml += "  </feature>\n";
@@ -510,7 +522,9 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
 
   bool gotQuit = false;
 
-  std::ostringstream reply;
+  std::string buffer;
+  buffer.reserve(128);
+  std::ostringstream reply(buffer);
 
   while (1)
     {
@@ -615,9 +629,11 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
 		  {
 		    for (URV ix = 0; ix < len; ++ix)
 		      {
-			uint8_t byte = 0;
+			uint8_t byte = 0, high = 0, low = 0;
 			hart.peekMemory(addr++, byte);
-			reply << (boost::format("%02x") % unsigned(byte));
+                        byteToHexChars(byte, high, low);
+                        reply.write((char*) &high, 1);
+                        reply.write((char*) &low, 1);
 		      }
 		  }
 	      }

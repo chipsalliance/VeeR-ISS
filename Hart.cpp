@@ -1416,17 +1416,17 @@ Hart<URV>::determineMisalLoadException(URV addr, unsigned accessSize,
       return ExceptionCause::LOAD_ACC_FAULT;
     }
 
-  // Misaligned access to a region with side effect.
-  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
-    {
-      secCause = SecondaryCause::LOAD_MISAL_IO;
-      return ExceptionCause::LOAD_ADDR_MISAL;
-    }
-
   // Crossing 256 MB region boundary.
   if (memory_.getRegionIndex(addr) != memory_.getRegionIndex(addr2))
     {
       secCause = SecondaryCause::LOAD_MISAL_REGION_CROSS;
+      return ExceptionCause::LOAD_ADDR_MISAL;
+    }
+
+  // Misaligned access to a region with side effect.
+  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
+    {
+      secCause = SecondaryCause::LOAD_MISAL_IO;
       return ExceptionCause::LOAD_ADDR_MISAL;
     }
 
