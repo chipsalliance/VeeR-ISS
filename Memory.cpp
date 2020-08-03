@@ -299,6 +299,150 @@ Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end,
 }
 
 
+/// Extract an unsigned little-endian length encoded 128-bit value from given
+/// stream.  Return true on success and afalse on failure.
+/// See: https://en.wikipedia.org/wiki/LEB128
+static
+bool
+extractUleb128(std::istream& in, __uint128_t& value)
+{
+  value = 0;
+  uint8_t byte = 0;
+  unsigned shift = 0;
+  unsigned count = 0;
+
+  while (in.read((char*) &byte, 1) and count < 19)
+    {
+      uint8_t msb = byte >> 7;  // Most sig bit
+      byte = (byte << 1) >> 1;  // Clear most sig bit
+      value = value | (__uint128_t(byte) << shift);
+      shift += 8;
+      count++;
+      if (not msb)
+        return true;
+    }
+
+  return false;
+}
+
+
+void
+Memory::collectElfRiscvTags(ELFIO::elfio& reader)
+{
+  auto secCount = reader.sections.size();
+
+  for (int secIx = 0; secIx < secCount; ++secIx)
+    {
+      auto sec = reader.sections[secIx];
+      if (sec->get_type() != 0x70000003)
+        continue;
+
+      const char* secData = sec->get_data();
+      size_t size = sec->get_size();
+      if (not secData or not size)
+        return;
+
+      // 1st char is format verion. Currently supported version is 'A'.
+      std::string dataString(secData, size);
+      std::istringstream iss(dataString);
+      char version;
+      iss.read(&version, 1);
+      if (not iss or version != 'A')
+        return;
+
+      // Next is a 4-byte section length.
+      uint32_t secLen = 0;
+      iss.read((char*) &secLen, sizeof(secLen));
+
+      // Next is a null terminated string containing vendor name.
+      std::string vendorName;
+      std::getline(iss, vendorName, '\0');
+
+      // Next is tag: file (1), section(2) or symbol(3).
+      uint8_t tag = 0;
+      iss.read((char*) &tag, sizeof(tag));
+      if (not iss or tag != 1)
+        return;
+
+      // Next is a 4-byte attributes size including tag and size.
+      // https://embarc.org/man-pages/as/RISC_002dV_002dATTRIBUTE.html#RISC_002dV_002dATTRIBUTE
+      uint32_t attribsSize = 0;
+      iss.read((char*) &attribsSize, sizeof(attribsSize));
+      if (not iss or not attribsSize)
+        return;
+
+      if (attribsSize <= sizeof(tag) + sizeof(attribsSize))
+        return;
+
+      attribsSize -= (sizeof(tag) + sizeof(attribsSize));
+
+      auto attribsStart = iss.tellg();
+
+      while (iss and (iss.tellg() - attribsStart < attribsSize))
+        {
+          // Next is a unsigned lengh-encoded binary 128 tag.
+          __uint128_t tag = 0;
+          if (not extractUleb128(iss, tag))
+            return;
+
+          // If tag is even, value is another uleb128. If odd, value
+          // is a null-terminated string.
+          if ((tag & 1) == 0)
+            {
+              __uint128_t value = 0;
+              if (not extractUleb128(iss, value))
+                return;
+            }
+          else
+            {
+              std::string value;
+              std::getline(iss, value, '\0');
+              if (not iss)
+                return;
+              if (tag == 5)
+                elfArchTags_.push_back(value);
+            }
+        }
+    }
+}
+
+
+void
+Memory::collectElfSymbols(ELFIO::elfio& reader)
+{
+  auto secCount = reader.sections.size();
+
+  for (int secIx = 0; secIx < secCount; ++secIx)
+    {
+      auto sec = reader.sections[secIx];
+      if (sec->get_type() != SHT_SYMTAB)
+	continue;
+
+      const ELFIO::symbol_section_accessor symAccesor(reader, sec);
+      ELFIO::Elf64_Addr address = 0;
+      ELFIO::Elf_Xword size = 0;
+      unsigned char bind, type, other;
+      ELFIO::Elf_Half index = 0;
+
+      // Finding symbol by name does not work. Walk all the symbols.
+      ELFIO::Elf_Xword symCount = symAccesor.get_symbols_num();
+      for (ELFIO::Elf_Xword symIx = 0; symIx < symCount; ++symIx)
+	{
+	  std::string name;
+	  if (symAccesor.get_symbol(symIx, name, address, size, bind, type,
+				    index, other))
+	    {
+	      if (name.empty())
+		continue;
+
+	      if (type == STT_NOTYPE or type == STT_FUNC or type == STT_OBJECT)
+		symbols_[name] = ElfSymbol(address, size);
+	    }
+	}
+    }
+}
+
+
 bool
 Memory::loadElfFile(const std::string& fileName, unsigned regWidth,
 		    size_t& entryPoint, size_t& end)
@@ -383,35 +527,10 @@ Memory::loadElfFile(const std::string& fileName, unsigned regWidth,
     clearLastWriteInfo(hartId);
 
   // Collect symbols.
-  auto secCount = reader.sections.size();
-  for (int secIx = 0; secIx < secCount; ++secIx)
-    {
-      auto sec = reader.sections[secIx];
-      if (sec->get_type() != SHT_SYMTAB)
-	continue;
+  collectElfSymbols(reader);
 
-      const ELFIO::symbol_section_accessor symAccesor(reader, sec);
-      ELFIO::Elf64_Addr address = 0;
-      ELFIO::Elf_Xword size = 0;
-      unsigned char bind, type, other;
-      ELFIO::Elf_Half index = 0;
-
-      // Finding symbol by name does not work. Walk all the symbols.
-      ELFIO::Elf_Xword symCount = symAccesor.get_symbols_num();
-      for (ELFIO::Elf_Xword symIx = 0; symIx < symCount; ++symIx)
-	{
-	  std::string name;
-	  if (symAccesor.get_symbol(symIx, name, address, size, bind, type,
-				    index, other))
-	    {
-	      if (name.empty())
-		continue;
-
-	      if (type == STT_NOTYPE or type == STT_FUNC or type == STT_OBJECT)
-		symbols_[name] = ElfSymbol(address, size);
-	    }
-	}
-    }
+  // Extract riscv arch attribute.
+  collectElfRiscvTags(reader);
 
   // Get the program entry point.
   if (not errors)

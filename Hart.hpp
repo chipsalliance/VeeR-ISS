@@ -480,6 +480,11 @@ namespace WdRiscv
     void printElfSymbols(std::ostream& out) const
     { memory_.printElfSymbols(out); }
 
+    /// Fill given vector (cleared on entry) with the RISCV
+    /// architecture tags encoded in the loaded ELF files.
+    void getElfArchitectureTags(std::vector<std::string>& tags) const
+    { memory_.getElfArchitectureTags(tags); }
+
     /// Set val to the value of the memory byte at the given address
     /// returning true on success and false if address is out of
     /// bounds.

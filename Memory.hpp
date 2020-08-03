@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include <unordered_map>
 #include <cstdint>
 #include <vector>
 #include <unordered_map>
@@ -269,6 +268,11 @@ namespace WdRiscv
     /// Print the ELF symbols on the given stream. Output format:
     /// <name> <value>
     void printElfSymbols(std::ostream& out) const;
+
+    /// Fill given vector (cleared on entry) with the RISCV
+    /// architecture tags encoded in the loaded ELF files.
+    void getElfArchitectureTags(std::vector<std::string>& tags) const
+    { tags = elfArchTags_; }
 
     /// Enable/disable errors on unmapped memory when loading ELF files.
     void checkUnmappedElf(bool flag)
@@ -581,6 +585,12 @@ namespace WdRiscv
     bool loadElfSegment(ELFIO::elfio& reader, int segment, size_t& end,
                         size_t& overwrites);
 
+    /// Helper to loadElfFile: Collet ELF symbols.
+    void collectElfSymbols(ELFIO::elfio& reader);
+
+    /// Helper to loadElfFile: Collect RISCV arch attribute.
+    void collectElfRiscvTags(ELFIO::elfio& reader);
+
     /// Take a snapshot of the entire simulated memory into binary
     /// file. Return true on success or false on failure
     bool saveSnapshot(const std::string& filename,
@@ -636,6 +646,7 @@ namespace WdRiscv
     bool checkUnmappedElf_ = true;
 
     std::unordered_map<std::string, ElfSymbol> symbols_;
+    std::vector<std::string> elfArchTags_;
 
     std::vector<Reservation> reservations_;
     std::vector<LastWriteData> lastWriteData_;

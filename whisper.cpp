@@ -245,7 +245,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 554;
+  unsigned subversion = 555;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -981,6 +981,15 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
 	hart.pokePc(URV(entryPoint));
       else
 	errors++;
+    }
+
+  if (args.verbose)
+    {
+      std::vector<std::string> archTags;
+      hart.getElfArchitectureTags(archTags);
+      std::cerr << "ELF RISCV arch tags:\n";
+      for (const auto& tag : archTags)
+        std::cerr << "  " << tag << '\n';
     }
 
   // Load HEX files.
