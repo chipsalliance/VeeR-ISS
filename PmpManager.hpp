@@ -91,7 +91,7 @@ namespace WdRiscv
   private:
 
     uint8_t mode_ = 0;
-    Type type_    = Type::Off;
+    Type type_      : 8;
     bool locked_    : 1;
     bool pmpFree_   : 1;  // Not covered by any pmp register.
     unsigned pmpIx_ : 5;  // Index of corresponding pmp register.
@@ -145,7 +145,7 @@ namespace WdRiscv
 
     /// Similar to getPmp but it also updates the access count associated with
     /// each PMP entry.
-    Pmp accessPmp(uint64_t addr) const
+    inline Pmp accessPmp(uint64_t addr) const
     {
       uint64_t ix = getPageIx(addr);
       if (ix >= pagePmps_.size())

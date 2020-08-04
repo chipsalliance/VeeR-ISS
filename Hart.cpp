@@ -1416,17 +1416,17 @@ Hart<URV>::determineMisalLoadException(URV addr, unsigned accessSize,
       return ExceptionCause::LOAD_ACC_FAULT;
     }
 
-  // Misaligned access to a region with side effect.
-  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
-    {
-      secCause = SecondaryCause::LOAD_MISAL_IO;
-      return ExceptionCause::LOAD_ADDR_MISAL;
-    }
-
   // Crossing 256 MB region boundary.
   if (memory_.getRegionIndex(addr) != memory_.getRegionIndex(addr2))
     {
       secCause = SecondaryCause::LOAD_MISAL_REGION_CROSS;
+      return ExceptionCause::LOAD_ADDR_MISAL;
+    }
+
+  // Misaligned access to a region with side effect.
+  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
+    {
+      secCause = SecondaryCause::LOAD_MISAL_IO;
       return ExceptionCause::LOAD_ADDR_MISAL;
     }
 
@@ -4154,7 +4154,14 @@ Hart<URV>::fetchInstWithTrigger(URV addr, uint32_t& inst, FILE* file)
         }
     }
   else
-    fetchOk = fetchInst(addr, inst);
+    {
+      uint32_t ix = (addr >> 1) & decodeCacheMask_;
+      DecodedInst* di = &decodeCache_[ix];
+      if (not di->isValid() or di->address() != pc_)
+        fetchOk = fetchInst(addr, inst);
+      else
+        inst = di->inst();
+    }
   if (not fetchOk)
     {
       ++cycleCount_;
@@ -6915,7 +6922,7 @@ template <typename URV>
 void
 Hart<URV>::execFencei(const DecodedInst*)
 {
-  invalidateDecodeCache();
+  // invalidateDecodeCache();  // No need for this. We invalidate on each write.
 }
 
 
@@ -7152,7 +7159,17 @@ Hart<URV>::execSfence_vma(const DecodedInst* di)
   // Invalidate whole TLB. This is overkill. TBD FIX: Improve.
   virtMem_.tlb_.invalidate();
 
-  invalidateDecodeCache();
+  // std::cerr << "sfence.vma " << di->op1() << ' ' << di->op2() << '\n';
+  if (di->op1() == 0)
+    invalidateDecodeCache();
+  else
+    {
+      uint64_t va = intRegs_.read(di->op1());
+      uint64_t pageStart = virtMem_.pageStartAddress(va);
+      uint64_t last = pageStart + virtMem_.pageSize();
+      for (uint64_t addr = pageStart; addr < last; addr += 4)
+        invalidateDecodeCache(addr, 4);
+    }
 }
 
 

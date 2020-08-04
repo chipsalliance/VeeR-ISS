@@ -205,7 +205,6 @@ Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end,
   const ELFIO::segment* seg = reader.segments[segIx];
   ELFIO::Elf64_Addr vaddr = seg->get_virtual_address();
   ELFIO::Elf_Xword segSize = seg->get_file_size(); // Size in file.
-  const char* segData = seg->get_data();
   end = 0;
   if (seg->get_type() != PT_LOAD)
     return true;
@@ -220,16 +219,42 @@ Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end,
         return false;
     }
 
-#if 0
+  size_t unmappedCount = 0;
+
+#if 1
+
+  // Load sections of segment.
   auto segSecCount = seg->get_sections_num();
   for (int secOrder = 0; secOrder < segSecCount; ++secOrder)
     {
       auto secIx = seg->get_section_index_at(secOrder);
       auto sec = reader.sections[secIx];
       const char* secData = sec->get_data();
+      if (not secData)
+        continue;
+
       size_t size = sec->get_size();
       size_t addr = sec->get_address();
-      // size_t offset = sec->get_offset();
+
+      for (size_t i = 0; i < size; ++i)
+        {
+          if (data_[addr + i] != 0)
+            overwrites++;
+
+          if (not specialInitializeByte(addr + i, secData[i]))
+            {
+              if (unmappedCount == 0)
+                std::cerr << "Failed to copy ELF byte at address 0x"
+                          << std::hex << (vaddr + i) << std::dec
+                          << ": corresponding location is not mapped\n";
+              unmappedCount++;
+              if (checkUnmappedElf_)
+                return false;
+            }
+        }
+
+      #if 0
+      // Debug code. Dump on standard output in verilog hex format.
       printf("@%lx\n", addr);
       size_t remain = size;
       while (remain)
@@ -244,10 +269,13 @@ Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end,
           printf("\n");
           remain -= chunk;
         }
+      #endif
     }
-#endif
 
-  size_t unmappedCount = 0;
+#else
+
+  // Load segment directly.
+  const char* segData = seg->get_data();
   for (size_t i = 0; i < segSize; ++i)
     {
       if (data_[vaddr + i] != 0)
@@ -264,8 +292,190 @@ Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end,
         }
     }
 
+#endif
+
   end = vaddr + size_t(segSize);
   return true;
+}
+
+
+/// Extract an unsigned little-endian length encoded 128-bit value from given
+/// stream.  Return true on success and afalse on failure.
+/// See: https://en.wikipedia.org/wiki/LEB128
+static
+bool
+extractUleb128(std::istream& in, __uint128_t& value)
+{
+  value = 0;
+  uint8_t byte = 0;
+  unsigned shift = 0;
+  unsigned count = 0;
+
+  while (in.read((char*) &byte, 1) and count < 19)
+    {
+      uint8_t msb = byte >> 7;  // Most sig bit
+      byte = (byte << 1) >> 1;  // Clear most sig bit
+      value = value | (__uint128_t(byte) << shift);
+      shift += 8;
+      count++;
+      if (not msb)
+        return true;
+    }
+
+  return false;
+}
+
+
+bool
+Memory::collectElfRiscvTags(const std::string& fileName,
+                            std::vector<std::string>& tags)
+{
+  ELFIO::elfio reader;
+
+  if (not reader.load(fileName))
+    {
+      std::cerr << "Error: Failed to load ELF file " << fileName << '\n';
+      return false;
+    }
+
+  auto secCount = reader.sections.size();
+
+  for (int secIx = 0; secIx < secCount; ++secIx)
+    {
+      auto sec = reader.sections[secIx];
+      if (sec->get_type() != 0x70000003)
+        continue;
+
+      const char* secData = sec->get_data();
+      size_t size = sec->get_size();
+      if (not secData or not size)
+        continue;
+
+      // 1st char is format verion. Currently supported version is 'A'.
+      std::string dataString(secData, size);
+      std::istringstream iss(dataString);
+      char version;
+      iss.read(&version, 1);
+      if (not iss or version != 'A')
+        {
+          std::cerr << "Unknown ELF RISCV section format: '" << version << "'\n";
+          return false;
+        }
+
+      // Next is a 4-byte section length.
+      uint32_t secLen = 0;
+      iss.read((char*) &secLen, sizeof(secLen));
+
+      // Next is a null terminated string containing vendor name.
+      std::string vendorName;
+      std::getline(iss, vendorName, '\0');
+
+      // Next is tag: file (1), section(2) or symbol(3).
+      uint8_t tag = 0;
+      iss.read((char*) &tag, sizeof(tag));
+      if (not iss or tag != 1)
+        {
+          std::cerr << "Unexpected ELF RISCV section tag: " << tag << "(expecting 1)\n";
+          return false;
+        }
+
+      // Next is a 4-byte attributes size including tag and size.
+      // https://embarc.org/man-pages/as/RISC_002dV_002dATTRIBUTE.html#RISC_002dV_002dATTRIBUTE
+      uint32_t attribsSize = 0;
+      iss.read((char*) &attribsSize, sizeof(attribsSize));
+      if (not iss)
+        {
+          std::cerr << "Corrupted ELF RISCV file attributes subsection\n";
+          return false;
+        }
+
+      if (attribsSize == 0)
+        continue;
+
+      if (attribsSize <= sizeof(tag) + sizeof(attribsSize))
+        {
+          std::cerr << "Corrupted ELF RISCV file attributes subsection: Invalid size\n";
+          return true;
+        }
+
+      attribsSize -= (sizeof(tag) + sizeof(attribsSize));
+
+      auto attribsStart = iss.tellg();
+
+      while (iss and (iss.tellg() - attribsStart < attribsSize))
+        {
+          // Next is a unsigned lengh-encoded binary 128 tag.
+          __uint128_t tag = 0;
+          if (not extractUleb128(iss, tag))
+            {
+              std::cerr << "Empty/corrupted ELF RISCV file attributes subsection: Invalid tag\n";
+              return false;
+            }
+
+          // If tag is even, value is another uleb128. If odd, value
+          // is a null-terminated string.
+          if ((tag & 1) == 0)
+            {
+              __uint128_t value = 0;
+              if (not extractUleb128(iss, value))
+                {
+                  std::cerr << "Empty/corrupted ELF RISCV file attributes subsection: Invalid tag value\n";
+                  return false;
+                }
+            }
+          else
+            {
+              std::string value;
+              std::getline(iss, value, '\0');
+              if (not iss)
+                {
+                  std::cerr << "Corrupted ELF RISCV file attributes subsection: Missing architeture tag string\n";
+                  return false;
+                }
+              if (tag == 5)
+                tags.push_back(value);
+              return true;
+            }
+        }
+    }
+
+  return true;
+}
+
+
+void
+Memory::collectElfSymbols(ELFIO::elfio& reader)
+{
+  auto secCount = reader.sections.size();
+
+  for (int secIx = 0; secIx < secCount; ++secIx)
+    {
+      auto sec = reader.sections[secIx];
+      if (sec->get_type() != SHT_SYMTAB)
+	continue;
+
+      const ELFIO::symbol_section_accessor symAccesor(reader, sec);
+      ELFIO::Elf64_Addr address = 0;
+      ELFIO::Elf_Xword size = 0;
+      unsigned char bind, type, other;
+      ELFIO::Elf_Half index = 0;
+
+      // Finding symbol by name does not work. Walk all the symbols.
+      ELFIO::Elf_Xword symCount = symAccesor.get_symbols_num();
+      for (ELFIO::Elf_Xword symIx = 0; symIx < symCount; ++symIx)
+	{
+	  std::string name;
+	  if (symAccesor.get_symbol(symIx, name, address, size, bind, type,
+				    index, other))
+	    {
+	      if (name.empty())
+		continue;
+
+	      if (type == STT_NOTYPE or type == STT_FUNC or type == STT_OBJECT)
+		symbols_[name] = ElfSymbol(address, size);
+	    }
+	}
+    }
 }
 
 
@@ -353,35 +563,7 @@ Memory::loadElfFile(const std::string& fileName, unsigned regWidth,
     clearLastWriteInfo(hartId);
 
   // Collect symbols.
-  auto secCount = reader.sections.size();
-  for (int secIx = 0; secIx < secCount; ++secIx)
-    {
-      auto sec = reader.sections[secIx];
-      if (sec->get_type() != SHT_SYMTAB)
-	continue;
-
-      const ELFIO::symbol_section_accessor symAccesor(reader, sec);
-      ELFIO::Elf64_Addr address = 0;
-      ELFIO::Elf_Xword size = 0;
-      unsigned char bind, type, other;
-      ELFIO::Elf_Half index = 0;
-
-      // Finding symbol by name does not work. Walk all the symbols.
-      ELFIO::Elf_Xword symCount = symAccesor.get_symbols_num();
-      for (ELFIO::Elf_Xword symIx = 0; symIx < symCount; ++symIx)
-	{
-	  std::string name;
-	  if (symAccesor.get_symbol(symIx, name, address, size, bind, type,
-				    index, other))
-	    {
-	      if (name.empty())
-		continue;
-
-	      if (type == STT_NOTYPE or type == STT_FUNC or type == STT_OBJECT)
-		symbols_[name] = ElfSymbol(address, size);
-	    }
-	}
-    }
+  collectElfSymbols(reader);
 
   // Get the program entry point.
   if (not errors)

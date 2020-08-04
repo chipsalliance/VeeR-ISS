@@ -17,6 +17,7 @@
 #include <iostream>
 #include <sstream>
 #include <boost/format.hpp>
+#include <boost/algorithm/string.hpp>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include "Hart.hpp"
@@ -84,6 +85,18 @@ hexCharToInt(char c, unsigned& value)
   return false;
 }
 
+
+/// Convert an 8-bit value to 2 headecimal characters.
+static
+inline
+void
+byteToHexChars(uint8_t& byte, uint8_t& highDigit, uint8_t& lowDigit)
+{
+  static char hexDigits[] = "0123456789abcdef";
+  highDigit = hexDigits[(byte >> 4)];
+  lowDigit = hexDigits[byte & 0xf];
+}
+  
 
 static
 bool
@@ -306,15 +319,16 @@ hexToInt(const std::string& str, T& value)
 }
 
 
+// GBD uses indices 0-31 for integer registers, 32 for pc, 33-64 for
+// floating-point registers, 65 and higher for CSRs.
+static const unsigned fpRegOffset = 33, pcOffset = 32, csrOffset = 65;
+
+
 template <typename URV>
 void
 handlePeekRegisterForGdb(WdRiscv::Hart<URV>& hart, unsigned regNum,
 			 std::ostream& stream)
 {
-  // Not documented but GBD uses indices 0-31 for integer registers,
-  // 32 for pc, 33-64 for floating-point registers, 65 and higher for
-  // CSRs.
-  unsigned fpRegOffset = 33, pcOffset = 32, csrOffset = 65;
   URV value = 0; bool ok = true, fp = false;
   if (regNum < pcOffset)
     ok = hart.peekIntReg(regNum, value);
@@ -327,17 +341,20 @@ handlePeekRegisterForGdb(WdRiscv::Hart<URV>& hart, unsigned regNum,
 	{
 	  unsigned fpReg = regNum - fpRegOffset;
 	  uint64_t val64 = 0;
-	  ok = hart.peekUnboxedFpReg(fpReg, val64);
-	  if (ok)
-	    stream << littleEndianIntToHex(val64);
+	  hart.peekUnboxedFpReg(fpReg, val64);
+          stream << littleEndianIntToHex(val64);
 	}
       else
-	stream << "E03";
+	stream << littleEndianIntToHex(0L); // Old versions of gdb cannot handle error "E03";
     }
   else
     {
       URV csr = regNum - csrOffset;
-      ok = hart.peekCsr(WdRiscv::CsrNumber(csr), value);
+      // Undocumented: gdb uses 0x1000 to obtain privilege mode.
+      if (csr == 0x1000)
+        value = URV(hart.privilegeMode());
+      else
+        hart.peekCsr(WdRiscv::CsrNumber(csr), value);
     }
 
   if (ok)
@@ -347,6 +364,118 @@ handlePeekRegisterForGdb(WdRiscv::Hart<URV>& hart, unsigned regNum,
     }
   else
     stream << "E04";
+}
+
+
+template <typename URV>
+void
+getGdbTargetXml(WdRiscv::Hart<URV>& hart, std::string& xml)
+{
+  xml.clear();
+
+  xml += R"zzz(<?xml version="1.0"?>
+<!DOCTYPE target SYSTEM "gdb-target.dtd">
+<target version="1.0">
+  <feature name="org.gnu.gdb.riscv.cpu">
+)zzz";
+
+  // Integer registers.
+  std::string width = std::to_string(8*sizeof(URV));
+
+  for (unsigned ix = 0; ix < hart.intRegCount(); ++ix)
+    {
+      std::string name = hart.intRegName(ix);
+      std::string num = std::to_string(ix);
+      xml += "    <reg name=\"" + name + "\" bitsize=\"" + width + "\" regnum=\"";
+      xml += num + "\" save-restore=\"yes\" type=\"int\" group=\"general\"/>\n";
+    }
+
+  std::string pcNum = std::to_string(pcOffset);
+  xml += "    <reg name=\"pc\" bitsize=\"" + width + "\" regnum=\"";
+  xml += pcNum + "\" save-restore=\"yes\" type=\"int\" group=\"general\"/>\n";
+
+  xml += "  </feature>\n";
+
+  // FP registers.
+  if (hart.isRvf())
+    {
+      xml += "  <feature name=\"org.gnu.gdb.riscv.fpu\">\n";
+
+      for (unsigned ix = 0; ix < hart.fpRegCount(); ++ix)
+        {
+          std::string name = hart.fpRegName(ix);
+          std::string num = std::to_string(ix + fpRegOffset);
+          xml += "    <reg name=\"" + name + "\" bitsize=\"64\" regnum=\"";
+          xml += num + "\" save-restore=\"yes\" type=\"float\" group=\"fp\"/>\n";
+        }
+
+      xml += "  </feature>\n";
+    }
+
+  // CSRs
+  std::vector<WdRiscv::CsrNumber> csrNumbers;
+  hart.getImplementedCsrs(csrNumbers);
+
+  xml += "  <feature name=\"org.gnu.gdb.riscv.csr\">\n";
+  for (auto csrn : csrNumbers)
+    {
+      URV val = 0;
+      std::string name;
+      if (not hart.peekCsr(csrn, val, name))
+        continue;
+
+      std::string num = std::to_string(unsigned(csrn) + csrOffset);
+
+      xml += "    <reg name=\"" + name + "\" bitsize=\"" + width + "\" regnum=\"";
+      xml += num + "\" save-restore=\"no\" type=\"int\" group=\"csr\"/>\n";
+    }
+  xml += "  </feature>\n";
+
+  // Virtual CSRs (privilege mode pseudo-csr)
+  // CSR 0x1000 is used by gdb to obtain privilege mode.
+  std::string num = std::to_string(0x1000 + csrOffset);
+  xml += "  <feature name=\"org.gnu.gdb.riscv.virtual\">\n";
+  xml += "    <reg name=\"priv\" bitsize=\"" + width + "\" regnum=\"";
+  xml += num + "\" save-restore=\"no\" type=\"int\" group=\"general\"/>\n";
+  xml += "  </feature>\n";
+
+  xml += "</target>";
+}
+
+
+template <typename URV>
+void
+processXferQuery(const std::string& packet, WdRiscv::Hart<URV>& hart,
+                 std::ostream& reply)
+{
+  if (not boost::starts_with(packet, "qXfer:features:read:target.xml:"))
+    {
+      reply << "";
+      return;
+    }
+
+  // Request is of the form: qXfer:features:read:target.xml:<offset>,<length>
+  // Recover offset and length substring.
+  auto ix = packet.find_last_of(':');
+  auto ol = packet.substr(ix + 1);  // offset and length
+  unsigned offset = 0, length = 0;
+  if (sscanf(ol.c_str(), "%x,%x", &offset, &length) != 2)
+    {
+      std::cerr << "Malformed qXfer request: " << packet << '\n';
+      reply << "";
+      return;
+    }
+
+  // Fill xml string on first call to this function.
+  static std::string xml;
+  if (xml.empty())
+    getGdbTargetXml(hart, xml);
+
+  auto part = xml.substr(offset, length);
+  if (offset + length < xml.size())
+    reply << 'm' << part;
+  else
+    reply << 'l' << part;
 }
 
 
@@ -393,7 +522,9 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
 
   bool gotQuit = false;
 
-  std::ostringstream reply;
+  std::string buffer;
+  buffer.reserve(128);
+  std::ostringstream reply(buffer);
 
   while (1)
     {
@@ -419,6 +550,20 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
 		hart.peekIntReg(i, val);
 		reply << littleEndianIntToHex(val);
 	      }
+            reply << littleEndianIntToHex(hart.peekPc());
+#if 0
+            URV val = 0;
+            hart.peekCsr(WdRiscv::CsrNumber::MSTATUS, val);
+            reply << littleEndianIntToHex(val);
+            hart.peekCsr(WdRiscv::CsrNumber::MISA, val);
+            reply << littleEndianIntToHex(val);
+            hart.peekCsr(WdRiscv::CsrNumber::MIE, val);
+            reply << littleEndianIntToHex(val);
+            hart.peekCsr(WdRiscv::CsrNumber::MTVEC, val);
+            reply << littleEndianIntToHex(val);
+            hart.peekCsr(WdRiscv::CsrNumber::MEPC, val);
+            reply << littleEndianIntToHex(val);
+#endif
 	  }
 	  break;
 
@@ -484,9 +629,11 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
 		  {
 		    for (URV ix = 0; ix < len; ++ix)
 		      {
-			uint8_t byte = 0;
+			uint8_t byte = 0, high = 0, low = 0;
 			hart.peekMemory(addr++, byte);
-			reply << (boost::format("%02x") % unsigned(byte));
+                        byteToHexChars(byte, high, low);
+                        reply.write((char*) &high, 1);
+                        reply.write((char*) &low, 1);
 		      }
 		  }
 	      }
@@ -577,13 +724,15 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
 		  reply << "E03";
 		else
 		  {
-		    bool ok = true;
-		    if (regNum < hart.intRegCount())
+                    bool ok = true;
+		    if (regNum < pcOffset)
 		      ok = hart.pokeIntReg(regNum, value);
-		    else if (regNum == hart.intRegCount())
+		    else if (regNum == pcOffset)
 		      hart.pokePc(value);
-		    else
-		      ok = hart.pokeCsr(WdRiscv::CsrNumber(regNum), value);
+		    else if (regNum >= fpRegOffset and regNum < csrOffset)
+		      ok = hart.pokeFpReg(regNum - fpRegOffset, value);
+                    else if (regNum >= csrOffset)
+                      ok = hart.pokeCsr(WdRiscv::CsrNumber(regNum - csrOffset), value);
 		    reply << (ok? "OK" : "E04");
 		  }
 	      }
@@ -623,6 +772,10 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
 	    reply << "l";
 	  else if (packet == "qTStatus")
 	    reply << "T0;tnotrun:0";
+          else if (boost::starts_with(packet, "qSupported"))
+            reply << "qXfer:features:read+";
+          else if (boost::starts_with(packet, "qXfer"))
+            processXferQuery(packet, hart, reply);
 	  else
 	    {
 	      std::cerr << "Unhandled gdb request: " << packet << '\n';

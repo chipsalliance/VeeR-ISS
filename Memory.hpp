@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include <unordered_map>
 #include <cstdint>
 #include <vector>
 #include <unordered_map>
@@ -280,6 +279,15 @@ namespace WdRiscv
     /// case min and max address are left unmodified).
     static bool getElfFileAddressBounds(const std::string& file,
 					size_t& minAddr, size_t& maxAddr);
+
+    /// Collect RISCV architecture attributes from given ELF file.
+    /// The toolchain encodes the architecture string used at
+    /// compilation (e.g. --march=imac") into an ELF file tag. This
+    /// method recovers sutch tag(s) and appends them to the given
+    /// tags vector. Return true on success and false on failure. If
+    /// no such tag is present, that is considered a success.
+    static bool collectElfRiscvTags(const std::string& file,
+                                    std::vector<std::string>& tags);
 
     /// Copy data from the given memory into this memory. If the two
     /// memories have different sizes then copy data from location
@@ -580,6 +588,9 @@ namespace WdRiscv
     /// This is a helper to loadElfFile.
     bool loadElfSegment(ELFIO::elfio& reader, int segment, size_t& end,
                         size_t& overwrites);
+
+    /// Helper to loadElfFile: Collet ELF symbols.
+    void collectElfSymbols(ELFIO::elfio& reader);
 
     /// Take a snapshot of the entire simulated memory into binary
     /// file. Return true on success or false on failure

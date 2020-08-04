@@ -215,6 +215,7 @@ struct Args
   bool newlib = false;     // True if target program linked with newlib.
   bool linux = false;      // True if target program linked with Linux C-lib.
   bool raw = false;        // True if bare-metal program (no linux no newlib).
+  bool elfisa = false;     // Use ELF file RISCV architecture tags to set MISA if true.
   bool fastExt = false;    // True if fast external interrupt dispatch enabled.
   bool unmappedElfOk = false;
   bool iccmRw = false;
@@ -245,7 +246,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 549;
+  unsigned subversion = 555;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -443,7 +444,8 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
 	("counters", po::bool_switch(&args.counters),
 	 "Enable performance counters")
 	("gdb", po::bool_switch(&args.gdb),
-	 "Run in gdb mode enabling remote debugging from gdb.")
+	 "Run in gdb mode enabling remote debugging from gdb (this requires gdb version"
+         "8.2 or higher).")
 	("gdb-tcp-port", po::value(&args.gdbTcpPort)->multitoken(),
 	 	 "TCP port number for gdb; If port num is negative,"
 			" gdb will work with stdio (default -1).")
@@ -476,6 +478,9 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
 	("raw", po::bool_switch(&args.raw),
 	 "Bare metal mode: Disble emulation of Linux/newlib system call emulation "
          "even if Linux/newlib symbols detected in the target ELF file.")
+	("elfisa", po::bool_switch(&args.elfisa),
+	 "Confiure reset value of MISA according to the RISCV architecture tag(s) "
+         "encoded into the laoded ELF file(s) if any.")
 	("fastext", po::bool_switch(&args.fastExt),
 	 "Enable fast external interrupt dispatch.")
 	("unmappedelfok", po::bool_switch(&args.unmappedElfOk),
@@ -779,7 +784,7 @@ applyIsaString(const std::string& isaStr, Hart<URV>& hart)
 template<typename URV>
 static
 bool
-enableNewlibOrLinuxFromElf(const Args& args, Hart<URV>& hart, std::string& isa)
+enableNewlibOrLinuxFromElf(const Args& args, Hart<URV>& hart)
 {
   bool newlib = args.newlib, linux = args.linux;
   if (args.raw)
@@ -823,19 +828,7 @@ enableNewlibOrLinuxFromElf(const Args& args, Hart<URV>& hart, std::string& isa)
   hart.enableNewlib(newlib);
   hart.enableLinux(linux);
 
-  if (newlib or linux)
-    {
-      // Enable c, a, f, and d extensions for newlib/linux
-      if (isa.empty())
-	{
-	  if (args.verbose)
-	    std::cerr << "Enabling a/f/d ISA extensions for newlib/linux\n";
-	  isa = "icmafd";
-	}
-      return true;
-    }
-
-  return false;
+  return newlib or linux;
 }
 
 
@@ -937,6 +930,52 @@ configureClint(Hart<URV>& hart, System<URV>& system, uint64_t clintStart,
 }
 
 
+static
+bool
+getElfFilesIsaString(const Args& args, std::string& isaString)
+{
+  std::vector<std::string> archTags;
+
+  unsigned errors = 0;
+  
+  for (const auto& target : args.expandedTargets)
+    {
+      const auto& elfFile = target.front();
+      if (not Memory::collectElfRiscvTags(elfFile, archTags))
+        errors++;
+    }
+
+  std::unordered_set<char> isaChars;
+
+  for (const auto& tag : archTags)
+    {
+      if (args.verbose)
+        std::cerr << "Collecting ISA string from ELF file tag: " << tag << '\n';
+
+      // Example tag:   rv32i2p0_m2p0_a2p0_f2p0_d2p0_c2p0
+      std::vector<std::string> extensions;
+      boost::split(extensions, tag, boost::is_any_of("_"));
+      for (size_t i = 1; i < extensions.size(); ++i)
+        {
+          const auto& ext = extensions.at(i);
+          if (not ext.empty())
+            {
+              char cc = ext.front();
+              isaChars.insert(cc);
+            }
+        }
+    }
+
+  for (auto cc : isaChars)
+    isaString.push_back(cc);
+
+  if (args.verbose)
+    std::cerr << "ISA string from ELF file(s): " << isaString << '\n';
+
+  return errors == 0;
+}
+
+
 /// Apply command line arguments: Load ELF and HEX files, set
 /// start/end/tohost. Return true on success and false on failure.
 template<typename URV>
@@ -949,13 +988,23 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
   std::string isa = args.isa;
 
   // Handle linux/newlib adjusting stack if needed.
-  bool clib = enableNewlibOrLinuxFromElf(args, hart, isa);
+  bool clib = enableNewlibOrLinuxFromElf(args, hart);
+
+  // TBD: Do this once.  Do not do it for each hart.
+  if (isa.empty() and args.elfisa)
+    if (not getElfFilesIsaString(args, isa))
+      errors++;
+
+  if (clib and isa.empty() and not args.raw)
+    {
+      if (args.verbose)
+        std::cerr << "Enabling a/c/m/f/d extensions for newlib/linux\n";
+      isa = "icmafd";
+    }
 
   if (not isa.empty())
-    {
-      if (not applyIsaString(isa, hart))
-	errors++;
-    }
+    if (not applyIsaString(isa, hart))
+      errors++;
 
   if (not applyZisaStrings(args.zisa, hart))
     errors++;
