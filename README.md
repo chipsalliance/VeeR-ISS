@@ -19,8 +19,19 @@ simulator. In particular you would need:
 1. A Linux machine to host the RISCV tool-chain and Whisper.
 
 2. The RISCV tool-chain which contains a cross-compiler to compile
-   C/C++ code to RISCV binary. The tool chain can be downloaded from
-   [github.](https://github.com/riscv/riscv-gnu-toolchain)
+   C/C++ code to RISCV binary. This can be installed on most Linux
+   distributions using your distros pacakge manager (apt, dnf, pacman
+   etc.). Otherwise it can be built from the upstream source code.
+
+   Ubuntu
+   ```shell
+   $ sudo apt install gcc-riscv64-unknown-elf
+   ```
+
+   Arch
+   ```shell
+   $ sudo pacman -Syu riscv64-elf-gcc
+   ```
 
 3. The Whisper source code which can be downloaded from 
    [github.](https://github.com/westerndigitalcorporation/swerv-ISS)
@@ -85,7 +96,7 @@ global 32-bit integer named "tohost" and should write to that location
 at the end of the program. This signals the simulator to terminate the
 program.
 
-Here's a modified version of the above program that stop once main is done:
+Here's a modified version of the above program that stops once main is done:
 
     #include <stdint.h>
 
