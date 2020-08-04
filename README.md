@@ -425,8 +425,6 @@ run time by writing to the MISA register.
 The "round to nearest break tie to max magnitude" rounding mode is not
 implemented.
 
-No virtual memory support.
-
 Only extensions A, C, D, F, I, M, S and U are supported.
 
 The code was originally written to support the Swerv
