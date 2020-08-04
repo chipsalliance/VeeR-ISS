@@ -215,6 +215,7 @@ struct Args
   bool newlib = false;     // True if target program linked with newlib.
   bool linux = false;      // True if target program linked with Linux C-lib.
   bool raw = false;        // True if bare-metal program (no linux no newlib).
+  bool elfisa = false;     // Use ELF file RISCV architecture tags to set MISA if true.
   bool fastExt = false;    // True if fast external interrupt dispatch enabled.
   bool unmappedElfOk = false;
   bool iccmRw = false;
@@ -477,6 +478,9 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
 	("raw", po::bool_switch(&args.raw),
 	 "Bare metal mode: Disble emulation of Linux/newlib system call emulation "
          "even if Linux/newlib symbols detected in the target ELF file.")
+	("elfisa", po::bool_switch(&args.elfisa),
+	 "Confiure reset value of MISA according to the RISCV architecture tag(s) "
+         "encoded into the laoded ELF file(s) if any.")
 	("fastext", po::bool_switch(&args.fastExt),
 	 "Enable fast external interrupt dispatch.")
 	("unmappedelfok", po::bool_switch(&args.unmappedElfOk),
@@ -987,7 +991,7 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
   bool clib = enableNewlibOrLinuxFromElf(args, hart);
 
   // TBD: Do this once.  Do not do it for each hart.
-  if (isa.empty() and not args.raw)
+  if (isa.empty() and args.elfisa)
     if (not getElfFilesIsaString(args, isa))
       errors++;
 
