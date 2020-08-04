@@ -96,7 +96,7 @@ global 32-bit integer named "tohost" and should write to that location
 at the end of the program. This signals the simulator to terminate the
 program.
 
-Here's a modified version of the above program that stop once main is done:
+Here's a modified version of the above program that stops once main is done:
 
     #include <stdint.h>
 
