@@ -269,11 +269,6 @@ namespace WdRiscv
     /// <name> <value>
     void printElfSymbols(std::ostream& out) const;
 
-    /// Fill given vector (cleared on entry) with the RISCV
-    /// architecture tags encoded in the loaded ELF files.
-    void getElfArchitectureTags(std::vector<std::string>& tags) const
-    { tags = elfArchTags_; }
-
     /// Enable/disable errors on unmapped memory when loading ELF files.
     void checkUnmappedElf(bool flag)
     { checkUnmappedElf_ = flag; }
@@ -284,6 +279,15 @@ namespace WdRiscv
     /// case min and max address are left unmodified).
     static bool getElfFileAddressBounds(const std::string& file,
 					size_t& minAddr, size_t& maxAddr);
+
+    /// Collect RISCV architecture attributes from given ELF file.
+    /// The toolchain encodes the architecture string used at
+    /// compilation (e.g. --march=imac") into an ELF file tag. This
+    /// method recovers sutch tag(s) and appends them to the given
+    /// tags vector. Return true on success and false on failure. If
+    /// no such tag is present, that is considered a success.
+    static bool collectElfRiscvTags(const std::string& file,
+                                    std::vector<std::string>& tags);
 
     /// Copy data from the given memory into this memory. If the two
     /// memories have different sizes then copy data from location
@@ -588,9 +592,6 @@ namespace WdRiscv
     /// Helper to loadElfFile: Collet ELF symbols.
     void collectElfSymbols(ELFIO::elfio& reader);
 
-    /// Helper to loadElfFile: Collect RISCV arch attribute.
-    void collectElfRiscvTags(ELFIO::elfio& reader);
-
     /// Take a snapshot of the entire simulated memory into binary
     /// file. Return true on success or false on failure
     bool saveSnapshot(const std::string& filename,
@@ -646,7 +647,6 @@ namespace WdRiscv
     bool checkUnmappedElf_ = true;
 
     std::unordered_map<std::string, ElfSymbol> symbols_;
-    std::vector<std::string> elfArchTags_;
 
     std::vector<Reservation> reservations_;
     std::vector<LastWriteData> lastWriteData_;

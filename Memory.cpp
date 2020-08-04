@@ -326,9 +326,18 @@ extractUleb128(std::istream& in, __uint128_t& value)
 }
 
 
-void
-Memory::collectElfRiscvTags(ELFIO::elfio& reader)
+bool
+Memory::collectElfRiscvTags(const std::string& fileName,
+                            std::vector<std::string>& tags)
 {
+  ELFIO::elfio reader;
+
+  if (not reader.load(fileName))
+    {
+      std::cerr << "Error: Failed to load ELF file " << fileName << '\n';
+      return false;
+    }
+
   auto secCount = reader.sections.size();
 
   for (int secIx = 0; secIx < secCount; ++secIx)
@@ -340,7 +349,7 @@ Memory::collectElfRiscvTags(ELFIO::elfio& reader)
       const char* secData = sec->get_data();
       size_t size = sec->get_size();
       if (not secData or not size)
-        return;
+        continue;
 
       // 1st char is format verion. Currently supported version is 'A'.
       std::string dataString(secData, size);
@@ -348,7 +357,10 @@ Memory::collectElfRiscvTags(ELFIO::elfio& reader)
       char version;
       iss.read(&version, 1);
       if (not iss or version != 'A')
-        return;
+        {
+          std::cerr << "Unknown ELF RISCV section format: '" << version << "'\n";
+          return false;
+        }
 
       // Next is a 4-byte section length.
       uint32_t secLen = 0;
@@ -362,17 +374,29 @@ Memory::collectElfRiscvTags(ELFIO::elfio& reader)
       uint8_t tag = 0;
       iss.read((char*) &tag, sizeof(tag));
       if (not iss or tag != 1)
-        return;
+        {
+          std::cerr << "Unexpected ELF RISCV section tag: " << tag << "(expecting 1)\n";
+          return false;
+        }
 
       // Next is a 4-byte attributes size including tag and size.
       // https://embarc.org/man-pages/as/RISC_002dV_002dATTRIBUTE.html#RISC_002dV_002dATTRIBUTE
       uint32_t attribsSize = 0;
       iss.read((char*) &attribsSize, sizeof(attribsSize));
-      if (not iss or not attribsSize)
-        return;
+      if (not iss)
+        {
+          std::cerr << "Corrupted ELF RISCV file attributes subsection\n";
+          return false;
+        }
+
+      if (attribsSize == 0)
+        continue;
 
       if (attribsSize <= sizeof(tag) + sizeof(attribsSize))
-        return;
+        {
+          std::cerr << "Corrupted ELF RISCV file attributes subsection: Invalid size\n";
+          return true;
+        }
 
       attribsSize -= (sizeof(tag) + sizeof(attribsSize));
 
@@ -383,7 +407,10 @@ Memory::collectElfRiscvTags(ELFIO::elfio& reader)
           // Next is a unsigned lengh-encoded binary 128 tag.
           __uint128_t tag = 0;
           if (not extractUleb128(iss, tag))
-            return;
+            {
+              std::cerr << "Empty/corrupted ELF RISCV file attributes subsection: Invalid tag\n";
+              return false;
+            }
 
           // If tag is even, value is another uleb128. If odd, value
           // is a null-terminated string.
@@ -391,19 +418,28 @@ Memory::collectElfRiscvTags(ELFIO::elfio& reader)
             {
               __uint128_t value = 0;
               if (not extractUleb128(iss, value))
-                return;
+                {
+                  std::cerr << "Empty/corrupted ELF RISCV file attributes subsection: Invalid tag value\n";
+                  return false;
+                }
             }
           else
             {
               std::string value;
               std::getline(iss, value, '\0');
               if (not iss)
-                return;
+                {
+                  std::cerr << "Corrupted ELF RISCV file attributes subsection: Missing architeture tag string\n";
+                  return false;
+                }
               if (tag == 5)
-                elfArchTags_.push_back(value);
+                tags.push_back(value);
+              return true;
             }
         }
     }
+
+  return true;
 }
 
 
@@ -528,9 +564,6 @@ Memory::loadElfFile(const std::string& fileName, unsigned regWidth,
 
   // Collect symbols.
   collectElfSymbols(reader);
-
-  // Extract riscv arch attribute.
-  collectElfRiscvTags(reader);
 
   // Get the program entry point.
   if (not errors)
