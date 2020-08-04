@@ -388,16 +388,16 @@ C-library support:
 
     $ whisper --newlib test3
 
-And here are examples of passing the command line arguments arg1 and arg2
+And here is an example of passing the command line arguments arg1 and arg2
 to the to the target program test3:
 
-    $ whisper --newlib test3 arg1 arg2
+    $ whisper --newlib "test3 arg1 arg2"
 
-If the target program command line arguments require the use of dashes
-then a double dash must be used to separate the target program and its
-command line switches from those of whisper:
+And examples of passing command line switches to a target program
+that requires them:
 
-    $ whisper --newlib -- test4 -opt1 ...
+    $ whisper --newlib "test4 -opt1 val1 -opt2"
+    $ whisper --newlib --target "test4 -opt1 val1 -opt2"
 
 # Debugging RISCV Programs Using Gdb and Whisper
 
