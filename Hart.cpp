@@ -430,8 +430,7 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   // Enable FP if f/d extension and linux/newlib.
   if ((isRvf() or isRvd()) and (newlib_ or linux_))
     {
-      URV val = 0;
-      csRegs_.read(CsrNumber::MSTATUS, PrivilegeMode::Machine, val);
+      URV val = csRegs_.peekMstatus();
       MstatusFields<URV> fields(val);
       fields.bits_.FS = unsigned(FpFs::Initial);
       csRegs_.write(CsrNumber::MSTATUS, PrivilegeMode::Machine, fields.value_);
@@ -455,8 +454,7 @@ template <typename URV>
 void
 Hart<URV>::updateCachedMstatusFields()
 {
-  URV csrVal = 0;
-  peekCsr(CsrNumber::MSTATUS, csrVal);
+  URV csrVal = csRegs_.peekMstatus();
   MstatusFields<URV> msf(csrVal);
   mstatusMpp_ = PrivilegeMode(msf.bits_.MPP);
   mstatusMprv_ = msf.bits_.MPRV;
@@ -2641,9 +2639,7 @@ Hart<URV>::initiateTrap(bool interrupt, URV cause, URV pcToSave, URV info,
 
   // Update status register saving xIE in xPIE and previous privilege
   // mode in xPP by getting current value of mstatus ...
-  URV status = 0;
-  if (not csRegs_.read(CsrNumber::MSTATUS, privMode_, status))
-    assert(0 and "Failed to read MSTATUS register");
+  URV status = csRegs_.peekMstatus();
 
   // ... updating its fields
   MstatusFields<URV> msf(status);
@@ -2737,12 +2733,10 @@ Hart<URV>::undelegatedInterrupt(URV cause, URV pcToSave, URV nextPc)
 
   // Update status register saving xIE in xPIE and previous privilege
   // mode in xPP by getting current value of mstatus ...
-  URV status = 0;
-  if (not csRegs_.read(CsrNumber::MSTATUS, privMode_, status))
-    assert(0 and "Failed to read MSTATUS register");
-  // ... updating its fields
+  URV status = csRegs_.peekMstatus();
   MstatusFields<URV> msf(status);
 
+  // ... updating its fields
   msf.bits_.MPP = unsigned(origMode);
   msf.bits_.MPIE = msf.bits_.MIE;
   msf.bits_.MIE = 0;
@@ -4525,13 +4519,10 @@ Hart<URV>::isInterruptPossible(InterruptCause& cause)
   if ((mie & mip) == 0)
     return false;  // Nothing enabled that is also pending.
 
-  URV mstatus;
-  if (not csRegs_.read(CsrNumber::MSTATUS, PrivilegeMode::Machine, mstatus))
-    return false;
-
   typedef InterruptCause IC;
 
   // Check for machine-level interrupts if MIE enabled or if user/supervisor.
+  URV mstatus = csRegs_.peekMstatus();
   MstatusFields<URV> fields(mstatus);
   bool globalEnable = fields.bits_.MIE or privMode_ < PrivilegeMode::Machine;
   URV delegVal = 0;
@@ -7146,8 +7137,7 @@ Hart<URV>::execSfence_vma(const DecodedInst* di)
       return;
     }
 
-  URV status = 0;
-  peekCsr(CsrNumber::MSTATUS, status);
+  URV status = csRegs_.peekMstatus();
 
   MstatusFields<URV> fields(status);
   if (fields.bits_.TVM)
@@ -7186,16 +7176,11 @@ Hart<URV>::execMret(const DecodedInst* di)
   if (triggerTripped_)
     return;
 
+  memory_.invalidateLr(hartIx_); // Clear LR reservation (if any).
+
   // Restore privilege mode and interrupt enable by getting
   // current value of MSTATUS, ...
-  URV value = 0;
-  if (not csRegs_.read(CsrNumber::MSTATUS, privMode_, value))
-    {
-      illegalInst(di);
-      return;
-    }
-
-  memory_.invalidateLr(hartIx_); // Clear LR reservation (if any).
+  URV value = csRegs_.peekMstatus();
 
   // ... updating/unpacking its fields,
   MstatusFields<URV> fields(value);
@@ -8393,8 +8378,7 @@ Hart<URV>::markFsDirty()
   if (mstatusFs_ == FpFs::Dirty)
     return;
 
-  URV val = 0;
-  csRegs_.read(CsrNumber::MSTATUS, PrivilegeMode::Machine, val);
+  URV val = csRegs_.peekMstatus();
   MstatusFields<URV> fields(val);
   fields.bits_.FS = unsigned(FpFs::Dirty);
 

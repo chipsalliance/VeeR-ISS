@@ -906,6 +906,13 @@ namespace WdRiscv
       return csr.read();
     }
 
+    /// Fast peek method for MSTATUS
+    URV peekMstatus() const
+    {
+      const auto& csr = regs_.at(size_t(CsrNumber::MSTATUS));
+      return csr.read();
+    }
+
     /// Set the current integer-register/CSR width.
     void setXlen(unsigned xlen)
     {
