@@ -182,12 +182,12 @@ receivePacketFromGdb(int fd)
 	  else
 	    {
 	      putDebugChar('+',fd);  // Signal successul reception.
-	      fflush(stdout);
 
 	      // If sequence char present, reply with sequence id.
 	      if (data.size() >= 3 and data.at(2) == ':')
 		{
-		  putDebugChar(data.at(0),fd);
+                  std::cerr << "wiz\n";
+		  putDebugChar(data.at(0), fd);
 		  putDebugChar(data.at(1), fd);
 		  data = data.substr(3);
 		}
@@ -215,23 +215,22 @@ sendPacketToGdb(const std::string& data, int fd)
 {
   const char hexDigit[] = "0123456789abcdef";
 
+  unsigned char checksum = 0;
+  for (unsigned char c : data)
+    checksum = static_cast<uint8_t>(checksum + c);
+
+  std::string packet;
+  packet.reserve(8 + data.size());
+
+  packet.push_back('$');
+  packet += data;
+  packet.push_back('#');
+  packet.push_back(hexDigit[checksum >> 4]);
+  packet.push_back(hexDigit[checksum & 0xf]);
+
   while (true)
     {
-      putDebugChar('$', fd);
-      unsigned char checksum = 0;
-      for (unsigned char c : data)
-	{
-	  putDebugChar(c, fd);
-	  checksum = static_cast<uint8_t>(checksum + c);
-	}
-
-      putDebugChar('#', fd);
-      putDebugChar(hexDigit[checksum >> 4], fd);
-      putDebugChar(hexDigit[checksum & 0xf], fd);
-      fflush(stdout);
-
-      // std::cerr << "Send to gdb: " << data << '\n';
-
+      write(fd, packet.data(), packet.size());
       char c = getDebugChar(fd);
       if (c == '+')
 	return;
@@ -551,19 +550,6 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
 		reply << littleEndianIntToHex(val);
 	      }
             reply << littleEndianIntToHex(hart.peekPc());
-#if 0
-            URV val = 0;
-            hart.peekCsr(WdRiscv::CsrNumber::MSTATUS, val);
-            reply << littleEndianIntToHex(val);
-            hart.peekCsr(WdRiscv::CsrNumber::MISA, val);
-            reply << littleEndianIntToHex(val);
-            hart.peekCsr(WdRiscv::CsrNumber::MIE, val);
-            reply << littleEndianIntToHex(val);
-            hart.peekCsr(WdRiscv::CsrNumber::MTVEC, val);
-            reply << littleEndianIntToHex(val);
-            hart.peekCsr(WdRiscv::CsrNumber::MEPC, val);
-            reply << littleEndianIntToHex(val);
-#endif
 	  }
 	  break;
 
