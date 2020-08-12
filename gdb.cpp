@@ -137,70 +137,52 @@ getStringComponents(const std::string& str, char delim1, char delim2,
 // Receive a packet from gdb. Request a retransmit from gdb if packet
 // checksum is incorrect. Return succesfully received packet.
 static
-std::string
-receivePacketFromGdb(int fd)
+void
+receivePacketFromGdb(int fd, std::string& packet)
 {
-  std::string data;  // Data part of packet.
-
   unsigned char ch = ' '; // Anything besides $ will do.
 
-  while (1)
+  char buffer[256];
+  uint8_t sum = 0;  // checksum
+
+  ssize_t count = read(fd, buffer, sizeof(buffer));
+  if (count < 0)
+    return;
+
+  // Packet starts with a '$'
+  ssize_t ix = 0;
+  while (ix < count and buffer[ix] != '$')
+    ++ix;
+      
+  ++ix; // Skip '$'
+
+  while (ix < count and buffer[ix] != '#')
     {
-      while (ch != '$')
-	ch = getDebugChar(fd);
-
-      uint8_t sum = 0;  // checksum
-      while (1)
-	{
-	  ch = getDebugChar(fd);
-          if (ch == '$')
-            break;
-	  if (ch == '#')
-	    break;
-	  sum = static_cast<uint8_t>(sum + ch);
-	  data.push_back(ch);
-	}
-
-      if (ch == '$')
-	continue;
-
-      if (ch == '#')
-	{
-	  ch = getDebugChar(fd);
-	  uint8_t pacSum = static_cast<uint8_t>(hexCharToInt(ch) << 4); // Packet checksum
-	  ch = getDebugChar(fd);
-	  pacSum = static_cast<uint8_t>(pacSum + hexCharToInt(ch));
-
-	  if (sum != pacSum)
-	    {
-	      std::cerr << "Bad checksum form gdb: "
-			<< (boost::format("%02x v %02x") % unsigned(sum) %
-			    unsigned(pacSum))
-			<< '\n';
-	      putDebugChar('-',fd); // Signal failed reception.
-	    }
-	  else
-	    {
-	      putDebugChar('+',fd);  // Signal successul reception.
-
-	      // If sequence char present, reply with sequence id.
-	      if (data.size() >= 3 and data.at(2) == ':')
-		{
-                  std::cerr << "wiz\n";
-		  putDebugChar(data.at(0), fd);
-		  putDebugChar(data.at(1), fd);
-		  data = data.substr(3);
-		}
-#if 0
-	      std::cerr << "Received from gdb: $" << data << "#"
-			<< (boost::format("%02x") % unsigned(pacSum)) << '\n';
-#endif
-	      return data;
-	    }
-	}
+      char cc = buffer[ix++];
+      sum += cc;
+      packet.push_back(cc);
     }
 
-  return data; // Passify compiler
+  ++ix;  // Skip '#'
+
+  if (ix + 1 < count)
+    {
+      ch = buffer[ix++];
+      uint8_t pacSum = static_cast<uint8_t>(hexCharToInt(ch) << 4); // Packet checksum
+      ch = buffer[ix++];
+      pacSum = static_cast<uint8_t>(pacSum + hexCharToInt(ch));
+
+      if (sum != pacSum)
+        {
+          std::cerr << "Bad checksum form gdb: "
+                    << (boost::format("%02x v %02x") % unsigned(sum) %
+                        unsigned(pacSum))
+                    << '\n';
+          putDebugChar('-',fd); // Signal failed reception.
+        }
+      else
+        putDebugChar('+',fd);  // Signal successul reception.
+    }
 }
 
 
@@ -525,12 +507,16 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
   buffer.reserve(128);
   std::ostringstream reply(buffer);
 
+  std::string packet;
+  packet.reserve(128);
+
   while (1)
     {
       reply.str("");
       reply.clear();
 
-      std::string packet = receivePacketFromGdb(fd);
+      packet.clear();
+      receivePacketFromGdb(fd, packet);
       if (packet.empty())
 	continue;
 
