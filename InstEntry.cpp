@@ -1775,7 +1775,7 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask },
 
-      { "cmov", InstId::cmov, 0x6001033, 0x600707F,
+      { "cmov", InstId::cmov, 0x6005033, 0x600707F,
         InstType::Zbt,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
@@ -1783,7 +1783,7 @@ InstTable::setupInstVec()
         OperandType::IntReg, OperandMode::Read, rs3Mask
       },
 
-      { "cmix", InstId::cmix, 0x6005033, 0xfff0707f,
+      { "cmix", InstId::cmix, 0x6001033, 0xfff0707f,
         InstType::Zbt,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,

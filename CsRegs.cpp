@@ -522,7 +522,7 @@ CsRegs<URV>::configUserModePerfCounters(unsigned numCounters)
 
 
 /// Map a RISCV rounding mode to an fetsetround constant.
-static std::array<int, 5> riscvRoungingModeToFe =
+static std::array<int, 5> riscvRoundingModeToFe =
   {
    FE_TONEAREST,  // NearsetEven
    FE_TOWARDZERO, // Zero
@@ -538,7 +538,12 @@ int
 mapRiscvRoundingModeToFe(RoundingMode mode)
 {
   uint32_t ix = uint32_t(mode);
-  return riscvRoungingModeToFe.at(ix);
+  if (ix < riscvRoundingModeToFe.size())
+    return riscvRoundingModeToFe.at(ix);
+
+  // For dynamic mode, it does not matter to what we set the host machine
+  // fp mode since it will be changed by the floating point instructions.
+  return FE_TONEAREST;
 }
   
 
@@ -736,14 +741,23 @@ CsRegs<URV>::defineMachineRegs()
   // to defined interrupts are modifiable.
   defineCsr("mip", CsrNumber::MIP, mand, imp, 0, rom, mieMask);
 
-  // Physical memory protection.
+  // Physical memory protection. PMPCFG1 and PMPCFG3 are present only
+  // in 32-bit implementations.
   URV cfgMask = 0x9f9f9f9f;
   if constexpr (sizeof(URV) == 8)
     cfgMask = 0x9f9f9f9f9f9f9f9f;
   defineCsr("pmpcfg0",   Csrn::PMPCFG0,   !mand, imp, 0, cfgMask, cfgMask);
-  defineCsr("pmpcfg1",   Csrn::PMPCFG1,   !mand, imp, 0, cfgMask, cfgMask);
   defineCsr("pmpcfg2",   Csrn::PMPCFG2,   !mand, imp, 0, cfgMask, cfgMask);
-  defineCsr("pmpcfg3",   Csrn::PMPCFG3,   !mand, imp, 0, cfgMask, cfgMask);
+  if (sizeof(URV) == 4)
+    {
+      defineCsr("pmpcfg1",   Csrn::PMPCFG1,   !mand, imp, 0, cfgMask, cfgMask);
+      defineCsr("pmpcfg3",   Csrn::PMPCFG3,   !mand, imp, 0, cfgMask, cfgMask);
+    }
+  else
+    {
+      defineCsr("pmpcfg1",   Csrn::PMPCFG1,   !mand, !imp, 0, cfgMask, cfgMask);
+      defineCsr("pmpcfg3",   Csrn::PMPCFG3,   !mand, !imp, 0, cfgMask, cfgMask);
+    }
 
   URV pmpMask = 0xffffffff;
   if constexpr (sizeof(URV) == 8)
