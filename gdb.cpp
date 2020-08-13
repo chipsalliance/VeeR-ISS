@@ -178,10 +178,10 @@ receivePacketFromGdb(int fd, std::string& packet)
                     << (boost::format("%02x v %02x") % unsigned(sum) %
                         unsigned(pacSum))
                     << '\n';
-          putDebugChar('-',fd); // Signal failed reception.
+          putDebugChar('-', fd); // Signal failed reception.
         }
       else
-        putDebugChar('+',fd);  // Signal successul reception.
+        putDebugChar('+', fd);  // Signal successul reception.
     }
 }
 
