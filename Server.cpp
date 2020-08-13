@@ -388,13 +388,14 @@ Server<URV>::disassembleAnnotateInst(Hart<URV>& hart,
        text += " (NT)";
     }
 
-  if (entry.isLoad() or entry.isStore() or entry.isAtomic())
-    {
-      URV addr = hart.lastLdStAddress();
-      std::ostringstream oss;
-      oss << " [0x" << std::hex << addr << "]" << std::dec;
-      text += oss.str();
-    }
+  if (not interrupted)
+    if (entry.isLoad() or entry.isStore() or entry.isAtomic())
+      {
+        URV addr = hart.lastLdStAddress();
+        std::ostringstream oss;
+        oss << " [0x" << std::hex << addr << "]" << std::dec;
+        text += oss.str();
+      }
 
   if (interrupted)
     text += " (interrupted)";
