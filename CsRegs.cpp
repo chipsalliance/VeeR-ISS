@@ -741,14 +741,23 @@ CsRegs<URV>::defineMachineRegs()
   // to defined interrupts are modifiable.
   defineCsr("mip", CsrNumber::MIP, mand, imp, 0, rom, mieMask);
 
-  // Physical memory protection.
+  // Physical memory protection. PMPCFG1 and PMPCFG3 are present only
+  // in 32-bit implementations.
   URV cfgMask = 0x9f9f9f9f;
   if constexpr (sizeof(URV) == 8)
     cfgMask = 0x9f9f9f9f9f9f9f9f;
   defineCsr("pmpcfg0",   Csrn::PMPCFG0,   !mand, imp, 0, cfgMask, cfgMask);
-  defineCsr("pmpcfg1",   Csrn::PMPCFG1,   !mand, imp, 0, cfgMask, cfgMask);
   defineCsr("pmpcfg2",   Csrn::PMPCFG2,   !mand, imp, 0, cfgMask, cfgMask);
-  defineCsr("pmpcfg3",   Csrn::PMPCFG3,   !mand, imp, 0, cfgMask, cfgMask);
+  if (sizeof(URV) == 4)
+    {
+      defineCsr("pmpcfg1",   Csrn::PMPCFG1,   !mand, imp, 0, cfgMask, cfgMask);
+      defineCsr("pmpcfg3",   Csrn::PMPCFG3,   !mand, imp, 0, cfgMask, cfgMask);
+    }
+  else
+    {
+      defineCsr("pmpcfg1",   Csrn::PMPCFG1,   !mand, !imp, 0, cfgMask, cfgMask);
+      defineCsr("pmpcfg3",   Csrn::PMPCFG3,   !mand, !imp, 0, cfgMask, cfgMask);
+    }
 
   URV pmpMask = 0xffffffff;
   if constexpr (sizeof(URV) == 8)
