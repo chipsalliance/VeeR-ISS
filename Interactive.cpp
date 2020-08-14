@@ -1102,6 +1102,8 @@ printInteractiveHelp()
   cout << "  counter to the given reset_pc before resetting the hart.\n\n";
   cout << "symbols\n";
   cout << "  List all the symbols in the loaded ELF file(s).\n\n";
+  cout << "pagetable\n";
+  cout << "  Print the entries of the address tanslation table.\n\n";
   cout << "exception inst [<offset>]\n";
   cout << "  Take an instruction access fault on the subsequent step command. Given\n";
   cout << "  offset (defaults to zero) is added to the instruction PC to form the address\n";
