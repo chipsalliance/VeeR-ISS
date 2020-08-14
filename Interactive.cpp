@@ -1501,6 +1501,12 @@ Interactive<URV>::executeLine(unsigned& currentHartId,
       return true;
     }
 
+  if (command == "pagetable")
+    {
+      hart.printPageTable(std::cout);
+      return true;
+    }
+
   if (command == "h" or command == "?" or command == "help")
     {
       helpCommand(tokens);

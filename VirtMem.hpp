@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <iosfwd>
 #include "trapEnums.hpp"
 #include "Memory.hpp"
 #include "Tlb.hpp"
@@ -381,17 +382,17 @@ namespace WdRiscv
     /// check for write access is the write flag is true ...).  Return
     /// encoutered exception on failure or ExceptionType::NONE on
     /// success.
-    ExceptionCause translate(size_t va, PrivilegeMode pm, bool read,
-                             bool write, bool exec, size_t& pa);
+    ExceptionCause translate(uint64_t va, PrivilegeMode pm, bool read,
+                             bool write, bool exec, uint64_t& pa);
 
     /// Same as translate but only check for execute access.
-    ExceptionCause translateForFetch(size_t va, PrivilegeMode pm, size_t& pa);
+    ExceptionCause translateForFetch(uint64_t va, PrivilegeMode pm, uint64_t& pa);
 
     /// Same as translate but only check for read access.
-    ExceptionCause translateForLoad(size_t va, PrivilegeMode pm, size_t& pa);
+    ExceptionCause translateForLoad(uint64_t va, PrivilegeMode pm, uint64_t& pa);
 
     /// Same as translate but only check for write access.
-    ExceptionCause translateForStore(size_t va, PrivilegeMode pm, size_t& pa);
+    ExceptionCause translateForStore(uint64_t va, PrivilegeMode pm, uint64_t& pa);
 
     /// Return page size.
     unsigned pageSize() const
@@ -402,16 +403,25 @@ namespace WdRiscv
     uint64_t pageStartAddress(uint64_t address) const
     { return (address >> pageBits_) << pageBits_; }
 
+    /// Debug method: Print all the entries in the page table.
+    void printPageTable(std::ostream& os) const;
+
+    /// Print all the page table entries at or below the page table
+    /// page rooted at the given address. This is a helper to
+    /// printPageTable.
+    template <typename PTE, typename VA>
+    void printEntries(std::ostream& os, uint64_t addr, std::string path) const;
+
   protected:
 
     /// Helper to translate method.
     template <typename PTE, typename VA>
-    ExceptionCause pageTableWalk(size_t va, PrivilegeMode pm, bool read, bool write,
-                                 bool exec, size_t& pa, TlbEntry& tlbEntry);
+    ExceptionCause pageTableWalk(uint64_t va, PrivilegeMode pm, bool read, bool write,
+                                 bool exec, uint64_t& pa, TlbEntry& tlbEntry);
 
     /// Helper to translate method.
-    ExceptionCause pageTableWalkUpdateTlb(size_t va, PrivilegeMode pm, bool read,
-                                          bool write, bool exec, size_t& pa);
+    ExceptionCause pageTableWalkUpdateTlb(uint64_t va, PrivilegeMode pm, bool read,
+                                          bool write, bool exec, uint64_t& pa);
 
     void setPageTableRootPage(uint64_t root)
     { pageTableRootPage_ = root; }
