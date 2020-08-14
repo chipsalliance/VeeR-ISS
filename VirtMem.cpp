@@ -399,7 +399,9 @@ VirtMem::printPageTable(std::ostream& os) const
 
   std::string path = "/";
 
-  if (mode_ == Sv32)
+  if (mode_ == Bare)
+    ;  // relax
+  else if (mode_ == Sv32)
     printEntries<Pte32, Va32>(os, addr, path);
   else if (mode_ == Sv39)
     printEntries<Pte39, Va39>(os, addr, path);
