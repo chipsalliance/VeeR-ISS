@@ -11094,7 +11094,7 @@ Hart<URV>::execAmoadd_d(const DecodedInst* di)
       URV rs2Val = intRegs_.read(di->op2());
       URV result = rs2Val + rdVal;
 
-      bool storeOk = store<uint32_t>(rs1, addr, addr, result);
+      bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
 	intRegs_.write(di->op0(), rdVal);
@@ -11121,7 +11121,7 @@ Hart<URV>::execAmoswap_d(const DecodedInst* di)
       URV rs2Val = intRegs_.read(di->op2());
       URV result = rs2Val;
 
-      bool storeOk = store<URV>(rs1, addr, addr, result);
+      bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
 	intRegs_.write(di->op0(), rdVal);
@@ -11148,7 +11148,7 @@ Hart<URV>::execAmoxor_d(const DecodedInst* di)
       URV rs2Val = intRegs_.read(di->op2());
       URV result = rs2Val ^ rdVal;
 
-      bool storeOk = store<URV>(rs1, addr, addr, result);
+      bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
 	intRegs_.write(di->op0(), rdVal);
@@ -11175,7 +11175,7 @@ Hart<URV>::execAmoor_d(const DecodedInst* di)
       URV rs2Val = intRegs_.read(di->op2());
       URV result = rs2Val | rdVal;
 
-      bool storeOk = store<URV>(rs1, addr, addr, result);
+      bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
 	intRegs_.write(di->op0(), rdVal);
@@ -11202,7 +11202,7 @@ Hart<URV>::execAmoand_d(const DecodedInst* di)
       URV rs2Val = intRegs_.read(di->op2());
       URV result = rs2Val & rdVal;
 
-      bool storeOk = store<URV>(rs1, addr, addr, result);
+      bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
 	intRegs_.write(di->op0(), rdVal);
@@ -11229,7 +11229,7 @@ Hart<URV>::execAmomin_d(const DecodedInst* di)
       URV rs2Val = intRegs_.read(di->op2());
       URV result = (SRV(rs2Val) < SRV(rdVal))? rs2Val : rdVal;
 
-      bool storeOk = store<URV>(rs1, addr, addr, result);
+      bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
 	intRegs_.write(di->op0(), rdVal);
@@ -11256,7 +11256,7 @@ Hart<URV>::execAmominu_d(const DecodedInst* di)
       URV rs2Val = intRegs_.read(di->op2());
       URV result = (rs2Val < rdVal)? rs2Val : rdVal;
 
-      bool storeOk = store<URV>(rs1, addr, addr, result);
+      bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
 	intRegs_.write(di->op0(), rdVal);
@@ -11283,7 +11283,7 @@ Hart<URV>::execAmomax_d(const DecodedInst* di)
       URV rs2Val = intRegs_.read(di->op2());
       URV result = (SRV(rs2Val) > SRV(rdVal))? rs2Val : rdVal;
 
-      bool storeOk = store<URV>(rs1, addr, addr, result);
+      bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
 	intRegs_.write(di->op0(), rdVal);
@@ -11310,7 +11310,7 @@ Hart<URV>::execAmomaxu_d(const DecodedInst* di)
       URV rs2Val = intRegs_.read(di->op2());
       URV result = (rs2Val > rdVal)? rs2Val : rdVal;
 
-      bool storeOk = store<URV>(rs1, addr, addr, result);
+      bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
 	intRegs_.write(di->op0(), rdVal);
