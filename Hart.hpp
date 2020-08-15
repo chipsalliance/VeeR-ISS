@@ -1150,6 +1150,10 @@ namespace WdRiscv
     void configureClint(unsigned hartCount, uint64_t softInterruptBase,
                         uint64_t timerLimitBase, uint64_t timerAddr);
 
+    /// Debug method: print address translation table. 
+    void printPageTable(std::ostream& out) const
+    { virtMem_.printPageTable(out); }
+
   protected:
 
     // Return true if FS field of mstatus is not off.

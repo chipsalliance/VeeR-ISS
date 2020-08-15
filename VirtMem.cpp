@@ -1,4 +1,6 @@
 #include <cmath>
+#include <iostream>
+#include <ios>
 #include "VirtMem.hpp"
 
 using namespace WdRiscv;
@@ -32,7 +34,7 @@ pageFaultType(bool read, bool write, bool exec)
 
 
 ExceptionCause
-VirtMem::translateForFetch(size_t va, PrivilegeMode priv, size_t& pa)
+VirtMem::translateForFetch(uint64_t va, PrivilegeMode priv, uint64_t& pa)
 {
   if (mode_ == Bare)
     {
@@ -41,7 +43,7 @@ VirtMem::translateForFetch(size_t va, PrivilegeMode priv, size_t& pa)
     }
 
   // Lookup virtual page number in TLB.
-  size_t virPageNum = va >> pageBits_;
+  uint64_t virPageNum = va >> pageBits_;
   TlbEntry* entry = tlb_.findEntry(virPageNum, asid_);
   if (entry)
     {
@@ -68,7 +70,7 @@ VirtMem::translateForFetch(size_t va, PrivilegeMode priv, size_t& pa)
 
 
 ExceptionCause
-VirtMem::translateForLoad(size_t va, PrivilegeMode priv, size_t& pa)
+VirtMem::translateForLoad(uint64_t va, PrivilegeMode priv, uint64_t& pa)
 {
   if (mode_ == Bare)
     {
@@ -77,7 +79,7 @@ VirtMem::translateForLoad(size_t va, PrivilegeMode priv, size_t& pa)
     }
 
   // Lookup virtual page number in TLB.
-  size_t virPageNum = va >> pageBits_;
+  uint64_t virPageNum = va >> pageBits_;
   TlbEntry* entry = tlb_.findEntry(virPageNum, asid_);
   if (entry)
     {
@@ -104,7 +106,7 @@ VirtMem::translateForLoad(size_t va, PrivilegeMode priv, size_t& pa)
 
 
 ExceptionCause
-VirtMem::translateForStore(size_t va, PrivilegeMode priv, size_t& pa)
+VirtMem::translateForStore(uint64_t va, PrivilegeMode priv, uint64_t& pa)
 {
   if (mode_ == Bare)
     {
@@ -113,7 +115,7 @@ VirtMem::translateForStore(size_t va, PrivilegeMode priv, size_t& pa)
     }
 
   // Lookup virtual page number in TLB.
-  size_t virPageNum = va >> pageBits_;
+  uint64_t virPageNum = va >> pageBits_;
   TlbEntry* entry = tlb_.findEntry(virPageNum, asid_);
   if (entry)
     {
@@ -140,8 +142,8 @@ VirtMem::translateForStore(size_t va, PrivilegeMode priv, size_t& pa)
 
 
 ExceptionCause
-VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
-                   bool exec, size_t& pa)
+VirtMem::translate(uint64_t va, PrivilegeMode priv, bool read, bool write,
+                   bool exec, uint64_t& pa)
 {
   if (mode_ == Bare)
     {
@@ -150,7 +152,7 @@ VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
     }
 
   // Lookup virtual page number in TLB.
-  size_t virPageNum = va >> pageBits_;
+  uint64_t virPageNum = va >> pageBits_;
   TlbEntry* entry = tlb_.findEntry(virPageNum, asid_);
   if (entry)
     {
@@ -180,8 +182,8 @@ VirtMem::translate(size_t va, PrivilegeMode priv, bool read, bool write,
 
 
 ExceptionCause
-VirtMem::pageTableWalkUpdateTlb(size_t va, PrivilegeMode priv, bool read,
-                                bool write, bool exec, size_t& pa)
+VirtMem::pageTableWalkUpdateTlb(uint64_t va, PrivilegeMode priv, bool read,
+                                bool write, bool exec, uint64_t& pa)
 {
   // Perform a page table walk.
   ExceptionCause cause = ExceptionCause::LOAD_PAGE_FAULT;
@@ -222,8 +224,8 @@ VirtMem::pageTableWalkUpdateTlb(size_t va, PrivilegeMode priv, bool read,
 
 template<typename PTE, typename VA>
 ExceptionCause
-VirtMem::pageTableWalk(size_t address, PrivilegeMode privMode, bool read, bool write,
-                       bool exec, size_t& pa, TlbEntry& tlbEntry)
+VirtMem::pageTableWalk(uint64_t address, PrivilegeMode privMode, bool read, bool write,
+                       bool exec, uint64_t& pa, TlbEntry& tlbEntry)
 {
   // 1. Done in translate method.
 
@@ -370,4 +372,95 @@ VirtMem::setPageSize(uint64_t size)
 
   assert(0 && "Translation modes Sv57 and Sv64 are not currently supported");
   return false;
+}
+
+
+void
+VirtMem::printPageTable(std::ostream& os) const
+{
+  std::ios_base::fmtflags flags(os.flags());
+
+  os << "Page size: " << std::dec << pageSize_ << '\n';
+  os << "Mode: ";
+  switch(mode_)
+    {
+    case Bare: os << "Bare\n"; break;
+    case Sv32: os << "Sv32\n"; break;
+    case Sv39: os << "Sv39\n"; break;
+    case Sv48: os << "Sv48\n"; break;
+    case Sv57: os << "Sv57\n"; break;
+    case Sv64: os << "Sv64\n"; break;
+    default:   os << "???\n";  break;
+    }
+
+  os << "Root page number: 0x" << std::hex << pageTableRootPage_ << '\n';
+  uint64_t addr = pageTableRootPage_ * pageSize_;
+  os << "Root page addr: 0x" << std::hex << addr << '\n';
+
+  std::string path = "/";
+
+  if (mode_ == Bare)
+    ;  // relax
+  else if (mode_ == Sv32)
+    printEntries<Pte32, Va32>(os, addr, path);
+  else if (mode_ == Sv39)
+    printEntries<Pte39, Va39>(os, addr, path);
+  else if (mode_ == Sv48)
+    printEntries<Pte48, Va48>(os, addr, path);
+  else
+    os << "Unsupported virtual memory mode\n";
+
+  os.flags(flags);
+}
+
+
+template<typename PTE, typename VA>
+void
+VirtMem::printEntries(std::ostream& os, uint64_t addr, std::string path) const
+{
+  os << "\n";
+  os << "Page table page addr: 0x" << std::hex << addr << '\n';
+  os << "Path: " << path << '\n';
+
+  unsigned entrySize = sizeof(PTE);
+  unsigned entryCount = pageSize() / entrySize;
+
+  uint64_t eaddr = addr;  // Entry address
+  for (unsigned ix = 0; ix < entryCount; ++ix, eaddr += entrySize)
+    {
+      PTE pte(0);
+      memory_.read(eaddr, pte.data_);
+
+      if (not pte.valid())
+        continue;
+
+      bool leaf = pte.valid() and (pte.read() or pte.exec());
+      os << "  ix:" << std::dec << ix << " addr:0x" << std::hex << eaddr
+         << " data:0x" << std::hex << pte.data_
+         << " rwx:" << pte.read() << pte.write() << pte.exec()
+         << " leaf:" << leaf << " pa:0x" << (pte.ppn() * pageSize_) << '\n';
+    }
+
+  eaddr = addr;
+  for (unsigned ix = 0; ix < entryCount; ++ix, eaddr += entrySize)
+    {
+      PTE pte(0);
+      memory_.read(eaddr, pte.data_);
+
+      if (not pte.valid())
+        continue;
+
+      bool leaf = pte.valid() and (pte.read() or pte.exec());
+      if (leaf)
+        continue;
+
+      std::string nextPath;
+      if (path == "/")
+        nextPath = path + std::to_string(ix);
+      else
+        nextPath = path + "/" + std::to_string(ix);
+
+      uint64_t nextAddr = pte.ppn() * pageSize_;
+      printEntries<PTE, VA>(os, nextAddr, nextPath);
+    }
 }
