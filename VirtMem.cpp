@@ -1,15 +1,16 @@
 #include <cmath>
 #include <iostream>
 #include <ios>
+#include "PmpManager.hpp"
 #include "VirtMem.hpp"
 
 using namespace WdRiscv;
 
 
 VirtMem::VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize,
-                 unsigned tlbSize)
+                 PmpManager& pmpMgr, unsigned tlbSize)
   : memory_(memory), mode_(Sv32), pageSize_(pageSize), hartIx_(hartIx),
-    tlb_(tlbSize)
+    pmpMgr_(pmpMgr), tlb_(tlbSize)
 {
   pageBits_ = static_cast<unsigned>(std::log2(pageSize_));
   unsigned p2PageSize =  unsigned(1) << pageBits_;
@@ -247,7 +248,12 @@ VirtMem::pageTableWalk(uint64_t address, PrivilegeMode privMode, bool read, bool
       uint32_t vpn = va.vpn(ii);
       uint64_t pteAddr = root + vpn*pteSize;
 
-      // TBD: Check pmp
+      // Check PMP. The privMode here is the effective one that
+      // already accounts for MPRV.
+      Pmp pmp = pmpMgr_.accessPmp(pteAddr);
+      if (not pmp.isRead(privMode, privMode, false))
+        return pageFaultType(read, write, exec);
+
       if (! memory_.read(pteAddr, pte.data_))
         return pageFaultType(read, write, exec);
 
@@ -300,7 +306,12 @@ VirtMem::pageTableWalk(uint64_t address, PrivilegeMode privMode, bool read, bool
       if (write)
         pte.bits_.dirty_ = 1;
 
-      // TBD: Check pmp
+      // Check PMP. The privMode here is the effective one that
+      // already accounts for MPRV.
+      Pmp pmp = pmpMgr_.accessPmp(pteAddr);
+      if (not pmp.isWrite(privMode, privMode, false))
+        return pageFaultType(read, write, exec);
+
       if (not memory_.write(hartIx_, pteAddr, pte.data_))
         return pageFaultType(read, write, exec);
     }

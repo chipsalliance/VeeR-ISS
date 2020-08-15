@@ -365,6 +365,7 @@ namespace WdRiscv
   template <typename URV>
   class Hart;
 
+  class PmpManager;
 
   class VirtMem
   {
@@ -375,7 +376,8 @@ namespace WdRiscv
 
     enum Mode { Bare = 0, Sv32 = 1, Sv39 = 8, Sv48 = 9, Sv57 = 10, Sv64 = 11 };
 
-    VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize, unsigned tlbSize);
+    VirtMem(unsigned hartIx, Memory& memory, unsigned pageSize,
+            PmpManager& pmpMgr, unsigned tlbSize);
 
     /// Perform virtual to physical memory address translation and
     /// check for read access if the read flag is true (similary aslo
@@ -464,6 +466,7 @@ namespace WdRiscv
     bool supervisorOk_ = false;  // SUM bit
     bool faultOnFirstAccess_ = true;  // Make this configurable.
 
+    PmpManager& pmpMgr_;
     Tlb tlb_;
   };
 
