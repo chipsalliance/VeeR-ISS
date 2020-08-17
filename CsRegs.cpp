@@ -725,8 +725,8 @@ CsRegs<URV>::defineMachineRegs()
   mask = ~URV(2);
   defineCsr("mtvec", Csrn::MTVEC, mand, imp, 0, mask, mask);
 
-  defineCsr("mcounteren", Csrn::MCOUNTEREN, !mand, !imp, 0, wam, wam);
-  defineCsr("mcountinhibit", Csrn::MCOUNTINHIBIT, !mand, !imp, 0, wam, wam);
+  defineCsr("mcounteren", Csrn::MCOUNTEREN, !mand, imp, 0, wam, wam);
+  defineCsr("mcountinhibit", Csrn::MCOUNTINHIBIT, !mand, imp, 0, wam, wam);
 
   // Machine trap handling: mscratch and mepc.
   defineCsr("mscratch", Csrn::MSCRATCH, mand, imp, 0, wam, wam);
