@@ -1935,7 +1935,7 @@ Hart<URV>::store(unsigned rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
     {
       memory_.invalidateOtherHartLr(hartIx_, addr, stSize);
 
-      invalidateDecodeCache(addr, stSize);
+      invalidateDecodeCache(virtAddr, stSize);
 
       // If we write to special location, end the simulation.
       if (toHostValid_ and addr == toHost_ and storeVal != 0)
@@ -10718,7 +10718,7 @@ Hart<URV>::storeConditional(unsigned rs1, URV virtAddr, STORE_TYPE storeVal)
 
   if (memory_.write(hartIx_, addr, storeVal))
     {
-      invalidateDecodeCache(addr, sizeof(STORE_TYPE));
+      invalidateDecodeCache(virtAddr, sizeof(STORE_TYPE));
 
       // If we write to special location, end the simulation.
       if (toHostValid_ and addr == toHost_ and storeVal != 0)
@@ -10924,17 +10924,17 @@ Hart<URV>::execAmomin_w(const DecodedInst* di)
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
-
-      // Sign extend least significant word of register value.
-      SRV rdVal = SRV(int32_t(loadedValue));
-
       URV rs2Val = intRegs_.read(di->op2());
-      URV result = (SRV(rs2Val) < SRV(rdVal))? rs2Val : rdVal;
+
+      int32_t w1 = int32_t(rs2Val);
+      int32_t w2 = int32_t(loadedValue);
+
+      int32_t result = (w1 < w2)? w1 : w2;
 
       bool storeOk = store<uint32_t>(rs1, addr, addr, uint32_t(result));
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(di->op0(), loadedValue);
     }
 }
 
@@ -10950,22 +10950,22 @@ Hart<URV>::execAmominu_w(const DecodedInst* di)
   URV loadedValue = 0;
   uint32_t rs1 = di->op1();
   bool loadOk = amoLoad32(rs1, loadedValue);
+
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
 
-      // Sign extend least significant word of register value.
-      SRV rdVal = SRV(int32_t(loadedValue));
-
       URV rs2Val = intRegs_.read(di->op2());
 
-      uint32_t w1 = uint32_t(rs2Val), w2 = uint32_t(rdVal);
+      uint32_t w1 = uint32_t(rs2Val);
+      uint32_t w2 = uint32_t(loadedValue);
+
       uint32_t result = (w1 < w2)? w1 : w2;
 
-      bool storeOk = store<uint32_t>(rs1, addr, addr, uint32_t(result));
+      bool storeOk = store<uint32_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(di->op0(), loadedValue);
     }
 }
 
@@ -10985,16 +10985,17 @@ Hart<URV>::execAmomax_w(const DecodedInst* di)
     {
       URV addr = intRegs_.read(rs1);
 
-      // Sign extend least significant word of register value.
-      SRV rdVal = SRV(int32_t(loadedValue));
-
       URV rs2Val = intRegs_.read(di->op2());
-      URV result = (SRV(rs2Val) > SRV(rdVal))? rs2Val : rdVal;
+
+      int32_t w1 = int32_t(rs2Val);
+      int32_t w2 = int32_t(loadedValue);
+
+      int32_t result = w1 > w2 ? w1 : w2;
 
       bool storeOk = store<uint32_t>(rs1, addr, addr, uint32_t(result));
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(di->op0(), loadedValue);
     }
 }
 
@@ -11019,11 +11020,12 @@ Hart<URV>::execAmomaxu_w(const DecodedInst* di)
 
       URV rs2Val = intRegs_.read(di->op2());
 
-      uint32_t w1 = uint32_t(rs2Val), w2 = uint32_t(rdVal);
+      uint32_t w1 = uint32_t(rs2Val);
+      uint32_t w2 = uint32_t(rdVal);
 
       URV result = (w1 > w2)? w1 : w2;
 
-      bool storeOk = store<uint32_t>(rs1, addr, addr, uint32_t(result));
+      bool storeOk = store<uint32_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
 	intRegs_.write(di->op0(), rdVal);

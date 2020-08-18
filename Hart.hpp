@@ -1563,7 +1563,8 @@ namespace WdRiscv
     /// Do the load value part of a word-sized AMO instruction. Return
     /// true on success putting the loaded value in val. Return false
     /// if a trigger tripped or an exception took place in which case
-    /// val is not modified.
+    /// val is not modified. The loaded word is sign extended to fill
+    /// the URV value (this is relevant for rv64).
     bool amoLoad32(uint32_t rs1, URV& val);
 
     /// Do the load value part of a double-word-sized AMO
