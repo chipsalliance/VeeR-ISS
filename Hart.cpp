@@ -13068,6 +13068,8 @@ Hart<URV>::updateAddressTranslation()
   if (not peekCsr(CsrNumber::SATP, value))
     return;
 
+  uint32_t prevAsid = virtMem_.addressSpace();
+
   URV mode = 0, asid = 0, ppn = 0;
   if constexpr (sizeof(URV) == 4)
     {
@@ -13087,6 +13089,9 @@ Hart<URV>::updateAddressTranslation()
   virtMem_.setMode(VirtMem::Mode(mode));
   virtMem_.setAddressSpace(asid);
   virtMem_.setPageTableRootPage(ppn);
+
+  if (asid != prevAsid)
+    invalidateDecodeCache();
 }
 
 
