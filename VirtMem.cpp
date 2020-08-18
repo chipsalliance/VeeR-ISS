@@ -34,6 +34,19 @@ pageFaultType(bool read, bool write, bool exec)
 }
 
 
+inline
+ExceptionCause
+accessFaultType(bool read, bool write, bool exec)
+{
+  if (exec)  return ExceptionCause::INST_ACC_FAULT;
+  if (read)  return ExceptionCause::LOAD_ACC_FAULT;
+  if (write) return ExceptionCause::STORE_ACC_FAULT;
+  assert(0);
+  return ExceptionCause::LOAD_ACC_FAULT;
+}
+
+
+
 ExceptionCause
 VirtMem::translateForFetch(uint64_t va, PrivilegeMode priv, uint64_t& pa)
 {
@@ -252,7 +265,7 @@ VirtMem::pageTableWalk(uint64_t address, PrivilegeMode privMode, bool read, bool
       // already accounts for MPRV.
       Pmp pmp = pmpMgr_.accessPmp(pteAddr);
       if (not pmp.isRead(privMode, privMode, false))
-        return pageFaultType(read, write, exec);
+        return accessFaultType(read, write, exec);
 
       if (! memory_.read(pteAddr, pte.data_))
         return pageFaultType(read, write, exec);
@@ -310,7 +323,7 @@ VirtMem::pageTableWalk(uint64_t address, PrivilegeMode privMode, bool read, bool
       // already accounts for MPRV.
       Pmp pmp = pmpMgr_.accessPmp(pteAddr);
       if (not pmp.isWrite(privMode, privMode, false))
-        return pageFaultType(read, write, exec);
+        return accessFaultType(read, write, exec);
 
       if (not memory_.write(hartIx_, pteAddr, pte.data_))
         return pageFaultType(read, write, exec);
