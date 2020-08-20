@@ -259,7 +259,7 @@ VirtMem::pageTableWalk(uint64_t address, PrivilegeMode privMode, bool read, bool
     {
       // 3.
       uint32_t vpn = va.vpn(ii);
-      uint64_t pteAddr = root + vpn*pteSize;
+      pteAddr = root + vpn*pteSize;
 
       // Check PMP. The privMode here is the effective one that
       // already accounts for MPRV.
