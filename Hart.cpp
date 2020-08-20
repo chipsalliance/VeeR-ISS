@@ -7137,10 +7137,16 @@ Hart<URV>::execSfence_vma(const DecodedInst* di)
       return;
     }
 
+  if (privMode_ < PrivilegeMode::Supervisor)
+    {
+      illegalInst(di);
+      return;
+    }
+
   URV status = csRegs_.peekMstatus();
 
   MstatusFields<URV> fields(status);
-  if (fields.bits_.TVM)
+  if (fields.bits_.TVM and privMode_ == PrivilegeMode::Supervisor)
     {
       illegalInst(di);
       return;
@@ -13068,6 +13074,8 @@ Hart<URV>::updateAddressTranslation()
   if (not peekCsr(CsrNumber::SATP, value))
     return;
 
+  uint32_t prevAsid = virtMem_.addressSpace();
+
   URV mode = 0, asid = 0, ppn = 0;
   if constexpr (sizeof(URV) == 4)
     {
@@ -13087,6 +13095,9 @@ Hart<URV>::updateAddressTranslation()
   virtMem_.setMode(VirtMem::Mode(mode));
   virtMem_.setAddressSpace(asid);
   virtMem_.setPageTableRootPage(ppn);
+
+  if (asid != prevAsid)
+    invalidateDecodeCache();
 }
 
 

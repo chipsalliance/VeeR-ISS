@@ -425,6 +425,8 @@ namespace WdRiscv
     ExceptionCause pageTableWalkUpdateTlb(uint64_t va, PrivilegeMode pm, bool read,
                                           bool write, bool exec, uint64_t& pa);
 
+    /// Set the page table root page: The root page is placed in
+    /// physical memory at address root * page_size
     void setPageTableRootPage(uint64_t root)
     { pageTableRootPage_ = root; }
 
@@ -436,17 +438,25 @@ namespace WdRiscv
       pageBits_ = 12;
     }
 
+    /// Set the address space id (asid).
     void setAddressSpace(uint32_t asid)
     { asid_ = asid; }
 
+    /// Make executable pages also readable (supports MXR bit in MSTATUS).
     void setExecReadable(bool flag)
     { execReadable_ = flag; }
 
+    /// Allow supervisor-mode code to access user-mode pages (supports SUM
+    /// bit in MSTATUS).
     void setSupervisorAccessUser(bool flag)
     { supervisorOk_ = flag; }
 
     /// Return true if successful and false if page size is not supported.
     bool setPageSize(uint64_t size);
+
+    /// Return current address space id.
+    uint32_t addressSpace() const
+    { return asid_; }
 
   private:
 
@@ -471,4 +481,3 @@ namespace WdRiscv
   };
 
 }
-
