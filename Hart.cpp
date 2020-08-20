@@ -7137,10 +7137,16 @@ Hart<URV>::execSfence_vma(const DecodedInst* di)
       return;
     }
 
+  if (privMode_ < PrivilegeMode::Supervisor)
+    {
+      illegalInst(di);
+      return;
+    }
+
   URV status = csRegs_.peekMstatus();
 
   MstatusFields<URV> fields(status);
-  if (fields.bits_.TVM)
+  if (fields.bits_.TVM and privMode_ == PrivilegeMode::Supervisor)
     {
       illegalInst(di);
       return;
