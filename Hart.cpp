@@ -7229,19 +7229,28 @@ Hart<URV>::execSret(const DecodedInst* di)
       return;
     }
 
+  // If MSTATUS.TSR is 1 then sret is illegal in supervisor mode.
+  URV mstatus = csRegs_.peekMstatus();
+  MstatusFields<URV> mfields(mstatus);
+  if (mfields.bits_.TSR and privMode_ == PrivilegeMode::Supervisor)
+    {
+      illegalInst(di);
+      return;
+    }
+
   if (triggerTripped_)
     return;
 
+  memory_.invalidateLr(hartIx_); // Clear LR reservation (if any).
+
   // Restore privilege mode and interrupt enable by getting
-  // current value of MSTATUS, ...
+  // current value of SSTATUS, ...
   URV value = 0;
   if (not csRegs_.read(CsrNumber::SSTATUS, privMode_, value))
     {
       illegalInst(di);
       return;
     }
-
-  memory_.invalidateLr(hartIx_); // Clear LR reservation (if any).
 
   // ... updating/unpacking its fields,
   MstatusFields<URV> fields(value);
@@ -7368,6 +7377,17 @@ Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
     {
       illegalInst(di);
       return;
+    }
+
+  if (csr == CsrNumber::SATP and privMode_ == PrivilegeMode::Supervisor)
+    {
+      URV mstatus = csRegs_.peekMstatus();
+      MstatusFields<URV> fields(mstatus);
+      if (fields.bits_.TVM)
+        {
+          illegalInst(di);
+          return;
+        }
     }
 
   // Make auto-increment happen before write for minstret and cycle.
