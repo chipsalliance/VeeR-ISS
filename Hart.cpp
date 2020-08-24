@@ -332,7 +332,7 @@ Hart<URV>::processExtensions()
 		      << "extension (bit 5) is not enabled -- ignored\n";
 	}
 
-      if (value & (URV(1) << ('e' - 'a')))  // Double precision FP.
+      if (value & (URV(1) << ('e' - 'a')))
         {
           rve_ = true;
           intRegs_.regs_.resize(16);
@@ -2260,6 +2260,8 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
 
   if (isRvs() and privMode_ != PrivilegeMode::Machine)
     {
+      if (triggerTripped_)
+        return false;
       auto cause = virtMem_.translateForFetch(virtAddr, privMode_, addr);
       if (cause != ExceptionCause::NONE)
         {
@@ -2270,12 +2272,16 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
 
   if (virtAddr & 1)
     {
+      if (triggerTripped_)
+        return false;
       initiateException(ExceptionCause::INST_ADDR_MISAL, virtAddr, virtAddr);
       return false;
     }
 
   if (forceFetchFail_)
     {
+      if (triggerTripped_)
+        return false;
       forceFetchFail_ = false;
       readInst(addr, inst);
       URV info = pc_ + forceFetchFailOffset_;
@@ -2291,6 +2297,9 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
     {
       if (not memory_.readInst(addr, inst))
         {
+          if (triggerTripped_)
+            return false;
+
           auto secCause = SecondaryCause::INST_MEM_PROTECTION;
           size_t region = memory_.getRegionIndex(addr);
           if (regionHasLocalInstMem_.at(region))
@@ -2302,6 +2311,9 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
 
       if (pmpEnabled_)
         {
+          if (triggerTripped_)
+            return false;
+
           Pmp pmp = pmpManager_.accessPmp(addr);
           if (not pmp.isExec(privMode_, mstatusMpp_, instMprv))
             {
@@ -2390,32 +2402,12 @@ template <typename URV>
 bool
 Hart<URV>::fetchInstPostTrigger(URV virtAddr, uint32_t& inst, FILE* traceFile)
 {
-  uint64_t addr = virtAddr;
-  bool pageFault = false;
-  if (isRvs() and privMode_ != PrivilegeMode::Machine)
-    {
-      auto cause = virtMem_.translateForFetch(virtAddr, privMode_, addr);
-      pageFault = cause != ExceptionCause::NONE;
-    }
-
-  // Fetch will fail if page fault or forced or if address is
-  // misaligned or if memory read fails.
-  if (not pageFault and not forceFetchFail_ and (addr & 1) == 0)
-    {
-      if (memory_.readInst(addr, inst))
-	return true;  // Read 4 bytes: success.
-
-      uint16_t half;
-      if (memory_.readInst(addr, half))
-	{
-	  if (isCompressedInst(inst))
-	    return true; // Read 2 bytes and compressed inst: success.
-	}
-    }
+  if (fetchInst(virtAddr, inst))
+    return true;
 
   // Fetch failed: take pending trigger-exception.
   URV info = virtAddr;
-  takeTriggerAction(traceFile, addr, info, instCounter_, true);
+  takeTriggerAction(traceFile, virtAddr, info, instCounter_, true);
   forceFetchFail_ = false;
 
   return false;
