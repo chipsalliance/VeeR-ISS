@@ -7144,7 +7144,6 @@ Hart<URV>::execSfence_vma(const DecodedInst* di)
     }
 
   URV status = csRegs_.peekMstatus();
-
   MstatusFields<URV> fields(status);
   if (fields.bits_.TVM and privMode_ == PrivilegeMode::Supervisor)
     {
@@ -7348,6 +7347,14 @@ template <typename URV>
 bool
 Hart<URV>::doCsrRead(const DecodedInst* di, CsrNumber csr, URV& value)
 {
+  if (csr == CsrNumber::SATP and privMode_ == PrivilegeMode::Supervisor)
+    {
+      URV status = csRegs_.peekMstatus();
+      MstatusFields<URV> fields(status);
+      if (fields.bits_.TVM and privMode_ == PrivilegeMode::Supervisor)
+        return false;
+    }
+
   if (csRegs_.read(csr, privMode_, value))
     return true;
 
