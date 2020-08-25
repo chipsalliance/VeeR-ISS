@@ -2262,6 +2262,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
     {
       if (triggerTripped_)
         return false;
+
       auto cause = virtMem_.translateForFetch(virtAddr, privMode_, addr);
       if (cause != ExceptionCause::NONE)
         {
@@ -2311,12 +2312,11 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
 
       if (pmpEnabled_)
         {
-          if (triggerTripped_)
-            return false;
-
           Pmp pmp = pmpManager_.accessPmp(addr);
           if (not pmp.isExec(privMode_, mstatusMpp_, instMprv))
             {
+              if (triggerTripped_)
+                return false;
               auto secCause = SecondaryCause::INST_PMP;
               initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr,
                                 secCause);
@@ -2330,6 +2330,8 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
   uint16_t half;
   if (not memory_.readInst(addr, half))
     {
+      if (triggerTripped_)
+        return false;
       auto secCause = SecondaryCause::INST_MEM_PROTECTION;
       size_t region = memory_.getRegionIndex(addr);
       if (regionHasLocalInstMem_.at(region))
@@ -2343,6 +2345,8 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
       Pmp pmp = pmpManager_.accessPmp(addr);
       if (not pmp.isExec(privMode_, mstatusMpp_, instMprv))
         {
+          if (triggerTripped_)
+            return false;
           auto secCause = SecondaryCause::INST_PMP;
           initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr,
                             secCause);
@@ -2359,6 +2363,8 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
       auto cause = virtMem_.translateForFetch(virtAddr+2, privMode_, addr);
       if (cause != ExceptionCause::NONE)
         {
+          if (triggerTripped_)
+            return false;
           initiateException(cause, virtAddr, virtAddr+2);
           return false;
         }
@@ -2369,6 +2375,9 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
   uint16_t upperHalf;
   if (not memory_.readInst(addr, upperHalf))
     {
+      if (triggerTripped_)
+        return false;
+
       // 4-byte instruction: 4-byte fetch failed but 1st 2-byte fetch
       // succeeded. Problem must be in 2nd half of instruction.
       auto secCause = SecondaryCause::INST_MEM_PROTECTION;
@@ -2386,6 +2395,9 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
       Pmp pmp = pmpManager_.accessPmp(addr);
       if (not pmp.isExec(privMode_, mstatusMpp_, instMprv))
         {
+          if (triggerTripped_)
+            return false;
+
           auto secCause = SecondaryCause::INST_PMP;
           initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr + 2,
                             secCause);
