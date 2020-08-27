@@ -2092,7 +2092,7 @@ template <typename URV>
 bool
 Hart<URV>::defineMemoryMappedRegisterArea(size_t addr, size_t size)
 {
-  // If mpicbaddr CSR is present, the nothing special is done for 256
+  // If mpicbaddr CSR is present, then nothing special is done for 256
   // MB region containing memory-mapped-registers. Otherwise, region
   // is marked non accessible except for memory-mapped-register area.
   bool trim = this->findCsr("mpicbaddr") == nullptr;
