@@ -32,6 +32,7 @@ CsRegs<URV>::CsRegs()
   defineSupervisorRegs();
   defineUserRegs();
   defineDebugRegs();
+  defineVectorRegs();
   defineNonStandardRegs();
 }
 
@@ -745,7 +746,7 @@ CsRegs<URV>::defineMachineRegs()
   // in 32-bit implementations.
   URV cfgMask = 0x9f9f9f9f;
   if constexpr (sizeof(URV) == 8)
-    cfgMask = 0x9f9f9f9f9f9f9f9f;
+    cfgMask = 0x9f9f9f9f9f9f9f9fL;
   defineCsr("pmpcfg0",   Csrn::PMPCFG0,   !mand, imp, 0, cfgMask, cfgMask);
   defineCsr("pmpcfg2",   Csrn::PMPCFG2,   !mand, imp, 0, cfgMask, cfgMask);
   if (sizeof(URV) == 4)
@@ -906,11 +907,11 @@ CsRegs<URV>::defineSupervisorRegs()
 
   using Csrn = CsrNumber;
 
-  // Only bits sie, spie, upie, ube, spp, fs, xs, sum, mxr and sd of
+  // Only bits sie, spie, upie, ube, spp, fs, xs, sum, mxr, uxl (rv64) and sd of
   // sstatus are writeable.  The non-writeable bits read zero.
   URV mask = 0x800de162;
   if constexpr (sizeof(URV) == 8)
-    mask = 0x80000004000de162;
+    mask = 0x80000003000de162L;
   defineCsr("sstatus",    Csrn::SSTATUS,    !mand, !imp, 0, mask, mask);
 
   auto sstatus = findCsr(Csrn::SSTATUS);
@@ -1093,6 +1094,28 @@ CsRegs<URV>::defineDebugRegs()
 
   defineCsr("dscratch", CsrNumber::DSCRATCH, !mand, !imp, 0, wam, wam,
 	    isDebug);
+}
+
+
+template <typename URV>
+void
+CsRegs<URV>::defineVectorRegs()
+{
+  bool mand = true;  // Mndatory
+  bool imp = true;   // Implemented
+
+  defineCsr("vstart", CsrNumber::VSTART, !mand, !imp, 0, 0, 0);
+  defineCsr("vxsat",  CsrNumber::VXSAT,  !mand, !imp, 0, 1, 1);  // 1 bit
+  defineCsr("vxrm",   CsrNumber::VXRM,   !mand, !imp, 0, 3, 3);  // 2 bits
+  defineCsr("VCSR",   CsrNumber::VCSR,   !mand, !imp, 0, 7, 7);  // 3 bits
+  defineCsr("vl",     CsrNumber::VL,     !mand, !imp, 0, 0, 0);
+
+  URV mask = 0x800000ff;
+  if constexpr (sizeof(URV) == 8)
+     mask = 0x80000000000000ffL;
+  defineCsr("vtype",  CsrNumber::VTYPE,  !mand, !imp, 0, mask, mask);
+
+  defineCsr("vlenb",  CsrNumber::VLENB,  !mand, !imp, 0, 0, 0);
 }
 
 

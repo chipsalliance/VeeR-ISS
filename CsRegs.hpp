@@ -289,6 +289,15 @@ namespace WdRiscv
       DPC      = 0x7b1,
       DSCRATCH = 0x7b2,
 
+      // Vector extension register.
+      VSTART   = 0x008,
+      VXSAT    = 0x009,
+      VXRM     = 0x00a,
+      VCSR     = 0x00f,
+      VL       = 0xc20,
+      VTYPE    = 0xc21,
+      VLENB    = 0xc22,
+
       // Non-standard registers.
       MRAC     = 0x7c0,
       MDSEAC   = 0xfc0,
@@ -865,6 +874,9 @@ namespace WdRiscv
 
     /// Helper to construtor. Define debug-mode CSRs
     void defineDebugRegs();
+
+    /// Helper to construtor. Define vector CSRs
+    void defineVectorRegs();
 
     /// Helper to construtor. Define non-standard CSRs
     void defineNonStandardRegs();
