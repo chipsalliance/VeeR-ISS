@@ -7355,8 +7355,11 @@ Hart<URV>::doCsrRead(const DecodedInst* di, CsrNumber csr, URV& value)
     {
       URV status = csRegs_.peekMstatus();
       MstatusFields<URV> fields(status);
-      if (fields.bits_.TVM and privMode_ == PrivilegeMode::Supervisor)
-        return false;
+      if (fields.bits_.TVM)
+        {
+          illegalInst(di);
+          return false;
+        }
     }
 
   if (csRegs_.read(csr, privMode_, value))
@@ -7546,7 +7549,7 @@ Hart<URV>::execCsrrsi(const DecodedInst* di)
   if (not doCsrRead(di, csr, prev))
     return;
 
-  uint32_t imm = di->op1();
+  URV imm = di->op1();
 
   URV next = prev | imm;
   if (imm == 0)
@@ -7572,7 +7575,7 @@ Hart<URV>::execCsrrci(const DecodedInst* di)
   if (not doCsrRead(di, csr, prev))
     return;
 
-  uint32_t imm = di->op1();
+  URV imm = di->op1();
 
   URV next = prev & (~ imm);
   if (imm == 0)

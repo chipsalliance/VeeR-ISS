@@ -907,11 +907,11 @@ CsRegs<URV>::defineSupervisorRegs()
 
   using Csrn = CsrNumber;
 
-  // Only bits sie, spie, upie, ube, spp, fs, xs, sum, mxr and sd of
+  // Only bits sie, spie, upie, ube, spp, fs, xs, sum, mxr, uxl (rv64) and sd of
   // sstatus are writeable.  The non-writeable bits read zero.
   URV mask = 0x800de162;
   if constexpr (sizeof(URV) == 8)
-    mask = 0x80000004000de162L;
+    mask = 0x80000003000de162L;
   defineCsr("sstatus",    Csrn::SSTATUS,    !mand, !imp, 0, mask, mask);
 
   auto sstatus = findCsr(Csrn::SSTATUS);
