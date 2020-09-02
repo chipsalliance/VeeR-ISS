@@ -422,7 +422,8 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
       auto csr = findCsr("mhartstart");
       if (csr)
         {
-          URV value = csr->read();
+          URV value = 0;
+          csRegs_.read(csr->getNumber(), PrivilegeMode::Machine, value);
           hartStarted_ = ((URV(1) << hartIx_) & value) != 0;
         }
     }

@@ -404,6 +404,9 @@ namespace WdRiscv
     URV getPokeMask() const
     { return pokeMask_; }
 
+    URV getReadMask() const
+    { return readMask_; }
+
     /// Return the reset value of this CSR.
     URV getResetValue() const
     { return initialValue_; }
