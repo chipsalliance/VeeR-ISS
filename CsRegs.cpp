@@ -142,6 +142,20 @@ CsRegs<URV>::read(CsrNumber number, PrivilegeMode mode, URV& value) const
       return true;
     }
 
+  // Value of SIP/SIE is that of MIP/MIE modified by SIP/SIE mask
+  // and delgation register.
+  if (number == CsrNumber::SIP or number == CsrNumber::SIE)
+    {
+      // Get MIP/MIE
+      auto mcsr = getImplementedCsr(CsrNumber(unsigned(number) + 0x200));
+      auto deleg = getImplementedCsr(CsrNumber::MIDELEG);
+      if (mcsr and deleg)
+        value = mcsr->read() & (csr->getReadMask() | deleg->read());
+      else
+        value = csr->read();
+      return true;
+    }
+          
   value = csr->read();
 
   if (number >= CsrNumber::PMPADDR0 and number <= CsrNumber::PMPADDR15)
@@ -269,6 +283,26 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
     {
       if (not writeTdata(number, mode, value))
 	return false;
+      recordWrite(number);
+      return true;
+    }
+
+  // Value of SIP/SIE is that of MIP/MIE modified by SIP/SIE mask
+  // and delgation register.
+  if (number == CsrNumber::SIP or number == CsrNumber::SIE)
+    {
+      // Get MIP/MIE
+      auto mcsr = getImplementedCsr(CsrNumber(unsigned(number) + 0x200));
+      auto deleg = getImplementedCsr(CsrNumber::MIDELEG);
+      if (mcsr and deleg)
+        {
+          URV prevMask = csr->getWriteMask();
+          csr->setWriteMask((prevMask | deleg->read()) & mcsr->getWriteMask());
+          csr->write(value);
+          csr->setWriteMask(prevMask);
+        }
+      else
+        csr->write(value);
       recordWrite(number);
       return true;
     }
@@ -1176,7 +1210,22 @@ CsRegs<URV>::peek(CsrNumber number, URV& value) const
       return true;
     }
 
+  // Value of SIP/SIE is that of MIP/MIE modified by SIP/SIE mask
+  // and delgation register.
+  if (number == CsrNumber::SIP or number == CsrNumber::SIE)
+    {
+      // Get MIP/MIE
+      auto mcsr = getImplementedCsr(CsrNumber(unsigned(number) + 0x200));
+      auto deleg = getImplementedCsr(CsrNumber::MIDELEG);
+      if (mcsr and deleg)
+        value = mcsr->read() & (csr->getReadMask() | deleg->read());
+      else
+        value = csr->read();
+      return true;
+    }
+
   value = csr->read();
+
   if (number >= CsrNumber::PMPADDR0 and number <= CsrNumber::PMPADDR15)
     value = adjustPmpValue(number, value);
 
@@ -1206,6 +1255,25 @@ CsRegs<URV>::poke(CsrNumber number, URV value)
 
   if (number >= CsrNumber::TDATA1 and number <= CsrNumber::TDATA3)
     return pokeTdata(number, value);
+
+  // Value of SIP/SIE is that of MIP/MIE modified by SIP/SIE mask
+  // and delgation register.
+  if (number == CsrNumber::SIP or number == CsrNumber::SIE)
+    {
+      // Get MIP/MIE
+      auto mcsr = getImplementedCsr(CsrNumber(unsigned(number) + 0x200));
+      auto deleg = getImplementedCsr(CsrNumber::MIDELEG);
+      if (mcsr and deleg)
+        {
+          URV prevMask = csr->getWriteMask();
+          csr->setWriteMask((prevMask | deleg->read()) & mcsr->getWriteMask());
+          csr->write(value);
+          csr->setWriteMask(prevMask);
+        }
+      else
+        csr->write(value);
+      return true;
+    }
 
   if (number >= CsrNumber::MHPMEVENT3 and number <= CsrNumber::MHPMEVENT31)
     value = legalizeMhpmevent(number, value);
