@@ -970,26 +970,21 @@ CsRegs<URV>::defineSupervisorRegs()
   defineCsr("scause",     Csrn::SCAUSE,     !mand, !imp, 0, wam, wam);
   defineCsr("stval",      Csrn::STVAL,      !mand, !imp, 0, wam, wam);
 
-  mask = 0x222;   // seip/stip/ssip bits
-  defineCsr("sie",        Csrn::SIE,        !mand, !imp, 0, mask, mask);
+  // Bits of SIE appear hardwired to zreo unless delegated.
+  defineCsr("sie",        Csrn::SIE,        !mand, !imp, 0, wam, wam);
   auto sie = findCsr(Csrn::SIE);
   auto mie = findCsr(Csrn::MIE);
   if (sie and mie)
-    {
-      sie->tie(mie->valuePtr_);
-      sie->setReadMask(mask);
-    }
+    sie->tie(mie->valuePtr_);
 
-  mask = 0x2;  // Only ssie bit writable
+  // Bits of SIE appear hardwired to zreo unless delegated.
+  mask = 0x2;  // Only ssie bit writable (when delegated)
   defineCsr("sip",        Csrn::SIP,        !mand, !imp, 0, mask, mask);
 
   auto sip = findCsr(Csrn::SIP);
   auto mip = findCsr(Csrn::MIP);
   if (sip and mip)
-    {
-      sip->tie(mip->valuePtr_); // Sip is a shadow if mip
-      sip->setReadMask(0x222);  // but only seip/stip/ssip are read thru sip.
-    }
+    sip->tie(mip->valuePtr_); // Sip is a shadow if mip
 
   // Supervisor Protection and Translation 
   defineCsr("satp",       Csrn::SATP,       !mand, !imp, 0, wam, wam);
@@ -1256,17 +1251,19 @@ CsRegs<URV>::poke(CsrNumber number, URV value)
   if (number >= CsrNumber::TDATA1 and number <= CsrNumber::TDATA3)
     return pokeTdata(number, value);
 
-  // Value of SIP/SIE is that of MIP/MIE modified by SIP/SIE mask
-  // and delgation register.
-  if (number == CsrNumber::SIP or number == CsrNumber::SIE)
+  // Value of SIE/SIP is anded with mask of SIE/SIP anded with mask of
+  // MIE/MIP anded with delgation register. For a bit to be written in
+  // SIE/SIP it has to be writeable there and in MIE/MIP and be
+  // delegated.
+  if (number == CsrNumber::SIE or number == CsrNumber::SIP)
     {
-      // Get MIP/MIE
+      // Get MIE
       auto mcsr = getImplementedCsr(CsrNumber(unsigned(number) + 0x200));
       auto deleg = getImplementedCsr(CsrNumber::MIDELEG);
       if (mcsr and deleg)
         {
           URV prevMask = csr->getWriteMask();
-          csr->setWriteMask((prevMask | deleg->read()) & mcsr->getWriteMask());
+          csr->setWriteMask(deleg->read() & mcsr->getWriteMask() & csr->getWriteMask());
           csr->write(value);
           csr->setWriteMask(prevMask);
         }
