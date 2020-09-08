@@ -1596,7 +1596,7 @@ CsRegs<URV>::legalizeMhpmevent(CsrNumber number, URV value)
 {
   bool enableUser = true;
   bool enableMachine = true;
-  URV event = std::min(event, maxEventId_);
+  URV event = std::min(value, maxEventId_);
 
   if (perModeCounterControl_)
     {
