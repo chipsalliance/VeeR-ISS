@@ -1154,6 +1154,10 @@ namespace WdRiscv
     void printPageTable(std::ostream& out) const
     { virtMem_.printPageTable(out); }
 
+    /// Enable per-privilege-mode performance-counter control.
+    void enablePerModeCounterControl(bool flag)
+    { csRegs_.enablePerModeCounterControl(flag); }
+
   protected:
 
     // Return true if FS field of mstatus is not off.

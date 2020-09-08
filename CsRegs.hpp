@@ -1044,6 +1044,10 @@ namespace WdRiscv
     /// Return legalized value.
     URV legalizeMhpmevent(CsrNumber number, URV value);
 
+    /// Enable per-privilege-mode performance-counter control.
+    void enablePerModeCounterControl(bool flag)
+    { perModeCounterControl_ = flag; }
+
   private:
 
     unsigned xlen_ = 8*sizeof(URV);
@@ -1073,6 +1077,8 @@ namespace WdRiscv
 
     bool userModeEnabled_ = false;
     bool supervisorModeEnabled_ = false;
+
+    bool perModeCounterControl_ = false;
   };
 
 

@@ -1303,6 +1303,16 @@ HartConfig::finalizeCsrConfig(System<URV>& system) const
   // Define callback to react to write/poke to mcountinhibit CSR.
   defineMcountinhibitSideEffects(system);
 
+  // If micbaddr is defined (elx2s), then enable per-mode performance
+  // counter control.
+  for (unsigned i = 1; i < system.hartCount(); ++i)
+    {
+      auto hart = system.ithHart(i);
+      auto csrPtr = hart->findCsr("mpicbaddr");
+      if (csrPtr)
+        hart->enablePerModeCounterControl(true);
+    }
+
   return true;
 }
 
