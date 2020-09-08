@@ -1607,6 +1607,8 @@ CsRegs<URV>::legalizeMhpmevent(CsrNumber number, URV value)
       event = std::min(event, maxEventId_);
       value = (value & ~URV(0xffff)) | event;
     }
+  else
+    value = event;
 
   unsigned counterIx = unsigned(number) - unsigned(CsrNumber::MHPMEVENT3);
   assignEventToCounter(event, counterIx, enableUser, enableMachine);
