@@ -1305,7 +1305,7 @@ HartConfig::finalizeCsrConfig(System<URV>& system) const
 
   // If micbaddr is defined (elx2s), then enable per-mode performance
   // counter control.
-  for (unsigned i = 1; i < system.hartCount(); ++i)
+  for (unsigned i = 0; i < system.hartCount(); ++i)
     {
       auto hart = system.ithHart(i);
       auto csrPtr = hart->findCsr("mpicbaddr");

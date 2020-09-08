@@ -1596,19 +1596,17 @@ CsRegs<URV>::legalizeMhpmevent(CsrNumber number, URV value)
 {
   bool enableUser = true;
   bool enableMachine = true;
-  URV event = value;
+  URV event = std::min(event, maxEventId_);
 
   if (perModeCounterControl_)
     {
       enableUser = ! ((value >> 16) & 1);
       enableMachine = ! ((value >> 19) & 1);
 
-      event = value & 0xffff;
+      event = value & URV(0xffff);
       event = std::min(event, maxEventId_);
       value = (value & ~URV(0xffff)) | event;
     }
-  else
-    event = std::min(event, maxEventId_);
 
   unsigned counterIx = unsigned(number) - unsigned(CsrNumber::MHPMEVENT3);
   assignEventToCounter(event, counterIx, enableUser, enableMachine);
