@@ -387,7 +387,7 @@ Triggers<URV>::defineChainBounds()
       for  (size_t i = 0; i < triggers_.size(); ++i)
 	triggers_.at(i).setChainBounds(i, i+1);
 
-      // Only chain consecutive even/odd pairs of chain bit of even is set.
+      // Only chain consecutive even/odd pairs if chain bit of even is set.
       for (size_t i = 0; i < triggers_.size(); i += 2)
 	{
 	  if (triggers_.at(i).getChain() and i + 1 < triggers_.size())

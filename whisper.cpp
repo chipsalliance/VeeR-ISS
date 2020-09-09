@@ -1184,7 +1184,7 @@ runServer(System<URV>& system, const std::string& serverFile,
     }
 
   sockaddr_in serverAddr;
-  memset(&serverAddr, '0', sizeof(serverAddr));
+  memset(&serverAddr, 0, sizeof(serverAddr));
   serverAddr.sin_family = AF_INET;
   serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
   serverAddr.sin_port = htons(0);

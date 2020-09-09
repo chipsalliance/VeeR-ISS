@@ -4445,22 +4445,25 @@ Hart<URV>::openTcpForGdb()
 {
   struct sockaddr_in address;
   int opt = 1;
-  int addrlen = sizeof(address);
+  socklen_t addrlen = sizeof(address);
+
+  memset(&address, 0, addrlen);
+
   address.sin_family = AF_INET;
   address.sin_addr.s_addr = INADDR_ANY;
   address.sin_port = htons( gdbTcpPort_ );
+
   bool succ = true;
   int gdbFd = socket(AF_INET, SOCK_STREAM, 0);
   succ = (gdbFd > 0) and not setsockopt(gdbFd, SOL_SOCKET,
                                         SO_REUSEADDR | SO_REUSEPORT, &opt,
                                         sizeof(opt));
 
-  succ = succ and bind(gdbFd, (struct sockaddr *)&address,sizeof(address))>=0;
+  succ = succ and bind(gdbFd, (sockaddr*) &address, addrlen) >= 0;
   succ = succ and listen(gdbFd, 3) >= 0;
   if (succ)
     {
-      gdbInputFd_ = accept(gdbFd, (struct sockaddr*) &address,
-                           (socklen_t*) &addrlen);
+      gdbInputFd_ = accept(gdbFd, (sockaddr*) &address, &addrlen);
       succ = gdbInputFd_ >= 0;
     }
   return succ;
