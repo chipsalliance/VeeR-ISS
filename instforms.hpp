@@ -35,6 +35,14 @@ namespace WdRiscv
     unsigned top5() const
     { return bits.funct7 >> 2; }
 
+    /// Return top 6-bits of instruction (for vector insts).
+    unsigned top6() const
+    { return bits.funct7 >> 1; }
+
+    /// Return mask field for vector instructions.
+    bool mask() const
+    { return (bits.funct7 >> 1) & 1; }
+
     /// Return aq (acquire) field for atomic instructions.
     bool aq() const
     { return (bits.funct7 >> 1) & 1; }

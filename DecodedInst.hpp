@@ -44,14 +44,15 @@ namespace WdRiscv
     /// Default contructor: Define an invalid object.
     DecodedInst()
       : addr_(0), inst_(0), size_(0), entry_(nullptr),
-	op0_(0), op1_(0), op2_(0), op3_(0)
+	op0_(0), op1_(0), op2_(0), op3_(0), valid_(false), masked_(false)
     { values_[0] = values_[1] = values_[2] = values_[3] = 0; }
 
     /// Constructor.
     DecodedInst(uint64_t addr, uint32_t inst, const InstEntry* entry,
 		uint32_t op0, uint32_t op1, uint32_t op2, uint32_t op3)
       : addr_(addr), inst_(inst), size_(instructionSize(inst)), entry_(entry),
-	op0_(op0), op1_(op1), op2_(op2), op3_(op3), valid_(entry != nullptr)
+	op0_(op0), op1_(op1), op2_(op2), op3_(op3), valid_(entry != nullptr),
+        masked_(false)
     { values_[0] = values_[1] = values_[2] = values_[3] = 0; }
 
     /// Return instruction size in bytes.
@@ -195,6 +196,9 @@ namespace WdRiscv
     void setOp3(uint32_t op3)
     { op3_ = op3; }
 
+    void setMasked(bool flag)
+    { masked_ = flag; }
+
     void reset(uint64_t addr, uint32_t inst, const InstEntry* entry,
 	       uint32_t op0, uint32_t op1, uint32_t op2, uint32_t op3)
     {
@@ -219,6 +223,7 @@ namespace WdRiscv
 
     uint64_t values_[4];  // Values of operands.
     bool valid_;
+    bool masked_;     // For vector instructions.
   };
 
 

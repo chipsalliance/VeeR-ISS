@@ -349,6 +349,9 @@ namespace WdRiscv
      fsr,
      fsri,
 
-     maxId = fsri
+     // vector
+     vadd_vv,
+     
+     maxId = vadd_vv
     };
 }

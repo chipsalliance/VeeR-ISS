@@ -298,6 +298,7 @@ Hart<URV>::processExtensions()
   rvm_ = false;
   rvs_ = false;
   rvu_ = false;
+  rvv_ = false;
 
   URV value = 0;
   if (peekCsr(CsrNumber::MISA, value))
@@ -345,11 +346,14 @@ Hart<URV>::processExtensions()
       if (value & (URV(1) << ('m' - 'a')))  // Multiply/divide option.
 	rvm_ = true;
 
+      if (value & (URV(1) << ('s' - 'a')))  // Supervisor-mode option.
+        enableSupervisorMode(true);
+
       if (value & (URV(1) << ('u' - 'a')))  // User-mode option.
         enableUserMode(true);
 
-      if (value & (URV(1) << ('s' - 'a')))  // Supervisor-mode option.
-        enableSupervisorMode(true);
+      if (value & (URV(1) << ('v' - 'a')))  // User-mode option.
+        rvv_ = false; // true
 
       for (auto ec : { 'b', 'g', 'h', 'j', 'k', 'l', 'n', 'o', 'p',
 	    'q', 'r', 't', 'v', 'w', 'x', 'y', 'z' } )

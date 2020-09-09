@@ -56,14 +56,14 @@ InstTable::InstTable()
     instMap_[instInfo.name()] = instInfo.instId();
 
   // Mark instructions with unsigned source opreands.
-  instVec_.at(size_t(InstId::bltu)).setIsUnsigned(true);
-  instVec_.at(size_t(InstId::bgeu)).setIsUnsigned(true);
-  instVec_.at(size_t(InstId::sltiu)).setIsUnsigned(true);
-  instVec_.at(size_t(InstId::sltu)).setIsUnsigned(true);
-  instVec_.at(size_t(InstId::mulhsu)).setIsUnsigned(true);
-  instVec_.at(size_t(InstId::mulhu)).setIsUnsigned(true);
-  instVec_.at(size_t(InstId::divu)).setIsUnsigned(true);
-  instVec_.at(size_t(InstId::remu)).setIsUnsigned(true);
+  instVec_.at(size_t(InstId::bltu))     .setIsUnsigned(true);
+  instVec_.at(size_t(InstId::bgeu))     .setIsUnsigned(true);
+  instVec_.at(size_t(InstId::sltiu))    .setIsUnsigned(true);
+  instVec_.at(size_t(InstId::sltu))     .setIsUnsigned(true);
+  instVec_.at(size_t(InstId::mulhsu))   .setIsUnsigned(true);
+  instVec_.at(size_t(InstId::mulhu))    .setIsUnsigned(true);
+  instVec_.at(size_t(InstId::divu))     .setIsUnsigned(true);
+  instVec_.at(size_t(InstId::remu))     .setIsUnsigned(true);
 
   // Set data size of load instructions.
   instVec_.at(size_t(InstId::lb))      .setLoadSize(1);
@@ -1813,6 +1813,15 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
         OperandType::IntReg, OperandMode::Read, rs3Mask,
         OperandType::IntReg, OperandMode::Read, 0x03f000000
+      },
+
+      { "vadd.vv", InstId::vadd_vv,
+        0b000000'0'00000'00000'000'00000'1010111, // Opcode
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
       }
 
     };

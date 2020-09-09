@@ -31,6 +31,13 @@ Hart<URV>::decode(URV addr, uint32_t inst, DecodedInst& di)
   const InstEntry& entry = decode(inst, op0, op1, op2, op3);
 
   di.reset(addr, inst, &entry, op0, op1, op2, op3);
+
+  // Set the mask bit for vector instructions.
+  if (di.instEntry() and di.instEntry()->isVector())
+    {
+      bool masked = ((inst >> 25) & 1) == 0;  // Bit 25 of instruction
+      di.setMasked(masked);
+    }
 }
 
 
@@ -162,6 +169,37 @@ Hart<URV>::decodeFp(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
     }
   return instTable_.getEntry(InstId::illegal);
 }
+
+
+template <typename URV>
+const InstEntry&
+Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
+                     uint32_t& op3)
+{
+  if (not isRvv())
+    return instTable_.getEntry(InstId::illegal);  
+
+  RFormInst rform(inst);
+
+  unsigned f6 = rform.top6();
+  unsigned f3 = rform.bits.funct3;
+
+  op3 = 0;
+
+  if (f6 == 0)
+    {
+      if (f3 == 0)
+        {
+          op0 = rform.bits.rd;
+          op1 = rform.bits.rs1;
+          op2 = rform.bits.rs2;
+          return instTable_.getEntry(InstId::vadd_vv);
+        }
+    }
+
+  return instTable_.getEntry(InstId::illegal);  
+}
+  
 
 
 template <typename URV>
@@ -1017,7 +1055,9 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
     l20: // 10100
       return decodeFp(inst, op0, op1, op2, op3);
 
-    l21:
+    l21: // 10101
+      return decodeVec(inst, op0, op1, op2, op3);
+
     l22:
     l23:
     l26:
