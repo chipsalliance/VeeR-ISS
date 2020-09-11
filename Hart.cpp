@@ -4913,6 +4913,9 @@ Hart<URV>::whatIfSingStep(const DecodedInst& di, ChangeRecord& record)
 	  peekCsr(CsrNumber(operand), prev);
 	  prevRegValues[i] = prev;
 	  break;
+        case OperandType::VecReg:
+          assert(0);
+          break;
 	}
     }
 
@@ -4935,13 +4938,16 @@ Hart<URV>::whatIfSingStep(const DecodedInst& di, ChangeRecord& record)
 	case OperandType::CsReg:
 	  pokeCsr(CsrNumber(operand), di.ithOperandValue(i));
 	  break;
+        case OperandType::VecReg:
+          assert(0);
+          break;
 	}
     }
 
   // Execute instruction.
   pc_ += di.instSize();
-  if(di.instEntry()->instId() != InstId::illegal)
-	  execute(&di);
+  if (di.instEntry()->instId() != InstId::illegal)
+    execute(&di);
   bool result = exceptionCount_ == prevExceptionCount;
 
   // Collect changes. Undo each collected change.
@@ -4967,6 +4973,9 @@ Hart<URV>::whatIfSingStep(const DecodedInst& di, ChangeRecord& record)
 	case OperandType::CsReg:
 	  pokeCsr(CsrNumber(operand), prevRegValues[i]);
 	  break;
+        case OperandType::VecReg:
+          assert(0);
+          break;
 	}
     }
 
