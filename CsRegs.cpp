@@ -747,7 +747,16 @@ CsRegs<URV>::defineMachineRegs()
     }
   defineCsr("mstatus", Csrn::MSTATUS, mand, imp, val, mask, mask);
   defineCsr("misa", Csrn::MISA, mand,  imp, 0x40001104, rom, rom);
-  defineCsr("medeleg", Csrn::MEDELEG, !mand, !imp, 0, wam, wam);
+
+  // Bits corresponding to user-level interrupts are hardwired to zero
+  // in medeleg. If N extension is enabled, we will flip those bits
+  // (currently N extension is not supported).
+  URV userBits = ( (URV(1) << unsigned(InterruptCause::U_SOFTWARE)) |
+                   (URV(1) << unsigned(InterruptCause::U_TIMER)) |
+                   (URV(1) << unsigned(InterruptCause::U_EXTERNAL)) );
+  mask = wam & ~ userBits;
+  defineCsr("medeleg", Csrn::MEDELEG, !mand, !imp, 0, mask, mask);
+
   defineCsr("mideleg", Csrn::MIDELEG, !mand, !imp, 0, wam, wam);
 
   // Interrupt enable: Least sig 12 bits corresponding to the 12
