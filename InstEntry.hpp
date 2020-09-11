@@ -23,10 +23,10 @@
 namespace WdRiscv
 {
 
-  enum class OperandType { IntReg, FpReg, CsReg, Imm, None };
+  enum class OperandType { IntReg, FpReg, CsReg, VecReg, Imm, None };
   enum class OperandMode { Read, Write, ReadWrite, None };
   enum class InstType { Load, Store, Multiply, Divide, Branch, Int, Fp,
-                        Csr, Atomic, Zba, Zbb, Zbc, Zbe, Zbf, Zbm, Zbp,
+                        Csr, Atomic, Vector, Zba, Zbb, Zbc, Zbe, Zbf, Zbm, Zbp,
                         Zbr, Zbs, Zbt };
 
   /// Return true if given instruction is a 4-byte instruction.
@@ -198,9 +198,13 @@ namespace WdRiscv
     bool isCsr() const
     { return type_ == InstType::Csr; }
 
-    /// Return true if this is an Atomic instruction.
+    /// Return true if this is an atomic instruction.
     bool isAtomic() const
     { return type_ == InstType::Atomic; }
+
+    /// Return true if this is an vector instruction.
+    bool isVector() const
+    { return type_ == InstType::Vector; }
 
     /// Return true if source operands have unsigned integer values.
     bool isUnsigned() const

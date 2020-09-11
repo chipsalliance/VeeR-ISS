@@ -86,6 +86,7 @@ DecodedInst::setIthOperandValue(unsigned i, uint64_t value)
     case OperandType::IntReg:
     case OperandType::FpReg:
     case OperandType::CsReg:
+    case OperandType::VecReg:
       if (i < sizeof(values_))
 	values_[i] = value;
       break;

@@ -930,6 +930,10 @@ namespace WdRiscv
     bool isRvu() const
     { return rvu_; }
 
+    /// Return true if rvv (vector) extension is enabled in this hart.
+    bool isRvv() const
+    { return rvv_; }
+
     /// Return true if rvn (user-mode-interrupt) extension is enabled
     /// in this hart.
     bool isRvn() const
@@ -1153,6 +1157,10 @@ namespace WdRiscv
     /// Debug method: print address translation table. 
     void printPageTable(std::ostream& out) const
     { virtMem_.printPageTable(out); }
+
+    /// Enable per-privilege-mode performance-counter control.
+    void enablePerModeCounterControl(bool flag)
+    { csRegs_.enablePerModeCounterControl(flag); }
 
   protected:
 
@@ -1518,6 +1526,11 @@ namespace WdRiscv
     /// 1010011.
     const InstEntry& decodeFp(uint32_t inst, uint32_t& op0, uint32_t& op1,
 			      uint32_t& op2, uint32_t& op3);
+
+    /// Helper to decode: Decode instructions associated with opcode
+    /// 1010111.
+    const InstEntry& decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1,
+                               uint32_t& op2, uint32_t& op3);
 
     /// Helper to disassembleInst32: Disassemble instructions
     /// associated with opcode 1010011.
@@ -1970,6 +1983,7 @@ namespace WdRiscv
     bool rvm_ = true;            // True if extension M (mul/div) enabled.
     bool rvs_ = false;           // True if extension S (supervisor-mode) enabled.
     bool rvu_ = false;           // True if extension U (user-mode) enabled.
+    bool rvv_ = false;           // True if extension V (vector) enabled.
     bool rvn_ = false;           // True if extension N (user-mode-interrupt) enabled.
     bool rvzba_ = false;         // True if extension zba enabled.
     bool rvzbb_ = false;         // True if extension zbb enabled.
