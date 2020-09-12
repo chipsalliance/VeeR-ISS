@@ -21,6 +21,7 @@
 #include <map>
 #include <mutex>
 #include <array>
+#include <atomic>
 #include <boost/format.hpp>
 #include <emmintrin.h>
 #include <sys/time.h>
