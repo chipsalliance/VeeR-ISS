@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <string>
 #include <functional>
 #include <cassert>
@@ -996,6 +997,17 @@ namespace WdRiscv
     void setMaxEventId(URV maxId)
     { maxEventId_ = maxId; }
 
+    /// Configure valid event. If this is used then events outside the
+    /// given vector are replaced by zero before being assigned to an
+    /// MHPMEVENT register. Otherwise, events greater that
+    /// max-event-id are clamped to max-event-id before being assigned
+    /// to an MHPMEVENT register.
+    void configPerfEvents(std::vector<unsigned>& eventVec)
+    {
+      hasPerfEventSet_ = true;
+      perfEventSet_.insert(eventVec.begin(), eventVec.end());
+    }
+
     /// Lock/unlock mdseac. This supports imprecise load/store exceptions.
     void lockMdseac(bool flag)
     { mdseacLocked_ = flag; }
@@ -1071,7 +1083,9 @@ namespace WdRiscv
 
     bool mdseacLocked_ = false; // Once written, MDSEAC persists until
                                 // MDEAU is written.
-    URV maxEventId_ = ~URV(0);
+    URV maxEventId_ = 16*1024;
+    bool hasPerfEventSet_ = false;
+    std::unordered_set<unsigned> perfEventSet_;
 
     unsigned pmpG_ = 0;  // PMP G value: ln2(pmpGrain) - 2
 

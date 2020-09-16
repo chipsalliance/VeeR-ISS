@@ -287,6 +287,14 @@ namespace WdRiscv
     void configMachineModeMaxPerfEvent(URV maxId)
     { csRegs_.setMaxEventId(maxId); }
 
+    /// Configure valid event. If this is used then events outside the
+    /// given vector are replaced by zero before being assigned to an
+    /// MHPMEVENT register. Otherwise, events greater that
+    /// max-event-id are clamped to max-event-id before being assigned
+    /// to an MHPMEVENT register.
+    void configPerfEvents(std::vector<unsigned>& eventVec)
+    { csRegs_.configPerfEvents(eventVec); }
+
     /// Get the values of the three components of the given debug
     /// trigger. Return true on success and false if trigger is out of
     /// bounds.
