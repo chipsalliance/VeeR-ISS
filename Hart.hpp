@@ -26,6 +26,7 @@
 #include "IntRegs.hpp"
 #include "CsRegs.hpp"
 #include "FpRegs.hpp"
+#include "VecRegs.hpp"
 #include "Memory.hpp"
 #include "InstProfile.hpp"
 #include "DecodedInst.hpp"
@@ -294,6 +295,10 @@ namespace WdRiscv
     /// to an MHPMEVENT register.
     void configPerfEvents(std::vector<unsigned>& eventVec)
     { csRegs_.configPerfEvents(eventVec); }
+
+    /// Configure vector unit of this hart.
+    void configVector(unsigned bytesPerVec, unsigned maxBytesPerElem)
+    { vecRegs_.config(bytesPerVec, maxBytesPerElem); }
 
     /// Get the values of the three components of the given debug
     /// trigger. Return true on success and false if trigger is out of
@@ -1980,6 +1985,8 @@ namespace WdRiscv
     IntRegs<URV> intRegs_;       // Integer register file.
     CsRegs<URV> csRegs_;         // Control and status registers.
     FpRegs<double> fpRegs_;      // Floating point registers.
+    VecRegs vecRegs_;            // Vector register file.
+
     Syscall<URV> syscall_;
 
     bool rv64_ = sizeof(URV)==8; // True if 64-bit base (RV64I).

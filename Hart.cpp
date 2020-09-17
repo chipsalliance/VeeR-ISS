@@ -113,11 +113,10 @@ union Uint64DoubleUnion
 };
 
 
-
 template <typename URV>
 Hart<URV>::Hart(unsigned hartIx, Memory& memory)
   : hartIx_(hartIx), memory_(memory), intRegs_(32),
-    fpRegs_(32), syscall_(*this),
+    fpRegs_(32), vecRegs_(), syscall_(*this),
     pmpManager_(memory.size(), memory.pageSize()),
     virtMem_(hartIx, memory, memory.pageSize(), pmpManager_, 16 /* FIX: TLB size*/)
 {

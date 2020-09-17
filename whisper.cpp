@@ -246,7 +246,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 571;
+  unsigned subversion = 572;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -1682,7 +1682,7 @@ session(const Args& args, const HartConfig& config)
   assert(system.hartCount() > 0);
 
   // Configure harts. Define callbacks for non-standard CSRs.
-  if (not config.configHarts(system, args.verbose))
+  if (not config.configHarts(system, args.isa, args.verbose))
     if (not args.interactive)
       return false;
 

@@ -112,20 +112,24 @@ namespace WdRiscv
   }
 
 
-  /// Convert given json array value to an vector of unsigned integers
-  /// honoring any hexadecimal prefix (0x) if any.
+  /// Convert given json array value to a vector of unsigned integers
+  /// honoring any hexadecimal prefix (0x) if any. Return true on
+  /// sucess an false on failure.
   template <typename URV>
-  std::vector<URV>
-  getJsonUnsignedVec(const std::string& tag, const nlohmann::json& js)
+  bool
+  getJsonUnsignedVec(const std::string& tag, const nlohmann::json& js,
+                     std::vector<URV>& vec)
   {
-    std::vector<URV> vec;
+    vec.clear();
 
     if (not js.is_array())
       {
 	std::cerr << "Invalid config file value for '" << tag << "'"
 		  << " -- expecting array of numbers\n";
-	return vec;
+	return false;
       }
+
+    unsigned errors = 0;
 
     for (const auto& item :js)
       {
@@ -140,22 +144,30 @@ namespace WdRiscv
 	      {
 		std::cerr << "Invalid config file value for '" << tag << "': "
 			  << str << '\n';
+                errors++;
 		continue;
 	      }
 
 	    URV val = static_cast<URV>(u64);
 	    if (val != u64)
-	      std::cerr << "Overflow in config file value for '" << tag << "': "
-			  << str << '\n';
+              {
+                std::cerr << "Overflow in config file value for '" << tag
+                          << "': " << str << '\n';
+                errors++;
+                continue;
+              }
 
 	    vec.push_back(val);
 	  }
 	else
-	  std::cerr << "Invalid config file value for '" << tag << "'"
-		    << " -- expecting array of number\n";
+          {
+            std::cerr << "Invalid config file value for '" << tag << "'"
+                      << " -- expecting array of number\n";
+            errors++;
+          }
       }
 
-    return vec;
+    return errors == 0;
   }
 
 
@@ -592,10 +604,16 @@ applyTriggerConfig(Hart<URV>& hart, const nlohmann::json& config)
 	  errors++;
 	  continue;
 	}
-      auto resets = getJsonUnsignedVec<URV>(name + ".reset", trig.at("reset"));
-      auto masks = getJsonUnsignedVec<URV>(name + ".mask", trig.at("mask"));
-      auto pokeMasks = getJsonUnsignedVec<URV>(name + ".poke_mask",
-					       trig.at("poke_mask"));
+
+      std::vector<URV> resets, masks, pokeMasks;
+      ok = (getJsonUnsignedVec(name + ".reset", trig.at("reset"), resets) and
+            getJsonUnsignedVec(name + ".mask", trig.at("mask"), masks) and
+            getJsonUnsignedVec(name + ".poke_mask", trig.at("poke_mask"), pokeMasks));
+      if (not ok)
+        {
+          errors++;
+          continue;
+        }
 
       if (resets.size() != 3)
 	{
@@ -640,7 +658,8 @@ applyTriggerConfig(Hart<URV>& hart, const nlohmann::json& config)
 template <typename URV>
 static
 bool
-applyPerfEvents(Hart<URV>& hart, const nlohmann::json& config, bool /*verbose*/)
+applyPerfEvents(Hart<URV>& hart, const nlohmann::json& config,
+                bool userMode, bool /*verbose*/)
 {
   unsigned errors = 0;
 
@@ -652,9 +671,11 @@ applyPerfEvents(Hart<URV>& hart, const nlohmann::json& config, bool /*verbose*/)
         errors++;
       else
         {
-          if (not hart.configMachineModePerfCounters(count) or
-              not hart.configUserModePerfCounters(count))
+          if (not hart.configMachineModePerfCounters(count))
             errors++;
+          if (userMode)
+            if (not hart.configUserModePerfCounters(count))
+              errors++;
         }
     }
 
@@ -712,6 +733,84 @@ applyPerfEvents(Hart<URV>& hart, const nlohmann::json& config, bool /*verbose*/)
 template <typename URV>
 static
 bool
+applyVectorConfig(Hart<URV>& hart, const nlohmann::json& config)
+{
+  if (not config.count("vector"))
+    return true;  // Nothing to apply
+
+  unsigned errors = 0;
+  const auto& vconf = config.at("vector");
+
+  unsigned bytesPerVec = 0;
+  std::string tag = "bytes_per_vec";
+  if (not vconf.count(tag))
+    {
+      std::cerr << "Error: Missing " << tag << " tag in vector section of config file\n";
+      errors++;
+    }
+  else
+    {
+      if (not getJsonUnsigned(tag, vconf.at(tag), bytesPerVec))
+        errors++;
+      else if (bytesPerVec == 0 or bytesPerVec > 4096)
+        {
+          std::cerr << "Error: Invalid config file bytes_per_vec number: "
+                    << bytesPerVec << '\n';
+          errors++;
+        }
+      else
+        {
+          unsigned l2BytesPerVec = std::log2(bytesPerVec);
+          unsigned p2BytesPerVec = uint32_t(1) << l2BytesPerVec;
+          if (p2BytesPerVec != bytesPerVec)
+            {
+              std::cerr << "Error: Config file bytes_per_vec ("
+                        << bytesPerVec << ") is not a power of 2\n";
+              errors++;
+            }
+        }
+    }
+
+  unsigned bytesPerElem = 0;
+  tag = "max_bytes_per_elem";
+  if (not vconf.count(tag))
+    {
+      std::cerr << "Error: Missing " << tag << " tagin vector section of config file\n";
+      errors++;
+    }
+  else
+    {
+      if (not getJsonUnsigned(tag, vconf.at(tag), bytesPerElem))
+        errors++;
+      else if (bytesPerElem == 0 or bytesPerElem > bytesPerVec)
+        {
+          std::cerr << "Error: Invalid config file max_bytes_per_elem number: "
+                    << bytesPerElem << '\n';
+          errors++;
+        }
+      else
+        {
+          unsigned l2BytesPerElem = std::log2(bytesPerElem);
+          unsigned p2BytesPerElem = uint32_t(1) << l2BytesPerElem;
+          if (p2BytesPerElem != bytesPerElem)
+            {
+              std::cerr << "Error: Config file max_bytes_per_elem ("
+                        << bytesPerElem << ") is not a power of 2\n";
+              errors++;
+            }
+        }
+    }
+
+  if (errors == 0)
+    hart.configVector(bytesPerVec, bytesPerElem);
+
+  return errors == 0;
+}
+
+
+template <typename URV>
+static
+bool
 applyInstMemConfig(Hart<URV>& hart, const nlohmann::json& config)
 {
   using std::cerr;
@@ -738,8 +837,10 @@ applyInstMemConfig(Hart<URV>& hart, const nlohmann::json& config)
 	  break;
 	}
 
-      auto vec = getJsonUnsignedVec<URV>("memmap.inst", addrPair);
-      if (vec.size() != 2)
+      std::vector<URV> vec;
+      if (not getJsonUnsignedVec("memmap.inst", addrPair, vec))
+        errors++;
+      else if (vec.size() != 2)
 	errors++;
       else
 	{
@@ -785,7 +886,9 @@ applyDataMemConfig(Hart<URV>& hart, const nlohmann::json& config)
 	  break;
 	}
 
-      auto vec = getJsonUnsignedVec<URV>("memmap.data", addrPair);
+      std::vector<URV> vec;
+      if (not getJsonUnsignedVec("memmap.data", addrPair, vec))
+        errors++;
       if (vec.size() != 2)
 	errors++;
       else
@@ -863,7 +966,7 @@ HartConfig::applyMemoryConfig(Hart<URV>& hart, bool iccmRw, bool /*verbose*/) co
 
 template<typename URV>
 bool
-HartConfig::applyConfig(Hart<URV>& hart, bool verbose) const
+HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
 {
   unsigned errors = 0;
 
@@ -1127,13 +1230,16 @@ HartConfig::applyConfig(Hart<URV>& hart, bool verbose) const
         errors++;
     }
 
+  if (not applyPerfEvents(hart, *config_, userMode, verbose))
+    errors++;
+
   if (not applyCsrConfig(hart, *config_, verbose))
     errors++;
 
   if (not applyTriggerConfig(hart, *config_))
     errors++;
 
-  if (not applyPerfEvents(hart, *config_, verbose))
+  if (not applyVectorConfig(hart, *config_))
     errors++;
 
   tag = "load_data_trigger";
@@ -1176,11 +1282,18 @@ HartConfig::applyConfig(Hart<URV>& hart, bool verbose) const
 
 template<typename URV>
 bool
-HartConfig::configHarts(System<URV>& system, bool verbose) const
+HartConfig::configHarts(System<URV>& system, const std::string& isaString,
+                        bool verbose) const
 {
+  bool user = this->userModeEnabled();
+
+  user = user or (isaString.find("uU") != std::string::npos);
+
+  // Apply JSON configuration.
   for (unsigned i = 0; i < system.hartCount(); ++i)
-    if (not applyConfig(*system.ithHart(i), verbose))
+    if (not applyConfig(*system.ithHart(i), user, verbose))
       return false;
+
   return finalizeCsrConfig(system);
 }
 
@@ -1237,6 +1350,30 @@ HartConfig::getMemorySize(size_t& memSize) const
     return false;
 
   return getJsonUnsigned("memmap.size", mem.at("size"), memSize);
+}
+
+
+bool
+HartConfig::userModeEnabled() const
+{
+  uint64_t resetVal = 0;
+  if (not getMisaReset(resetVal))
+    return false;
+
+  // User mode enabled if bit corresponding to U extension is set.
+  return ((uint64_t(1) << ('u' - 'a')) & resetVal) != 0;
+}
+
+
+bool
+HartConfig::supervisorModeEnabled() const
+{
+  uint64_t resetVal = 0;
+  if (not getMisaReset(resetVal))
+    return false;
+
+  // User mode enabled if bit corresponding to S extension is set.
+  return ((uint64_t(1) << ('s' - 'a')) & resetVal) != 0;
 }
 
 
@@ -1519,16 +1656,61 @@ HartConfig::finalizeCsrConfig(System<URV>& system) const
 }
 
 
+bool
+HartConfig::getMisaReset(uint64_t& val) const
+{
+  val = 0;
+
+  if (not config_ -> count("csr"))
+    return false;  // No csr section
+
+  const auto& csrs = config_ -> at("csr");
+  if (not csrs.is_object())
+    return false;  // No csr section in this config.
+
+  if (not csrs.count("misa"))
+    return false;  // CSR misa not present in csr section
+
+  const auto& misa = csrs.at("misa");
+  if (not misa.is_object())
+    return false;
+
+  if (not misa.count("reset"))
+    return false;  // No reset entry under misa
+
+  uint64_t resetVal = 0;
+  if (not getJsonUnsigned("csr.misa.reset", misa.at("reset"), resetVal))
+    return false;
+
+  val = resetVal;
+  return true;
+}
+
+
 // Instantiate tempate member functions
 
-template bool HartConfig::applyConfig<uint32_t>(Hart<uint32_t>&, bool) const;
-template bool HartConfig::applyConfig<uint64_t>(Hart<uint64_t>&, bool) const;
+template bool
+HartConfig::applyConfig<uint32_t>(Hart<uint32_t>&, bool, bool) const;
 
-template bool HartConfig::configHarts<uint32_t>(System<uint32_t>&, bool) const;
-template bool HartConfig::configHarts<uint64_t>(System<uint64_t>&, bool) const;
+template bool
+HartConfig::applyConfig<uint64_t>(Hart<uint64_t>&, bool, bool) const;
 
-template bool HartConfig::applyMemoryConfig<uint32_t>(Hart<uint32_t>&, bool, bool) const;
-template bool HartConfig::applyMemoryConfig<uint64_t>(Hart<uint64_t>&, bool, bool) const;
+template bool
+HartConfig::configHarts<uint32_t>(System<uint32_t>&, const std::string&,
+                                  bool) const;
 
-template bool HartConfig::finalizeCsrConfig<uint32_t>(System<uint32_t>&) const;
-template bool HartConfig::finalizeCsrConfig<uint64_t>(System<uint64_t>&) const;
+template bool
+HartConfig::configHarts<uint64_t>(System<uint64_t>&, const std::string&,
+                                  bool) const;
+
+template bool
+HartConfig::applyMemoryConfig<uint32_t>(Hart<uint32_t>&, bool, bool) const;
+
+template bool
+HartConfig::applyMemoryConfig<uint64_t>(Hart<uint64_t>&, bool, bool) const;
+
+template bool
+HartConfig::finalizeCsrConfig<uint32_t>(System<uint32_t>&) const;
+
+template bool
+HartConfig::finalizeCsrConfig<uint64_t>(System<uint64_t>&) const;
