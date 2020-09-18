@@ -353,7 +353,12 @@ namespace WdRiscv
      vadd_vv,
      vadd_vx,
      vadd_vi,
+
+     vsub_vv,
+     vsub_vx,
+     vrsub_vx,
+     vrsub_vi,
      
-     maxId = vadd_vi
+     maxId = vrsub_vx
     };
 }

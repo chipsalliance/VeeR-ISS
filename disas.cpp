@@ -1752,12 +1752,32 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::vadd_vx:
-      out << "vadd.vv v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
+      out << "vadd.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
           << '\n';
       break;
 
     case InstId::vadd_vi:
-      out << "vadd.vv v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>()
+      out << "vadd.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>()
+          << '\n';
+      break;
+
+    case InstId::vsub_vv:
+      out << "vsub.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vsub_vx:
+      out << "vsub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vrsub_vx:
+      out << "vrsub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vrsub_vi:
+      out << "vrsub.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>()
           << '\n';
       break;
 

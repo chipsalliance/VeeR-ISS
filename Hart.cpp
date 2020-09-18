@@ -5395,7 +5395,11 @@ Hart<URV>::execute(const DecodedInst* di)
      // vevtor
      &&vadd_vv,
      &&vadd_vx,
-     &&vadd_vi
+     &&vadd_vi,
+     &&vsub_vv,
+     &&vsub_vx,
+     &&vrsub_vx,
+     &&vrsub_vi
     };
 
   const InstEntry* entry = di->instEntry();
@@ -6551,6 +6555,22 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vadd_vi:
   execVadd_vi(di);
+  return;
+
+ vsub_vv:
+  execVsub_vv(di);
+  return;
+
+ vsub_vx:
+  execVsub_vx(di);
+  return;
+
+ vrsub_vx:
+  execVrsub_vx(di);
+  return;
+
+ vrsub_vi:
+  execVrsub_vi(di);
   return;
 }
 
@@ -13428,10 +13448,10 @@ Hart<URV>::execVadd_vv(const DecodedInst* di)
   unsigned vs1 = di->op1();
   unsigned vs2 = di->op2();
 
-  unsigned group = 1;  // FIX: get group multiplier
-  unsigned start = 0;  // FIX: get vstart
-  unsigned elems = 1;  // FIX: get VL
-  ElementWidth sew = ElementWidth::HalfKbits; // FIX: get sew
+  unsigned group = vecRegs_.groupMultiplier();
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
 
   unsigned errors = 0;
 
@@ -13523,10 +13543,10 @@ Hart<URV>::execVadd_vx(const DecodedInst* di)
   unsigned vs1 = di->op1();
   unsigned rs2 = di->op2();
 
-  unsigned group = 1;  // FIX: get group multiplier
-  unsigned start = 0;  // FIX: get vstart
-  unsigned elems = 1;  // FIX: get VL
-  ElementWidth sew = ElementWidth::HalfKbits; // FIX: get sew
+  unsigned group = vecRegs_.groupMultiplier();
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
 
   unsigned errors = 0;
 
@@ -13616,10 +13636,10 @@ Hart<URV>::execVadd_vi(const DecodedInst* di)
   unsigned vs1 = di->op1();
   int32_t imm = di->op2As<int32_t>();
 
-  unsigned group = 1;  // FIX: get group multiplier
-  unsigned start = 0;  // FIX: get vstart
-  unsigned elems = 1;  // FIX: get VL
-  ElementWidth sew = ElementWidth::HalfKbits; // FIX: get sew
+  unsigned group = vecRegs_.groupMultiplier();
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
 
   unsigned errors = 0;
 
@@ -13662,6 +13682,381 @@ Hart<URV>::execVadd_vi(const DecodedInst* di)
 
     case ElementWidth::Kbits:
       if (not vadd_vi<Int1024>(vd, vs1, imm, group, start, elems))
+        errors++;
+      break;
+    }
+}
+
+
+template <typename URV>
+template <typename INT_ELEM_TYPE>
+bool Hart<URV>::vsub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                        unsigned start, unsigned elems)
+{
+  unsigned errors = 0;
+
+  INT_ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (vecRegs_.read(vs1, ix, group, e1) and
+          vecRegs_.read(vs2, ix, group, e2))
+        {
+          dest = e1 - e2;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  return errors == 0;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsub_vv(const DecodedInst* di)
+{
+  if (not isRvv() or not isVecEnabled())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned group = vecRegs_.groupMultiplier();
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vsub_vv<int8_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vsub_vv<int16_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vsub_vv<int32_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vsub_vv<int64_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vsub_vv<Int128>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vsub_vv<Int256>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vsub_vv<Int512>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vsub_vv<Int1024>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+    }
+}
+
+
+template <typename URV>
+template <typename INT_ELEM_TYPE>
+bool Hart<URV>::vsub_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                        unsigned start, unsigned elems)
+{
+  unsigned errors = 0;
+
+  SRV srv2 = intRegs_.read(rs2);
+
+  INT_ELEM_TYPE val2 = srv2;
+
+  INT_ELEM_TYPE e1 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (vecRegs_.read(vs1, ix, group, e1))
+        {
+          dest = e1 - val2;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  return errors == 0;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsub_vx(const DecodedInst* di)
+{
+  if (not isRvv() or not isVecEnabled())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned rs2 = di->op2();
+
+  unsigned group = vecRegs_.groupMultiplier();
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vsub_vx<int8_t>(vd, vs1, rs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vsub_vx<int16_t>(vd, vs1, rs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vsub_vx<int32_t>(vd, vs1, rs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vsub_vx<int64_t>(vd, vs1, rs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vsub_vx<Int128>(vd, vs1, rs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vsub_vx<Int256>(vd, vs1, rs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vsub_vx<Int512>(vd, vs1, rs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vsub_vx<Int1024>(vd, vs1, rs2, group, start, elems))
+        errors++;
+      break;
+    }
+}
+
+
+template <typename URV>
+template <typename INT_ELEM_TYPE>
+bool Hart<URV>::vrsub_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                         unsigned start, unsigned elems)
+{
+  unsigned errors = 0;
+
+  SRV srv2 = intRegs_.read(rs2);
+
+  INT_ELEM_TYPE val2 = srv2;
+
+  INT_ELEM_TYPE e1 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (vecRegs_.read(vs1, ix, group, e1))
+        {
+          dest = val2 - e1;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  return errors == 0;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVrsub_vx(const DecodedInst* di)
+{
+  if (not isRvv() or not isVecEnabled())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned rs2 = di->op2();
+
+  unsigned group = vecRegs_.groupMultiplier();
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vrsub_vx<int8_t>(vd, vs1, rs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vrsub_vx<int16_t>(vd, vs1, rs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vrsub_vx<int32_t>(vd, vs1, rs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vrsub_vx<int64_t>(vd, vs1, rs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vrsub_vx<Int128>(vd, vs1, rs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vrsub_vx<Int256>(vd, vs1, rs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vrsub_vx<Int512>(vd, vs1, rs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vrsub_vx<Int1024>(vd, vs1, rs2, group, start, elems))
+        errors++;
+      break;
+    }
+}
+
+
+template <typename URV>
+template <typename INT_ELEM_TYPE>
+bool Hart<URV>::vrsub_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
+                        unsigned start, unsigned elems)
+{
+  unsigned errors = 0;
+
+  INT_ELEM_TYPE val2 = imm;
+
+  INT_ELEM_TYPE e1 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (vecRegs_.read(vs1, ix, group, e1))
+        {
+          dest = val2 - e1;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  return errors == 0;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVrsub_vi(const DecodedInst* di)
+{
+  if (not isRvv() or not isVecEnabled())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  int32_t imm = di->op2As<int32_t>();
+
+  unsigned group = vecRegs_.groupMultiplier();
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vrsub_vi<int8_t>(vd, vs1, imm, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vrsub_vi<int16_t>(vd, vs1, imm, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vrsub_vi<int32_t>(vd, vs1, imm, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vrsub_vi<int64_t>(vd, vs1, imm, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vrsub_vi<Int128>(vd, vs1, imm, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vrsub_vi<Int256>(vd, vs1, imm, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vrsub_vi<Int512>(vd, vs1, imm, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vrsub_vi<Int1024>(vd, vs1, imm, group, start, elems))
         errors++;
       break;
     }
