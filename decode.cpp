@@ -336,6 +336,87 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       return instTable_.getEntry(InstId::illegal);  
     }
 
+  if (f6 == VecF6Code::Vand)
+    {
+      if (f3 == VecF3Code::VV)
+        {
+          op0 = rform.bits.rd;
+          op1 = rform.bits.rs2; // operand order reversed
+          op2 = rform.bits.rs1;
+          return instTable_.getEntry(InstId::vand_vv);
+        }
+      if (f3 == VecF3Code::VI)
+        {
+          op0 = rform.bits.rd;
+          op1 = rform.bits.rs2; // operand order reversed
+          int32_t imm = (int32_t(rform.bits.rs1) << 27) >> 27;
+          op2 = imm;
+          return instTable_.getEntry(InstId::vand_vi);
+        }
+      if (f3 == VecF3Code::VX)
+        {
+          op0 = rform.bits.rd;
+          op1 = rform.bits.rs2; // operand order reversed
+          op2 = rform.bits.rs1;
+          return instTable_.getEntry(InstId::vand_vx);
+        }
+      return instTable_.getEntry(InstId::illegal);  
+    }
+
+  if (f6 == VecF6Code::Vor)
+    {
+      if (f3 == VecF3Code::VV)
+        {
+          op0 = rform.bits.rd;
+          op1 = rform.bits.rs2; // operand order reversed
+          op2 = rform.bits.rs1;
+          return instTable_.getEntry(InstId::vor_vv);
+        }
+      if (f3 == VecF3Code::VI)
+        {
+          op0 = rform.bits.rd;
+          op1 = rform.bits.rs2; // operand order reversed
+          int32_t imm = (int32_t(rform.bits.rs1) << 27) >> 27;
+          op2 = imm;
+          return instTable_.getEntry(InstId::vor_vi);
+        }
+      if (f3 == VecF3Code::VX)
+        {
+          op0 = rform.bits.rd;
+          op1 = rform.bits.rs2; // operand order reversed
+          op2 = rform.bits.rs1;
+          return instTable_.getEntry(InstId::vor_vx);
+        }
+      return instTable_.getEntry(InstId::illegal);  
+    }
+
+  if (f6 == VecF6Code::Vxor)
+    {
+      if (f3 == VecF3Code::VV)
+        {
+          op0 = rform.bits.rd;
+          op1 = rform.bits.rs2; // operand order reversed
+          op2 = rform.bits.rs1;
+          return instTable_.getEntry(InstId::vxor_vv);
+        }
+      if (f3 == VecF3Code::VI)
+        {
+          op0 = rform.bits.rd;
+          op1 = rform.bits.rs2; // operand order reversed
+          int32_t imm = (int32_t(rform.bits.rs1) << 27) >> 27;
+          op2 = imm;
+          return instTable_.getEntry(InstId::vxor_vi);
+        }
+      if (f3 == VecF3Code::VX)
+        {
+          op0 = rform.bits.rd;
+          op1 = rform.bits.rs2; // operand order reversed
+          op2 = rform.bits.rs1;
+          return instTable_.getEntry(InstId::vxor_vx);
+        }
+      return instTable_.getEntry(InstId::illegal);  
+    }
+
   return instTable_.getEntry(InstId::illegal);  
 }
 

@@ -1821,6 +1821,51 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
           << '\n';
       break;
 
+    case InstId::vand_vv:
+      out << "vand.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vand_vx:
+      out << "vand.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vand_vi:
+      out << "vand.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>()
+          << '\n';
+      break;
+
+    case InstId::vor_vv:
+      out << "vor.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vor_vx:
+      out << "vor.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vor_vi:
+      out << "vor.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>()
+          << '\n';
+      break;
+
+    case InstId::vxor_vv:
+      out << "vxor.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vxor_vx:
+      out << "vxor.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vxor_vi:
+      out << "vxor.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>()
+          << '\n';
+      break;
+
     default:
       out << "illegal";
     }

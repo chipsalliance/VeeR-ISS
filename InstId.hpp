@@ -356,17 +356,32 @@ namespace WdRiscv
 
      vsub_vv,
      vsub_vx,
+
      vrsub_vx,
      vrsub_vi,
+
      vminu_vv,
      vminu_vx,
      vmin_vv,
      vmin_vx,
+
      vmaxu_vv,
      vmaxu_vx,
      vmax_vv,
      vmax_vx,
-     
-     maxId = vmax_vx
+
+     vand_vv,
+     vand_vx,
+     vand_vi,
+
+     vor_vv,
+     vor_vx,
+     vor_vi,
+
+     vxor_vv,
+     vxor_vx,
+     vxor_vi,
+
+     maxId = vxor_vi
     };
 }
