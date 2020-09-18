@@ -351,7 +351,9 @@ namespace WdRiscv
 
      // vector
      vadd_vv,
+     vadd_vx,
+     vadd_vi,
      
-     maxId = vadd_vv
+     maxId = vadd_vi
     };
 }

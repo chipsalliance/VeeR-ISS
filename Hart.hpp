@@ -1184,6 +1184,13 @@ namespace WdRiscv
     // Mark FS field of mstatus as dirty.
     void markFsDirty();
 
+    // Return true if vS field of mstatus is not off.
+    bool isVecEnabled() const
+    { return mstatusVs_ != FpFs::Off; }
+
+    // Mark VS field of mstatus as dirty.
+    void markVsDirty();
+
     // Update cached values of mstatus.mpp and mstatus.mprv and
     // mstatus.fs ...  This is called when mstatus is written/poked.
     void updateCachedMstatusFields();
@@ -1920,6 +1927,21 @@ namespace WdRiscv
     void execFsr(const DecodedInst*);
     void execFsri(const DecodedInst*);
 
+    template<typename INT_ELEM_TYPE>
+    bool vadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                 unsigned start, unsigned elems);
+    void execVadd_vv(const DecodedInst*);
+
+    template<typename INT_ELEM_TYPE>
+    bool vadd_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                 unsigned start, unsigned elems);
+    void execVadd_vx(const DecodedInst*);
+
+    template<typename INT_ELEM_TYPE>
+    bool vadd_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
+                 unsigned start, unsigned elems);
+    void execVadd_vi(const DecodedInst*);
+
   private:
 
     // We model store buffer in order to undo store effects after an
@@ -2097,6 +2119,8 @@ namespace WdRiscv
     PrivilegeMode mstatusMpp_ = PrivilegeMode::Machine; // Cached mstatus.mpp.
     bool mstatusMprv_ = false;                          // Cached mstatus.mprv.
     FpFs mstatusFs_ = FpFs::Off;                        // Cahced mstatus.fs.
+
+    FpFs mstatusVs_ = FpFs::Off;
 
     bool debugMode_ = false;         // True on debug mode.
     bool debugStepMode_ = false;     // True in debug step mode.

@@ -1121,7 +1121,7 @@ namespace WdRiscv
       unsigned UBE      : 1;
       unsigned MPIE     : 1;
       unsigned SPP      : 1;
-      unsigned res1     : 2;
+      unsigned VS       : 2;
       unsigned MPP      : 2;
       unsigned FS       : 2;
       unsigned XS       : 2;
@@ -1156,7 +1156,7 @@ namespace WdRiscv
       unsigned UBE      : 1;
       unsigned MPIE     : 1;
       unsigned SPP      : 1;
-      unsigned res1     : 2;
+      unsigned VS       : 2;
       unsigned MPP      : 2;
       unsigned FS       : 2;
       unsigned XS       : 2;

@@ -191,9 +191,24 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       if (f3 == 0)
         {
           op0 = rform.bits.rd;
-          op1 = rform.bits.rs1;
-          op2 = rform.bits.rs2;
+          op1 = rform.bits.rs2; // operand order reversed
+          op2 = rform.bits.rs1;
           return instTable_.getEntry(InstId::vadd_vv);
+        }
+      if (f3 == 3)
+        {
+          op0 = rform.bits.rd;
+          op1 = rform.bits.rs2; // operand order reversed
+          int32_t imm = (int32_t(rform.bits.rs1) << 27) >> 27;
+          op2 = imm;
+          return instTable_.getEntry(InstId::vadd_vi);
+        }
+      if (f3 == 4)
+        {
+          op0 = rform.bits.rd;
+          op1 = rform.bits.rs2; // operand order reversed
+          op2 = rform.bits.rs1;
+          return instTable_.getEntry(InstId::vadd_vx);
         }
     }
 
