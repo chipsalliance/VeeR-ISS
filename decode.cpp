@@ -182,7 +182,7 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
   enum class VecF6Code : unsigned
   {
    Vadd = 0, Vsub = 2, Vrsub = 3 , Vminu = 4, Vmin = 5, Vmaxu = 6, Vmax = 7,
-   Vand = 9, Vor = 10, Vxor = 11, Vrgather = 12
+   Vand = 9, Vor = 10, Vxor = 11, Vrgather = 12, Vrgatherei16 = 14, Vcompress = 0x17
   };
 
   enum class VecF3Code : unsigned { VV = 0, VI = 3, VX = 4 };
@@ -413,6 +413,32 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
           op1 = rform.bits.rs2; // operand order reversed
           op2 = rform.bits.rs1;
           return instTable_.getEntry(InstId::vxor_vx);
+        }
+      return instTable_.getEntry(InstId::illegal);  
+    }
+
+  if (f6 == VecF6Code::Vrgather)
+    {
+      if (f3 == VecF3Code::VV)
+        {
+          op0 = rform.bits.rd;
+          op1 = rform.bits.rs2; // operand order reversed
+          op2 = rform.bits.rs1;
+          return instTable_.getEntry(InstId::vrgather_vv);
+        }
+      if (f3 == VecF3Code::VI)
+        {
+          op0 = rform.bits.rd;
+          op1 = rform.bits.rs2; // operand order reversed
+          op2 = rform.bits.rs1; // For vrgather immediate is unsigned.
+          return instTable_.getEntry(InstId::vrgather_vi);
+        }
+      if (f3 == VecF3Code::VX)
+        {
+          op0 = rform.bits.rd;
+          op1 = rform.bits.rs2; // operand order reversed
+          op2 = rform.bits.rs1;
+          return instTable_.getEntry(InstId::vrgather_vx);
         }
       return instTable_.getEntry(InstId::illegal);  
     }

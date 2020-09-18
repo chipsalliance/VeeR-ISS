@@ -2057,6 +2057,22 @@ namespace WdRiscv
                  unsigned start, unsigned elems);
     void execVxor_vi(const DecodedInst*);
 
+
+    template<typename UINT_ELEM_TYPE>
+    bool vrgather_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                     unsigned start, unsigned elems);
+    void execVrgather_vv(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vrgather_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                     unsigned start, unsigned elems);
+    void execVrgather_vx(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vrgather_vi(unsigned vd, unsigned vs1, uint32_t imm, unsigned group,
+                     unsigned start, unsigned elems);
+    void execVrgather_vi(const DecodedInst*);
+
   private:
 
     // We model store buffer in order to undo store effects after an

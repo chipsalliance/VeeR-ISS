@@ -1866,6 +1866,21 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
           << '\n';
       break;
 
+    case InstId::vrgather_vv:
+      out << "vrgather.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vrgather_vx:
+      out << "vrgather.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vrgather_vi:
+      out << "vrgather.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>()
+          << '\n';
+      break;
+
     default:
       out << "illegal";
     }

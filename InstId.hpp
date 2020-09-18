@@ -382,6 +382,10 @@ namespace WdRiscv
      vxor_vx,
      vxor_vi,
 
-     maxId = vxor_vi
+     vrgather_vv,
+     vrgather_vx,
+     vrgather_vi,
+
+     maxId = vrgather_vi
     };
 }

@@ -5408,7 +5408,10 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vor_vi,
      &&vxor_vv,
      &&vxor_vx,
-     &&vxor_vi
+     &&vxor_vi,
+     &&vrgather_vv,
+     &&vrgather_vx,
+     &&vrgather_vi
     };
 
   const InstEntry* entry = di->instEntry();
@@ -6648,6 +6651,18 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vxor_vi:
   execVxor_vi(di);
+  return;
+
+ vrgather_vv:
+  execVrgather_vv(di);
+  return;
+
+ vrgather_vx:
+  execVrgather_vx(di);
+  return;
+
+ vrgather_vi:
+  execVrgather_vi(di);
   return;
 }
 
