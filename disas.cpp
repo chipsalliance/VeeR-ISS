@@ -1781,6 +1781,46 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
           << '\n';
       break;
 
+    case InstId::vminu_vv:
+      out << "vminu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vminu_vx:
+      out << "vminu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vmin_vv:
+      out << "vmin.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vmin_vx:
+      out << "vmin.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vmaxu_vv:
+      out << "vmaxu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vmaxu_vx:
+      out << "vmaxu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vmax_vv:
+      out << "vmax.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
+          << '\n';
+      break;
+
+    case InstId::vmax_vx:
+      out << "vmax.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
+          << '\n';
+      break;
+
     default:
       out << "illegal";
     }
