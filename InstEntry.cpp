@@ -2032,7 +2032,7 @@ InstTable::setupInstVec()
       },
 
       { "vrgather.vv", InstId::vrgather_vv,
-        0b0011100'0'00000'00000'000'00000'1010111, // Opcode
+        0b001100'0'00000'00000'000'00000'1010111, // Opcode
         0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
         InstType::Vector,
         OperandType::VecReg, OperandMode::Write, rdMask,
@@ -2041,7 +2041,7 @@ InstTable::setupInstVec()
       },
 
       { "vrgather.vx", InstId::vrgather_vx,
-        0b0011100'0'00000'00000'100'00000'1010111, // Opcode
+        0b001100'0'00000'00000'100'00000'1010111, // Opcode
         0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
         InstType::Vector,
         OperandType::VecReg, OperandMode::Write, rdMask,
@@ -2050,7 +2050,16 @@ InstTable::setupInstVec()
       },
 
       { "vrgather.vi", InstId::vrgather_vi,
-        0b0011100'0'00000'00000'011'00000'1010111, // Opcode
+        0b001100'0'00000'00000'011'00000'1010111, // Opcode
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vrgatherei16.vv", InstId::vrgather_vv,
+        0b001110'0'00000'00000'000'00000'1010111, // Opcode
         0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
         InstType::Vector,
         OperandType::VecReg, OperandMode::Write, rdMask,

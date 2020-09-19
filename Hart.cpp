@@ -5411,7 +5411,8 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vxor_vi,
      &&vrgather_vv,
      &&vrgather_vx,
-     &&vrgather_vi
+     &&vrgather_vi,
+     &&vrgatherei16_vv
     };
 
   const InstEntry* entry = di->instEntry();
@@ -6663,6 +6664,10 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vrgather_vi:
   execVrgather_vi(di);
+  return;
+
+ vrgatherei16_vv:
+  execVrgatherei16_vv(di);
   return;
 }
 
@@ -8668,7 +8673,7 @@ inline
 bool
 Hart<URV>::checkRoundingModeSp(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return false;
@@ -8692,7 +8697,7 @@ inline
 bool
 Hart<URV>::checkRoundingModeDp(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return false;
@@ -8715,7 +8720,7 @@ template <typename URV>
 void
 Hart<URV>::execFlw(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -8776,7 +8781,7 @@ template <typename URV>
 void
 Hart<URV>::execFsw(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9065,7 +9070,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnj_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9084,7 +9089,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnjn_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9104,7 +9109,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnjx_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9162,7 +9167,7 @@ template <typename URV>
 void
 Hart<URV>::execFmin_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9197,7 +9202,7 @@ template <typename URV>
 void
 Hart<URV>::execFmax_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9350,7 +9355,7 @@ template <typename URV>
 void
 Hart<URV>::execFmv_x_w(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9370,7 +9375,7 @@ template <typename URV>
 void
 Hart<URV>::execFeq_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9397,7 +9402,7 @@ template <typename URV>
 void
 Hart<URV>::execFlt_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9421,7 +9426,7 @@ template <typename URV>
 void
 Hart<URV>::execFle_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9462,7 +9467,7 @@ template <typename URV>
 void
 Hart<URV>::execFclass_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9555,7 +9560,7 @@ template <typename URV>
 void
 Hart<URV>::execFmv_w_x(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9769,7 +9774,7 @@ template <typename URV>
 void
 Hart<URV>::execFld(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -9838,7 +9843,7 @@ template <typename URV>
 void
 Hart<URV>::execFsd(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10067,7 +10072,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnj_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10086,7 +10091,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnjn_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10106,7 +10111,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnjx_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10132,7 +10137,7 @@ template <typename URV>
 void
 Hart<URV>::execFmin_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10167,7 +10172,7 @@ template <typename URV>
 void
 Hart<URV>::execFmax_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10265,7 +10270,7 @@ template <typename URV>
 void
 Hart<URV>::execFle_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10289,7 +10294,7 @@ template <typename URV>
 void
 Hart<URV>::execFlt_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10313,7 +10318,7 @@ template <typename URV>
 void
 Hart<URV>::execFeq_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10473,7 +10478,7 @@ template <typename URV>
 void
 Hart<URV>::execFclass_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10728,7 +10733,7 @@ template <typename URV>
 void
 Hart<URV>::execFmv_d_x(const DecodedInst* di)
 {
-  if (not isRv64() or not isRvd() or not isFpEnabled())
+  if (not isRv64() or not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10764,7 +10769,7 @@ template <>
 void
 Hart<uint64_t>::execFmv_x_d(const DecodedInst* di)
 {
-  if (not isRv64() or not isRvd() or not isFpEnabled())
+  if (not isRv64() or not isDpLegal())
     {
       illegalInst(di);
       return;

@@ -386,6 +386,8 @@ namespace WdRiscv
      vrgather_vx,
      vrgather_vi,
 
-     maxId = vrgather_vi
+     vrgatherei16_vv,
+
+     maxId = vrgatherei16_vv
     };
 }

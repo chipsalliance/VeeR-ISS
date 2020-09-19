@@ -443,6 +443,18 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       return instTable_.getEntry(InstId::illegal);  
     }
 
+  if (f6 == VecF6Code::Vrgatherei16)
+    {
+      if (f3 == VecF3Code::VV)
+        {
+          op0 = rform.bits.rd;
+          op1 = rform.bits.rs2; // operand order reversed
+          op2 = rform.bits.rs1;
+          return instTable_.getEntry(InstId::vrgatherei16_vv);
+        }
+      return instTable_.getEntry(InstId::illegal);
+    }
+
   return instTable_.getEntry(InstId::illegal);  
 }
 

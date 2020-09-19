@@ -1181,6 +1181,17 @@ namespace WdRiscv
     bool isFpEnabled() const
     { return mstatusFs_ != FpFs::Off; }
 
+    // Return truee if it is legal to execute an FP instruction: F extension must
+    // be enabled and FS feild of MSTATUS must not be OFF.
+    bool isFpLegal() const
+    { return isRvf() and isFpEnabled(); }
+
+    // Return trie if it is legal to execute a double precision
+    // floating point instruction: D extension must be enabled and FS
+    // feild of MSTATUS must not be OFF.
+    bool isDpLegal() const
+    { return isRvd() and isFpEnabled(); }
+
     // Mark FS field of mstatus as dirty.
     void markFsDirty();
 
@@ -1190,6 +1201,11 @@ namespace WdRiscv
 
     // Mark VS field of mstatus as dirty.
     void markVsDirty();
+
+    // Return truee if it is legal to execute a vector instruction: V extension must
+    // be enabled and VS feild of MSTATUS must not be OFF.
+    bool isVecLegal() const
+    { return isRvv() and isVecEnabled(); }
 
     // Update cached values of mstatus.mpp and mstatus.mprv and
     // mstatus.fs ...  This is called when mstatus is written/poked.
@@ -2072,6 +2088,11 @@ namespace WdRiscv
     bool vrgather_vi(unsigned vd, unsigned vs1, uint32_t imm, unsigned group,
                      unsigned start, unsigned elems);
     void execVrgather_vi(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vrgatherei16_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                         unsigned start, unsigned elems);
+    void execVrgatherei16_vv(const DecodedInst*);
 
   private:
 

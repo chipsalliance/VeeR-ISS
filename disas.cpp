@@ -1881,6 +1881,11 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
           << '\n';
       break;
 
+    case InstId::vrgatherei16_vv:
+      out << "vrgatherei16.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
+          << '\n';
+      break;
+
     default:
       out << "illegal";
     }
