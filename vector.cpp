@@ -2777,12 +2777,30 @@ Hart<URV>::execVcompress_vm(const DecodedInst* di)
 
 
 template <typename URV>
-template<typename UINT_ELEM_TYPE>
+template<typename INT_ELEM_TYPE>
 bool
 Hart<URV>::vredsum_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                       unsigned start, unsigned elems)
 {
-  return true;
+  unsigned errors = 0;
+
+  INT_ELEM_TYPE e2 = 0;
+  if (vecRegs_.read(vs2, 0, 1, e2))
+    return false;
+  
+  INT_ELEM_TYPE e1 = 0, result = e2;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    if (vecRegs_.read(vs1, ix, group, e1))
+      result += e1;
+    else
+      errors++;
+
+  if (errors == 0)
+    if (not vecRegs_.write(vd, 0, group, result))
+      errors++;
+
+  return errors == 0;
 }
 
 
@@ -2796,7 +2814,59 @@ Hart<URV>::execVredsum_vs(const DecodedInst* di)
       return;
     }
 
-  std::cerr << "vredsum.vs: not yet implemented\n";
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned group = vecRegs_.groupMultiplier();
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vredsum_vs<int8_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vredsum_vs<int16_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vredsum_vs<int32_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vredsum_vs<int64_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vredsum_vs<Int128>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vredsum_vs<Int256>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vredsum_vs<Int512>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vredsum_vs<Int1024>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+    }
 }
 
 
@@ -2806,7 +2876,25 @@ bool
 Hart<URV>::vredand_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                       unsigned start, unsigned elems)
 {
-  return false;
+  unsigned errors = 0;
+
+  UINT_ELEM_TYPE e2 = 0;
+  if (vecRegs_.read(vs2, 0, 1, e2))
+    return false;
+  
+  UINT_ELEM_TYPE e1 = 0, result = e2;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    if (vecRegs_.read(vs1, ix, group, e1))
+      result = result & e1;
+    else
+      errors++;
+
+  if (errors == 0)
+    if (not vecRegs_.write(vd, 0, group, result))
+      errors++;
+
+  return errors == 0;
 }
 
 
@@ -2820,7 +2908,59 @@ Hart<URV>::execVredand_vs(const DecodedInst* di)
       return;
     }
 
-  std::cerr << "vredand.vs: not yet implemented\n";
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned group = vecRegs_.groupMultiplier();
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vredand_vs<uint8_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vredand_vs<uint16_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vredand_vs<uint32_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vredand_vs<uint64_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vredand_vs<Uint128>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vredand_vs<Uint256>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vredand_vs<Uint512>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vredand_vs<Uint1024>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+    }
 }
 
 
@@ -2830,7 +2970,25 @@ bool
 Hart<URV>::vredor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                      unsigned start, unsigned elems)
 {
-  return false;
+  unsigned errors = 0;
+
+  UINT_ELEM_TYPE e2 = 0;
+  if (vecRegs_.read(vs2, 0, 1, e2))
+    return false;
+  
+  UINT_ELEM_TYPE e1 = 0, result = e2;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    if (vecRegs_.read(vs1, ix, group, e1))
+      result = result | e1;
+    else
+      errors++;
+
+  if (errors == 0)
+    if (not vecRegs_.write(vd, 0, group, result))
+      errors++;
+
+  return errors == 0;
 }
 
 
@@ -2844,7 +3002,59 @@ Hart<URV>::execVredor_vs(const DecodedInst* di)
       return;
     }
 
-  std::cerr << "vredor.vs: not yet implemented\n";
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned group = vecRegs_.groupMultiplier();
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vredor_vs<uint8_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vredor_vs<uint16_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vredor_vs<uint32_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vredor_vs<uint64_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vredor_vs<Uint128>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vredor_vs<Uint256>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vredor_vs<Uint512>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vredor_vs<Uint1024>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+    }
 }
 
 
@@ -2854,7 +3064,25 @@ bool
 Hart<URV>::vredxor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                       unsigned start, unsigned elems)
 {
-  return false;
+  unsigned errors = 0;
+
+  UINT_ELEM_TYPE e2 = 0;
+  if (vecRegs_.read(vs2, 0, 1, e2))
+    return false;
+  
+  UINT_ELEM_TYPE e1 = 0, result = e2;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    if (vecRegs_.read(vs1, ix, group, e1))
+      result = result ^ e1;
+    else
+      errors++;
+
+  if (errors == 0)
+    if (not vecRegs_.write(vd, 0, group, result))
+      errors++;
+
+  return errors == 0;
 }
 
 
@@ -2868,17 +3096,88 @@ Hart<URV>::execVredxor_vs(const DecodedInst* di)
       return;
     }
 
-  std::cerr << "vredxor.vs: not yet implemented\n";
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned group = vecRegs_.groupMultiplier();
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vredxor_vs<uint8_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vredxor_vs<uint16_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vredxor_vs<uint32_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vredxor_vs<uint64_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vredxor_vs<Uint128>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vredxor_vs<Uint256>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vredxor_vs<Uint512>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vredxor_vs<Uint1024>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+    }
 }
 
 
 template <typename URV>
 template<typename UINT_ELEM_TYPE>
 bool
-Hart<URV>::vredxminu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                        unsigned start, unsigned elems)
+Hart<URV>::vredminu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                       unsigned start, unsigned elems)
 {
-  return false;
+  unsigned errors = 0;
+
+  UINT_ELEM_TYPE e2 = 0;
+  if (vecRegs_.read(vs2, 0, 1, e2))
+    return false;
+  
+  UINT_ELEM_TYPE e1 = 0, result = e2;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    if (vecRegs_.read(vs1, ix, group, e1))
+      result = result < e1 ? result : e1;
+    else
+      errors++;
+
+  if (errors == 0)
+    if (not vecRegs_.write(vd, 0, group, result))
+      errors++;
+
+  return errors == 0;
+
 }
 
 
@@ -2892,17 +3191,87 @@ Hart<URV>::execVredminu_vs(const DecodedInst* di)
       return;
     }
 
-  std::cerr << "vredminu.vs: not yet implemented\n";
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned group = vecRegs_.groupMultiplier();
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vredminu_vs<uint8_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vredminu_vs<uint16_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vredminu_vs<uint32_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vredminu_vs<uint64_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vredminu_vs<Uint128>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vredminu_vs<Uint256>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vredminu_vs<Uint512>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vredminu_vs<Uint1024>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+    }
 }
 
 
 template <typename URV>
-template<typename UINT_ELEM_TYPE>
+template<typename INT_ELEM_TYPE>
 bool
-Hart<URV>::vredxmin_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                       unsigned start, unsigned elems)
+Hart<URV>::vredmin_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                      unsigned start, unsigned elems)
 {
-  return false;
+  unsigned errors = 0;
+
+  INT_ELEM_TYPE e2 = 0;
+  if (vecRegs_.read(vs2, 0, 1, e2))
+    return false;
+  
+  INT_ELEM_TYPE e1 = 0, result = e2;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    if (vecRegs_.read(vs1, ix, group, e1))
+      result = result < e1 ? result : e1;
+    else
+      errors++;
+
+  if (errors == 0)
+    if (not vecRegs_.write(vd, 0, group, result))
+      errors++;
+
+  return errors == 0;
 }
 
 
@@ -2916,17 +3285,87 @@ Hart<URV>::execVredmin_vs(const DecodedInst* di)
       return;
     }
 
-  std::cerr << "vredmin.vs: not yet implemented\n";
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned group = vecRegs_.groupMultiplier();
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vredmin_vs<int8_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vredmin_vs<int16_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vredmin_vs<int32_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vredmin_vs<int64_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vredmin_vs<Int128>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vredmin_vs<Int256>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vredmin_vs<Int512>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vredmin_vs<Int1024>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+    }
 }
 
 
 template <typename URV>
 template<typename UINT_ELEM_TYPE>
 bool
-Hart<URV>::vredxmaxu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                        unsigned start, unsigned elems)
+Hart<URV>::vredmaxu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                       unsigned start, unsigned elems)
 {
-  return false;
+  unsigned errors = 0;
+
+  UINT_ELEM_TYPE e2 = 0;
+  if (vecRegs_.read(vs2, 0, 1, e2))
+    return false;
+  
+  UINT_ELEM_TYPE e1 = 0, result = e2;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    if (vecRegs_.read(vs1, ix, group, e1))
+      result = result > e1 ? result : e1;
+    else
+      errors++;
+
+  if (errors == 0)
+    if (not vecRegs_.write(vd, 0, group, result))
+      errors++;
+
+  return errors == 0;
 }
 
 
@@ -2940,17 +3379,87 @@ Hart<URV>::execVredmaxu_vs(const DecodedInst* di)
       return;
     }
 
-  std::cerr << "vredmaxu.vs: not yet implemented\n";
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned group = vecRegs_.groupMultiplier();
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vredmaxu_vs<uint8_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vredmaxu_vs<uint16_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vredmaxu_vs<uint32_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vredmaxu_vs<uint64_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vredmaxu_vs<Uint128>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vredmaxu_vs<Uint256>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vredmaxu_vs<Uint512>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vredmaxu_vs<Uint1024>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+    }
 }
 
 
 template <typename URV>
-template<typename UINT_ELEM_TYPE>
+template<typename INT_ELEM_TYPE>
 bool
-Hart<URV>::vredxmax_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                       unsigned start, unsigned elems)
+Hart<URV>::vredmax_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                      unsigned start, unsigned elems)
 {
-  return false;
+  unsigned errors = 0;
+
+  INT_ELEM_TYPE e2 = 0;
+  if (vecRegs_.read(vs2, 0, 1, e2))
+    return false;
+  
+  INT_ELEM_TYPE e1 = 0, result = e2;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    if (vecRegs_.read(vs1, ix, group, e1))
+      result = result > e1 ? result : e1;
+    else
+      errors++;
+
+  if (errors == 0)
+    if (not vecRegs_.write(vd, 0, group, result))
+      errors++;
+
+  return errors == 0;
 }
 
 
@@ -2964,7 +3473,59 @@ Hart<URV>::execVredmax_vs(const DecodedInst* di)
       return;
     }
 
-  std::cerr << "vredmax.vs: not yet implemented\n";
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned group = vecRegs_.groupMultiplier();
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vredmax_vs<int8_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vredmax_vs<int16_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vredmax_vs<int32_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vredmax_vs<int64_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vredmax_vs<Int128>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vredmax_vs<Int256>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vredmax_vs<Int512>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vredmax_vs<Int1024>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+    }
 }
 
 

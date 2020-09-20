@@ -201,7 +201,7 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       if (f6 == 10)   return instTable_.getEntry(InstId::vor_vv);
       if (f6 == 11)   return instTable_.getEntry(InstId::vxor_vv);
       if (f6 == 12)   return instTable_.getEntry(InstId::vrgather_vv);
-      if (f6 == 16)   return instTable_.getEntry(InstId::vrgatherei16_vv);
+      if (f6 == 14)   return instTable_.getEntry(InstId::vrgatherei16_vv);
       return instTable_.getEntry(InstId::illegal);  
     }
 
