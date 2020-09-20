@@ -171,6 +171,7 @@ Hart<URV>::decodeFp(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 }
 
 
+// Least sig 7 bits already determined to be: 1010111
 template <typename URV>
 const InstEntry&
 Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
@@ -179,280 +180,83 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
   if (not isRvv())
     return instTable_.getEntry(InstId::illegal);  
 
-  enum class VecF6Code : unsigned
-  {
-   Vadd = 0, Vsub = 2, Vrsub = 3 , Vminu = 4, Vmin = 5, Vmaxu = 6, Vmax = 7,
-   Vand = 9, Vor = 10, Vxor = 11, Vrgather = 12, Vrgatherei16 = 14, Vcompress = 0x17
-  };
-
-  enum class VecF3Code : unsigned { VV = 0, VI = 3, VX = 4 };
-
   RFormInst rform(inst);
-
-  VecF6Code f6 = VecF6Code(rform.top6());
-  VecF3Code f3 = VecF3Code(rform.bits.funct3);
+  unsigned f3 = rform.bits.funct3, f6 = rform.top6();
 
   op3 = 0;
 
-  if (f6 == VecF6Code::Vadd)
+  if (f3 == 0)
     {
-      if (f3 == VecF3Code::VV)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vadd_vv);
-        }
-      if (f3 == VecF3Code::VI)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          int32_t imm = (int32_t(rform.bits.rs1) << 27) >> 27;
-          op2 = imm;
-          return instTable_.getEntry(InstId::vadd_vi);
-        }
-      if (f3 == VecF3Code::VX)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vadd_vx);
-        }
+      op0 = rform.bits.rd;
+      op1 = rform.bits.rs2; // operand order reversed
+      op2 = rform.bits.rs1;
+
+      if (f6 == 0)    return instTable_.getEntry(InstId::vadd_vv);
+      if (f6 == 2)    return instTable_.getEntry(InstId::vsub_vv);
+      if (f6 == 4)    return instTable_.getEntry(InstId::vminu_vv);
+      if (f6 == 5)    return instTable_.getEntry(InstId::vmin_vv);
+      if (f6 == 6)    return instTable_.getEntry(InstId::vmaxu_vv);
+      if (f6 == 7)    return instTable_.getEntry(InstId::vmax_vv);
+      if (f6 == 9)    return instTable_.getEntry(InstId::vand_vv);
+      if (f6 == 10)   return instTable_.getEntry(InstId::vor_vv);
+      if (f6 == 11)   return instTable_.getEntry(InstId::vxor_vv);
+      if (f6 == 12)   return instTable_.getEntry(InstId::vrgather_vv);
+      if (f6 == 16)   return instTable_.getEntry(InstId::vrgatherei16_vv);
       return instTable_.getEntry(InstId::illegal);  
     }
 
-  if (f6 == VecF6Code::Vsub)
+  if (f3 == 2)
     {
-      if (f3 == VecF3Code::VV)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vsub_vv);
-        }
-      if (f3 == VecF3Code::VX)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vsub_vx);
-        }
+      op0 = rform.bits.rd;
+      op1 = rform.bits.rs2; // operand order reversed
+      op2 = rform.bits.rs1;
+
+      if (f6 == 0)    return instTable_.getEntry(InstId::vredsum_vs);
+      if (f6 == 1)    return instTable_.getEntry(InstId::vredand_vs);
+      if (f6 == 2)    return instTable_.getEntry(InstId::vredor_vs);
+      if (f6 == 3)    return instTable_.getEntry(InstId::vredxor_vs);
+      if (f6 == 4)    return instTable_.getEntry(InstId::vredminu_vs);
+      if (f6 == 5)    return instTable_.getEntry(InstId::vredmin_vs);
+      if (f6 == 6)    return instTable_.getEntry(InstId::vredmaxu_vs);
+      if (f6 == 7)    return instTable_.getEntry(InstId::vredmax_vs);
+      if (f6 == 0x17) return instTable_.getEntry(InstId::vcompress_vm);
       return instTable_.getEntry(InstId::illegal);  
     }
 
-  if (f6 == VecF6Code::Vrsub)
+  if (f3 == 3)
     {
-      if (f3 == VecF3Code::VI)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          int32_t imm = (int32_t(rform.bits.rs1) << 27) >> 27;
-          op2 = imm;
-          return instTable_.getEntry(InstId::vrsub_vi);
-        }
-      if (f3 == VecF3Code::VX)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vrsub_vx);
-        }
+      op0 = rform.bits.rd;
+      op1 = rform.bits.rs2; // operand order reversed
+      int32_t imm = (int32_t(rform.bits.rs1) << 27) >> 27;
+      op2 = imm;
+
+      if (f6 == 0)    return instTable_.getEntry(InstId::vadd_vi);
+      if (f6 == 3)    return instTable_.getEntry(InstId::vrsub_vi);
+      if (f6 == 9)    return instTable_.getEntry(InstId::vand_vi);
+      if (f6 == 10)   return instTable_.getEntry(InstId::vor_vi);
+      if (f6 == 11)   return instTable_.getEntry(InstId::vxor_vi);
+      if (f6 == 12)   return instTable_.getEntry(InstId::vrgather_vi);
       return instTable_.getEntry(InstId::illegal);  
     }
 
-  if (f6 == VecF6Code::Vminu)
+  if (f3 == 4)
     {
-      if (f3 == VecF3Code::VV)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vminu_vv);
-        }
-      if (f3 == VecF3Code::VX)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vminu_vx);
-        }
-      return instTable_.getEntry(InstId::illegal);  
-    }
+      op0 = rform.bits.rd;
+      op1 = rform.bits.rs2; // operand order reversed
+      op2 = rform.bits.rs1;
 
-  if (f6 == VecF6Code::Vmin)
-    {
-      if (f3 == VecF3Code::VV)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vmin_vv);
-        }
-      if (f3 == VecF3Code::VX)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vmin_vx);
-        }
+      if (f6 == 0)    return instTable_.getEntry(InstId::vadd_vx);
+      if (f6 == 2)    return instTable_.getEntry(InstId::vsub_vx);
+      if (f6 == 3)    return instTable_.getEntry(InstId::vrsub_vx);
+      if (f6 == 4)    return instTable_.getEntry(InstId::vminu_vx);
+      if (f6 == 5)    return instTable_.getEntry(InstId::vmin_vx);
+      if (f6 == 6)    return instTable_.getEntry(InstId::vmaxu_vx);
+      if (f6 == 7)    return instTable_.getEntry(InstId::vmax_vx);
+      if (f6 == 9)    return instTable_.getEntry(InstId::vand_vx);
+      if (f6 == 10)   return instTable_.getEntry(InstId::vor_vx);
+      if (f6 == 11)   return instTable_.getEntry(InstId::vxor_vx);
+      if (f6 == 12)   return instTable_.getEntry(InstId::vrgather_vx);
       return instTable_.getEntry(InstId::illegal);  
-    }
-
-  if (f6 == VecF6Code::Vmaxu)
-    {
-      if (f3 == VecF3Code::VV)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vmaxu_vv);
-        }
-      if (f3 == VecF3Code::VX)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vmaxu_vx);
-        }
-      return instTable_.getEntry(InstId::illegal);  
-    }
-
-  if (f6 == VecF6Code::Vmax)
-    {
-      if (f3 == VecF3Code::VV)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vmax_vv);
-        }
-      if (f3 == VecF3Code::VX)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vmax_vx);
-        }
-      return instTable_.getEntry(InstId::illegal);  
-    }
-
-  if (f6 == VecF6Code::Vand)
-    {
-      if (f3 == VecF3Code::VV)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vand_vv);
-        }
-      if (f3 == VecF3Code::VI)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          int32_t imm = (int32_t(rform.bits.rs1) << 27) >> 27;
-          op2 = imm;
-          return instTable_.getEntry(InstId::vand_vi);
-        }
-      if (f3 == VecF3Code::VX)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vand_vx);
-        }
-      return instTable_.getEntry(InstId::illegal);  
-    }
-
-  if (f6 == VecF6Code::Vor)
-    {
-      if (f3 == VecF3Code::VV)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vor_vv);
-        }
-      if (f3 == VecF3Code::VI)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          int32_t imm = (int32_t(rform.bits.rs1) << 27) >> 27;
-          op2 = imm;
-          return instTable_.getEntry(InstId::vor_vi);
-        }
-      if (f3 == VecF3Code::VX)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vor_vx);
-        }
-      return instTable_.getEntry(InstId::illegal);  
-    }
-
-  if (f6 == VecF6Code::Vxor)
-    {
-      if (f3 == VecF3Code::VV)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vxor_vv);
-        }
-      if (f3 == VecF3Code::VI)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          int32_t imm = (int32_t(rform.bits.rs1) << 27) >> 27;
-          op2 = imm;
-          return instTable_.getEntry(InstId::vxor_vi);
-        }
-      if (f3 == VecF3Code::VX)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vxor_vx);
-        }
-      return instTable_.getEntry(InstId::illegal);  
-    }
-
-  if (f6 == VecF6Code::Vrgather)
-    {
-      if (f3 == VecF3Code::VV)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vrgather_vv);
-        }
-      if (f3 == VecF3Code::VI)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1; // For vrgather immediate is unsigned.
-          return instTable_.getEntry(InstId::vrgather_vi);
-        }
-      if (f3 == VecF3Code::VX)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vrgather_vx);
-        }
-      return instTable_.getEntry(InstId::illegal);  
-    }
-
-  if (f6 == VecF6Code::Vrgatherei16)
-    {
-      if (f3 == VecF3Code::VV)
-        {
-          op0 = rform.bits.rd;
-          op1 = rform.bits.rs2; // operand order reversed
-          op2 = rform.bits.rs1;
-          return instTable_.getEntry(InstId::vrgatherei16_vv);
-        }
-      return instTable_.getEntry(InstId::illegal);
     }
 
   return instTable_.getEntry(InstId::illegal);  

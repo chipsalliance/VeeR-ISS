@@ -5412,7 +5412,16 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vrgather_vv,
      &&vrgather_vx,
      &&vrgather_vi,
-     &&vrgatherei16_vv
+     &&vrgatherei16_vv,
+     &&vcompress_vm,
+     &&vredsum_vs,
+     &&vredand_vs,
+     &&vredor_vs,
+     &&vredxor_vs,
+     &&vredminu_vs,
+     &&vredmin_vs,
+     &&vredmaxu_vs,
+     &&vredmax_vs
     };
 
   const InstEntry* entry = di->instEntry();
@@ -6668,6 +6677,42 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vrgatherei16_vv:
   execVrgatherei16_vv(di);
+  return;
+
+ vcompress_vm:
+  execVcompress_vm(di);
+  return;
+
+ vredsum_vs:
+  execVredsum_vs(di);
+  return;
+
+ vredand_vs:
+  execVredand_vs(di);
+  return;
+
+ vredor_vs:
+  execVredor_vs(di);
+  return;
+
+ vredxor_vs:
+  execVredxor_vs(di);
+  return;
+
+ vredminu_vs:
+  execVredminu_vs(di);
+  return;
+
+ vredmin_vs:
+  execVredmin_vs(di);
+  return;
+
+ vredmaxu_vs:
+  execVredmaxu_vs(di);
+  return;
+
+ vredmax_vs:
+  execVredmax_vs(di);
   return;
 }
 

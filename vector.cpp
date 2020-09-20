@@ -2666,5 +2666,307 @@ Hart<URV>::execVrgatherei16_vv(const DecodedInst* di)
 }
 
 
+template <typename URV>
+template <typename UINT_ELEM_TYPE>
+bool
+Hart<URV>::vcompress_vm(unsigned vd, unsigned vs1, unsigned vs2,
+                        unsigned group, unsigned start, unsigned elems)
+{
+  unsigned errors = 0;
+
+  UINT_ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+
+  unsigned destIx = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (vecRegs_.read(vs2, ix, group, e2))
+        {
+          if (e2 & 1)
+            {
+              if (vecRegs_.read(vs1, ix, group, e1))
+                {
+                  dest = e1;
+                  if (not vecRegs_.write(vd, destIx++, group, dest))
+                    errors++;
+                }
+            }
+        }
+      else
+        errors++;
+    }
+
+  return errors == 0;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVcompress_vm(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+#if 0
+  // FIX: Implement vecMask
+  if (di->vecMask())   // masked version reserved
+    {
+      illegalInst(di);
+      return;
+    }
+#endif
+
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned group = vecRegs_.groupMultiplier();
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vcompress_vm<uint8_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vcompress_vm<uint16_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vcompress_vm<uint32_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vcompress_vm<uint64_t>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vcompress_vm<Uint128>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vcompress_vm<Uint256>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vcompress_vm<Uint512>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vcompress_vm<Uint1024>(vd, vs1, vs2, group, start, elems))
+        errors++;
+      break;
+    }
+}
+
+
+
+template <typename URV>
+template<typename UINT_ELEM_TYPE>
+bool
+Hart<URV>::vredsum_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                      unsigned start, unsigned elems)
+{
+  return true;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVredsum_vs(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  std::cerr << "vredsum.vs: not yet implemented\n";
+}
+
+
+template <typename URV>
+template<typename UINT_ELEM_TYPE>
+bool
+Hart<URV>::vredand_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                      unsigned start, unsigned elems)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVredand_vs(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  std::cerr << "vredand.vs: not yet implemented\n";
+}
+
+
+template <typename URV>
+template<typename UINT_ELEM_TYPE>
+bool
+Hart<URV>::vredor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                     unsigned start, unsigned elems)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVredor_vs(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  std::cerr << "vredor.vs: not yet implemented\n";
+}
+
+
+template <typename URV>
+template<typename UINT_ELEM_TYPE>
+bool
+Hart<URV>::vredxor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                      unsigned start, unsigned elems)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVredxor_vs(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  std::cerr << "vredxor.vs: not yet implemented\n";
+}
+
+
+template <typename URV>
+template<typename UINT_ELEM_TYPE>
+bool
+Hart<URV>::vredxminu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                        unsigned start, unsigned elems)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVredminu_vs(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  std::cerr << "vredminu.vs: not yet implemented\n";
+}
+
+
+template <typename URV>
+template<typename UINT_ELEM_TYPE>
+bool
+Hart<URV>::vredxmin_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                       unsigned start, unsigned elems)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVredmin_vs(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  std::cerr << "vredmin.vs: not yet implemented\n";
+}
+
+
+template <typename URV>
+template<typename UINT_ELEM_TYPE>
+bool
+Hart<URV>::vredxmaxu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                        unsigned start, unsigned elems)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVredmaxu_vs(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  std::cerr << "vredmaxu.vs: not yet implemented\n";
+}
+
+
+template <typename URV>
+template<typename UINT_ELEM_TYPE>
+bool
+Hart<URV>::vredxmax_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                       unsigned start, unsigned elems)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVredmax_vs(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  std::cerr << "vredmax.vs: not yet implemented\n";
+}
+
+
 template class WdRiscv::Hart<uint32_t>;
 template class WdRiscv::Hart<uint64_t>;

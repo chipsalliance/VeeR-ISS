@@ -1747,143 +1747,151 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::vadd_vv:
-      out << "vadd.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
-          << '\n';
+      out << "vadd.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2() << '\n';
       break;
 
     case InstId::vadd_vx:
-      out << "vadd.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
-          << '\n';
+      out << "vadd.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
       break;
 
     case InstId::vadd_vi:
-      out << "vadd.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>()
-          << '\n';
+      out << "vadd.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>() << '\n';
       break;
 
     case InstId::vsub_vv:
-      out << "vsub.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
-          << '\n';
+      out << "vsub.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2() << '\n';
       break;
 
     case InstId::vsub_vx:
-      out << "vsub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
-          << '\n';
+      out << "vsub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
       break;
 
     case InstId::vrsub_vx:
-      out << "vrsub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
-          << '\n';
+      out << "vrsub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
       break;
 
     case InstId::vrsub_vi:
-      out << "vrsub.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>()
-          << '\n';
+      out << "vrsub.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>() << '\n';
       break;
 
     case InstId::vminu_vv:
-      out << "vminu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
-          << '\n';
+      out << "vminu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2() << '\n';
       break;
 
     case InstId::vminu_vx:
-      out << "vminu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
-          << '\n';
+      out << "vminu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
       break;
 
     case InstId::vmin_vv:
-      out << "vmin.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
-          << '\n';
+      out << "vmin.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2() << '\n';
       break;
 
     case InstId::vmin_vx:
-      out << "vmin.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
-          << '\n';
+      out << "vmin.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
       break;
 
     case InstId::vmaxu_vv:
-      out << "vmaxu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
-          << '\n';
+      out << "vmaxu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2() << '\n';
       break;
 
     case InstId::vmaxu_vx:
-      out << "vmaxu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
-          << '\n';
+      out << "vmaxu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
       break;
 
     case InstId::vmax_vv:
-      out << "vmax.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
-          << '\n';
+      out << "vmax.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2() << '\n';
       break;
 
     case InstId::vmax_vx:
-      out << "vmax.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
-          << '\n';
+      out << "vmax.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
       break;
 
     case InstId::vand_vv:
-      out << "vand.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
-          << '\n';
+      out << "vand.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2() << '\n';
       break;
 
     case InstId::vand_vx:
-      out << "vand.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
-          << '\n';
+      out << "vand.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
       break;
 
     case InstId::vand_vi:
-      out << "vand.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>()
-          << '\n';
+      out << "vand.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>() << '\n';
       break;
 
     case InstId::vor_vv:
-      out << "vor.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
-          << '\n';
+      out << "vor.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2() << '\n';
       break;
 
     case InstId::vor_vx:
-      out << "vor.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
-          << '\n';
+      out << "vor.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
       break;
 
     case InstId::vor_vi:
-      out << "vor.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>()
-          << '\n';
+      out << "vor.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>() << '\n';
       break;
 
     case InstId::vxor_vv:
-      out << "vxor.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
-          << '\n';
+      out << "vxor.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2() << '\n';
       break;
 
     case InstId::vxor_vx:
-      out << "vxor.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
-          << '\n';
+      out << "vxor.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
       break;
 
     case InstId::vxor_vi:
-      out << "vxor.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>()
-          << '\n';
+      out << "vxor.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>() << '\n';
       break;
 
     case InstId::vrgather_vv:
-      out << "vrgather.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
-          << '\n';
+      out << "vrgather.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2() << '\n';
       break;
 
     case InstId::vrgather_vx:
-      out << "vrgather.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2()
-          << '\n';
+      out << "vrgather.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
       break;
 
     case InstId::vrgather_vi:
-      out << "vrgather.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>()
-          << '\n';
+      out << "vrgather.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>() << '\n';
       break;
 
     case InstId::vrgatherei16_vv:
-      out << "vrgatherei16.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2()
-          << '\n';
+      out << "vrgatherei16.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2() << '\n';
+      break;
+
+    case InstId::vcompress_vm:
+      out << "vcompress.vm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2() << '\n';
+      break;
+
+    case InstId::vredsum_vs:
+      out << "vredsum.vs v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
+      break;
+
+    case InstId::vredand_vs:
+      out << "vredand.vs v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
+      break;
+
+    case InstId::vredor_vs:
+      out << "vredor.vs v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
+      break;
+
+    case InstId::vredxor_vs:
+      out << "vredxor.vs v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
+      break;
+
+    case InstId::vredminu_vs:
+      out << "vredminu.vs v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
+      break;
+
+    case InstId::vredmin_vs:
+      out << "vredmin.vs v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
+      break;
+
+    case InstId::vredmaxu_vs:
+      out << "vredmaxu.vs v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
+      break;
+
+    case InstId::vredmax_vs:
+      out << "vredmax.vs v" << di.op0() << ", v" << di.op1() << ", x" << di.op2() << '\n';
       break;
 
     default:

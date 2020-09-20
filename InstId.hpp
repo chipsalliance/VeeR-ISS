@@ -385,9 +385,19 @@ namespace WdRiscv
      vrgather_vv,
      vrgather_vx,
      vrgather_vi,
-
      vrgatherei16_vv,
 
-     maxId = vrgatherei16_vv
+     vcompress_vm,
+
+     vredsum_vs,
+     vredand_vs,
+     vredor_vs,
+     vredxor_vs,
+     vredminu_vs,
+     vredmin_vs,
+     vredmaxu_vs,
+     vredmax_vs,
+
+     maxId = vredmax_vs
     };
 }

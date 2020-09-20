@@ -2094,6 +2094,51 @@ namespace WdRiscv
                          unsigned start, unsigned elems);
     void execVrgatherei16_vv(const DecodedInst*);
 
+    template<typename UINT_ELEM_TYPE>
+    bool vcompress_vm(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                      unsigned start, unsigned elems);
+    void execVcompress_vm(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vredsum_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                    unsigned start, unsigned elems);
+    void execVredsum_vs(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vredand_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                    unsigned start, unsigned elems);
+    void execVredand_vs(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vredor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                   unsigned start, unsigned elems);
+    void execVredor_vs(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vredxor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                    unsigned start, unsigned elems);
+    void execVredxor_vs(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vredxminu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                      unsigned start, unsigned elems);
+    void execVredminu_vs(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vredxmin_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                     unsigned start, unsigned elems);
+    void execVredmin_vs(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vredxmaxu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                      unsigned start, unsigned elems);
+    void execVredmaxu_vs(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vredxmax_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                     unsigned start, unsigned elems);
+    void execVredmax_vs(const DecodedInst*);
+
   private:
 
     // We model store buffer in order to undo store effects after an
