@@ -459,7 +459,14 @@ namespace WdRiscv
     /// This is done to restore value clobbered by performance counters
     /// counting out of order.
     void undoCountUp() const
-    { *valuePtr_ = nextValue_; }
+    {
+      if (*valuePtr_ != nextValue_)
+        {  // Counter counted after written by CSR instructuion
+          (*valuePtr_) = nextValue_;
+          if (sizeof(URV) == 4 and nextValue_ == 0xffffffff)
+            (*(valuePtr_ + 1))--;  // Overflow: decrement upper part of counter
+        }
+    }
 
     /// Associate given location with the value of this CSR. The
     /// previous value of the CSR is lost. If given location is null

@@ -3591,7 +3591,8 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
       for (auto& csr : csrs)
         {
           auto csrPtr = csRegs_.getImplementedCsr(csr);
-          csrPtr->undoCountUp();
+          if (csr >= CsrNumber::MHPMCOUNTER3 and csr <= CsrNumber::MHPMCOUNTER31)
+            csrPtr->undoCountUp();
 
           if (csr >= CsrNumber::MHPMEVENT3 and csr <= CsrNumber::MHPMEVENT31)
             if (not csRegs_.applyPerfEventAssign())
