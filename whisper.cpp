@@ -729,8 +729,9 @@ applyIsaString(const std::string& isaStr, Hart<URV>& hart)
 	case 'f':
 	case 'i':
 	case 'm':
-	case 'u':
 	case 's':
+	case 'u':
+        case 'v':
 	  isa |= URV(1) << (c -  'a');
 	  break;
 

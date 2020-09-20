@@ -354,7 +354,7 @@ Hart<URV>::processExtensions()
         enableUserMode(true);
 
       if (value & (URV(1) << ('v' - 'a')))  // User-mode option.
-        rvv_ = false; // true
+        rvv_ = true;
 
       for (auto ec : { 'b', 'g', 'h', 'j', 'k', 'l', 'n', 'o', 'p',
 	    'q', 'r', 't', 'v', 'w', 'x', 'y', 'z' } )
