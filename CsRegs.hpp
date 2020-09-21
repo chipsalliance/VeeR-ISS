@@ -29,7 +29,7 @@ namespace WdRiscv
 {
 
   /// Control and status register number.
-  enum class CsrNumber
+  enum class CsrNumber : uint32_t
     {
       // Machine mode registers.
 
@@ -455,19 +455,6 @@ namespace WdRiscv
     void definePrivilegeMode(PrivilegeMode mode)
     { initialMode_ = mode; privMode_ = mode; }
 
-    /// Restore CSR value to that written by a csrwr instruction before.
-    /// This is done to restore value clobbered by performance counters
-    /// counting out of order.
-    void undoCountUp() const
-    {
-      if (*valuePtr_ != nextValue_)
-        {  // Counter counted after written by CSR instructuion
-          (*valuePtr_) = nextValue_;
-          if (sizeof(URV) == 4 and nextValue_ == 0xffffffff)
-            (*(valuePtr_ + 1))--;  // Overflow: decrement upper part of counter
-        }
-    }
-
     /// Associate given location with the value of this CSR. The
     /// previous value of the CSR is lost. If given location is null
     /// then the default location defined in this object is restored.
@@ -824,6 +811,18 @@ namespace WdRiscv
     bool applyPerfEventAssign()
     {
       return mPerfRegs_.applyPerfEventAssign();
+    }
+
+    /// Restore counter value to that written by a csr instruction.
+    /// This is done when a perf counter is written by a csr and it
+    /// counts up.
+    void undoCountUp(CsrNumber csrn)
+    {
+      if (csrn >= CsrNumber::MHPMCOUNTER3 and csrn <= CsrNumber::MHPMCOUNTER31)
+        {
+          unsigned ix = unsigned(csrn) - unsigned(CsrNumber::MHPMCOUNTER3);
+          mPerfRegs_.counters_.at(ix)--;
+        }
     }
 
     /// Return true if there is one or more tripped trigger action set

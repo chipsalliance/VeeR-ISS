@@ -3588,13 +3588,21 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
       std::vector<CsrNumber> csrs;
       std::vector<unsigned> triggers;
       csRegs_.getLastWrittenRegs(csrs, triggers);
-      for (auto& csr : csrs)
+      for (auto& csrn : csrs)
         {
-          auto csrPtr = csRegs_.getImplementedCsr(csr);
-          if (csr >= CsrNumber::MHPMCOUNTER3 and csr <= CsrNumber::MHPMCOUNTER31)
-            csrPtr->undoCountUp();
+          typedef CsrNumber Csrn;
 
-          if (csr >= CsrNumber::MHPMEVENT3 and csr <= CsrNumber::MHPMEVENT31)
+          // Map high numbered perf counters to lower numbered counterparts
+          if (csrn >= Csrn::MHPMCOUNTER3H and csrn <= Csrn::MHPMCOUNTER31H)
+            {
+              uint32_t n = (uint32_t(csrn) - uint32_t(Csrn::MHPMCOUNTER3H) +
+                            uint32_t(Csrn::MHPMCOUNTER3));
+              csrn = Csrn(n);
+            }
+          if (csrn >= Csrn::MHPMCOUNTER3 and csrn <= Csrn::MHPMCOUNTER31)
+            csRegs_.undoCountUp(csrn);
+
+          if (csrn >= Csrn::MHPMEVENT3 and csrn <= Csrn::MHPMEVENT31)
             if (not csRegs_.applyPerfEventAssign())
               std::cerr << "Unexpected applyPerfAssign fail\n";
         }
