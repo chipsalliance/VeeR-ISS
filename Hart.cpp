@@ -3471,8 +3471,22 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
       id != InstId::c_ebreak)
     return;
 
+  // 1. Counter modified by csr instruction should be modifed
+  //    after the counter counts. This is relevant for rv32. So we
+  //    revert such regs here.
+  std::vector<CsrNumber> csrs;
+  std::vector<unsigned> triggers;
+  csRegs_.getLastWrittenRegs(csrs, triggers);
+  std::vector<URV> values;
+  for (auto& csrn : csrs)
+    {
+      auto csr = csRegs_.getImplementedCsr(csrn);
+      values.push_back(csr->read());
+      csr->poke(csr->prevValue());
+    }
+
+  // 2. Let the counters count.
   PerfRegs& pregs = csRegs_.mPerfRegs_;
-  pregs.clearUpdatedMarks();  // Makr all perf countrs as not updated.
 
   pregs.updateCounters(EventNumber::InstCommited, prevPerfControl_,
                        lastPriv_);
@@ -3565,20 +3579,6 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
     }
   else if (info.isCsr() and not hasException_)
     {
-      // 1. Counter modified by csr instruction should be modifed
-      //    after the counter counts. This is relevant for rv32. So we
-      //    revert such regs here.
-      std::vector<CsrNumber> csrs;
-      std::vector<unsigned> triggers;
-      csRegs_.getLastWrittenRegs(csrs, triggers);
-      std::vector<URV> values;
-      for (auto& csrn : csrs)
-        {
-          auto csr = csRegs_.getImplementedCsr(csrn);
-          values.push_back(csr->read());
-          csr->poke(csr->prevValue());
-        }
-
       // 2. Let the counters count.
       if ((id == InstId::csrrw or id == InstId::csrrwi))
 	{
@@ -3599,14 +3599,8 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
                                  lastPriv_);
 	}
 
-      // 3. And rewrite the CSRs here.
-      for (size_t i = 0; i < csrs.size(); ++i)
+      for (auto csrn : csrs)
         {
-          auto csrn = csrs.at(i);
-          auto value = values.at(i);
-          auto csr = csRegs_.getImplementedCsr(csrn);
-          csr->poke(value);
-
           // This makes sure that counters stop counting after
           // corresponding event reg is written.
           if (csrn >= CsrNumber::MHPMEVENT3 and csrn <= CsrNumber::MHPMEVENT31)
@@ -3621,6 +3615,15 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
       if (lastBranchTaken_)
 	pregs.updateCounters(EventNumber::BranchTaken, prevPerfControl_,
                              lastPriv_);
+    }
+
+  // 3. And rewrite the CSRs here.
+  for (size_t i = 0; i < csrs.size(); ++i)
+    {
+      auto csrn = csrs.at(i);
+      auto value = values.at(i);
+      auto csr = csRegs_.getImplementedCsr(csrn);
+      csr->poke(value);
     }
 }
 

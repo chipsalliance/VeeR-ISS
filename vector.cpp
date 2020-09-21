@@ -3590,7 +3590,17 @@ Hart<URV>::execVmnand_mm(const DecodedInst* di)
   unsigned elems = vecRegs_.elemCount();
 
   if ((elems - start)*8 == vecRegs_.bytesPerRegister())
-    {
+    {  // operating on whole register
+      uint8_t* vs1Data = vecRegs_.getVecBytes(vs1);
+      uint8_t* vs2Data = vecRegs_.getVecBytes(vs2);
+      uint8_t* destData = vecRegs_.getVecBytes(vd);
+      if (vs1Data and vs2Data and destData)
+        {
+          for (unsigned i = 0; i < vecRegs_.bytesPerRegister(); ++i)
+            *destData++ = *vs1Data++ & *vs2Data++;
+        }
+      else
+        assert(0);
     }
 }
 
