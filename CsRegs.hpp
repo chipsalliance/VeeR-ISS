@@ -455,12 +455,6 @@ namespace WdRiscv
     void definePrivilegeMode(PrivilegeMode mode)
     { initialMode_ = mode; privMode_ = mode; }
 
-    /// Restore CSR value to that written by a csrwr instruction before.
-    /// This is done to restore value clobbered by performance counters
-    /// counting out of order.
-    void undoCountUp() const
-    { *valuePtr_ = nextValue_; }
-
     /// Associate given location with the value of this CSR. The
     /// previous value of the CSR is lost. If given location is null
     /// then the default location defined in this object is restored.
@@ -550,8 +544,6 @@ namespace WdRiscv
 
       for (auto func : postWrite_)
         func(*this, newVal);
-
-      nextValue_ = *valuePtr_;
     }
 
     /// Similar to the write method but using the poke mask instead of
@@ -568,8 +560,6 @@ namespace WdRiscv
 
       for (auto func : postPoke_)
         func(*this, newVal);
-
-      nextValue_ = *valuePtr_;
     }
 
     /// Return the value of this register before last sequence of
@@ -596,7 +586,6 @@ namespace WdRiscv
     PrivilegeMode initialMode_ = PrivilegeMode::Machine;
     PrivilegeMode privMode_ = PrivilegeMode::Machine;
     URV value_ = 0;
-    URV nextValue_ = 0;
     URV prev_ = 0;
     bool hasPrev_ = false;
 

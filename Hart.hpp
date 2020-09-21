@@ -2139,6 +2139,15 @@ namespace WdRiscv
                     unsigned start, unsigned elems);
     void execVredmax_vs(const DecodedInst*);
 
+    void execVmand_mm(const DecodedInst*);
+    void execVmnand_mm(const DecodedInst*);
+    void execVmandnot_mm(const DecodedInst*);
+    void execVmxor_mm(const DecodedInst*);
+    void execVmor_mm(const DecodedInst*);
+    void execVmnor_mm(const DecodedInst*);
+    void execVmornot_mm(const DecodedInst*);
+    void execVmxnor_mm(const DecodedInst*);
+
   private:
 
     // We model store buffer in order to undo store effects after an

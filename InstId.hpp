@@ -398,6 +398,15 @@ namespace WdRiscv
      vredmaxu_vs,
      vredmax_vs,
 
-     maxId = vredmax_vs
+     vmand_mm,
+     vmnand_mm,
+     vmandnot_mm,
+     vmxor_mm,
+     vmor_mm,
+     vmnor_mm,
+     vmornot_mm,
+     vmxnor_mm,
+
+     maxId = vmxnor_mm
     };
 }

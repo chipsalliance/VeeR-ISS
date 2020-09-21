@@ -220,6 +220,14 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       if (f6 == 6)    return instTable_.getEntry(InstId::vredmaxu_vs);
       if (f6 == 7)    return instTable_.getEntry(InstId::vredmax_vs);
       if (f6 == 0x17) return instTable_.getEntry(InstId::vcompress_vm);
+      if (f6 == 0x19) return instTable_.getEntry(InstId::vmand_mm);
+      if (f6 == 0x1d) return instTable_.getEntry(InstId::vmnand_mm);
+      if (f6 == 0x18) return instTable_.getEntry(InstId::vmandnot_mm);
+      if (f6 == 0x1b) return instTable_.getEntry(InstId::vmxor_mm);
+      if (f6 == 0x1a) return instTable_.getEntry(InstId::vmor_mm);
+      if (f6 == 0x1e) return instTable_.getEntry(InstId::vmnor_mm);
+      if (f6 == 0x1c) return instTable_.getEntry(InstId::vmornot_mm);
+      if (f6 == 0x39) return instTable_.getEntry(InstId::vmxnor_mm);
       return instTable_.getEntry(InstId::illegal);  
     }
 

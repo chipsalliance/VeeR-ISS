@@ -1922,6 +1922,38 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       out << "vredmax.vs v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
       break;
 
+    case InstId::vmand_mm:
+      out << "vmand.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vmnand_mm:
+      out << "vmnand.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vmandnot_mm:
+      out << "vmandnot.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vmxor_mm:
+      out << "vmxor.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vmor_mm:
+      out << "vmor.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vmnor_mm:
+      out << "vmnor.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vmornot_mm:
+      out << "vmornot.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vmxnor_mm:
+      out << "vmxnor.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
     default:
       out << "illegal";
     }

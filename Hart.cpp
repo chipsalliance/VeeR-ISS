@@ -3565,6 +3565,21 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
     }
   else if (info.isCsr() and not hasException_)
     {
+      // 1. Counter modified by csr instruction should be modifed
+      //    after the counter counts. This is relevant for rv32. So we
+      //    revert such regs here.
+      std::vector<CsrNumber> csrs;
+      std::vector<unsigned> triggers;
+      csRegs_.getLastWrittenRegs(csrs, triggers);
+      std::vector<URV> values;
+      for (auto& csrn : csrs)
+        {
+          auto csr = csRegs_.getImplementedCsr(csrn);
+          values.push_back(csr->read());
+          csr->poke(csr->prevValue());
+        }
+
+      // 2. Let the counters count.
       if ((id == InstId::csrrw or id == InstId::csrrwi))
 	{
 	  if (op0 == 0)
@@ -3584,44 +3599,18 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
                                  lastPriv_);
 	}
 
-      // Counter modified by csr instruction should not count up.
-      // Also, counter stops counting after corresponding event reg is
-      // written.
-      std::vector<CsrNumber> csrs;
-      std::vector<unsigned> triggers;
-      csRegs_.getLastWrittenRegs(csrs, triggers);
-      for (auto& csrn : csrs)
+      // 3. And rewrite the CSRs here.
+      for (size_t i = 0; i < csrs.size(); ++i)
         {
-          typedef CsrNumber Csrn;
+          auto csrn = csrs.at(i);
+          auto value = values.at(i);
+          auto csr = csRegs_.getImplementedCsr(csrn);
+          csr->poke(value);
 
-          bool isCounter = false;
-          CsrNumber lower = csrn; // Lower CSR of updated ounter.
-
-          if (csrn >= Csrn::MHPMCOUNTER3H and csrn <= Csrn::MHPMCOUNTER31H)
-            {
-              isCounter = true;
-              uint32_t n = (uint32_t(csrn) - uint32_t(Csrn::MHPMCOUNTER3H) +
-                            uint32_t(Csrn::MHPMCOUNTER3));
-              lower = Csrn(n);
-            }
-          if (csrn >= Csrn::MHPMCOUNTER3 and csrn <= Csrn::MHPMCOUNTER31)
-            isCounter = true;
-
-
-          if (isCounter)
-            {
-              unsigned ix = unsigned(lower) - unsigned(Csrn::MHPMCOUNTER3);
-              if (pregs.isUpdated(ix))
-                {
-                  auto csr = csRegs_.getImplementedCsr(csrn);
-                  if (csr)
-                    csr->undoCountUp();
-                }
-            }
-
-          if (csrn >= Csrn::MHPMEVENT3 and csrn <= Csrn::MHPMEVENT31)
-            if (not csRegs_.applyPerfEventAssign())
-              std::cerr << "Unexpected applyPerfAssign fail\n";
+          // This maks suer that counters stop counting after
+          // corresponding event reg is written.
+          if (not csRegs_.applyPerfEventAssign())
+            std::cerr << "Unexpected applyPerfAssign fail\n";
         }
     }
   else if (info.isBranch())
@@ -5447,7 +5436,15 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vredminu_vs,
      &&vredmin_vs,
      &&vredmaxu_vs,
-     &&vredmax_vs
+     &&vredmax_vs,
+     &&vmand_mm,
+     &&vmnand_mm,
+     &&vmandnot_mm,
+     &&vmxor_mm,
+     &&vmor_mm,
+     &&vmnor_mm,
+     &&vmornot_mm,
+     &&vmxnor_mm
     };
 
   const InstEntry* entry = di->instEntry();
@@ -6739,6 +6736,38 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vredmax_vs:
   execVredmax_vs(di);
+  return;
+
+ vmand_mm:
+  execVmand_mm(di);
+  return;
+
+ vmnand_mm:
+  execVmnand_mm(di);
+  return;
+
+ vmandnot_mm:
+  execVmandnot_mm(di);
+  return;
+
+ vmxor_mm:
+  execVmxor_mm(di);
+  return;
+
+ vmor_mm:
+  execVmor_mm(di);
+  return;
+
+ vmnor_mm:
+  execVmnor_mm(di);
+  return;
+
+ vmornot_mm:
+  execVmornot_mm(di);
+  return;
+
+ vmxnor_mm:
+  execVmxnor_mm(di);
   return;
 }
 

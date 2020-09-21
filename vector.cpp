@@ -3553,5 +3553,157 @@ Hart<URV>::execVredmax_vs(const DecodedInst* di)
 }
 
 
+template <typename URV>
+void
+Hart<URV>::execVmand_mm(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmnand_mm(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmandnot_mm(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmxor_mm(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmor_mm(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmnor_mm(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmornot_mm(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmxnor_mm(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned vs2 = di->op2();
+
+  unsigned start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+}
+
+
 template class WdRiscv::Hart<uint32_t>;
 template class WdRiscv::Hart<uint64_t>;
