@@ -3472,6 +3472,8 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
     return;
 
   PerfRegs& pregs = csRegs_.mPerfRegs_;
+  pregs.clearUpdatedMarks();  // Makr all perf countrs as not updated.
+
   pregs.updateCounters(EventNumber::InstCommited, prevPerfControl_,
                        lastPriv_);
 
@@ -3592,15 +3594,30 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
         {
           typedef CsrNumber Csrn;
 
-          // Map high numbered perf counters to lower numbered counterparts
+          bool isCounter = false;
+          CsrNumber lower = csrn; // Lower CSR of updated ounter.
+
           if (csrn >= Csrn::MHPMCOUNTER3H and csrn <= Csrn::MHPMCOUNTER31H)
             {
+              isCounter = true;
               uint32_t n = (uint32_t(csrn) - uint32_t(Csrn::MHPMCOUNTER3H) +
                             uint32_t(Csrn::MHPMCOUNTER3));
-              csrn = Csrn(n);
+              lower = Csrn(n);
             }
           if (csrn >= Csrn::MHPMCOUNTER3 and csrn <= Csrn::MHPMCOUNTER31)
-            csRegs_.undoCountUp(csrn);
+            isCounter = true;
+
+
+          if (isCounter)
+            {
+              unsigned ix = unsigned(lower) - unsigned(Csrn::MHPMCOUNTER3);
+              if (pregs.isUpdated(ix))
+                {
+                  auto csr = csRegs_.getImplementedCsr(csrn);
+                  if (csr)
+                    csr->undoCountUp();
+                }
+            }
 
           if (csrn >= Csrn::MHPMEVENT3 and csrn <= Csrn::MHPMEVENT31)
             if (not csRegs_.applyPerfEventAssign())
