@@ -1946,17 +1946,17 @@ namespace WdRiscv
 
     template<typename INT_ELEM_TYPE>
     bool vadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVadd_vv(const DecodedInst*);
 
     template<typename INT_ELEM_TYPE>
     bool vadd_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVadd_vx(const DecodedInst*);
 
     template<typename INT_ELEM_TYPE>
     bool vadd_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVadd_vi(const DecodedInst*);
 
 

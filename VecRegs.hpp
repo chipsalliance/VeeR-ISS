@@ -171,10 +171,26 @@ namespace WdRiscv
 
   protected:
 
+    /// Return true if element of given index is active with respect to the given
+    /// mask vector register. Element is active if the corresponding mask bit is 1.
+    bool isActive(unsigned maskReg, unsigned ix) const
+    {
+      if (maskReg >= regCount_)
+        return false;
+
+      unsigned byteIx = ix >> 3;
+      unsigned bitIx = ix & 7;  // bit in byte
+      if (byteIx >= bytesPerReg_)
+        return false;
+
+      const uint8_t* data = data_ + maskReg*bytesPerReg_;
+      return (data[byteIx] >> bitIx) & 1;
+    }
+
     /// It is convenient to contruct an empty regiter file (bytesPerReg = 0)
     /// and configure it later. Old configuration is lost. Register of
     /// newly configured file are initlaized to zero.
-    void config(unsigned bytesPerRegm, unsigned maxBytesPerElem);
+    void config(unsigned bytesPerReg, unsigned maxBytesPerElem);
 
     void reset();
 

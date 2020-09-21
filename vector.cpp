@@ -47,7 +47,7 @@ using namespace WdRiscv;
 template <typename URV>
 template <typename INT_ELEM_TYPE>
 bool Hart<URV>::vadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                        unsigned start, unsigned elems)
+                        unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
@@ -55,6 +55,9 @@ bool Hart<URV>::vadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
       if (vecRegs_.read(vs1, ix, group, e1) and
           vecRegs_.read(vs2, ix, group, e2))
         {
@@ -80,9 +83,15 @@ Hart<URV>::execVadd_vv(const DecodedInst* di)
       return;
     }
 
+  bool masked = di->isMasked();
   unsigned vd = di->op0();
   unsigned vs1 = di->op1();
   unsigned vs2 = di->op2();
+  if (masked and vd == 0)  // Destination register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
 
   unsigned group = vecRegs_.groupMultiplier();
   unsigned start = vecRegs_.startIndex();
@@ -94,42 +103,42 @@ Hart<URV>::execVadd_vv(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:
-      if (not vadd_vv<int8_t>(vd, vs1, vs2, group, start, elems))
+      if (not vadd_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfWord:
-      if (not vadd_vv<int16_t>(vd, vs1, vs2, group, start, elems))
+      if (not vadd_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::Word:
-      if (not vadd_vv<int32_t>(vd, vs1, vs2, group, start, elems))
+      if (not vadd_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::DoubleWord:
-      if (not vadd_vv<int64_t>(vd, vs1, vs2, group, start, elems))
+      if (not vadd_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::QuadWord:
-      if (not vadd_vv<Int128>(vd, vs1, vs2, group, start, elems))
+      if (not vadd_vv<Int128>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::OctWord:
-      if (not vadd_vv<Int256>(vd, vs1, vs2, group, start, elems))
+      if (not vadd_vv<Int256>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfKbits:
-      if (not vadd_vv<Int512>(vd, vs1, vs2, group, start, elems))
+      if (not vadd_vv<Int512>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::Kbits:
-      if (not vadd_vv<Int1024>(vd, vs1, vs2, group, start, elems))
+      if (not vadd_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
     }
@@ -139,7 +148,7 @@ Hart<URV>::execVadd_vv(const DecodedInst* di)
 template <typename URV>
 template <typename INT_ELEM_TYPE>
 bool Hart<URV>::vadd_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                        unsigned start, unsigned elems)
+                        unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
@@ -151,6 +160,9 @@ bool Hart<URV>::vadd_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
       if (vecRegs_.read(vs1, ix, group, e1))
         {
           dest = e1 + val2;
@@ -175,9 +187,15 @@ Hart<URV>::execVadd_vx(const DecodedInst* di)
       return;
     }
 
+  bool masked = di->isMasked();
   unsigned vd = di->op0();
   unsigned vs1 = di->op1();
   unsigned rs2 = di->op2();
+  if (masked and vd == 0)  // Destination register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
 
   unsigned group = vecRegs_.groupMultiplier();
   unsigned start = vecRegs_.startIndex();
@@ -189,42 +207,42 @@ Hart<URV>::execVadd_vx(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:
-      if (not vadd_vx<int8_t>(vd, vs1, rs2, group, start, elems))
+      if (not vadd_vx<int8_t>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfWord:
-      if (not vadd_vx<int16_t>(vd, vs1, rs2, group, start, elems))
+      if (not vadd_vx<int16_t>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::Word:
-      if (not vadd_vx<int32_t>(vd, vs1, rs2, group, start, elems))
+      if (not vadd_vx<int32_t>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::DoubleWord:
-      if (not vadd_vx<int64_t>(vd, vs1, rs2, group, start, elems))
+      if (not vadd_vx<int64_t>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::QuadWord:
-      if (not vadd_vx<Int128>(vd, vs1, rs2, group, start, elems))
+      if (not vadd_vx<Int128>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::OctWord:
-      if (not vadd_vx<Int256>(vd, vs1, rs2, group, start, elems))
+      if (not vadd_vx<Int256>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfKbits:
-      if (not vadd_vx<Int512>(vd, vs1, rs2, group, start, elems))
+      if (not vadd_vx<Int512>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::Kbits:
-      if (not vadd_vx<Int1024>(vd, vs1, rs2, group, start, elems))
+      if (not vadd_vx<Int1024>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
     }
@@ -234,7 +252,7 @@ Hart<URV>::execVadd_vx(const DecodedInst* di)
 template <typename URV>
 template <typename INT_ELEM_TYPE>
 bool Hart<URV>::vadd_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
-                        unsigned start, unsigned elems)
+                        unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
@@ -244,6 +262,9 @@ bool Hart<URV>::vadd_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
       if (vecRegs_.read(vs1, ix, group, e1))
         {
           dest = e1 + val2;
@@ -268,9 +289,15 @@ Hart<URV>::execVadd_vi(const DecodedInst* di)
       return;
     }
 
+  bool masked = di->isMasked();
   unsigned vd = di->op0();
   unsigned vs1 = di->op1();
   int32_t imm = di->op2As<int32_t>();
+  if (masked and vd == 0)  // Destination register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
 
   unsigned group = vecRegs_.groupMultiplier();
   unsigned start = vecRegs_.startIndex();
@@ -282,42 +309,42 @@ Hart<URV>::execVadd_vi(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:
-      if (not vadd_vi<int8_t>(vd, vs1, imm, group, start, elems))
+      if (not vadd_vi<int8_t>(vd, vs1, imm, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfWord:
-      if (not vadd_vi<int16_t>(vd, vs1, imm, group, start, elems))
+      if (not vadd_vi<int16_t>(vd, vs1, imm, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::Word:
-      if (not vadd_vi<int32_t>(vd, vs1, imm, group, start, elems))
+      if (not vadd_vi<int32_t>(vd, vs1, imm, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::DoubleWord:
-      if (not vadd_vi<int64_t>(vd, vs1, imm, group, start, elems))
+      if (not vadd_vi<int64_t>(vd, vs1, imm, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::QuadWord:
-      if (not vadd_vi<Int128>(vd, vs1, imm, group, start, elems))
+      if (not vadd_vi<Int128>(vd, vs1, imm, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::OctWord:
-      if (not vadd_vi<Int256>(vd, vs1, imm, group, start, elems))
+      if (not vadd_vi<Int256>(vd, vs1, imm, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfKbits:
-      if (not vadd_vi<Int512>(vd, vs1, imm, group, start, elems))
+      if (not vadd_vi<Int512>(vd, vs1, imm, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::Kbits:
-      if (not vadd_vi<Int1024>(vd, vs1, imm, group, start, elems))
+      if (not vadd_vi<Int1024>(vd, vs1, imm, group, start, elems, masked))
         errors++;
       break;
     }
@@ -2710,14 +2737,11 @@ Hart<URV>::execVcompress_vm(const DecodedInst* di)
       return;
     }
 
-#if 0
-  // FIX: Implement vecMask
-  if (di->vecMask())   // masked version reserved
+  if (di->isMasked())
     {
       illegalInst(di);
       return;
     }
-#endif
 
   unsigned vd = di->op0();
   unsigned vs1 = di->op1();

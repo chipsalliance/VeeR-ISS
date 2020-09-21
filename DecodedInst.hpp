@@ -170,6 +170,10 @@ namespace WdRiscv
     uint64_t ithOperandValue(unsigned i) const
     { return i < 4? values_[i] : 0; }
 
+    /// Return true if this is a vector instruction with masking enabled, 
+    bool isMasked() const
+    { return masked_; }
+
   protected:
 
     friend class Hart<uint32_t>;

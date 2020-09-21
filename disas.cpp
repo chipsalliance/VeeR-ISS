@@ -1748,114 +1748,142 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
 
     case InstId::vadd_vv:
       out << "vadd.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vadd_vx:
       out << "vadd.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vadd_vi:
       out << "vadd.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vsub_vv:
       out << "vsub.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vsub_vx:
       out << "vsub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vrsub_vx:
       out << "vrsub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vrsub_vi:
       out << "vrsub.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vminu_vv:
       out << "vminu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vminu_vx:
       out << "vminu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vmin_vv:
       out << "vmin.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vmin_vx:
       out << "vmin.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vmaxu_vv:
       out << "vmaxu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vmaxu_vx:
       out << "vmaxu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vmax_vv:
       out << "vmax.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vmax_vx:
       out << "vmax.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vand_vv:
       out << "vand.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vand_vx:
       out << "vand.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vand_vi:
       out << "vand.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vor_vv:
       out << "vor.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vor_vx:
       out << "vor.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vor_vi:
       out << "vor.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vxor_vv:
       out << "vxor.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vxor_vx:
       out << "vxor.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vxor_vi:
       out << "vxor.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vrgather_vv:
       out << "vrgather.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vrgather_vx:
       out << "vrgather.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vrgather_vi:
       out << "vrgather.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vrgatherei16_vv:
       out << "vrgatherei16.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
       break;
 
     case InstId::vcompress_vm:

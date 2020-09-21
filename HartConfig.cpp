@@ -775,7 +775,7 @@ applyVectorConfig(Hart<URV>& hart, const nlohmann::json& config)
   tag = "max_bytes_per_elem";
   if (not vconf.count(tag))
     {
-      std::cerr << "Error: Missing " << tag << " tagin vector section of config file\n";
+      std::cerr << "Error: Missing " << tag << " tag in vector section of config file\n";
       errors++;
     }
   else
