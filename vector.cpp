@@ -3588,6 +3588,10 @@ Hart<URV>::execVmnand_mm(const DecodedInst* di)
 
   unsigned start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
+
+  if ((elems - start)*8 == vecRegs_.bytesPerRegister())
+    {
+    }
 }
 
 

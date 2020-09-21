@@ -3607,10 +3607,11 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
           auto csr = csRegs_.getImplementedCsr(csrn);
           csr->poke(value);
 
-          // This maks suer that counters stop counting after
+          // This makes sure that counters stop counting after
           // corresponding event reg is written.
-          if (not csRegs_.applyPerfEventAssign())
-            std::cerr << "Unexpected applyPerfAssign fail\n";
+          if (csrn >= CsrNumber::MHPMEVENT3 and csrn <= CsrNumber::MHPMEVENT31)
+            if (not csRegs_.applyPerfEventAssign())
+              std::cerr << "Unexpected applyPerfAssign fail\n";
         }
     }
   else if (info.isBranch())

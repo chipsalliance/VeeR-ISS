@@ -171,8 +171,9 @@ namespace WdRiscv
 
   protected:
 
-    /// Return true if element of given index is active with respect to the given
-    /// mask vector register. Element is active if the corresponding mask bit is 1.
+    /// Return true if element of given index is active with respect
+    /// to the given mask vector register. Element is active if the
+    /// corresponding mask bit is 1.
     bool isActive(unsigned maskReg, unsigned ix) const
     {
       if (maskReg >= regCount_)
@@ -185,6 +186,16 @@ namespace WdRiscv
 
       const uint8_t* data = data_ + maskReg*bytesPerReg_;
       return (data[byteIx] >> bitIx) & 1;
+    }
+
+    /// Return the pointers to the 1st byte of the memory area
+    /// associated with the given vector. Return nullptr if
+    /// vector index is out of bounds.
+    uint8_t* getVecBytes(unsigned vecIx)
+    {
+      if (vecIx >= regCount_)
+        return nullptr;
+      return data_ + vecIx*bytesPerReg_;
     }
 
     /// It is convenient to contruct an empty regiter file (bytesPerReg = 0)
