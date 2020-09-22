@@ -1984,45 +1984,45 @@ namespace WdRiscv
 
     template<typename UINT_ELEM_TYPE>
     bool vminu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems);
+                  unsigned start, unsigned elems, bool masked);
     void execVminu_vv(const DecodedInst*);
 
     template<typename UINT_ELEM_TYPE>
     bool vminu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                 unsigned start, unsigned elems);
+                  unsigned start, unsigned elems, bool masked);
     void execVminu_vx(const DecodedInst*);
 
 
     template<typename INT_ELEM_TYPE>
     bool vmin_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVmin_vv(const DecodedInst*);
 
     template<typename INT_ELEM_TYPE>
     bool vmin_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVmin_vx(const DecodedInst*);
 
 
     template<typename UINT_ELEM_TYPE>
     bool vmaxu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems);
+                  unsigned start, unsigned elems, bool masked);
     void execVmaxu_vv(const DecodedInst*);
 
     template<typename UINT_ELEM_TYPE>
     bool vmaxu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                 unsigned start, unsigned elems);
+                  unsigned start, unsigned elems, bool masked);
     void execVmaxu_vx(const DecodedInst*);
 
 
     template<typename INT_ELEM_TYPE>
     bool vmax_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVmax_vv(const DecodedInst*);
 
     template<typename INT_ELEM_TYPE>
     bool vmax_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVmax_vx(const DecodedInst*);
 
 
