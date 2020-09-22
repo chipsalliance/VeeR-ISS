@@ -2212,7 +2212,7 @@ InstTable::setupInstVec()
       },
 
       { "vmxnor.mm", InstId::vmornot_mm,
-        0b111001'0'00000'00000'010'00000'1010111,
+        0b011111'1'00000'00011'010'00000'1010111,
         0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
         InstType::Vector,
         OperandType::VecReg, OperandMode::Write, rdMask,

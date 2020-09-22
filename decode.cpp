@@ -227,7 +227,7 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       if (f6 == 0x1a) return instTable_.getEntry(InstId::vmor_mm);
       if (f6 == 0x1e) return instTable_.getEntry(InstId::vmnor_mm);
       if (f6 == 0x1c) return instTable_.getEntry(InstId::vmornot_mm);
-      if (f6 == 0x39) return instTable_.getEntry(InstId::vmxnor_mm);
+      if (f6 == 0x1f) return instTable_.getEntry(InstId::vmxnor_mm);
       return instTable_.getEntry(InstId::illegal);  
     }
 
