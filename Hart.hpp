@@ -1494,6 +1494,12 @@ namespace WdRiscv
     void updatePerformanceCounters(uint32_t inst, const InstEntry&,
 				   uint32_t op0, uint32_t op1);
 
+    // For CSR instruction we need to let the counters count before
+    // letting CSR instruction write. Consequently we update the
+    // counters from within the code executing the CSR instruction
+    // using this method.
+    void updatePerformanceCountersForCsr(const DecodedInst& di);
+
     /// Fetch an instruction. Return true on success. Return false on
     /// fail (in which case an exception is initiated). May fetch a
     /// compressed instruction (16-bits) in which case the upper 16

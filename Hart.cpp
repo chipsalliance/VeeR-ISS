@@ -3471,21 +3471,6 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
       id != InstId::c_ebreak)
     return;
 
-  // 1. Counter modified by csr instruction should be modifed
-  //    after the counter counts. This is relevant for rv32. So we
-  //    revert such regs here.
-  std::vector<CsrNumber> csrs;
-  std::vector<unsigned> triggers;
-  csRegs_.getLastWrittenRegs(csrs, triggers);
-  std::vector<URV> values;
-  for (auto& csrn : csrs)
-    {
-      auto csr = csRegs_.getImplementedCsr(csrn);
-      values.push_back(csr->read());
-      csr->poke(csr->prevValue());
-    }
-
-  // 2. Let the counters count.
   PerfRegs& pregs = csRegs_.mPerfRegs_;
 
   pregs.updateCounters(EventNumber::InstCommited, prevPerfControl_,
@@ -3497,12 +3482,6 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
   else
     pregs.updateCounters(EventNumber::Inst32Commited, prevPerfControl_,
                          lastPriv_);
-
-#if 0
-  if ((currPc_ & 3) == 0)
-    pregs.updateCounters(EventNumber::InstAligned, prevPerfControl_,
-                         lastPriv_);
-#endif
 
   if (info.type() == InstType::Int)
     {
@@ -3599,10 +3578,13 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
                                  lastPriv_);
 	}
 
+      // This makes sure that counters stop counting after
+      // corresponding event reg is written.
+      std::vector<CsrNumber> csrs;
+      std::vector<unsigned> triggers;
+      csRegs_.getLastWrittenRegs(csrs, triggers);
       for (auto csrn : csrs)
         {
-          // This makes sure that counters stop counting after
-          // corresponding event reg is written.
           if (csrn >= CsrNumber::MHPMEVENT3 and csrn <= CsrNumber::MHPMEVENT31)
             if (not csRegs_.applyPerfEventAssign())
               std::cerr << "Unexpected applyPerfAssign fail\n";
@@ -3616,16 +3598,20 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
 	pregs.updateCounters(EventNumber::BranchTaken, prevPerfControl_,
                              lastPriv_);
     }
-
-  // 3. And rewrite the CSRs here.
-  for (size_t i = 0; i < csrs.size(); ++i)
-    {
-      auto csrn = csrs.at(i);
-      auto value = values.at(i);
-      auto csr = csRegs_.getImplementedCsr(csrn);
-      csr->poke(value);
-    }
 }
+
+
+template <typename URV>
+void
+Hart<URV>::updatePerformanceCountersForCsr(const DecodedInst& di)
+{
+  const InstEntry& info = *(di.instEntry());
+  if (not enableCounters_ or not info.isCsr())
+    return;
+
+  updatePerformanceCounters(di.inst(), info, di.op0(), di.op1());
+}
+
 
 
 template <typename URV>
@@ -3635,7 +3621,14 @@ Hart<URV>::accumulateInstructionStats(const DecodedInst& di)
   const InstEntry& info = *(di.instEntry());
 
   if (enableCounters_)
-    updatePerformanceCounters(di.inst(), info, di.op0(), di.op1());
+    {
+      // For CSR instruction we need to let the counters count before
+      // letting CSR instruction write. Consequently we update the counters
+      // from within the code executing the CSR instruction.
+      if (not info.isCsr())
+        updatePerformanceCounters(di.inst(), info, di.op0(), di.op1());
+    }
+
   prevPerfControl_ = perfControl_;
 
   // We do not update the instruction stats if an instruction causes
@@ -7669,7 +7662,7 @@ Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
         }
     }
 
-  // Make auto-increment happen before write for minstret and cycle.
+  // Make auto-increment happen before CSR write for minstret and cycle.
   if (csr == CsrNumber::MINSTRET or csr == CsrNumber::MINSTRETH)
     if (minstretEnabled())
       retiredInsts_++;
@@ -7727,11 +7720,15 @@ Hart<URV>::execCsrrw(const DecodedInst* di)
 
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
-    return;
+    {
+      updatePerformanceCountersForCsr(*di);
+      return;
+    }
 
   URV next = intRegs_.read(di->op1());
 
   doCsrWrite(di, csr, next, di->op0(), prev);
+  updatePerformanceCountersForCsr(*di);
 }
 
 
@@ -7746,7 +7743,10 @@ Hart<URV>::execCsrrs(const DecodedInst* di)
 
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
-    return;
+    {
+      updatePerformanceCountersForCsr(*di);
+      return;
+    }
 
   URV next = prev | intRegs_.read(di->op1());
   if (di->op1() == 0)
@@ -7756,6 +7756,7 @@ Hart<URV>::execCsrrs(const DecodedInst* di)
     }
 
   doCsrWrite(di, csr, next, di->op0(), prev);
+  updatePerformanceCountersForCsr(*di);
 }
 
 
@@ -7770,7 +7771,10 @@ Hart<URV>::execCsrrc(const DecodedInst* di)
 
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
-    return;
+    {
+      updatePerformanceCountersForCsr(*di);
+      return;
+    }
 
   URV next = prev & (~ intRegs_.read(di->op1()));
   if (di->op1() == 0)
@@ -7780,6 +7784,7 @@ Hart<URV>::execCsrrc(const DecodedInst* di)
     }
 
   doCsrWrite(di, csr, next, di->op0(), prev);
+  updatePerformanceCountersForCsr(*di);
 }
 
 
@@ -7795,9 +7800,13 @@ Hart<URV>::execCsrrwi(const DecodedInst* di)
   URV prev = 0;
   if (di->op0() != 0)
     if (not doCsrRead(di, csr, prev))
-      return;
+      {
+        updatePerformanceCountersForCsr(*di);
+        return;
+      }
 
   doCsrWrite(di, csr, di->op1(), di->op0(), prev);
+  updatePerformanceCountersForCsr(*di);
 }
 
 
@@ -7812,7 +7821,10 @@ Hart<URV>::execCsrrsi(const DecodedInst* di)
 
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
-    return;
+    {
+      updatePerformanceCountersForCsr(*di);
+      return;
+    }
 
   URV imm = di->op1();
 
@@ -7820,10 +7832,12 @@ Hart<URV>::execCsrrsi(const DecodedInst* di)
   if (imm == 0)
     {
       intRegs_.write(di->op0(), prev);
+      updatePerformanceCountersForCsr(*di);
       return;
     }
 
   doCsrWrite(di, csr, next, di->op0(), prev);
+  updatePerformanceCountersForCsr(*di);
 }
 
 
@@ -7838,18 +7852,23 @@ Hart<URV>::execCsrrci(const DecodedInst* di)
 
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
-    return;
+    {
+      updatePerformanceCountersForCsr(*di);
+      return;
+    }
 
   URV imm = di->op1();
 
   URV next = prev & (~ imm);
   if (imm == 0)
     {
+      updatePerformanceCountersForCsr(*di);
       intRegs_.write(di->op0(), prev);
       return;
     }
 
   doCsrWrite(di, csr, next, di->op0(), prev);
+  updatePerformanceCountersForCsr(*di);
 }
 
 
