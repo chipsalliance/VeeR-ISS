@@ -2028,49 +2028,49 @@ namespace WdRiscv
 
     template<typename INT_ELEM_TYPE>
     bool vand_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVand_vv(const DecodedInst*);
 
     template<typename INT_ELEM_TYPE>
     bool vand_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVand_vx(const DecodedInst*);
 
     template<typename INT_ELEM_TYPE>
     bool vand_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVand_vi(const DecodedInst*);
 
 
     template<typename INT_ELEM_TYPE>
     bool vor_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVor_vv(const DecodedInst*);
 
     template<typename INT_ELEM_TYPE>
     bool vor_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVor_vx(const DecodedInst*);
 
     template<typename INT_ELEM_TYPE>
     bool vor_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVor_vi(const DecodedInst*);
 
 
     template<typename INT_ELEM_TYPE>
     bool vxor_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVxor_vv(const DecodedInst*);
 
     template<typename INT_ELEM_TYPE>
     bool vxor_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVxor_vx(const DecodedInst*);
 
     template<typename INT_ELEM_TYPE>
     bool vxor_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVxor_vi(const DecodedInst*);
 
 
