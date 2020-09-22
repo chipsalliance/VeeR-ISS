@@ -149,10 +149,7 @@ namespace WdRiscv
               bool enable = ((user and enableUser_.at(counterIx)) or
                              (machine and enableMachine_.at(counterIx)));
               if (enable)
-                {
-                  counters_.at(counterIx)++;
-                  updated_ = updated_ | (uint32_t(1) << counterIx);
-                }
+                counters_.at(counterIx)++;
             }
 	}
       return true;
@@ -179,15 +176,6 @@ namespace WdRiscv
     { return counters_.size(); }
 
   protected:
-
-    void clearUpdatedMarks()
-    { updated_ = 0; }
-
-    bool isUpdated(unsigned ix) const
-    { return ((uint32_t(1) << ix) & updated_) != 0; }
-
-    void countDown(unsigned ix)
-    { if (ix < counters_.size()) counters_.at(ix)--; }
 
     bool applyPerfEventAssign();
 
@@ -217,7 +205,5 @@ namespace WdRiscv
     bool pendingUser_ = false;
     bool pendingMachine_ = false;
     bool hasPending_ = false;
-
-    uint32_t updated_ = false;  // 1 bit per counter.
   };
 }
