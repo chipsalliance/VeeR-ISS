@@ -1962,23 +1962,23 @@ namespace WdRiscv
 
     template<typename INT_ELEM_TYPE>
     bool vsub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVsub_vv(const DecodedInst*);
 
     template<typename INT_ELEM_TYPE>
     bool vsub_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                 unsigned start, unsigned elems);
+                 unsigned start, unsigned elems, bool masked);
     void execVsub_vx(const DecodedInst*);
 
 
     template<typename INT_ELEM_TYPE>
     bool vrsub_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                  unsigned start, unsigned elems);
+                  unsigned start, unsigned elems, bool masked);
     void execVrsub_vx(const DecodedInst*);
 
     template<typename INT_ELEM_TYPE>
     bool vrsub_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
-                  unsigned start, unsigned elems);
+                  unsigned start, unsigned elems, bool masked);
     void execVrsub_vi(const DecodedInst*);
 
 
