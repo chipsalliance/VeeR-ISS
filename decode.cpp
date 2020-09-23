@@ -244,6 +244,8 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       if (f6 == 10)   return instTable_.getEntry(InstId::vor_vi);
       if (f6 == 11)   return instTable_.getEntry(InstId::vxor_vi);
       if (f6 == 12)   return instTable_.getEntry(InstId::vrgather_vi);
+      if (f6 == 14)   return instTable_.getEntry(InstId::vslideup_vi);
+      if (f6 == 15)   return instTable_.getEntry(InstId::vslidedown_vi);
       return instTable_.getEntry(InstId::illegal);  
     }
 
@@ -264,6 +266,18 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       if (f6 == 10)   return instTable_.getEntry(InstId::vor_vx);
       if (f6 == 11)   return instTable_.getEntry(InstId::vxor_vx);
       if (f6 == 12)   return instTable_.getEntry(InstId::vrgather_vx);
+      if (f6 == 14)   return instTable_.getEntry(InstId::vslideup_vx);
+      if (f6 == 15)   return instTable_.getEntry(InstId::vslidedown_vx);
+      return instTable_.getEntry(InstId::illegal);  
+    }
+
+  if (f3 == 4)
+    {
+      op0 = rform.bits.rd;
+      op1 = rform.bits.rs2; // operand order reversed
+      op2 = rform.bits.rs1;
+
+      if (f6 == 14)   return instTable_.getEntry(InstId::vslide1up_vx);
       return instTable_.getEntry(InstId::illegal);  
     }
 

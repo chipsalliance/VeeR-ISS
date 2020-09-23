@@ -870,11 +870,11 @@ Hart<URV>::applyStoreException(URV addr, unsigned& matches)
       if (not prevLocked)
         {
           pokeCsr(CsrNumber::MDSEAC, addr); // MDSEAC is read only: Poke it.
+          recordCsrWrite(CsrNumber::MDSEAC);
           csRegs_.lockMdseac(true);
           setPendingNmi(NmiCause::STORE_EXCEPTION);
         }
     }
-  recordCsrWrite(CsrNumber::MDSEAC); // Always record change (per Ajay Nath)
 
   matches = 1;
   return true;
@@ -5439,7 +5439,12 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vmor_mm,
      &&vmnor_mm,
      &&vmornot_mm,
-     &&vmxnor_mm
+     &&vmxnor_mm,
+     &&vslideup_vx,
+     &&vslideup_vi,
+     &&vslide1up_vx,
+     &&vslidedown_vx,
+     &&vslidedown_vi
     };
 
   const InstEntry* entry = di->instEntry();
@@ -6763,6 +6768,26 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vmxnor_mm:
   execVmxnor_mm(di);
+  return;
+
+ vslideup_vx:
+  execVslideup_vx(di);
+  return;
+
+ vslideup_vi:
+  execVslideup_vi(di);
+  return;
+
+ vslide1up_vx:
+  execVslide1up_vx(di);
+  return;
+
+ vslidedown_vx:
+  execVslidedown_vx(di);
+  return;
+
+ vslidedown_vi:
+  execVslidedown_vi(di);
   return;
 }
 

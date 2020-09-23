@@ -2159,14 +2159,15 @@ namespace WdRiscv
     void execVmxnor_mm(const DecodedInst*);
 
     template<typename UINT_ELEM_TYPE>
-    bool vslideup_vs(unsigned vd, unsigned vs1, unsigned amount, unsigned group,
-                     unsigned start, unsigned elems, bool masked);
+    bool vslideup(unsigned vd, unsigned vs1, URV amount, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
     void execVslideup_vx(const DecodedInst*);
     void execVslideup_vi(const DecodedInst*);
     void execVslide1up_vx(const DecodedInst*);
 
-    bool vslideup_vs(unsigned vd, unsigned vs1, unsigned amount, unsigned group,
-                     unsigned start, unsigned elems, bool masked);
+    template<typename UINT_ELEM_TYPE>
+    bool vslidedown(unsigned vd, unsigned vs1, URV amount, unsigned group,
+                    unsigned start, unsigned elems, bool masked);
     void execVslidedown_vx(const DecodedInst*);
     void execVslidedown_vi(const DecodedInst*);
 

@@ -4086,5 +4086,472 @@ Hart<URV>::execVmxnor_mm(const DecodedInst* di)
 }
 
 
+template <typename URV>
+template <typename UINT_ELEM_TYPE>
+bool
+Hart<URV>::vslideup(unsigned vd, unsigned vs1, URV amount, unsigned group,
+                    unsigned start, unsigned elems, bool masked)
+{
+  unsigned errors = 0;
+
+  UINT_ELEM_TYPE e1 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (ix < amount)
+        continue;
+
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      unsigned from = ix - amount;
+
+      if (vecRegs_.read(vs1, from, group, e1))
+        {
+          dest = e1;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  return errors == 0;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVslideup_vx(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(), rs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned dist = vd > vs1 ? vd - vs1 : vs1 - vd;
+  if (dist >= group)
+    {
+      illegalInst(di);  // Source/dest vecs cannot overlap
+      return;
+    }
+
+  URV amount = intRegs_.read(rs2);
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vslideup<uint8_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vslideup<uint16_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vslideup<uint32_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vslideup<uint64_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vslideup<Uint128>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vslideup<Uint256>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vslideup<Uint512>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vslideup<Uint1024>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVslideup_vi(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(), imm = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned dist = vd > vs1 ? vd - vs1 : vs1 - vd;
+  if (dist >= group)
+    {
+      illegalInst(di);  // Source/dest vecs cannot overlap
+      return;
+    }
+
+  URV amount = imm;
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vslideup<uint8_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vslideup<uint16_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vslideup<uint32_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vslideup<uint64_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vslideup<Uint128>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vslideup<Uint256>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vslideup<Uint512>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vslideup<Uint1024>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVslide1up_vx(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(), rs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned dist = vd > vs1 ? vd - vs1 : vs1 - vd;
+  if (dist >= group)
+    {
+      illegalInst(di);  // Source/dest vecs cannot overlap
+      return;
+    }
+
+  URV amount = 1,  replacement = intRegs_.read(rs2);
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vslideup<uint8_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      else
+        vecRegs_.write(vd, 0, group, uint8_t(replacement));
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vslideup<uint16_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      else
+        vecRegs_.write(vd, 0, group, uint16_t(replacement));
+      break;
+
+    case ElementWidth::Word:
+      if (not vslideup<uint32_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      else
+        vecRegs_.write(vd, 0, group, uint32_t(replacement));
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vslideup<uint64_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      else
+        vecRegs_.write(vd, 0, group, uint64_t(replacement));
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vslideup<Uint128>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      else
+        vecRegs_.write(vd, 0, group, Uint128(replacement));
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vslideup<Uint256>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      else
+        vecRegs_.write(vd, 0, group, Uint256(replacement));
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vslideup<Uint512>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      else
+        vecRegs_.write(vd, 0, group, Uint512(replacement));
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vslideup<Uint1024>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      else
+        vecRegs_.write(vd, 0, group, Uint1024(replacement));
+      break;
+    }
+}
+
+
+template <typename URV>
+template <typename UINT_ELEM_TYPE>
+bool
+Hart<URV>::vslidedown(unsigned vd, unsigned vs1, URV amount, unsigned group,
+                      unsigned start, unsigned elems, bool masked)
+{
+  unsigned errors = 0;
+
+  UINT_ELEM_TYPE e1 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      unsigned from = ix + amount;
+      e1 = 0;
+      vecRegs_.read(vs1, from, group, e1);
+      dest = e1;
+      if (not vecRegs_.write(vd, ix, group, dest))
+        errors++;
+    }
+
+  return errors == 0;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVslidedown_vx(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(), rs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned dist = vd > vs1 ? vd - vs1 : vs1 - vd;
+  if (dist >= group)
+    {
+      illegalInst(di);  // Source/dest vecs cannot overlap
+      return;
+    }
+
+  URV amount = intRegs_.read(rs2);
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vslidedown<uint8_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vslidedown<uint16_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vslidedown<uint32_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vslidedown<uint64_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vslidedown<Uint128>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vslidedown<Uint256>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vslidedown<Uint512>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vslidedown<Uint1024>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVslidedown_vi(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(), imm = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned dist = vd > vs1 ? vd - vs1 : vs1 - vd;
+  if (dist >= group)
+    {
+      illegalInst(di);  // Source/dest vecs cannot overlap
+      return;
+    }
+
+  URV amount = imm;
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vslidedown<uint8_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vslidedown<uint16_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vslidedown<uint32_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vslidedown<uint64_t>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vslidedown<Uint128>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vslidedown<Uint256>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vslidedown<Uint512>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vslidedown<Uint1024>(vd, vs1, amount, group, start, elems, masked))
+        errors++;
+      break;
+    }
+}
+
+
 template class WdRiscv::Hart<uint32_t>;
 template class WdRiscv::Hart<uint64_t>;

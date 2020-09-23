@@ -1954,6 +1954,26 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       out << "vmxnor.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
       break;
 
+    case InstId::vslideup_vx:
+      out << "vslideup.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
+    case InstId::vslideup_vi:
+      out << "vslideup.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2();
+      break;
+
+    case InstId::vslide1up_vx:
+      out << "vslide1up.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
+    case InstId::vslidedown_vx:
+      out << "vslidedown.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
+    case InstId::vslidedown_vi:
+      out << "vslidedown.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2();
+      break;
+
     default:
       out << "illegal";
     }

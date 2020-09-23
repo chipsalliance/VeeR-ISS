@@ -407,6 +407,12 @@ namespace WdRiscv
      vmornot_mm,
      vmxnor_mm,
 
-     maxId = vmxnor_mm
+     vslideup_vx,
+     vslideup_vi,
+     vslide1up_vx,
+     vslidedown_vx,
+     vslidedown_vi,
+
+     maxId = vslidedown_vi
     };
 }
