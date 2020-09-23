@@ -246,7 +246,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 570;
+  unsigned subversion = 575;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -729,8 +729,9 @@ applyIsaString(const std::string& isaStr, Hart<URV>& hart)
 	case 'f':
 	case 'i':
 	case 'm':
-	case 'u':
 	case 's':
+	case 'u':
+        case 'v':
 	  isa |= URV(1) << (c -  'a');
 	  break;
 
@@ -1682,7 +1683,7 @@ session(const Args& args, const HartConfig& config)
   assert(system.hartCount() > 0);
 
   // Configure harts. Define callbacks for non-standard CSRs.
-  if (not config.configHarts(system, args.verbose))
+  if (not config.configHarts(system, args.isa, args.verbose))
     if (not args.interactive)
       return false;
 

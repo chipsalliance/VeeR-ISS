@@ -70,47 +70,66 @@ HartConfig::loadConfigFile(const std::string& filePath)
 namespace WdRiscv
 {
   
-  /// Convert given json value to an unsigned integer honoring
-  /// hexadecimal prefix (0x) if any.
+  /// Convert given json entry to an unsigned integer value honoring
+  /// hexadecimal prefix (0x) if any. Return true on succes and false
+  /// if given entry does not represent an integer.
   template <typename URV>
-  URV
-  getJsonUnsigned(const std::string& tag, const nlohmann::json& js)
+  bool
+  getJsonUnsigned(const std::string& tag, const nlohmann::json& js, URV& value)
   {
+    value = 0;
+
     if (js.is_number())
-      return js.get<URV>();
+      {
+        value = js.get<URV>();
+        return true;
+      }
+
     if (js.is_string())
       {
 	char *end = nullptr;
 	std::string str = js.get<std::string>();
 	uint64_t u64 = strtoull(str.c_str(), &end, 0);
 	if (end and *end)
-	  std::cerr << "Invalid config file value for '" << tag << "': "
-		    << str << '\n';
-	URV val = static_cast<URV>(u64);
-	if (val != u64)
-	  std::cerr << "Overflow in config file value for '" << tag << "': "
-		    << str << '\n';
-	return val;
+          {
+            std::cerr << "Invalid config file value for '" << tag << "': "
+                      << str << '\n';
+            return false;
+          }
+	value = static_cast<URV>(u64);
+	if (value != u64)
+          {
+            std::cerr << "Overflow in config file value for '" << tag << "': "
+                      << str << '\n';
+            return false;
+          }
+
+	return true;
       }
+
     std::cerr << "Config file entry '" << tag << "' must contain a number\n";
-    return 0;
+    return false;
   }
 
 
-  /// Convert given json array value to an vector of unsigned integers
-  /// honoring any hexadecimal prefix (0x) if any.
+  /// Convert given json array value to a vector of unsigned integers
+  /// honoring any hexadecimal prefix (0x) if any. Return true on
+  /// sucess an false on failure.
   template <typename URV>
-  std::vector<URV>
-  getJsonUnsignedVec(const std::string& tag, const nlohmann::json& js)
+  bool
+  getJsonUnsignedVec(const std::string& tag, const nlohmann::json& js,
+                     std::vector<URV>& vec)
   {
-    std::vector<URV> vec;
+    vec.clear();
 
     if (not js.is_array())
       {
 	std::cerr << "Invalid config file value for '" << tag << "'"
 		  << " -- expecting array of numbers\n";
-	return vec;
+	return false;
       }
+
+    unsigned errors = 0;
 
     for (const auto& item :js)
       {
@@ -125,44 +144,68 @@ namespace WdRiscv
 	      {
 		std::cerr << "Invalid config file value for '" << tag << "': "
 			  << str << '\n';
+                errors++;
 		continue;
 	      }
 
 	    URV val = static_cast<URV>(u64);
 	    if (val != u64)
-	      std::cerr << "Overflow in config file value for '" << tag << "': "
-			  << str << '\n';
+              {
+                std::cerr << "Overflow in config file value for '" << tag
+                          << "': " << str << '\n';
+                errors++;
+                continue;
+              }
 
 	    vec.push_back(val);
 	  }
 	else
-	  std::cerr << "Invalid config file value for '" << tag << "'"
-		    << " -- expecting array of number\n";
+          {
+            std::cerr << "Invalid config file value for '" << tag << "'"
+                      << " -- expecting array of number\n";
+            errors++;
+          }
       }
 
-    return vec;
+    return errors == 0;
   }
 
 
-  /// Convert given json value to a boolean.
+  /// Convert given json entry to a boolean value. Return ture on
+  /// success and false on failure.
   bool
-  getJsonBoolean(const std::string& tag, const nlohmann::json& js)
+  getJsonBoolean(const std::string& tag, const nlohmann::json& js, bool& value)
   {
+    value = false;
+
     if (js.is_boolean())
-      return js.get<bool>();
+      {
+        value = js.get<bool>();
+        return true;
+      }
+
     if (js.is_number())
-      return js.get<unsigned>();
+      {
+        value = js.get<unsigned>() != 0;
+        return true;
+      }
+
     if (js.is_string())
       {
 	std::string str = js.get<std::string>();
 	if (str == "0" or str == "false" or str == "False")
-	  return false;
-	if (str == "1" or str == "true" or str == "True")
-	  return true;
-	std::cerr << "Invalid config file value for '" << tag << "': "
-		  << str << '\n';
-	return false;
+          value = false;
+	else if (str == "1" or str == "true" or str == "True")
+          value = true;
+        else
+          {
+            std::cerr << "Invalid config file value for '" << tag << "': "
+                      << str << '\n';
+            return false;
+          }
+        return true;
       }
+
     std::cerr << "Config file entry '" << tag << "' must contain a bool\n";
     return false;
   }
@@ -251,11 +294,13 @@ applyCsrConfig(Hart<URV>& hart, const nlohmann::json& config, bool verbose)
 	}
 
       if (conf.count("reset"))
-	reset = getJsonUnsigned<URV>(csrName + ".reset", conf.at("reset"));
+        if (not getJsonUnsigned(csrName + ".reset", conf.at("reset"), reset))
+          errors++;
 
       if (conf.count("mask"))
 	{
-	  mask = getJsonUnsigned<URV>(csrName + ".mask", conf.at("mask"));
+	  if (not getJsonUnsigned(csrName + ".mask", conf.at("mask"), mask))
+            errors++;
 
 	  // If defining a non-standard CSR (as popposed to
 	  // configuring an existing CSR) then default the poke-mask
@@ -265,53 +310,60 @@ applyCsrConfig(Hart<URV>& hart, const nlohmann::json& config, bool verbose)
 	}
 
       if (conf.count("poke_mask"))
-	pokeMask = getJsonUnsigned<URV>(csrName + ".poke_mask",
-				   conf.at("poke_mask"));
+	if (not getJsonUnsigned(csrName + ".poke_mask", conf.at("poke_mask"), pokeMask))
+          errors++;
 
       if (conf.count("debug"))
-	isDebug = getJsonBoolean(csrName + ".bool", conf.at("debug"));
+	if (not getJsonBoolean(csrName + ".bool", conf.at("debug"), isDebug))
+          errors++;
 
       if (conf.count("exists"))
-	exists = getJsonBoolean(csrName + ".bool", conf.at("exists"));
+	if (not getJsonBoolean(csrName + ".bool", conf.at("exists"), exists))
+          errors++;
 
       if (conf.count("shared"))
-        shared = getJsonBoolean(csrName + ".bool", conf.at("shared"));
+        if (not getJsonBoolean(csrName + ".bool", conf.at("shared"), shared))
+          errors++;
 
       // If number present and csr is not defined, then define a new
       // CSR; otherwise, configure.
       if (conf.count("number"))
 	{
-	  unsigned number = getJsonUnsigned<unsigned>(csrName + ".number",
-						      conf.at("number"));
-	  if (csr)
-	    {
-	      if (csr->getNumber() != CsrNumber(number))
-		{
-		  std::cerr << "Invalid config file entry for CSR "
-			    << csrName << ": Number (0x" << std::hex << number
-			    << ") does not match that of previous definition ("
-			    << "0x" << unsigned(csr->getNumber())
-			    << ")\n" << std::dec;
-		  errors++;
-		  continue;
-		}
-	      // If number matches we configure below
-	    }
-	  else if (hart.defineCsr(csrName, CsrNumber(number), exists,
-				  reset, mask, pokeMask, isDebug))
-	    {
-	      csr = hart.findCsr(csrName);
-	      assert(csr);
-	    }
-	  else
-	    {
-	      std::cerr << "Invalid config file CSR definition with name "
-			<< csrName << " and number 0x" << std::hex << number
-			<< ": Number already in use\n" << std::dec;
-	      errors++;
-	      continue;
-	    }
-	}
+          unsigned number = 0;
+	  if (not getJsonUnsigned<unsigned>(csrName + ".number", conf.at("number"), number))
+            errors++;
+          else
+            {
+              if (csr)
+                {
+                  if (csr->getNumber() != CsrNumber(number))
+                    {
+                      std::cerr << "Invalid config file entry for CSR "
+                                << csrName << ": Number (0x" << std::hex << number
+                                << ") does not match that of previous definition ("
+                                << "0x" << unsigned(csr->getNumber())
+                                << ")\n" << std::dec;
+                      errors++;
+                      continue;
+                    }
+                  // If number matches we configure below
+                }
+              else if (hart.defineCsr(csrName, CsrNumber(number), exists,
+                                      reset, mask, pokeMask, isDebug))
+                {
+                  csr = hart.findCsr(csrName);
+                  assert(csr);
+                }
+              else
+                {
+                  std::cerr << "Invalid config file CSR definition with name "
+                            << csrName << " and number 0x" << std::hex << number
+                            << ": Number already in use\n" << std::dec;
+                  errors++;
+                  continue;
+                }
+            }
+        }
 
       bool exists0 = csr->isImplemented(), isDebug0 = csr->isDebug();
       bool shared0 = csr->isShared();
@@ -387,20 +439,30 @@ applyMemMappedRegConfig(Hart<URV>& hart, const nlohmann::json& config)
 
   const auto& mmr = config.at("memory_mapped_registers");
 
+  unsigned errors = 0;
+
+
   // Define memory-mapped-register region.
-  uint64_t addr = getJsonUnsigned<URV>("address", mmr.at("address"));
-  uint64_t size = getJsonUnsigned<URV>("size", mmr.at("size"));
-  if (not hart.defineMemoryMappedRegisterArea(addr, size))
-    return false;
+  uint64_t addr = 0, size = 0;
+  if (getJsonUnsigned("address", mmr.at("address"), addr) and
+      getJsonUnsigned("size", mmr.at("size"), size))
+    {
+      if (not hart.defineMemoryMappedRegisterArea(addr, size))
+        return false;
+    }
+  else
+    errors++;
 
   // Start by giving all registers in region a default mask.
   size_t possibleRegCount = size / 4;
   if (mmr.count("default_mask"))
     {
-      uint32_t mask = getJsonUnsigned<uint32_t>("default_mask",
-                                                mmr.at("default_mask"));
-      for (size_t ix = 0; ix < possibleRegCount; ++ix)
-        hart.defineMemoryMappedRegisterWriteMask(addr + ix*4, mask);
+      uint32_t mask = 0;
+      if (getJsonUnsigned("default_mask", mmr.at("default_mask"), mask))
+        for (size_t ix = 0; ix < possibleRegCount; ++ix)
+          hart.defineMemoryMappedRegisterWriteMask(addr + ix*4, mask);
+      else
+        errors++;
     }
 
   if (not mmr.count("registers"))
@@ -414,7 +476,6 @@ applyMemMappedRegConfig(Hart<URV>& hart, const nlohmann::json& config)
       return false;
     }
 
-  unsigned errors = 0;
   for (auto it = regs.begin(); it != regs.end(); ++it)
     {
       const std::string& name = it.key();
@@ -428,12 +489,17 @@ applyMemMappedRegConfig(Hart<URV>& hart, const nlohmann::json& config)
           errors++;
           continue;
         }
-      URV count = getJsonUnsigned<URV>("count", conf.at("count"));
-      URV mask = getJsonUnsigned<URV>("mask", conf.at("mask"));
-      URV addr = getJsonUnsigned<URV>("address", conf.at("address"));
-      for (URV ix = 0; ix < count; ++ix)
-        if (not hart.defineMemoryMappedRegisterWriteMask(addr + ix*4, mask))
-          errors++;
+      URV count = 0, mask = 0, addr = 0;
+      if (getJsonUnsigned("count", conf.at("count"), count) and
+          getJsonUnsigned("mask", conf.at("mask"), mask) and
+          getJsonUnsigned("address", conf.at("address"), addr))
+        {
+          for (URV ix = 0; ix < count; ++ix)
+            if (not hart.defineMemoryMappedRegisterWriteMask(addr + ix*4, mask))
+              errors++;
+        }
+      else
+        errors++;
     }
 
   return errors == 0;
@@ -451,11 +517,16 @@ applyIccmConfig(Hart<URV>& hart, const nlohmann::json& config)
   const auto& iccm = config.at("iccm");
   if (iccm.count("region") and iccm.count("size") and iccm.count("offset"))
     {
-      size_t region = getJsonUnsigned<URV>("iccm.region", iccm.at("region"));
-      size_t size   = getJsonUnsigned<URV>("iccm.size",   iccm.at("size"));
-      size_t offset = getJsonUnsigned<URV>("iccm.offset", iccm.at("offset"));
-      size_t addr   = region*hart.regionSize() + offset;
-      return hart.defineIccm(addr, size);
+      size_t region = 0, size = 0, offset = 0;
+      if (getJsonUnsigned("iccm.region", iccm.at("region"), region) and
+          getJsonUnsigned("iccm.size",   iccm.at("size"), size) and
+          getJsonUnsigned("iccm.offset", iccm.at("offset"), offset))
+        {
+          size_t addr = region*hart.regionSize() + offset;
+          return hart.defineIccm(addr, size);
+        }
+      else
+        return false;
     }
 
   std::cerr << "The ICCM entry in the configuration file must contain "
@@ -475,11 +546,15 @@ applyDccmConfig(Hart<URV>& hart, const nlohmann::json& config)
   const auto& dccm = config.at("dccm");
   if (dccm.count("region") and dccm.count("size") and dccm.count("offset"))
     {
-      size_t region = getJsonUnsigned<URV>("dccm.region", dccm.at("region"));
-      size_t size   = getJsonUnsigned<URV>("dccm.size",   dccm.at("size"));
-      size_t offset = getJsonUnsigned<URV>("dccm.offset", dccm.at("offset"));
-      size_t addr   = region*hart.regionSize() + offset;
-      return hart.defineDccm(addr, size);
+      size_t region = 0, size = 0, offset = 0;
+      if (getJsonUnsigned("dccm.region", dccm.at("region"), region) and
+          getJsonUnsigned("dccm.size",   dccm.at("size"), size) and
+          getJsonUnsigned("dccm.offset", dccm.at("offset"), offset))
+        {
+          size_t addr = region*hart.regionSize() + offset;
+          return hart.defineDccm(addr, size);
+        }
+      return false;
     }
 
   std::cerr << "The DCCM entry in the configuration file must contain "
@@ -529,10 +604,16 @@ applyTriggerConfig(Hart<URV>& hart, const nlohmann::json& config)
 	  errors++;
 	  continue;
 	}
-      auto resets = getJsonUnsignedVec<URV>(name + ".reset", trig.at("reset"));
-      auto masks = getJsonUnsignedVec<URV>(name + ".mask", trig.at("mask"));
-      auto pokeMasks = getJsonUnsignedVec<URV>(name + ".poke_mask",
-					       trig.at("poke_mask"));
+
+      std::vector<URV> resets, masks, pokeMasks;
+      ok = (getJsonUnsignedVec(name + ".reset", trig.at("reset"), resets) and
+            getJsonUnsignedVec(name + ".mask", trig.at("mask"), masks) and
+            getJsonUnsignedVec(name + ".poke_mask", trig.at("poke_mask"), pokeMasks));
+      if (not ok)
+        {
+          errors++;
+          continue;
+        }
 
       if (resets.size() != 3)
 	{
@@ -577,6 +658,159 @@ applyTriggerConfig(Hart<URV>& hart, const nlohmann::json& config)
 template <typename URV>
 static
 bool
+applyPerfEvents(Hart<URV>& hart, const nlohmann::json& config,
+                bool userMode, bool /*verbose*/)
+{
+  unsigned errors = 0;
+
+  std::string tag = "num_mmode_perf_regs";
+  if (config.count(tag))
+    {
+      unsigned count = 0;
+      if (not getJsonUnsigned<unsigned>(tag, config.at(tag), count))
+        errors++;
+      else
+        {
+          if (not hart.configMachineModePerfCounters(count))
+            errors++;
+          if (userMode)
+            if (not hart.configUserModePerfCounters(count))
+              errors++;
+        }
+    }
+
+  unsigned maxPerfId = 0;
+  tag = "max_mmode_perf_event";
+  if (config.count(tag))
+    {
+      if (not getJsonUnsigned<unsigned>(tag, config.at(tag), maxPerfId))
+        errors++;
+      else
+        {
+          unsigned limit = 16*1024;
+          if (maxPerfId > limit)
+            {
+              std::cerr << "Config file max_mmode_perf_event too large -- Using "
+                        << limit << '\n';
+              maxPerfId = limit;
+            }
+          hart.configMachineModeMaxPerfEvent(maxPerfId);
+        }
+    }
+
+  tag = "mmode_perf_events";
+  if (config.count(tag))
+    {
+      std::vector<unsigned> eventsVec;
+
+      const auto& events = config.at(tag);
+      if (not events.is_array())
+        {
+          std::cerr << "Invalid mmode_perf_events entry in config file (expecting an array)\n";
+          errors++;
+        }
+      else
+        {
+          unsigned ix = 0;
+          for (auto it = events.begin(); it != events.end(); ++it, ++ix)
+            {
+              const auto& event = *it;
+              std::string elemTag = tag + "element " + std::to_string(ix);
+              unsigned eventId = 0;
+              if (not getJsonUnsigned<unsigned>(elemTag, event, eventId))
+                errors++;
+              else
+                eventsVec.push_back(eventId);
+            }
+        }
+      hart.configPerfEvents(eventsVec);
+    }
+
+  return errors == 0;
+}
+
+
+template <typename URV>
+static
+bool
+applyVectorConfig(Hart<URV>& hart, const nlohmann::json& config)
+{
+  if (not config.count("vector"))
+    return true;  // Nothing to apply
+
+  unsigned errors = 0;
+  const auto& vconf = config.at("vector");
+
+  unsigned bytesPerVec = 0;
+  std::string tag = "bytes_per_vec";
+  if (not vconf.count(tag))
+    {
+      std::cerr << "Error: Missing " << tag << " tag in vector section of config file\n";
+      errors++;
+    }
+  else
+    {
+      if (not getJsonUnsigned(tag, vconf.at(tag), bytesPerVec))
+        errors++;
+      else if (bytesPerVec == 0 or bytesPerVec > 4096)
+        {
+          std::cerr << "Error: Invalid config file bytes_per_vec number: "
+                    << bytesPerVec << '\n';
+          errors++;
+        }
+      else
+        {
+          unsigned l2BytesPerVec = std::log2(bytesPerVec);
+          unsigned p2BytesPerVec = uint32_t(1) << l2BytesPerVec;
+          if (p2BytesPerVec != bytesPerVec)
+            {
+              std::cerr << "Error: Config file bytes_per_vec ("
+                        << bytesPerVec << ") is not a power of 2\n";
+              errors++;
+            }
+        }
+    }
+
+  unsigned bytesPerElem = 0;
+  tag = "max_bytes_per_elem";
+  if (not vconf.count(tag))
+    {
+      std::cerr << "Error: Missing " << tag << " tag in vector section of config file\n";
+      errors++;
+    }
+  else
+    {
+      if (not getJsonUnsigned(tag, vconf.at(tag), bytesPerElem))
+        errors++;
+      else if (bytesPerElem == 0 or bytesPerElem > bytesPerVec)
+        {
+          std::cerr << "Error: Invalid config file max_bytes_per_elem number: "
+                    << bytesPerElem << '\n';
+          errors++;
+        }
+      else
+        {
+          unsigned l2BytesPerElem = std::log2(bytesPerElem);
+          unsigned p2BytesPerElem = uint32_t(1) << l2BytesPerElem;
+          if (p2BytesPerElem != bytesPerElem)
+            {
+              std::cerr << "Error: Config file max_bytes_per_elem ("
+                        << bytesPerElem << ") is not a power of 2\n";
+              errors++;
+            }
+        }
+    }
+
+  if (errors == 0)
+    hart.configVector(bytesPerVec, bytesPerElem);
+
+  return errors == 0;
+}
+
+
+template <typename URV>
+static
+bool
 applyInstMemConfig(Hart<URV>& hart, const nlohmann::json& config)
 {
   using std::cerr;
@@ -603,8 +837,10 @@ applyInstMemConfig(Hart<URV>& hart, const nlohmann::json& config)
 	  break;
 	}
 
-      auto vec = getJsonUnsignedVec<URV>("memmap.inst", addrPair);
-      if (vec.size() != 2)
+      std::vector<URV> vec;
+      if (not getJsonUnsignedVec("memmap.inst", addrPair, vec))
+        errors++;
+      else if (vec.size() != 2)
 	errors++;
       else
 	{
@@ -650,7 +886,9 @@ applyDataMemConfig(Hart<URV>& hart, const nlohmann::json& config)
 	  break;
 	}
 
-      auto vec = getJsonUnsignedVec<URV>("memmap.data", addrPair);
+      std::vector<URV> vec;
+      if (not getJsonUnsignedVec("memmap.data", addrPair, vec))
+        errors++;
       if (vec.size() != 2)
 	errors++;
       else
@@ -682,8 +920,9 @@ HartConfig::applyMemoryConfig(Hart<URV>& hart, bool iccmRw, bool /*verbose*/) co
   if (not applyMemMappedRegConfig(hart, *config_))
     errors++;
 
-  if (config_ -> count("iccmrw") and getJsonBoolean("iccmrw", config_ ->at("iccmrw")))
-    iccmRw = true;
+  if (config_ -> count("iccmrw"))
+    if (not getJsonBoolean("iccmrw", config_ ->at("iccmrw"), iccmRw))
+      errors++;
 
   hart.finishCcmConfig(iccmRw);
 
@@ -704,15 +943,21 @@ HartConfig::applyMemoryConfig(Hart<URV>& hart, bool iccmRw, bool /*verbose*/) co
   std::string tag = "physical_memory_protection_grain";
   if (config_ -> count(tag))
     {
-      uint64_t size = getJsonUnsigned<uint64_t>(tag, config_ -> at(tag));
-      hart.configMemoryProtectionGrain(size);
+      uint64_t size = 0;
+      if (getJsonUnsigned<uint64_t>(tag, config_ -> at(tag), size))
+        hart.configMemoryProtectionGrain(size);
+      else
+        errors++;
     }
 
   tag = "enable_misaligned_data";
   if (config_ -> count(tag))
     {
-      bool misal = getJsonBoolean(tag, config_ ->at(tag));
-      hart.enableMisalignedData(misal);
+      bool misal = true;
+      if (getJsonBoolean(tag, config_ ->at(tag), misal))
+        hart.enableMisalignedData(misal);
+      else
+        errors++;
     }
 
   return errors == 0;
@@ -721,38 +966,52 @@ HartConfig::applyMemoryConfig(Hart<URV>& hart, bool iccmRw, bool /*verbose*/) co
 
 template<typename URV>
 bool
-HartConfig::applyConfig(Hart<URV>& hart, bool verbose) const
+HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
 {
+  unsigned errors = 0;
+
   // Define PC value after reset.
   std::string tag = "reset_vec";
   if (config_ -> count(tag))
     {
-      URV resetPc = getJsonUnsigned<URV>(tag, config_ -> at(tag));
-      hart.defineResetPc(resetPc);
+      URV resetPc = 0;
+      if (getJsonUnsigned(tag, config_ -> at(tag), resetPc))
+        hart.defineResetPc(resetPc);
+      else
+        errors++;
     }
 
   // Define non-maskable-interrupt pc
   tag = "nmi_vec";
   if (config_ -> count(tag))
     {
-      URV nmiPc = getJsonUnsigned<URV>(tag, config_ -> at(tag));
-      hart.defineNmiPc(nmiPc);
+      URV nmiPc = 0;
+      if (getJsonUnsigned(tag, config_ -> at(tag), nmiPc))
+        hart.defineNmiPc(nmiPc);
+      else
+        errors++;
     }
 
   // Use ABI register names (e.g. sp instead of x2).
   tag = "abi_names";
   if (config_ -> count(tag))
     {
-      bool abiNames = getJsonBoolean(tag, config_ ->at(tag));
-      hart.enableAbiNames(abiNames);
+      bool abiNames = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), abiNames))
+        hart.enableAbiNames(abiNames);
+      else
+        errors++;
     }
 
   // Atomic instructions illegal outside of DCCM.
   tag = "amo_illegal_outside_dccm";
   if (config_ -> count(tag))
     {
-      bool flag = getJsonBoolean(tag, config_ ->at(tag));
-      hart.setAmoInDccmOnly(flag);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ ->at(tag), flag))
+        hart.setAmoInDccmOnly(flag);
+      else
+        errors++;
     }
 
   // Ld/st instructions trigger misaligned exception if base address
@@ -761,49 +1020,69 @@ HartConfig::applyConfig(Hart<URV>& hart, bool verbose) const
   tag = "effective_address_compatible_with_base";
   if (config_ -> count(tag))
     {
-      bool flag = getJsonBoolean(tag, config_ ->at(tag));
-      hart.setEaCompatibleWithBase(flag);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ ->at(tag), flag))
+        hart.setEaCompatibleWithBase(flag);
+      else
+        errors++;
     }
 
   // Enable debug triggers.
   tag ="enable_triggers";
   if (config_ -> count(tag))
     {
-      bool et = getJsonBoolean(tag, config_ ->at(tag));
-      hart.enableTriggers(et);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ ->at(tag), flag))
+        hart.enableTriggers(flag);
+      else
+        errors++;
     }
 
   // Enable performance counters.
   tag ="enable_performance_counters";
   if (config_ -> count(tag))
     {
-      bool epc = getJsonBoolean(tag, config_ ->at(tag));
-      hart.enablePerformanceCounters(epc);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ ->at(tag), flag))
+        hart.enablePerformanceCounters(flag);
+      else
+        errors++;
     }
 
   // Enable rollback of memory on store error.
   tag = "store_error_rollback";
   if (config_ -> count(tag))
     {
-      bool ser = getJsonBoolean(tag, config_ -> at(tag));
-      hart.enableStoreErrorRollback(ser);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        hart.enableStoreErrorRollback(flag);
+      else
+        errors++;
     }
 
   // Enable rollback of register on load error.
   tag = "load_error_rollback";
   if (config_ -> count(tag))
     {
-      bool ler = getJsonBoolean(tag, config_ -> at(tag));
-      hart.enableLoadErrorRollback(ler);
-      hart.enableBenchLoadExceptions(ler);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        {
+          hart.enableLoadErrorRollback(flag);
+          hart.enableBenchLoadExceptions(flag);
+        }
+      else
+        errors++;
     }
 
   // Enable fast interrupts.
   tag = "fast_interrupt_redirect";
   if (config_ -> count(tag))
     {
-      bool flag = getJsonBoolean(tag, config_ -> at(tag));
-      hart.enableFastInterrupts(flag);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        hart.enableFastInterrupts(flag);
+      else
+        errors++;
     }
 
   // Enable zbb.
@@ -812,119 +1091,147 @@ HartConfig::applyConfig(Hart<URV>& hart, bool verbose) const
     {
       std::cerr << "Config file tag \"enable_zbmini\" deprecated: "
 		<< "Using \"enable_zbb\" and \"enable_zbs\"\n";
-      bool flag = getJsonBoolean(tag, config_ -> at(tag));
-      hart.enableRvzbb(flag);
-      hart.enableRvzbs(flag);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        {
+          hart.enableRvzbb(flag);
+          hart.enableRvzbs(flag);
+        }
+      else
+        errors++;
+
     }
 
   tag = "enable_zba";
   if (config_ -> count(tag))
     {
-      bool flag = getJsonBoolean(tag, config_ -> at(tag));
-      hart.enableRvzba(flag);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        hart.enableRvzba(flag);
+      else
+        errors++;
     }
 
   tag = "enable_zbb";
   if (config_ -> count(tag))
     {
-      bool flag = getJsonBoolean(tag, config_ -> at(tag));
-      hart.enableRvzbb(flag);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        hart.enableRvzbb(flag);
+      else
+        errors++;
     }
 
   tag = "enable_zbc";
   if (config_ -> count(tag))
     {
-      bool flag = getJsonBoolean(tag, config_ -> at(tag));
-      hart.enableRvzbc(flag);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        hart.enableRvzbc(flag);
+      else
+        errors++;
     }
 
   tag = "enable_zbe";
   if (config_ -> count(tag))
     {
-      bool flag = getJsonBoolean(tag, config_ -> at(tag));
-      hart.enableRvzbe(flag);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        hart.enableRvzbe(flag);
+      else
+        errors++;
     }
 
   tag = "enable_zbf";
   if (config_ -> count(tag))
     {
-      bool flag = getJsonBoolean(tag, config_ -> at(tag));
-      hart.enableRvzbf(flag);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        hart.enableRvzbf(flag);
+      else
+        errors++;
     }
 
   tag = "enable_zbm";
   if (config_ -> count(tag))
     {
-      bool flag = getJsonBoolean(tag, config_ -> at(tag));
-      hart.enableRvzbm(flag);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        hart.enableRvzbm(flag);
+      else
+        errors++;
     }
 
   tag = "enable_zbp";
   if (config_ -> count(tag))
     {
-      bool flag = getJsonBoolean(tag, config_ -> at(tag));
-      hart.enableRvzbp(flag);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        hart.enableRvzbp(flag);
+      else
+        errors++;
     }
 
   tag = "enable_zbr";
   if (config_ -> count(tag))
     {
-      bool flag = getJsonBoolean(tag, config_ -> at(tag));
-      hart.enableRvzbr(flag);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        hart.enableRvzbr(flag);
+      else
+        errors++;
     }
 
   tag = "enable_zbs";
   if (config_ -> count(tag))
     {
-      bool flag = getJsonBoolean(tag, config_ -> at(tag));
-      hart.enableRvzbs(flag);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        hart.enableRvzbs(flag);
+      else
+        errors++;
     }
 
   tag = "enable_zbt";
   if (config_ -> count(tag))
     {
-      bool flag = getJsonBoolean(tag, config_ -> at(tag));
-      hart.enableRvzbt(flag);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        hart.enableRvzbt(flag);
+      else
+        errors++;
     }
 
   tag = "load_queue_size";
   if (config_ -> count(tag))
     {
-      unsigned lqs = getJsonUnsigned<unsigned>(tag, config_ -> at(tag));
-      if (lqs > 64)
-	{
-	  std::cerr << "Config file load queue size (" << lqs << ") too large"
-		    << " -- using 64.\n";
-	  lqs = 64;
-	}
-      hart.setLoadQueueSize(lqs);
+      unsigned lqs = 0;
+      if (getJsonUnsigned(tag, config_ -> at(tag), lqs))
+        {
+          if (lqs > 64)
+            {
+              std::cerr << "Config file load queue size (" << lqs << ") too large"
+                        << " -- using 64.\n";
+              lqs = 64;
+            }
+          hart.setLoadQueueSize(lqs);
+        }
+      else
+        errors++;
     }
 
   tag = "even_odd_trigger_chains";
   if (config_ -> count(tag))
     {
-      bool chainPairs = getJsonBoolean(tag, config_ -> at(tag));
-      hart.configEvenOddTriggerChaining(chainPairs);
-    }
-
-  unsigned errors = 0;
-
-  tag = "max_mmode_perf_event";
-  if (config_ -> count(tag))
-    {
-      unsigned maxId = getJsonUnsigned<unsigned>(tag, config_ -> at(tag));
-      hart.configMachineModeMaxPerfEvent(maxId);
-    }
-
-  tag = "num_mmode_perf_regs";
-  if (config_ -> count(tag))
-    {
-      unsigned count = getJsonUnsigned<unsigned>(tag, config_ -> at(tag));
-      if (not hart.configMachineModePerfCounters(count))
-	errors++;
-      if (not hart.configUserModePerfCounters(count))
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        hart.configEvenOddTriggerChaining(flag);
+      else
         errors++;
     }
+
+  if (not applyPerfEvents(hart, *config_, userMode, verbose))
+    errors++;
 
   if (not applyCsrConfig(hart, *config_, verbose))
     errors++;
@@ -932,18 +1239,27 @@ HartConfig::applyConfig(Hart<URV>& hart, bool verbose) const
   if (not applyTriggerConfig(hart, *config_))
     errors++;
 
+  if (not applyVectorConfig(hart, *config_))
+    errors++;
+
   tag = "load_data_trigger";
   if (config_ -> count(tag))
     {
-      bool flag = getJsonBoolean(tag, config_ -> at(tag));
-      hart.configLoadDataTrigger(flag);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        hart.configLoadDataTrigger(flag);
+      else
+        errors++;
     }
 
   tag = "exec_opcode_trigger";
   if (config_ -> count(tag))
     {
-      bool flag = getJsonBoolean(tag, config_ -> at(tag));
-      hart.configExecOpcodeTrigger(flag);
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        hart.configExecOpcodeTrigger(flag);
+      else
+        errors++;
     }
 
   if (config_ -> count("memmap"))
@@ -952,8 +1268,11 @@ HartConfig::applyConfig(Hart<URV>& hart, bool verbose) const
       tag = "consoleio";
       if (memmap.count(tag))
 	{
-	  URV io = getJsonUnsigned<URV>("memmap.consoleio", memmap.at(tag));
-	  hart.setConsoleIo(io);
+          URV io = 0;
+	  if (getJsonUnsigned("memmap.consoleio", memmap.at(tag), io))
+            hart.setConsoleIo(io);
+          else
+            errors++;
 	}
     }
 
@@ -963,11 +1282,18 @@ HartConfig::applyConfig(Hart<URV>& hart, bool verbose) const
 
 template<typename URV>
 bool
-HartConfig::configHarts(System<URV>& system, bool verbose) const
+HartConfig::configHarts(System<URV>& system, const std::string& isaString,
+                        bool verbose) const
 {
+  bool user = this->userModeEnabled();
+
+  user = user or (isaString.find("uU") != std::string::npos);
+
+  // Apply JSON configuration.
   for (unsigned i = 0; i < system.hartCount(); ++i)
-    if (not applyConfig(*system.ithHart(i), verbose))
+    if (not applyConfig(*system.ithHart(i), user, verbose))
       return false;
+
   return finalizeCsrConfig(system);
 }
 
@@ -976,10 +1302,7 @@ bool
 HartConfig::getXlen(unsigned& xlen) const
 {
   if (config_ -> count("xlen"))
-    {
-      xlen = getJsonUnsigned<uint32_t>("xlen", config_ -> at("xlen"));
-      return true;
-    }
+    return getJsonUnsigned("xlen", config_ -> at("xlen"), xlen);
   return false;
 }
 
@@ -988,10 +1311,7 @@ bool
 HartConfig::getCoreCount(unsigned& count) const
 {
   if (config_ -> count("cores"))
-    {
-      count = getJsonUnsigned<uint32_t>("cores", config_ -> at("cores"));
-      return true;
-    }
+    return getJsonUnsigned("cores", config_ -> at("cores"), count);
   return false;
 }
 
@@ -1000,10 +1320,7 @@ bool
 HartConfig::getHartsPerCore(unsigned& count) const
 {
   if (config_ -> count("harts"))
-    {
-      count = getJsonUnsigned<uint32_t>("harts", config_ -> at("harts"));
-      return true;
-    }
+    return getJsonUnsigned("harts", config_ -> at("harts"), count);
   return false;
 }
 
@@ -1018,8 +1335,7 @@ HartConfig::getPageSize(size_t& pageSize) const
   if (not mem.count("page_size"))
     return false;
 
-  pageSize = getJsonUnsigned<size_t>("memmap.page_size", mem.at("page_size"));
-  return true;
+  return getJsonUnsigned("memmap.page_size", mem.at("page_size"), pageSize);
 }
 
 
@@ -1033,8 +1349,31 @@ HartConfig::getMemorySize(size_t& memSize) const
   if (not mem.count("size"))
     return false;
 
-  memSize = getJsonUnsigned<size_t>("memmap.size", mem.at("size"));
-  return true;
+  return getJsonUnsigned("memmap.size", mem.at("size"), memSize);
+}
+
+
+bool
+HartConfig::userModeEnabled() const
+{
+  uint64_t resetVal = 0;
+  if (not getMisaReset(resetVal))
+    return false;
+
+  // User mode enabled if bit corresponding to U extension is set.
+  return ((uint64_t(1) << ('u' - 'a')) & resetVal) != 0;
+}
+
+
+bool
+HartConfig::supervisorModeEnabled() const
+{
+  uint64_t resetVal = 0;
+  if (not getMisaReset(resetVal))
+    return false;
+
+  // User mode enabled if bit corresponding to S extension is set.
+  return ((uint64_t(1) << ('s' - 'a')) & resetVal) != 0;
 }
 
 
@@ -1317,16 +1656,61 @@ HartConfig::finalizeCsrConfig(System<URV>& system) const
 }
 
 
+bool
+HartConfig::getMisaReset(uint64_t& val) const
+{
+  val = 0;
+
+  if (not config_ -> count("csr"))
+    return false;  // No csr section
+
+  const auto& csrs = config_ -> at("csr");
+  if (not csrs.is_object())
+    return false;  // No csr section in this config.
+
+  if (not csrs.count("misa"))
+    return false;  // CSR misa not present in csr section
+
+  const auto& misa = csrs.at("misa");
+  if (not misa.is_object())
+    return false;
+
+  if (not misa.count("reset"))
+    return false;  // No reset entry under misa
+
+  uint64_t resetVal = 0;
+  if (not getJsonUnsigned("csr.misa.reset", misa.at("reset"), resetVal))
+    return false;
+
+  val = resetVal;
+  return true;
+}
+
+
 // Instantiate tempate member functions
 
-template bool HartConfig::applyConfig<uint32_t>(Hart<uint32_t>&, bool) const;
-template bool HartConfig::applyConfig<uint64_t>(Hart<uint64_t>&, bool) const;
+template bool
+HartConfig::applyConfig<uint32_t>(Hart<uint32_t>&, bool, bool) const;
 
-template bool HartConfig::configHarts<uint32_t>(System<uint32_t>&, bool) const;
-template bool HartConfig::configHarts<uint64_t>(System<uint64_t>&, bool) const;
+template bool
+HartConfig::applyConfig<uint64_t>(Hart<uint64_t>&, bool, bool) const;
 
-template bool HartConfig::applyMemoryConfig<uint32_t>(Hart<uint32_t>&, bool, bool) const;
-template bool HartConfig::applyMemoryConfig<uint64_t>(Hart<uint64_t>&, bool, bool) const;
+template bool
+HartConfig::configHarts<uint32_t>(System<uint32_t>&, const std::string&,
+                                  bool) const;
 
-template bool HartConfig::finalizeCsrConfig<uint32_t>(System<uint32_t>&) const;
-template bool HartConfig::finalizeCsrConfig<uint64_t>(System<uint64_t>&) const;
+template bool
+HartConfig::configHarts<uint64_t>(System<uint64_t>&, const std::string&,
+                                  bool) const;
+
+template bool
+HartConfig::applyMemoryConfig<uint32_t>(Hart<uint32_t>&, bool, bool) const;
+
+template bool
+HartConfig::applyMemoryConfig<uint64_t>(Hart<uint64_t>&, bool, bool) const;
+
+template bool
+HartConfig::finalizeCsrConfig<uint32_t>(System<uint32_t>&) const;
+
+template bool
+HartConfig::finalizeCsrConfig<uint64_t>(System<uint64_t>&) const;

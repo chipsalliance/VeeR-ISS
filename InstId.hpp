@@ -351,7 +351,62 @@ namespace WdRiscv
 
      // vector
      vadd_vv,
-     
-     maxId = vadd_vv
+     vadd_vx,
+     vadd_vi,
+
+     vsub_vv,
+     vsub_vx,
+
+     vrsub_vx,
+     vrsub_vi,
+
+     vminu_vv,
+     vminu_vx,
+     vmin_vv,
+     vmin_vx,
+
+     vmaxu_vv,
+     vmaxu_vx,
+     vmax_vv,
+     vmax_vx,
+
+     vand_vv,
+     vand_vx,
+     vand_vi,
+
+     vor_vv,
+     vor_vx,
+     vor_vi,
+
+     vxor_vv,
+     vxor_vx,
+     vxor_vi,
+
+     vrgather_vv,
+     vrgather_vx,
+     vrgather_vi,
+     vrgatherei16_vv,
+
+     vcompress_vm,
+
+     vredsum_vs,
+     vredand_vs,
+     vredor_vs,
+     vredxor_vs,
+     vredminu_vs,
+     vredmin_vs,
+     vredmaxu_vs,
+     vredmax_vs,
+
+     vmand_mm,
+     vmnand_mm,
+     vmandnot_mm,
+     vmxor_mm,
+     vmor_mm,
+     vmnor_mm,
+     vmornot_mm,
+     vmxnor_mm,
+
+     maxId = vmxnor_mm
     };
 }

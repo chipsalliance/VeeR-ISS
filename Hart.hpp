@@ -26,6 +26,7 @@
 #include "IntRegs.hpp"
 #include "CsRegs.hpp"
 #include "FpRegs.hpp"
+#include "VecRegs.hpp"
 #include "Memory.hpp"
 #include "InstProfile.hpp"
 #include "DecodedInst.hpp"
@@ -286,6 +287,18 @@ namespace WdRiscv
     /// success and false on failure.
     void configMachineModeMaxPerfEvent(URV maxId)
     { csRegs_.setMaxEventId(maxId); }
+
+    /// Configure valid event. If this is used then events outside the
+    /// given vector are replaced by zero before being assigned to an
+    /// MHPMEVENT register. Otherwise, events greater that
+    /// max-event-id are clamped to max-event-id before being assigned
+    /// to an MHPMEVENT register.
+    void configPerfEvents(std::vector<unsigned>& eventVec)
+    { csRegs_.configPerfEvents(eventVec); }
+
+    /// Configure vector unit of this hart.
+    void configVector(unsigned bytesPerVec, unsigned maxBytesPerElem)
+    { vecRegs_.config(bytesPerVec, maxBytesPerElem); }
 
     /// Get the values of the three components of the given debug
     /// trigger. Return true on success and false if trigger is out of
@@ -1168,8 +1181,31 @@ namespace WdRiscv
     bool isFpEnabled() const
     { return mstatusFs_ != FpFs::Off; }
 
+    // Return truee if it is legal to execute an FP instruction: F extension must
+    // be enabled and FS feild of MSTATUS must not be OFF.
+    bool isFpLegal() const
+    { return isRvf() and isFpEnabled(); }
+
+    // Return trie if it is legal to execute a double precision
+    // floating point instruction: D extension must be enabled and FS
+    // feild of MSTATUS must not be OFF.
+    bool isDpLegal() const
+    { return isRvd() and isFpEnabled(); }
+
     // Mark FS field of mstatus as dirty.
     void markFsDirty();
+
+    // Return true if vS field of mstatus is not off.
+    bool isVecEnabled() const
+    { return mstatusVs_ != FpFs::Off; }
+
+    // Mark VS field of mstatus as dirty.
+    void markVsDirty();
+
+    // Return truee if it is legal to execute a vector instruction: V extension must
+    // be enabled and VS feild of MSTATUS must not be OFF.
+    bool isVecLegal() const
+    { return isRvv() and isVecEnabled(); }
 
     // Update cached values of mstatus.mpp and mstatus.mprv and
     // mstatus.fs ...  This is called when mstatus is written/poked.
@@ -1392,6 +1428,10 @@ namespace WdRiscv
     /// Helper to CSR instructions. Keep minstret and mcycle up to date.
     void preCsrInstruction(CsrNumber csr);
 
+    /// Helper to CSR instructions: return true if given CSR is
+    /// writebale and false otherwise.
+    bool isCsrWriteable(CsrNumber csr) const;
+
     /// Helper to CSR instructions: Write csr and integer register if csr
     /// is writeable.
     void doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
@@ -1457,6 +1497,12 @@ namespace WdRiscv
     /// retired instruction.
     void updatePerformanceCounters(uint32_t inst, const InstEntry&,
 				   uint32_t op0, uint32_t op1);
+
+    // For CSR instruction we need to let the counters count before
+    // letting CSR instruction write. Consequently we update the
+    // counters from within the code executing the CSR instruction
+    // using this method.
+    void updatePerformanceCountersForCsr(const DecodedInst& di);
 
     /// Fetch an instruction. Return true on success. Return false on
     /// fail (in which case an exception is initiated). May fetch a
@@ -1907,6 +1953,211 @@ namespace WdRiscv
     void execFsr(const DecodedInst*);
     void execFsri(const DecodedInst*);
 
+
+    template<typename INT_ELEM_TYPE>
+    bool vadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVadd_vv(const DecodedInst*);
+
+    template<typename INT_ELEM_TYPE>
+    bool vadd_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVadd_vx(const DecodedInst*);
+
+    template<typename INT_ELEM_TYPE>
+    bool vadd_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVadd_vi(const DecodedInst*);
+
+
+    template<typename INT_ELEM_TYPE>
+    bool vsub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVsub_vv(const DecodedInst*);
+
+    template<typename INT_ELEM_TYPE>
+    bool vsub_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVsub_vx(const DecodedInst*);
+
+
+    template<typename INT_ELEM_TYPE>
+    bool vrsub_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVrsub_vx(const DecodedInst*);
+
+    template<typename INT_ELEM_TYPE>
+    bool vrsub_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVrsub_vi(const DecodedInst*);
+
+
+    template<typename UINT_ELEM_TYPE>
+    bool vminu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVminu_vv(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vminu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVminu_vx(const DecodedInst*);
+
+
+    template<typename INT_ELEM_TYPE>
+    bool vmin_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVmin_vv(const DecodedInst*);
+
+    template<typename INT_ELEM_TYPE>
+    bool vmin_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVmin_vx(const DecodedInst*);
+
+
+    template<typename UINT_ELEM_TYPE>
+    bool vmaxu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmaxu_vv(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vmaxu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmaxu_vx(const DecodedInst*);
+
+
+    template<typename INT_ELEM_TYPE>
+    bool vmax_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVmax_vv(const DecodedInst*);
+
+    template<typename INT_ELEM_TYPE>
+    bool vmax_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVmax_vx(const DecodedInst*);
+
+
+    template<typename INT_ELEM_TYPE>
+    bool vand_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVand_vv(const DecodedInst*);
+
+    template<typename INT_ELEM_TYPE>
+    bool vand_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVand_vx(const DecodedInst*);
+
+    template<typename INT_ELEM_TYPE>
+    bool vand_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVand_vi(const DecodedInst*);
+
+
+    template<typename INT_ELEM_TYPE>
+    bool vor_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVor_vv(const DecodedInst*);
+
+    template<typename INT_ELEM_TYPE>
+    bool vor_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVor_vx(const DecodedInst*);
+
+    template<typename INT_ELEM_TYPE>
+    bool vor_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVor_vi(const DecodedInst*);
+
+
+    template<typename INT_ELEM_TYPE>
+    bool vxor_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVxor_vv(const DecodedInst*);
+
+    template<typename INT_ELEM_TYPE>
+    bool vxor_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVxor_vx(const DecodedInst*);
+
+    template<typename INT_ELEM_TYPE>
+    bool vxor_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVxor_vi(const DecodedInst*);
+
+
+    template<typename UINT_ELEM_TYPE>
+    bool vrgather_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                     unsigned start, unsigned elems);
+    void execVrgather_vv(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vrgather_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                     unsigned start, unsigned elems);
+    void execVrgather_vx(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vrgather_vi(unsigned vd, unsigned vs1, uint32_t imm, unsigned group,
+                     unsigned start, unsigned elems);
+    void execVrgather_vi(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vrgatherei16_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                         unsigned start, unsigned elems);
+    void execVrgatherei16_vv(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vcompress_vm(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                      unsigned start, unsigned elems);
+    void execVcompress_vm(const DecodedInst*);
+
+    template<typename INT_ELEM_TYPE>
+    bool vredsum_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                    unsigned start, unsigned elems);
+    void execVredsum_vs(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vredand_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                    unsigned start, unsigned elems);
+    void execVredand_vs(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vredor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                   unsigned start, unsigned elems);
+    void execVredor_vs(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vredxor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                    unsigned start, unsigned elems);
+    void execVredxor_vs(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vredminu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                     unsigned start, unsigned elems);
+    void execVredminu_vs(const DecodedInst*);
+
+    template<typename INT_ELEM_TYPE>
+    bool vredmin_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                    unsigned start, unsigned elems);
+    void execVredmin_vs(const DecodedInst*);
+
+    template<typename UINT_ELEM_TYPE>
+    bool vredmaxu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                     unsigned start, unsigned elems);
+    void execVredmaxu_vs(const DecodedInst*);
+
+    template<typename INT_ELEM_TYPE>
+    bool vredmax_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                    unsigned start, unsigned elems);
+    void execVredmax_vs(const DecodedInst*);
+
+    void execVmand_mm(const DecodedInst*);
+    void execVmnand_mm(const DecodedInst*);
+    void execVmandnot_mm(const DecodedInst*);
+    void execVmxor_mm(const DecodedInst*);
+    void execVmor_mm(const DecodedInst*);
+    void execVmnor_mm(const DecodedInst*);
+    void execVmornot_mm(const DecodedInst*);
+    void execVmxnor_mm(const DecodedInst*);
+
   private:
 
     // We model store buffer in order to undo store effects after an
@@ -1972,6 +2223,8 @@ namespace WdRiscv
     IntRegs<URV> intRegs_;       // Integer register file.
     CsRegs<URV> csRegs_;         // Control and status registers.
     FpRegs<double> fpRegs_;      // Floating point registers.
+    VecRegs vecRegs_;            // Vector register file.
+
     Syscall<URV> syscall_;
 
     bool rv64_ = sizeof(URV)==8; // True if 64-bit base (RV64I).
@@ -2082,6 +2335,8 @@ namespace WdRiscv
     PrivilegeMode mstatusMpp_ = PrivilegeMode::Machine; // Cached mstatus.mpp.
     bool mstatusMprv_ = false;                          // Cached mstatus.mprv.
     FpFs mstatusFs_ = FpFs::Off;                        // Cahced mstatus.fs.
+
+    FpFs mstatusVs_ = FpFs::Off;
 
     bool debugMode_ = false;         // True on debug mode.
     bool debugStepMode_ = false;     // True in debug step mode.

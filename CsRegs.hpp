@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <string>
 #include <functional>
 #include <cassert>
@@ -28,7 +29,7 @@ namespace WdRiscv
 {
 
   /// Control and status register number.
-  enum class CsrNumber
+  enum class CsrNumber : uint32_t
     {
       // Machine mode registers.
 
@@ -454,12 +455,6 @@ namespace WdRiscv
     void definePrivilegeMode(PrivilegeMode mode)
     { initialMode_ = mode; privMode_ = mode; }
 
-    /// Restore CSR value to that written by a csrwr instruction before.
-    /// This is done to restore value clobbered by performance counters
-    /// counting out of order.
-    void undoCountUp() const
-    { *valuePtr_ = nextValue_; }
-
     /// Associate given location with the value of this CSR. The
     /// previous value of the CSR is lost. If given location is null
     /// then the default location defined in this object is restored.
@@ -549,8 +544,6 @@ namespace WdRiscv
 
       for (auto func : postWrite_)
         func(*this, newVal);
-
-      nextValue_ = *valuePtr_;
     }
 
     /// Similar to the write method but using the poke mask instead of
@@ -567,8 +560,6 @@ namespace WdRiscv
 
       for (auto func : postPoke_)
         func(*this, newVal);
-
-      nextValue_ = *valuePtr_;
     }
 
     /// Return the value of this register before last sequence of
@@ -595,7 +586,6 @@ namespace WdRiscv
     PrivilegeMode initialMode_ = PrivilegeMode::Machine;
     PrivilegeMode privMode_ = PrivilegeMode::Machine;
     URV value_ = 0;
-    URV nextValue_ = 0;
     URV prev_ = 0;
     bool hasPrev_ = false;
 
@@ -996,6 +986,17 @@ namespace WdRiscv
     void setMaxEventId(URV maxId)
     { maxEventId_ = maxId; }
 
+    /// Configure valid event. If this is used then events outside the
+    /// given vector are replaced by zero before being assigned to an
+    /// MHPMEVENT register. Otherwise, events greater that
+    /// max-event-id are clamped to max-event-id before being assigned
+    /// to an MHPMEVENT register.
+    void configPerfEvents(std::vector<unsigned>& eventVec)
+    {
+      hasPerfEventSet_ = true;
+      perfEventSet_.insert(eventVec.begin(), eventVec.end());
+    }
+
     /// Lock/unlock mdseac. This supports imprecise load/store exceptions.
     void lockMdseac(bool flag)
     { mdseacLocked_ = flag; }
@@ -1071,7 +1072,9 @@ namespace WdRiscv
 
     bool mdseacLocked_ = false; // Once written, MDSEAC persists until
                                 // MDEAU is written.
-    URV maxEventId_ = ~URV(0);
+    URV maxEventId_ = 16*1024;
+    bool hasPerfEventSet_ = false;
+    std::unordered_set<unsigned> perfEventSet_;
 
     unsigned pmpG_ = 0;  // PMP G value: ln2(pmpGrain) - 2
 
@@ -1107,7 +1110,7 @@ namespace WdRiscv
       unsigned UBE      : 1;
       unsigned MPIE     : 1;
       unsigned SPP      : 1;
-      unsigned res1     : 2;
+      unsigned VS       : 2;
       unsigned MPP      : 2;
       unsigned FS       : 2;
       unsigned XS       : 2;
@@ -1142,7 +1145,7 @@ namespace WdRiscv
       unsigned UBE      : 1;
       unsigned MPIE     : 1;
       unsigned SPP      : 1;
-      unsigned res1     : 2;
+      unsigned VS       : 2;
       unsigned MPP      : 2;
       unsigned FS       : 2;
       unsigned XS       : 2;

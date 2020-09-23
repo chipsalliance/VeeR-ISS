@@ -22,23 +22,24 @@
 #include <mutex>
 #include <array>
 #include <atomic>
+#include <cstring>
+#include <ctime>
 #include <boost/format.hpp>
 #include <emmintrin.h>
 #include <sys/time.h>
 #include <poll.h>
 
+#include <boost/multiprecision/cpp_int.hpp>
+
 // On pure 32-bit machines, use boost for 128-bit integer type.
 #if __x86_64__
-  typedef __int128_t Int128;
+  typedef __int128_t  Int128;
   typedef __uint128_t Uint128;
 #else
-  #include <boost/multiprecision/cpp_int.hpp>
-  boost::multiprecision::int128_t Int128;
-  boost::multiprecision::uint128_t Uint128;
+  typedef boost::multiprecision::int128_t  Int128;
+  typedef boost::multiprecision::uint128_t Uint128;
 #endif
 
-#include <cstring>
-#include <ctime>
 #include <fcntl.h>
 #include <sys/time.h>
 #include <sys/stat.h>
@@ -113,11 +114,10 @@ union Uint64DoubleUnion
 };
 
 
-
 template <typename URV>
 Hart<URV>::Hart(unsigned hartIx, Memory& memory)
   : hartIx_(hartIx), memory_(memory), intRegs_(32),
-    fpRegs_(32), syscall_(*this),
+    fpRegs_(32), vecRegs_(), syscall_(*this),
     pmpManager_(memory.size(), memory.pageSize()),
     virtMem_(hartIx, memory, memory.pageSize(), pmpManager_, 16 /* FIX: TLB size*/)
 {
@@ -354,7 +354,7 @@ Hart<URV>::processExtensions()
         enableUserMode(true);
 
       if (value & (URV(1) << ('v' - 'a')))  // User-mode option.
-        rvv_ = false; // true
+        rvv_ = true;
 
       for (auto ec : { 'b', 'g', 'h', 'j', 'k', 'l', 'n', 'o', 'p',
 	    'q', 'r', 't', 'v', 'w', 'x', 'y', 'z' } )
@@ -465,6 +465,7 @@ Hart<URV>::updateCachedMstatusFields()
   mstatusMpp_ = PrivilegeMode(msf.bits_.MPP);
   mstatusMprv_ = msf.bits_.MPRV;
   mstatusFs_ = FpFs(msf.bits_.FS);
+  mstatusVs_ = FpFs(msf.bits_.VS);
 
   virtMem_.setExecReadable(msf.bits_.MXR);
   virtMem_.setSupervisorAccessUser(msf.bits_.SUM);
@@ -3471,6 +3472,7 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
     return;
 
   PerfRegs& pregs = csRegs_.mPerfRegs_;
+
   pregs.updateCounters(EventNumber::InstCommited, prevPerfControl_,
                        lastPriv_);
 
@@ -3480,12 +3482,6 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
   else
     pregs.updateCounters(EventNumber::Inst32Commited, prevPerfControl_,
                          lastPriv_);
-
-#if 0
-  if ((currPc_ & 3) == 0)
-    pregs.updateCounters(EventNumber::InstAligned, prevPerfControl_,
-                         lastPriv_);
-#endif
 
   if (info.type() == InstType::Int)
     {
@@ -3562,6 +3558,7 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
     }
   else if (info.isCsr() and not hasException_)
     {
+      // 2. Let the counters count.
       if ((id == InstId::csrrw or id == InstId::csrrwi))
 	{
 	  if (op0 == 0)
@@ -3580,22 +3577,6 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
 	    pregs.updateCounters(EventNumber::CsrReadWrite, prevPerfControl_,
                                  lastPriv_);
 	}
-
-      // Counter modified by csr instruction should not count up.
-      // Also, counter stops counting after corresponding event reg is
-      // written.
-      std::vector<CsrNumber> csrs;
-      std::vector<unsigned> triggers;
-      csRegs_.getLastWrittenRegs(csrs, triggers);
-      for (auto& csr : csrs)
-        {
-          auto csrPtr = csRegs_.getImplementedCsr(csr);
-          csrPtr->undoCountUp();
-
-          if (csr >= CsrNumber::MHPMEVENT3 and csr <= CsrNumber::MHPMEVENT31)
-            if (not csRegs_.applyPerfEventAssign())
-              std::cerr << "Unexpected applyPerfAssign fail\n";
-        }
     }
   else if (info.isBranch())
     {
@@ -3610,12 +3591,36 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
 
 template <typename URV>
 void
+Hart<URV>::updatePerformanceCountersForCsr(const DecodedInst& di)
+{
+  const InstEntry& info = *(di.instEntry());
+
+  if (not enableCounters_)
+    return;
+
+  if (not info.isCsr())
+    return;
+
+  updatePerformanceCounters(di.inst(), info, di.op0(), di.op1());
+}
+
+
+
+template <typename URV>
+void
 Hart<URV>::accumulateInstructionStats(const DecodedInst& di)
 {
   const InstEntry& info = *(di.instEntry());
 
   if (enableCounters_)
-    updatePerformanceCounters(di.inst(), info, di.op0(), di.op1());
+    {
+      // For CSR instruction we need to let the counters count before
+      // letting CSR instruction write. Consequently we update the counters
+      // from within the code executing the CSR instruction.
+      if (not info.isCsr())
+        updatePerformanceCounters(di.inst(), info, di.op0(), di.op1());
+    }
+
   prevPerfControl_ = perfControl_;
 
   // We do not update the instruction stats if an instruction causes
@@ -5381,7 +5386,54 @@ Hart<URV>::execute(const DecodedInst* di)
      &&cmix,
      &&fsl,
      &&fsr,
-     &&fsri
+     &&fsri,
+
+     // vevtor
+     &&vadd_vv,
+     &&vadd_vx,
+     &&vadd_vi,
+     &&vsub_vv,
+     &&vsub_vx,
+     &&vrsub_vx,
+     &&vrsub_vi,
+     &&vminu_vv,
+     &&vminu_vx,
+     &&vmin_vv,
+     &&vmin_vx,
+     &&vmaxu_vv,
+     &&vmaxu_vx,
+     &&vmax_vv,
+     &&vmax_vx,
+     &&vand_vv,
+     &&vand_vx,
+     &&vand_vi,
+     &&vor_vv,
+     &&vor_vx,
+     &&vor_vi,
+     &&vxor_vv,
+     &&vxor_vx,
+     &&vxor_vi,
+     &&vrgather_vv,
+     &&vrgather_vx,
+     &&vrgather_vi,
+     &&vrgatherei16_vv,
+     &&vcompress_vm,
+     &&vredsum_vs,
+     &&vredand_vs,
+     &&vredor_vs,
+     &&vredxor_vs,
+     &&vredminu_vs,
+     &&vredmin_vs,
+     &&vredmaxu_vs,
+     &&vredmax_vs,
+     &&vmand_mm,
+     &&vmnand_mm,
+     &&vmandnot_mm,
+     &&vmxor_mm,
+     &&vmor_mm,
+     &&vmnor_mm,
+     &&vmornot_mm,
+     &&vmxnor_mm
     };
 
   const InstEntry* entry = di->instEntry();
@@ -6526,6 +6578,186 @@ Hart<URV>::execute(const DecodedInst* di)
  fsri:
   execFsri(di);
   return;
+
+ vadd_vv:
+  execVadd_vv(di);
+  return;
+
+ vadd_vx:
+  execVadd_vx(di);
+  return;
+
+ vadd_vi:
+  execVadd_vi(di);
+  return;
+
+ vsub_vv:
+  execVsub_vv(di);
+  return;
+
+ vsub_vx:
+  execVsub_vx(di);
+  return;
+
+ vrsub_vx:
+  execVrsub_vx(di);
+  return;
+
+ vrsub_vi:
+  execVrsub_vi(di);
+  return;
+
+ vminu_vv:
+  execVminu_vv(di);
+  return;
+
+ vminu_vx:
+  execVminu_vx(di);
+  return;
+
+ vmin_vv:
+  execVmin_vv(di);
+  return;
+
+ vmin_vx:
+  execVmin_vx(di);
+  return;
+
+ vmaxu_vv:
+  execVmaxu_vv(di);
+  return;
+
+ vmaxu_vx:
+  execVmaxu_vx(di);
+  return;
+
+ vmax_vv:
+  execVmax_vv(di);
+  return;
+
+ vmax_vx:
+  execVmax_vx(di);
+  return;
+
+ vand_vv:
+  execVand_vv(di);
+  return;
+
+ vand_vx:
+  execVand_vx(di);
+  return;
+
+ vand_vi:
+  execVand_vi(di);
+  return;
+
+ vor_vv:
+  execVor_vv(di);
+  return;
+
+ vor_vx:
+  execVor_vx(di);
+  return;
+
+ vor_vi:
+  execVor_vi(di);
+  return;
+
+ vxor_vv:
+  execVxor_vv(di);
+  return;
+
+ vxor_vx:
+  execVxor_vx(di);
+  return;
+
+ vxor_vi:
+  execVxor_vi(di);
+  return;
+
+ vrgather_vv:
+  execVrgather_vv(di);
+  return;
+
+ vrgather_vx:
+  execVrgather_vx(di);
+  return;
+
+ vrgather_vi:
+  execVrgather_vi(di);
+  return;
+
+ vrgatherei16_vv:
+  execVrgatherei16_vv(di);
+  return;
+
+ vcompress_vm:
+  execVcompress_vm(di);
+  return;
+
+ vredsum_vs:
+  execVredsum_vs(di);
+  return;
+
+ vredand_vs:
+  execVredand_vs(di);
+  return;
+
+ vredor_vs:
+  execVredor_vs(di);
+  return;
+
+ vredxor_vs:
+  execVredxor_vs(di);
+  return;
+
+ vredminu_vs:
+  execVredminu_vs(di);
+  return;
+
+ vredmin_vs:
+  execVredmin_vs(di);
+  return;
+
+ vredmaxu_vs:
+  execVredmaxu_vs(di);
+  return;
+
+ vredmax_vs:
+  execVredmax_vs(di);
+  return;
+
+ vmand_mm:
+  execVmand_mm(di);
+  return;
+
+ vmnand_mm:
+  execVmnand_mm(di);
+  return;
+
+ vmandnot_mm:
+  execVmandnot_mm(di);
+  return;
+
+ vmxor_mm:
+  execVmxor_mm(di);
+  return;
+
+ vmor_mm:
+  execVmor_mm(di);
+  return;
+
+ vmnor_mm:
+  execVmnor_mm(di);
+  return;
+
+ vmornot_mm:
+  execVmornot_mm(di);
+  return;
+
+ vmxnor_mm:
+  execVmxnor_mm(di);
+  return;
 }
 
 
@@ -7401,28 +7633,36 @@ Hart<URV>::updateStackChecker()
 
 
 template <typename URV>
-void
-Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
-                      unsigned intReg, URV intRegVal)
+bool
+Hart<URV>::isCsrWriteable(CsrNumber csr) const
 {
   if (not csRegs_.isWriteable(csr, privMode_))
-    {
-      illegalInst(di);
-      return;
-    }
+    return false;
 
   if (csr == CsrNumber::SATP and privMode_ == PrivilegeMode::Supervisor)
     {
       URV mstatus = csRegs_.peekMstatus();
       MstatusFields<URV> fields(mstatus);
       if (fields.bits_.TVM)
-        {
-          illegalInst(di);
-          return;
-        }
+        return false;
+    }
+  return true;
+}
+
+
+
+template <typename URV>
+void
+Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
+                      unsigned intReg, URV intRegVal)
+{
+  if (not isCsrWriteable(csr))
+    {
+      illegalInst(di);
+      return;
     }
 
-  // Make auto-increment happen before write for minstret and cycle.
+  // Make auto-increment happen before CSR write for minstret and cycle.
   if (csr == CsrNumber::MINSTRET or csr == CsrNumber::MINSTRETH)
     if (minstretEnabled())
       retiredInsts_++;
@@ -7432,6 +7672,13 @@ Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
   // Update CSR and integer register.
   csRegs_.write(csr, privMode_, csrVal);
   intRegs_.write(intReg, intRegVal);
+
+  // This makes sure that counters stop counting after corresponding
+  // event reg is written.
+  if (enableCounters_)
+    if (csr >= CsrNumber::MHPMEVENT3 and csr <= CsrNumber::MHPMEVENT31)
+      if (not csRegs_.applyPerfEventAssign())
+        std::cerr << "Unexpected applyPerfAssign fail\n";
 
   if (csr == CsrNumber::DCSR)
     {
@@ -7482,6 +7729,9 @@ Hart<URV>::execCsrrw(const DecodedInst* di)
   if (not doCsrRead(di, csr, prev))
     return;
 
+  if (isCsrWriteable(csr))
+    updatePerformanceCountersForCsr(*di);
+
   URV next = intRegs_.read(di->op1());
 
   doCsrWrite(di, csr, next, di->op0(), prev);
@@ -7500,6 +7750,9 @@ Hart<URV>::execCsrrs(const DecodedInst* di)
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
     return;
+
+  if (isCsrWriteable(csr))
+    updatePerformanceCountersForCsr(*di);
 
   URV next = prev | intRegs_.read(di->op1());
   if (di->op1() == 0)
@@ -7524,6 +7777,9 @@ Hart<URV>::execCsrrc(const DecodedInst* di)
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
     return;
+
+  if (isCsrWriteable(csr))
+    updatePerformanceCountersForCsr(*di);
 
   URV next = prev & (~ intRegs_.read(di->op1()));
   if (di->op1() == 0)
@@ -7550,6 +7806,9 @@ Hart<URV>::execCsrrwi(const DecodedInst* di)
     if (not doCsrRead(di, csr, prev))
       return;
 
+  if (isCsrWriteable(csr))
+    updatePerformanceCountersForCsr(*di);
+
   doCsrWrite(di, csr, di->op1(), di->op0(), prev);
 }
 
@@ -7566,6 +7825,9 @@ Hart<URV>::execCsrrsi(const DecodedInst* di)
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
     return;
+
+  if (isCsrWriteable(csr))
+    updatePerformanceCountersForCsr(*di);
 
   URV imm = di->op1();
 
@@ -7592,6 +7854,9 @@ Hart<URV>::execCsrrci(const DecodedInst* di)
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
     return;
+
+  if (isCsrWriteable(csr))
+    updatePerformanceCountersForCsr(*di);
 
   URV imm = di->op1();
 
@@ -8389,6 +8654,15 @@ Hart<URV>::markFsDirty()
 {
 }
 
+
+template <typename URV>
+inline
+void
+Hart<URV>::markVsDirty()
+{
+}
+
+
 #else
 
 template <typename URV>
@@ -8439,6 +8713,24 @@ Hart<URV>::markFsDirty()
   URV val = csRegs_.peekMstatus();
   MstatusFields<URV> fields(val);
   fields.bits_.FS = unsigned(FpFs::Dirty);
+
+  csRegs_.poke(CsrNumber::MSTATUS, fields.value_);
+
+  updateCachedMstatusFields();
+}
+
+
+template <typename URV>
+inline
+void
+Hart<URV>::markVsDirty()
+{
+  if (mstatusVs_ == FpFs::Dirty)
+    return;
+
+  URV val = csRegs_.peekMstatus();
+  MstatusFields<URV> fields(val);
+  fields.bits_.VS = unsigned(FpFs::Dirty);
 
   csRegs_.poke(CsrNumber::MSTATUS, fields.value_);
 
@@ -8503,7 +8795,7 @@ inline
 bool
 Hart<URV>::checkRoundingModeSp(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return false;
@@ -8527,7 +8819,7 @@ inline
 bool
 Hart<URV>::checkRoundingModeDp(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return false;
@@ -8550,7 +8842,7 @@ template <typename URV>
 void
 Hart<URV>::execFlw(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -8611,7 +8903,7 @@ template <typename URV>
 void
 Hart<URV>::execFsw(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -8900,7 +9192,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnj_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -8919,7 +9211,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnjn_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -8939,7 +9231,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnjx_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -8997,7 +9289,7 @@ template <typename URV>
 void
 Hart<URV>::execFmin_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9032,7 +9324,7 @@ template <typename URV>
 void
 Hart<URV>::execFmax_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9185,7 +9477,7 @@ template <typename URV>
 void
 Hart<URV>::execFmv_x_w(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9205,7 +9497,7 @@ template <typename URV>
 void
 Hart<URV>::execFeq_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9232,7 +9524,7 @@ template <typename URV>
 void
 Hart<URV>::execFlt_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9256,7 +9548,7 @@ template <typename URV>
 void
 Hart<URV>::execFle_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9297,7 +9589,7 @@ template <typename URV>
 void
 Hart<URV>::execFclass_s(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9390,7 +9682,7 @@ template <typename URV>
 void
 Hart<URV>::execFmv_w_x(const DecodedInst* di)
 {
-  if (not isRvf() or not isFpEnabled())
+if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9604,7 +9896,7 @@ template <typename URV>
 void
 Hart<URV>::execFld(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -9673,7 +9965,7 @@ template <typename URV>
 void
 Hart<URV>::execFsd(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -9902,7 +10194,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnj_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -9921,7 +10213,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnjn_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -9941,7 +10233,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnjx_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -9967,7 +10259,7 @@ template <typename URV>
 void
 Hart<URV>::execFmin_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10002,7 +10294,7 @@ template <typename URV>
 void
 Hart<URV>::execFmax_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10100,7 +10392,7 @@ template <typename URV>
 void
 Hart<URV>::execFle_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10124,7 +10416,7 @@ template <typename URV>
 void
 Hart<URV>::execFlt_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10148,7 +10440,7 @@ template <typename URV>
 void
 Hart<URV>::execFeq_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10308,7 +10600,7 @@ template <typename URV>
 void
 Hart<URV>::execFclass_d(const DecodedInst* di)
 {
-  if (not isRvd() or not isFpEnabled())
+  if (not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10563,7 +10855,7 @@ template <typename URV>
 void
 Hart<URV>::execFmv_d_x(const DecodedInst* di)
 {
-  if (not isRv64() or not isRvd() or not isFpEnabled())
+  if (not isRv64() or not isDpLegal())
     {
       illegalInst(di);
       return;
@@ -10599,7 +10891,7 @@ template <>
 void
 Hart<uint64_t>::execFmv_x_d(const DecodedInst* di)
 {
-  if (not isRv64() or not isRvd() or not isFpEnabled())
+  if (not isRv64() or not isDpLegal())
     {
       illegalInst(di);
       return;
