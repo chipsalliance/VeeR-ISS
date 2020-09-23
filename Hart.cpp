@@ -870,11 +870,14 @@ Hart<URV>::applyStoreException(URV addr, unsigned& matches)
       if (not prevLocked)
         {
           pokeCsr(CsrNumber::MDSEAC, addr); // MDSEAC is read only: Poke it.
-          recordCsrWrite(CsrNumber::MDSEAC);
           csRegs_.lockMdseac(true);
           setPendingNmi(NmiCause::STORE_EXCEPTION);
         }
     }
+
+  // Always report mdseac (even when not updated) to simplify
+  // positive/negative post nmi mdseac checks in the bench.
+  recordCsrWrite(CsrNumber::MDSEAC);
 
   matches = 1;
   return true;
@@ -894,11 +897,14 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
       if (not prevLocked)
         {
           pokeCsr(CsrNumber::MDSEAC, addr); // MDSEAC is read only: Poke it.
-          recordCsrWrite(CsrNumber::MDSEAC);
           csRegs_.lockMdseac(true);
           setPendingNmi(NmiCause::LOAD_EXCEPTION);
         }
     }
+
+  // Always report mdseac (even when not updated) to simplify
+  // positive/negative post nmi mdseac checks in the bench.
+  recordCsrWrite(CsrNumber::MDSEAC);
 
   if (not loadErrorRollback_)
     {

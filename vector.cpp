@@ -84,17 +84,14 @@ Hart<URV>::execVadd_vv(const DecodedInst* di)
     }
 
   bool masked = di->isMasked();
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   if (masked and vd == 0)  // Dest register cannot overlap mask register v0
     {
       illegalInst(di);
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -197,8 +194,7 @@ Hart<URV>::execVadd_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -299,8 +295,7 @@ Hart<URV>::execVadd_vi(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -391,17 +386,14 @@ Hart<URV>::execVsub_vv(const DecodedInst* di)
     }
 
   bool masked = di->isMasked();
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   if (masked and vd == 0)  // Dest register cannot overlap mask register v0
     {
       illegalInst(di);
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -504,8 +496,7 @@ Hart<URV>::execVsub_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -608,8 +599,7 @@ Hart<URV>::execVrsub_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -710,8 +700,7 @@ Hart<URV>::execVrsub_vi(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -802,17 +791,14 @@ Hart<URV>::execVminu_vv(const DecodedInst* di)
     }
 
   bool masked = di->isMasked();
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   if (masked and vd == 0)  // Dest register cannot overlap mask register v0
     {
       illegalInst(di);
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -915,8 +901,7 @@ Hart<URV>::execVminu_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1007,17 +992,14 @@ Hart<URV>::execVmin_vv(const DecodedInst* di)
     }
 
   bool masked = di->isMasked();
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   if (masked and vd == 0)  // Dest register cannot overlap mask register v0
     {
       illegalInst(di);
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1120,8 +1102,7 @@ Hart<URV>::execVmin_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1212,17 +1193,14 @@ Hart<URV>::execVmaxu_vv(const DecodedInst* di)
     }
 
   bool masked = di->isMasked();
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   if (masked and vd == 0)  // Dest register cannot overlap mask register v0
     {
       illegalInst(di);
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1325,8 +1303,7 @@ Hart<URV>::execVmaxu_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1417,17 +1394,14 @@ Hart<URV>::execVmax_vv(const DecodedInst* di)
     }
 
   bool masked = di->isMasked();
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   if (masked and vd == 0)  // Dest register cannot overlap mask register v0
     {
       illegalInst(di);
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1530,8 +1504,7 @@ Hart<URV>::execVmax_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1622,17 +1595,14 @@ Hart<URV>::execVand_vv(const DecodedInst* di)
     }
 
   bool masked = di->isMasked();
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   if (masked and vd == 0)  // Dest register cannot overlap mask register v0
     {
       illegalInst(di);
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1735,8 +1705,7 @@ Hart<URV>::execVand_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1837,8 +1806,7 @@ Hart<URV>::execVand_vi(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1929,17 +1897,14 @@ Hart<URV>::execVor_vv(const DecodedInst* di)
     }
 
   bool masked = di->isMasked();
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   if (masked and vd == 0)  // Dest register cannot overlap mask register v0
     {
       illegalInst(di);
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2042,8 +2007,7 @@ Hart<URV>::execVor_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2144,8 +2108,7 @@ Hart<URV>::execVor_vi(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2236,17 +2199,14 @@ Hart<URV>::execVxor_vv(const DecodedInst* di)
     }
 
   bool masked = di->isMasked();
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   if (masked and vd == 0)  // Dest register cannot overlap mask register v0
     {
       illegalInst(di);
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2349,8 +2309,7 @@ Hart<URV>::execVxor_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2451,8 +2410,7 @@ Hart<URV>::execVxor_vi(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2542,12 +2500,9 @@ Hart<URV>::execVrgather_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2638,8 +2593,7 @@ Hart<URV>::execVrgather_vx(const DecodedInst* di)
   unsigned vs1 = di->op1();
   unsigned rs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2730,8 +2684,7 @@ Hart<URV>::execVrgather_vi(const DecodedInst* di)
   unsigned vs1 = di->op1();
   uint32_t imm = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2826,12 +2779,9 @@ Hart<URV>::execVrgatherei16_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2932,12 +2882,9 @@ Hart<URV>::execVcompress_vm(const DecodedInst* di)
       return;
     }
 
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -3027,12 +2974,9 @@ Hart<URV>::execVredsum_vs(const DecodedInst* di)
       return;
     }
 
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -3121,12 +3065,9 @@ Hart<URV>::execVredand_vs(const DecodedInst* di)
       return;
     }
 
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -3215,12 +3156,9 @@ Hart<URV>::execVredor_vs(const DecodedInst* di)
       return;
     }
 
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -3309,12 +3247,9 @@ Hart<URV>::execVredxor_vs(const DecodedInst* di)
       return;
     }
 
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -3404,12 +3339,9 @@ Hart<URV>::execVredminu_vs(const DecodedInst* di)
       return;
     }
 
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -3498,12 +3430,9 @@ Hart<URV>::execVredmin_vs(const DecodedInst* di)
       return;
     }
 
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -3592,12 +3521,9 @@ Hart<URV>::execVredmaxu_vs(const DecodedInst* di)
       return;
     }
 
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -3686,12 +3612,9 @@ Hart<URV>::execVredmax_vs(const DecodedInst* di)
       return;
     }
 
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned vs2 = di->op2();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier();
-  unsigned start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplier(), start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
