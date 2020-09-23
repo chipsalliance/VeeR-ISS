@@ -1428,6 +1428,10 @@ namespace WdRiscv
     /// Helper to CSR instructions. Keep minstret and mcycle up to date.
     void preCsrInstruction(CsrNumber csr);
 
+    /// Helper to CSR instructions: return true if given CSR is
+    /// writebale and false otherwise.
+    bool isCsrWriteable(CsrNumber csr) const;
+
     /// Helper to CSR instructions: Write csr and integer register if csr
     /// is writeable.
     void doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
