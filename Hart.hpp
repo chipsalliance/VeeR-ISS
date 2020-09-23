@@ -2158,6 +2158,18 @@ namespace WdRiscv
     void execVmornot_mm(const DecodedInst*);
     void execVmxnor_mm(const DecodedInst*);
 
+    template<typename UINT_ELEM_TYPE>
+    bool vslideup_vs(unsigned vd, unsigned vs1, unsigned amount, unsigned group,
+                     unsigned start, unsigned elems, bool masked);
+    void execVslideup_vx(const DecodedInst*);
+    void execVslideup_vi(const DecodedInst*);
+    void execVslide1up_vx(const DecodedInst*);
+
+    bool vslideup_vs(unsigned vd, unsigned vs1, unsigned amount, unsigned group,
+                     unsigned start, unsigned elems, bool masked);
+    void execVslidedown_vx(const DecodedInst*);
+    void execVslidedown_vi(const DecodedInst*);
+
   private:
 
     // We model store buffer in order to undo store effects after an
@@ -2276,6 +2288,7 @@ namespace WdRiscv
     // These should be cleared before each instruction when triggers enabled.
     bool hasException_ = 0;      // True if current inst has an exception.
     bool csrException_ = 0;      // True if there is a CSR related exception.
+    bool hasInterrupt_ = 0;      // True if there is an interrupt.
     bool triggerTripped_ = 0;    // True if a trigger trips.
 
     bool lastBranchTaken_ = false; // Useful for performance counters

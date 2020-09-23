@@ -894,11 +894,11 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
       if (not prevLocked)
         {
           pokeCsr(CsrNumber::MDSEAC, addr); // MDSEAC is read only: Poke it.
+          recordCsrWrite(CsrNumber::MDSEAC);
           csRegs_.lockMdseac(true);
           setPendingNmi(NmiCause::LOAD_EXCEPTION);
         }
     }
-  recordCsrWrite(CsrNumber::MDSEAC);  // Always record change (per Ajay Nath)
 
   if (not loadErrorRollback_)
     {
@@ -2548,6 +2548,7 @@ Hart<URV>::initiateInterrupt(InterruptCause cause, URV pc)
   auto secCause = SecondaryCause::NONE;
   initiateTrap(interrupt, URV(cause), pc, info, URV(secCause));
 
+  hasInterrupt_ = true;
   interruptCount_++;
 
   if (not enableCounters_)
@@ -2717,7 +2718,9 @@ Hart<URV>::undelegatedInterrupt(URV cause, URV pcToSave, URV nextPc)
 {
   enableWideLdStMode(false);  // Swerv specific feature.
 
+  hasInterrupt_ = true;
   interruptCount_++;
+
   memory_.invalidateLr(hartIx_);
 
   PrivilegeMode origMode = privMode_;
@@ -3463,6 +3466,9 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
   InstId id = info.instId();
 
   if (isDebugModeStopCount(*this))
+    return;
+
+  if (hasInterrupt_)
     return;
 
   // We do not update the performance counters if an instruction
@@ -4238,7 +4244,7 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
 
 	  ldStAddrValid_ = false;
 	  triggerTripped_ = false;
-	  hasException_ = false;
+	  hasInterrupt_ = hasException_ = false;
           lastPriv_ = privMode_;
 
 	  ++instCounter_;
@@ -4266,7 +4272,7 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
 
 	  ++cycleCount_;
 
-	  if (hasException_)
+	  if (hasException_ or hasInterrupt_)
 	    {
               if (doStats)
                 accumulateInstructionStats(*di);
@@ -4701,7 +4707,7 @@ Hart<URV>::singleStep(FILE* traceFile)
 
       ldStAddrValid_ = false;
       triggerTripped_ = false;
-      hasException_ = false;
+      hasException_ = hasInterrupt_ = false;
       ebreakInstDebug_ = false;
       lastPriv_ = privMode_;
 
@@ -4731,7 +4737,7 @@ Hart<URV>::singleStep(FILE* traceFile)
 	  forceAccessFail_ = false;
 	}
 
-      if (hasException_)
+      if (hasException_ or hasInterrupt_)
 	{
 	  if (doStats)
 	    accumulateInstructionStats(di);
@@ -7669,6 +7675,8 @@ Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
   if (csr == CsrNumber::MCYCLE or csr == CsrNumber::MCYCLEH)
     cycleCount_++;
 
+  updatePerformanceCountersForCsr(*di);
+
   // Update CSR and integer register.
   csRegs_.write(csr, privMode_, csrVal);
   intRegs_.write(intReg, intRegVal);
@@ -7729,9 +7737,6 @@ Hart<URV>::execCsrrw(const DecodedInst* di)
   if (not doCsrRead(di, csr, prev))
     return;
 
-  if (isCsrWriteable(csr))
-    updatePerformanceCountersForCsr(*di);
-
   URV next = intRegs_.read(di->op1());
 
   doCsrWrite(di, csr, next, di->op0(), prev);
@@ -7751,12 +7756,10 @@ Hart<URV>::execCsrrs(const DecodedInst* di)
   if (not doCsrRead(di, csr, prev))
     return;
 
-  if (isCsrWriteable(csr))
-    updatePerformanceCountersForCsr(*di);
-
   URV next = prev | intRegs_.read(di->op1());
   if (di->op1() == 0)
     {
+      updatePerformanceCountersForCsr(*di);
       intRegs_.write(di->op0(), prev);
       return;
     }
@@ -7778,12 +7781,10 @@ Hart<URV>::execCsrrc(const DecodedInst* di)
   if (not doCsrRead(di, csr, prev))
     return;
 
-  if (isCsrWriteable(csr))
-    updatePerformanceCountersForCsr(*di);
-
   URV next = prev & (~ intRegs_.read(di->op1()));
   if (di->op1() == 0)
     {
+      updatePerformanceCountersForCsr(*di);
       intRegs_.write(di->op0(), prev);
       return;
     }
@@ -7806,9 +7807,6 @@ Hart<URV>::execCsrrwi(const DecodedInst* di)
     if (not doCsrRead(di, csr, prev))
       return;
 
-  if (isCsrWriteable(csr))
-    updatePerformanceCountersForCsr(*di);
-
   doCsrWrite(di, csr, di->op1(), di->op0(), prev);
 }
 
@@ -7821,19 +7819,16 @@ Hart<URV>::execCsrrsi(const DecodedInst* di)
     return;
 
   CsrNumber csr = CsrNumber(di->op2());
+  URV imm = di->op1();
 
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
     return;
 
-  if (isCsrWriteable(csr))
-    updatePerformanceCountersForCsr(*di);
-
-  URV imm = di->op1();
-
   URV next = prev | imm;
   if (imm == 0)
     {
+      updatePerformanceCountersForCsr(*di);
       intRegs_.write(di->op0(), prev);
       return;
     }
@@ -7850,19 +7845,16 @@ Hart<URV>::execCsrrci(const DecodedInst* di)
     return;
 
   CsrNumber csr = CsrNumber(di->op2());
+  URV imm = di->op1();
 
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
     return;
 
-  if (isCsrWriteable(csr))
-    updatePerformanceCountersForCsr(*di);
-
-  URV imm = di->op1();
-
   URV next = prev & (~ imm);
   if (imm == 0)
     {
+      updatePerformanceCountersForCsr(*di);
       intRegs_.write(di->op0(), prev);
       return;
     }
