@@ -1974,6 +1974,70 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       out << "vslidedown.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2();
       break;
 
+    case InstId::vmul_vv:
+      out << "vmul.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vmul_vx:
+      out << "vmul.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
+    case InstId::vmulh_vv:
+      out << "vmulh.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vmulh_vx:
+      out << "vmulh.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
+    case InstId::vmulhu_vv:
+      out << "vmulhu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vmulhu_vx:
+      out << "vmulhu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
+    case InstId::vmulhsu_vv:
+      out << "vmulhsu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vmulhsu_vx:
+      out << "vmulhsu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
+    case InstId::vdivu_vv:
+      out << "vdivu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vdivu_vx:
+      out << "vdivu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
+    case InstId::vdiv_vv:
+      out << "vdiv.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vdiv_vx:
+      out << "vdiv.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
+    case InstId::vremu_vv:
+      out << "vremu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vremu_vx:
+      out << "vremu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
+    case InstId::vrem_vv:
+      out << "vrem.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vrem_vx:
+      out << "vrem.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
     default:
       out << "illegal";
     }

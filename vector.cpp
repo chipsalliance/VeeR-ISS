@@ -45,13 +45,13 @@ using namespace WdRiscv;
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                         unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
-  INT_ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -143,7 +143,7 @@ Hart<URV>::execVadd_vv(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vadd_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                         unsigned start, unsigned elems, bool masked)
 {
@@ -151,9 +151,9 @@ bool Hart<URV>::vadd_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
   SRV srv2 = intRegs_.read(rs2);
 
-  INT_ELEM_TYPE val2 = srv2;
+  ELEM_TYPE val2 = srv2;
 
-  INT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -246,15 +246,15 @@ Hart<URV>::execVadd_vx(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vadd_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
                         unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
-  INT_ELEM_TYPE val2 = imm;
+  ELEM_TYPE val2 = imm;
 
-  INT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -347,13 +347,13 @@ Hart<URV>::execVadd_vi(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vsub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                         unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
-  INT_ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -445,7 +445,7 @@ Hart<URV>::execVsub_vv(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vsub_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                         unsigned start, unsigned elems, bool masked)
 {
@@ -453,9 +453,9 @@ bool Hart<URV>::vsub_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
   SRV srv2 = intRegs_.read(rs2);
 
-  INT_ELEM_TYPE val2 = srv2;
+  ELEM_TYPE val2 = srv2;
 
-  INT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -548,7 +548,7 @@ Hart<URV>::execVsub_vx(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vrsub_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                          unsigned start, unsigned elems, bool masked)
 {
@@ -556,9 +556,9 @@ bool Hart<URV>::vrsub_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group
 
   SRV srv2 = intRegs_.read(rs2);
 
-  INT_ELEM_TYPE val2 = srv2;
+  ELEM_TYPE val2 = srv2;
 
-  INT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -651,15 +651,15 @@ Hart<URV>::execVrsub_vx(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vrsub_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
                         unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
-  INT_ELEM_TYPE val2 = imm;
+  ELEM_TYPE val2 = imm;
 
-  INT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -752,13 +752,13 @@ Hart<URV>::execVrsub_vi(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename UINT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vminu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                          unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
-  UINT_ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -850,7 +850,7 @@ Hart<URV>::execVminu_vv(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename UINT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vminu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                         unsigned start, unsigned elems, bool masked)
 {
@@ -858,9 +858,9 @@ bool Hart<URV>::vminu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group
 
   URV srv2 = intRegs_.read(rs2);
 
-  UINT_ELEM_TYPE val2 = srv2;
+  ELEM_TYPE val2 = srv2;
 
-  UINT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -953,13 +953,13 @@ Hart<URV>::execVminu_vx(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vmin_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                         unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
-  INT_ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -1051,7 +1051,7 @@ Hart<URV>::execVmin_vv(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vmin_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                         unsigned start, unsigned elems, bool masked)
 {
@@ -1059,9 +1059,9 @@ bool Hart<URV>::vmin_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
   SRV srv2 = intRegs_.read(rs2);
 
-  INT_ELEM_TYPE val2 = srv2;
+  ELEM_TYPE val2 = srv2;
 
-  INT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -1154,13 +1154,13 @@ Hart<URV>::execVmin_vx(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename UINT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vmaxu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                          unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
-  UINT_ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -1252,17 +1252,15 @@ Hart<URV>::execVmaxu_vv(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename UINT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vmaxu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                          unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
-  URV srv2 = intRegs_.read(rs2);
+  ELEM_TYPE val2 = intRegs_.read(rs2);
 
-  UINT_ELEM_TYPE val2 = srv2;
-
-  UINT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -1355,13 +1353,13 @@ Hart<URV>::execVmaxu_vx(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vmax_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                         unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
-  INT_ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -1453,7 +1451,7 @@ Hart<URV>::execVmax_vv(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vmax_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                         unsigned start, unsigned elems, bool masked)
 {
@@ -1461,9 +1459,9 @@ bool Hart<URV>::vmax_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
   SRV srv2 = intRegs_.read(rs2);
 
-  INT_ELEM_TYPE val2 = srv2;
+  ELEM_TYPE val2 = srv2;
 
-  INT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -1556,13 +1554,13 @@ Hart<URV>::execVmax_vx(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vand_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                         unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
-  INT_ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -1654,7 +1652,7 @@ Hart<URV>::execVand_vv(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vand_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                         unsigned start, unsigned elems, bool masked)
 {
@@ -1662,9 +1660,9 @@ bool Hart<URV>::vand_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
   SRV srv2 = intRegs_.read(rs2);
 
-  INT_ELEM_TYPE val2 = srv2;
+  ELEM_TYPE val2 = srv2;
 
-  INT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -1757,15 +1755,15 @@ Hart<URV>::execVand_vx(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vand_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
                         unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
-  INT_ELEM_TYPE val2 = imm;
+  ELEM_TYPE val2 = imm;
 
-  INT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -1858,13 +1856,13 @@ Hart<URV>::execVand_vi(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vor_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                        unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
-  INT_ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -1956,7 +1954,7 @@ Hart<URV>::execVor_vv(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vor_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                        unsigned start, unsigned elems, bool masked)
 {
@@ -1964,9 +1962,9 @@ bool Hart<URV>::vor_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
   SRV srv2 = intRegs_.read(rs2);
 
-  INT_ELEM_TYPE val2 = srv2;
+  ELEM_TYPE val2 = srv2;
 
-  INT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -2059,15 +2057,15 @@ Hart<URV>::execVor_vx(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vor_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
                        unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
-  INT_ELEM_TYPE val2 = imm;
+  ELEM_TYPE val2 = imm;
 
-  INT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -2160,13 +2158,13 @@ Hart<URV>::execVor_vi(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vxor_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                         unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
-  INT_ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -2258,7 +2256,7 @@ Hart<URV>::execVxor_vv(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vxor_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                         unsigned start, unsigned elems, bool masked)
 {
@@ -2266,9 +2264,9 @@ bool Hart<URV>::vxor_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
   SRV srv2 = intRegs_.read(rs2);
 
-  INT_ELEM_TYPE val2 = srv2;
+  ELEM_TYPE val2 = srv2;
 
-  INT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -2361,15 +2359,15 @@ Hart<URV>::execVxor_vx(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename INT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vxor_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
                         unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
-  INT_ELEM_TYPE val2 = imm;
+  ELEM_TYPE val2 = imm;
 
-  INT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -2462,13 +2460,13 @@ Hart<URV>::execVxor_vi(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename UINT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vrgather_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                             unsigned start, unsigned elems)
 {
   unsigned errors = 0;
 
-  UINT_ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -2554,7 +2552,7 @@ Hart<URV>::execVrgather_vv(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename UINT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vrgather_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                             unsigned start, unsigned elems)
 {
@@ -2563,7 +2561,7 @@ bool Hart<URV>::vrgather_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned gr
   URV rv2 = intRegs_.read(rs2);
   URV vs1Ix = rv2;    // FIX: if rv2 > VLMAX, rv2 = VLMAX
 
-  UINT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -2645,7 +2643,7 @@ Hart<URV>::execVrgather_vx(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename UINT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool
 Hart<URV>::vrgather_vi(unsigned vd, unsigned vs1, uint32_t imm, unsigned group,
                        unsigned start, unsigned elems)
@@ -2654,7 +2652,7 @@ Hart<URV>::vrgather_vi(unsigned vd, unsigned vs1, uint32_t imm, unsigned group,
 
   unsigned errors = 0;
 
-  UINT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -2738,16 +2736,16 @@ Hart<URV>::execVrgather_vi(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename UINT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool Hart<URV>::vrgatherei16_vv(unsigned vd, unsigned vs1, unsigned vs2,
                                 unsigned group, unsigned start, unsigned elems)
 {
   unsigned errors = 0;
 
-  UINT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   uint16_t e2 = 0;
-  unsigned e2Group = (16*group)/(8*sizeof(UINT_ELEM_TYPE));
+  unsigned e2Group = (16*group)/(8*sizeof(ELEM_TYPE));
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -2833,14 +2831,14 @@ Hart<URV>::execVrgatherei16_vv(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename UINT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool
 Hart<URV>::vcompress_vm(unsigned vd, unsigned vs1, unsigned vs2,
                         unsigned group, unsigned start, unsigned elems)
 {
   unsigned errors = 0;
 
-  UINT_ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
 
   unsigned destIx = 0;
 
@@ -2937,18 +2935,18 @@ Hart<URV>::execVcompress_vm(const DecodedInst* di)
 
 
 template <typename URV>
-template<typename INT_ELEM_TYPE>
+template<typename ELEM_TYPE>
 bool
 Hart<URV>::vredsum_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                       unsigned start, unsigned elems)
 {
   unsigned errors = 0;
 
-  INT_ELEM_TYPE e2 = 0;
+  ELEM_TYPE e2 = 0;
   if (vecRegs_.read(vs2, 0, 1, e2))
     return false;
   
-  INT_ELEM_TYPE e1 = 0, result = e2;
+  ELEM_TYPE e1 = 0, result = e2;
 
   for (unsigned ix = start; ix < elems; ++ix)
     if (vecRegs_.read(vs1, ix, group, e1))
@@ -3028,18 +3026,18 @@ Hart<URV>::execVredsum_vs(const DecodedInst* di)
 
 
 template <typename URV>
-template<typename UINT_ELEM_TYPE>
+template<typename ELEM_TYPE>
 bool
 Hart<URV>::vredand_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                       unsigned start, unsigned elems)
 {
   unsigned errors = 0;
 
-  UINT_ELEM_TYPE e2 = 0;
+  ELEM_TYPE e2 = 0;
   if (vecRegs_.read(vs2, 0, 1, e2))
     return false;
   
-  UINT_ELEM_TYPE e1 = 0, result = e2;
+  ELEM_TYPE e1 = 0, result = e2;
 
   for (unsigned ix = start; ix < elems; ++ix)
     if (vecRegs_.read(vs1, ix, group, e1))
@@ -3119,18 +3117,18 @@ Hart<URV>::execVredand_vs(const DecodedInst* di)
 
 
 template <typename URV>
-template<typename UINT_ELEM_TYPE>
+template<typename ELEM_TYPE>
 bool
 Hart<URV>::vredor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                      unsigned start, unsigned elems)
 {
   unsigned errors = 0;
 
-  UINT_ELEM_TYPE e2 = 0;
+  ELEM_TYPE e2 = 0;
   if (vecRegs_.read(vs2, 0, 1, e2))
     return false;
   
-  UINT_ELEM_TYPE e1 = 0, result = e2;
+  ELEM_TYPE e1 = 0, result = e2;
 
   for (unsigned ix = start; ix < elems; ++ix)
     if (vecRegs_.read(vs1, ix, group, e1))
@@ -3210,18 +3208,18 @@ Hart<URV>::execVredor_vs(const DecodedInst* di)
 
 
 template <typename URV>
-template<typename UINT_ELEM_TYPE>
+template<typename ELEM_TYPE>
 bool
 Hart<URV>::vredxor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                       unsigned start, unsigned elems)
 {
   unsigned errors = 0;
 
-  UINT_ELEM_TYPE e2 = 0;
+  ELEM_TYPE e2 = 0;
   if (vecRegs_.read(vs2, 0, 1, e2))
     return false;
   
-  UINT_ELEM_TYPE e1 = 0, result = e2;
+  ELEM_TYPE e1 = 0, result = e2;
 
   for (unsigned ix = start; ix < elems; ++ix)
     if (vecRegs_.read(vs1, ix, group, e1))
@@ -3301,18 +3299,18 @@ Hart<URV>::execVredxor_vs(const DecodedInst* di)
 
 
 template <typename URV>
-template<typename UINT_ELEM_TYPE>
+template<typename ELEM_TYPE>
 bool
 Hart<URV>::vredminu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                        unsigned start, unsigned elems)
 {
   unsigned errors = 0;
 
-  UINT_ELEM_TYPE e2 = 0;
+  ELEM_TYPE e2 = 0;
   if (vecRegs_.read(vs2, 0, 1, e2))
     return false;
   
-  UINT_ELEM_TYPE e1 = 0, result = e2;
+  ELEM_TYPE e1 = 0, result = e2;
 
   for (unsigned ix = start; ix < elems; ++ix)
     if (vecRegs_.read(vs1, ix, group, e1))
@@ -3393,18 +3391,18 @@ Hart<URV>::execVredminu_vs(const DecodedInst* di)
 
 
 template <typename URV>
-template<typename INT_ELEM_TYPE>
+template<typename ELEM_TYPE>
 bool
 Hart<URV>::vredmin_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                       unsigned start, unsigned elems)
 {
   unsigned errors = 0;
 
-  INT_ELEM_TYPE e2 = 0;
+  ELEM_TYPE e2 = 0;
   if (vecRegs_.read(vs2, 0, 1, e2))
     return false;
   
-  INT_ELEM_TYPE e1 = 0, result = e2;
+  ELEM_TYPE e1 = 0, result = e2;
 
   for (unsigned ix = start; ix < elems; ++ix)
     if (vecRegs_.read(vs1, ix, group, e1))
@@ -3484,18 +3482,18 @@ Hart<URV>::execVredmin_vs(const DecodedInst* di)
 
 
 template <typename URV>
-template<typename UINT_ELEM_TYPE>
+template<typename ELEM_TYPE>
 bool
 Hart<URV>::vredmaxu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                        unsigned start, unsigned elems)
 {
   unsigned errors = 0;
 
-  UINT_ELEM_TYPE e2 = 0;
+  ELEM_TYPE e2 = 0;
   if (vecRegs_.read(vs2, 0, 1, e2))
     return false;
   
-  UINT_ELEM_TYPE e1 = 0, result = e2;
+  ELEM_TYPE e1 = 0, result = e2;
 
   for (unsigned ix = start; ix < elems; ++ix)
     if (vecRegs_.read(vs1, ix, group, e1))
@@ -3575,18 +3573,18 @@ Hart<URV>::execVredmaxu_vs(const DecodedInst* di)
 
 
 template <typename URV>
-template<typename INT_ELEM_TYPE>
+template<typename ELEM_TYPE>
 bool
 Hart<URV>::vredmax_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                       unsigned start, unsigned elems)
 {
   unsigned errors = 0;
 
-  INT_ELEM_TYPE e2 = 0;
+  ELEM_TYPE e2 = 0;
   if (vecRegs_.read(vs2, 0, 1, e2))
     return false;
   
-  INT_ELEM_TYPE e1 = 0, result = e2;
+  ELEM_TYPE e1 = 0, result = e2;
 
   for (unsigned ix = start; ix < elems; ++ix)
     if (vecRegs_.read(vs1, ix, group, e1))
@@ -4010,14 +4008,14 @@ Hart<URV>::execVmxnor_mm(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename UINT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool
 Hart<URV>::vslideup(unsigned vd, unsigned vs1, URV amount, unsigned group,
                     unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
-  UINT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -4066,7 +4064,7 @@ Hart<URV>::execVslideup_vx(const DecodedInst* di)
   ElementWidth sew = vecRegs_.elemWidth();
 
   unsigned dist = vd > vs1 ? vd - vs1 : vs1 - vd;
-  if (dist >= group)
+  if (dist > group)
     {
       illegalInst(di);  // Source/dest vecs cannot overlap
       return;
@@ -4144,7 +4142,7 @@ Hart<URV>::execVslideup_vi(const DecodedInst* di)
   ElementWidth sew = vecRegs_.elemWidth();
 
   unsigned dist = vd > vs1 ? vd - vs1 : vs1 - vd;
-  if (dist >= group)
+  if (dist > group)
     {
       illegalInst(di);  // Source/dest vecs cannot overlap
       return;
@@ -4222,7 +4220,7 @@ Hart<URV>::execVslide1up_vx(const DecodedInst* di)
   ElementWidth sew = vecRegs_.elemWidth();
 
   unsigned dist = vd > vs1 ? vd - vs1 : vs1 - vd;
-  if (dist >= group)
+  if (dist > group)
     {
       illegalInst(di);  // Source/dest vecs cannot overlap
       return;
@@ -4294,14 +4292,14 @@ Hart<URV>::execVslide1up_vx(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename UINT_ELEM_TYPE>
+template <typename ELEM_TYPE>
 bool
 Hart<URV>::vslidedown(unsigned vd, unsigned vs1, URV amount, unsigned group,
                       unsigned start, unsigned elems, bool masked)
 {
   unsigned errors = 0;
 
-  UINT_ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -4343,7 +4341,7 @@ Hart<URV>::execVslidedown_vx(const DecodedInst* di)
   ElementWidth sew = vecRegs_.elemWidth();
 
   unsigned dist = vd > vs1 ? vd - vs1 : vs1 - vd;
-  if (dist >= group)
+  if (dist > group)
     {
       illegalInst(di);  // Source/dest vecs cannot overlap
       return;
@@ -4421,7 +4419,7 @@ Hart<URV>::execVslidedown_vi(const DecodedInst* di)
   ElementWidth sew = vecRegs_.elemWidth();
 
   unsigned dist = vd > vs1 ? vd - vs1 : vs1 - vd;
-  if (dist >= group)
+  if (dist > group)
     {
       illegalInst(di);  // Source/dest vecs cannot overlap
       return;
@@ -4473,6 +4471,443 @@ Hart<URV>::execVslidedown_vi(const DecodedInst* di)
         errors++;
       break;
     }
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+bool
+Hart<URV>::vmul_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                   unsigned start, unsigned elems, bool masked)
+{
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, group, e1) and
+          vecRegs_.read(vs2, ix, group, e2))
+        {
+          dest = e1 * e2;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  return errors == 0;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmul_vv(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vmul_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vmul_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vmul_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vmul_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vmul_vv<Int128>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vmul_vv<Int256>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vmul_vv<Int512>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vmul_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+    }
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+bool
+Hart<URV>::vmul_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                   unsigned start, unsigned elems, bool masked)
+{
+  unsigned errors = 0;
+
+  SRV srv2 = intRegs_.read(rs2);
+
+  ELEM_TYPE val2 = srv2, e1 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, group, e1))
+        {
+          dest = e1 * val2;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  return errors == 0;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmul_vx(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(), vs1 = di->op1(), rs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vmul_vx<int8_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vmul_vx<int16_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vmul_vx<int32_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vmul_vx<int64_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vmul_vx<Int128>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vmul_vx<Int256>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vmul_vx<Int512>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vmul_vx<Int1024>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+    }
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+bool
+Hart<URV>::vmulh_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                    unsigned start, unsigned elems, bool masked)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmulh_vv(const DecodedInst* di)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+bool
+Hart<URV>::vmulh_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                    unsigned start, unsigned elems, bool masked)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmulh_vx(const DecodedInst* di)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+bool
+Hart<URV>::vmulhu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                     unsigned start, unsigned elems, bool masked)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmulhu_vv(const DecodedInst* di)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+bool
+Hart<URV>::vmulhu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                     unsigned start, unsigned elems, bool masked)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmulhu_vx(const DecodedInst* di)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+bool
+Hart<URV>::vmulhsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                      unsigned start, unsigned elems, bool masked)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmulhsu_vv(const DecodedInst* di)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+bool
+Hart<URV>::vmulhsu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                      unsigned start, unsigned elems, bool masked)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmulhsu_vx(const DecodedInst* di)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+bool
+Hart<URV>::vdivu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                    unsigned start, unsigned elems, bool masked)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVdivu_vv(const DecodedInst* di)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+bool
+Hart<URV>::vdivu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                    unsigned start, unsigned elems, bool masked)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVdivu_vx(const DecodedInst* di)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+bool
+Hart<URV>::vdiv_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                   unsigned start, unsigned elems, bool masked)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVdiv_vv(const DecodedInst* di)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+bool
+Hart<URV>::vdiv_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                   unsigned start, unsigned elems, bool masked)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVdiv_vx(const DecodedInst* di)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+bool
+Hart<URV>::vremu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                    unsigned start, unsigned elems, bool masked)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVremu_vv(const DecodedInst* di)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+bool
+Hart<URV>::vremu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                    unsigned start, unsigned elems, bool masked)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVremu_vx(const DecodedInst* di)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+bool
+Hart<URV>::vrem_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                   unsigned start, unsigned elems, bool masked)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVrem_vv(const DecodedInst* di)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+bool
+Hart<URV>::vrem_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                   unsigned start, unsigned elems, bool masked)
+{
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVrem_vx(const DecodedInst* di)
+{
 }
 
 

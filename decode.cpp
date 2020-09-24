@@ -228,6 +228,14 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       if (f6 == 0x1e) return instTable_.getEntry(InstId::vmnor_mm);
       if (f6 == 0x1c) return instTable_.getEntry(InstId::vmornot_mm);
       if (f6 == 0x1f) return instTable_.getEntry(InstId::vmxnor_mm);
+      if (f6 == 0x20) return instTable_.getEntry(InstId::vdivu_vv);
+      if (f6 == 0x21) return instTable_.getEntry(InstId::vdiv_vv);
+      if (f6 == 0x22) return instTable_.getEntry(InstId::vremu_vv);
+      if (f6 == 0x23) return instTable_.getEntry(InstId::vrem_vv);
+      if (f6 == 0x24) return instTable_.getEntry(InstId::vmulhu_vv);
+      if (f6 == 0x25) return instTable_.getEntry(InstId::vmul_vv);
+      if (f6 == 0x26) return instTable_.getEntry(InstId::vmulhsu_vv);
+      if (f6 == 0x27) return instTable_.getEntry(InstId::vmulh_vv);
       return instTable_.getEntry(InstId::illegal);  
     }
 
@@ -271,13 +279,21 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       return instTable_.getEntry(InstId::illegal);  
     }
 
-  if (f3 == 4)
+  if (f3 == 6)
     {
       op0 = rform.bits.rd;
       op1 = rform.bits.rs2; // operand order reversed
       op2 = rform.bits.rs1;
 
-      if (f6 == 14)   return instTable_.getEntry(InstId::vslide1up_vx);
+      if (f6 == 0xe)   return instTable_.getEntry(InstId::vslide1up_vx);
+      if (f6 == 0x20)  return instTable_.getEntry(InstId::vdivu_vx);
+      if (f6 == 0x21)  return instTable_.getEntry(InstId::vdiv_vx);
+      if (f6 == 0x22)  return instTable_.getEntry(InstId::vremu_vx);
+      if (f6 == 0x23)  return instTable_.getEntry(InstId::vrem_vx);
+      if (f6 == 0x24)  return instTable_.getEntry(InstId::vmulhu_vx);
+      if (f6 == 0x25)  return instTable_.getEntry(InstId::vmul_vx);
+      if (f6 == 0x26)  return instTable_.getEntry(InstId::vmulhsu_vx);
+      if (f6 == 0x27)  return instTable_.getEntry(InstId::vmulh_vx);
       return instTable_.getEntry(InstId::illegal);  
     }
 

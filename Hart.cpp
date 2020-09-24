@@ -5450,7 +5450,23 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vslideup_vi,
      &&vslide1up_vx,
      &&vslidedown_vx,
-     &&vslidedown_vi
+     &&vslidedown_vi,
+     &&vmul_vv,
+     &&vmul_vx,
+     &&vmulh_vv,
+     &&vmulh_vx,
+     &&vmulhu_vv,
+     &&vmulhu_vx,
+     &&vmulhsu_vv,
+     &&vmulhsu_vx,
+     &&vdivu_vv,
+     &&vdivu_vx,
+     &&vdiv_vv,
+     &&vdiv_vx,
+     &&vremu_vv,
+     &&vremu_vx,
+     &&vrem_vv,
+     &&vrem_vx
     };
 
   const InstEntry* entry = di->instEntry();
@@ -6794,6 +6810,70 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vslidedown_vi:
   execVslidedown_vi(di);
+  return;
+
+ vmul_vv:
+  execVmul_vv(di);
+  return;
+
+ vmul_vx:
+  execVmul_vx(di);
+  return;
+
+ vmulh_vv:
+  execVmulh_vv(di);
+  return;
+
+ vmulh_vx:
+  execVmulh_vx(di);
+  return;
+
+ vmulhu_vv:
+  execVmulhu_vv(di);
+  return;
+
+ vmulhu_vx:
+  execVmulhu_vx(di);
+  return;
+
+ vmulhsu_vv:
+  execVmulhsu_vv(di);
+  return;
+
+ vmulhsu_vx:
+  execVmulhsu_vx(di);
+  return;
+
+ vdivu_vv:
+  execVdivu_vv(di);
+  return;
+
+ vdivu_vx:
+  execVdivu_vx(di);
+  return;
+
+ vdiv_vv:
+  execVdiv_vv(di);
+  return;
+
+ vdiv_vx:
+  execVdiv_vx(di);
+  return;
+
+ vremu_vv:
+  execVremu_vv(di);
+  return;
+
+ vremu_vx:
+  execVremu_vx(di);
+  return;
+
+ vrem_vv:
+  execVrem_vv(di);
+  return;
+
+ vrem_vx:
+  execVrem_vx(di);
   return;
 }
 

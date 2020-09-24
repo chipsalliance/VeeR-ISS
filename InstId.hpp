@@ -413,6 +413,23 @@ namespace WdRiscv
      vslidedown_vx,
      vslidedown_vi,
 
-     maxId = vslidedown_vi
+     vmul_vv,
+     vmul_vx,
+     vmulh_vv,
+     vmulh_vx,
+     vmulhu_vv,
+     vmulhu_vx,
+     vmulhsu_vv,
+     vmulhsu_vx,
+     vdivu_vv,
+     vdivu_vx,
+     vdiv_vv,
+     vdiv_vx,
+     vremu_vv,
+     vremu_vx,
+     vrem_vv,
+     vrem_vx,
+
+     maxId = vrem_vx
     };
 }
