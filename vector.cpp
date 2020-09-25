@@ -181,11 +181,7 @@ bool Hart<URV>::vadd_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 {
   unsigned errors = 0;
 
-  SRV srv2 = intRegs_.read(rs2);
-
-  ELEM_TYPE val2 = srv2;
-
-  ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = SRV(intRegs_.read(rs2)), dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -194,7 +190,7 @@ bool Hart<URV>::vadd_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
       if (vecRegs_.read(vs1, ix, group, e1))
         {
-          dest = e1 + val2;
+          dest = e1 + e2;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -284,9 +280,7 @@ bool Hart<URV>::vadd_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
 {
   unsigned errors = 0;
 
-  ELEM_TYPE val2 = imm;
-
-  ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = imm, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -295,7 +289,7 @@ bool Hart<URV>::vadd_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
 
       if (vecRegs_.read(vs1, ix, group, e1))
         {
-          dest = e1 + val2;
+          dest = e1 + e2;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -483,11 +477,7 @@ bool Hart<URV>::vsub_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 {
   unsigned errors = 0;
 
-  SRV srv2 = intRegs_.read(rs2);
-
-  ELEM_TYPE val2 = srv2;
-
-  ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = SRV(intRegs_.read(rs2)), dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -496,7 +486,7 @@ bool Hart<URV>::vsub_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
       if (vecRegs_.read(vs1, ix, group, e1))
         {
-          dest = e1 - val2;
+          dest = e1 - e2;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -586,11 +576,7 @@ bool Hart<URV>::vrsub_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group
 {
   unsigned errors = 0;
 
-  SRV srv2 = intRegs_.read(rs2);
-
-  ELEM_TYPE val2 = srv2;
-
-  ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = SRV(intRegs_.read(rs2)), dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -599,7 +585,7 @@ bool Hart<URV>::vrsub_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group
 
       if (vecRegs_.read(vs1, ix, group, e1))
         {
-          dest = val2 - e1;
+          dest = e2 - e1;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -689,9 +675,7 @@ bool Hart<URV>::vrsub_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
 {
   unsigned errors = 0;
 
-  ELEM_TYPE val2 = imm;
-
-  ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = imm, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -700,7 +684,7 @@ bool Hart<URV>::vrsub_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
 
       if (vecRegs_.read(vs1, ix, group, e1))
         {
-          dest = val2 - e1;
+          dest = e2 - e1;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -888,9 +872,9 @@ bool Hart<URV>::vminu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group
 {
   unsigned errors = 0;
 
-  URV srv2 = intRegs_.read(rs2);  // Spec (sep 24, 2020) says this should be sign extended. We hope they come to their senses.
-
-  ELEM_TYPE val2 = srv2;
+  // Spec (sep 24, 2020) says this should be sign extended. We hope
+  // they come to their senses.
+  ELEM_TYPE e2 = intRegs_.read(rs2);
 
   ELEM_TYPE e1 = 0, dest = 0;
 
@@ -901,7 +885,7 @@ bool Hart<URV>::vminu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group
 
       if (vecRegs_.read(vs1, ix, group, e1))
         {
-          dest = e1 < val2 ? e1 : val2;
+          dest = e1 < e2 ? e1 : e2;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -1089,11 +1073,7 @@ bool Hart<URV>::vmin_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 {
   unsigned errors = 0;
 
-  SRV srv2 = intRegs_.read(rs2);
-
-  ELEM_TYPE val2 = srv2;
-
-  ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = SRV(intRegs_.read(rs2)), dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -1102,7 +1082,7 @@ bool Hart<URV>::vmin_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
       if (vecRegs_.read(vs1, ix, group, e1))
         {
-          dest = e1 < val2 ? e1 : val2;
+          dest = e1 < e2 ? e1 : e2;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -1290,7 +1270,9 @@ bool Hart<URV>::vmaxu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group
 {
   unsigned errors = 0;
 
-  ELEM_TYPE val2 = intRegs_.read(rs2);   // Spec (sep 24, 2020) says this should be sign extended. We hope they come to their senses.
+   // Spec (sep 24, 2020) says this should be sign extended. We hope
+   // they come to their senses.
+  ELEM_TYPE e2 = intRegs_.read(rs2);
 
   ELEM_TYPE e1 = 0, dest = 0;
 
@@ -1301,7 +1283,7 @@ bool Hart<URV>::vmaxu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group
 
       if (vecRegs_.read(vs1, ix, group, e1))
         {
-          dest = e1 > val2 ? e1 : val2;
+          dest = e1 > e2 ? e1 : e2;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -1489,11 +1471,7 @@ bool Hart<URV>::vmax_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 {
   unsigned errors = 0;
 
-  SRV srv2 = intRegs_.read(rs2);
-
-  ELEM_TYPE val2 = srv2;
-
-  ELEM_TYPE e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = SRV(intRegs_.read(rs2)), dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -1502,7 +1480,7 @@ bool Hart<URV>::vmax_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
       if (vecRegs_.read(vs1, ix, group, e1))
         {
-          dest = e1 > val2 ? e1 : val2;
+          dest = e1 > e2 ? e1 : e2;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -1690,11 +1668,8 @@ bool Hart<URV>::vand_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 {
   unsigned errors = 0;
 
-  SRV srv2 = intRegs_.read(rs2);
-
-  ELEM_TYPE val2 = srv2;
-
-  ELEM_TYPE e1 = 0, dest = 0;
+  // Spec says sign extend scalar register. We comply. Looks foolish.
+  ELEM_TYPE e1 = 0, e2 = SRV(intRegs_.read(rs2)), dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -1703,7 +1678,7 @@ bool Hart<URV>::vand_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
       if (vecRegs_.read(vs1, ix, group, e1))
         {
-          dest = e1 & val2;
+          dest = e1 & e2;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -1793,9 +1768,8 @@ bool Hart<URV>::vand_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
 {
   unsigned errors = 0;
 
-  ELEM_TYPE val2 = imm;
-
-  ELEM_TYPE e1 = 0, dest = 0;
+  // Spec says sign extend immediate. We comply. Looks foolish.
+  ELEM_TYPE e1 = 0, e2 = imm, dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -1804,7 +1778,7 @@ bool Hart<URV>::vand_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
 
       if (vecRegs_.read(vs1, ix, group, e1))
         {
-          dest = e1 & val2;
+          dest = e1 & e2;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -1992,11 +1966,8 @@ bool Hart<URV>::vor_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 {
   unsigned errors = 0;
 
-  SRV srv2 = intRegs_.read(rs2);
-
-  ELEM_TYPE val2 = srv2;
-
-  ELEM_TYPE e1 = 0, dest = 0;
+  // Spec says sign extend scalar register. We comply. Looks foolish.
+  ELEM_TYPE e1 = 0, e2 = SRV(intRegs_.read(rs2)), dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -2005,7 +1976,7 @@ bool Hart<URV>::vor_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
       if (vecRegs_.read(vs1, ix, group, e1))
         {
-          dest = e1 | val2;
+          dest = e1 | e2;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -2294,11 +2265,8 @@ bool Hart<URV>::vxor_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 {
   unsigned errors = 0;
 
-  SRV srv2 = intRegs_.read(rs2);
-
-  ELEM_TYPE val2 = srv2;
-
-  ELEM_TYPE e1 = 0, dest = 0;
+  // Spec says sign extend scalar register. We comply. Looks foolish.
+  ELEM_TYPE e1 = 0, e2 = SRV(intRegs_.read(rs2)), dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -2307,7 +2275,7 @@ bool Hart<URV>::vxor_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
       if (vecRegs_.read(vs1, ix, group, e1))
         {
-          dest = e1 ^ val2;
+          dest = e1 ^ e2;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -4258,7 +4226,10 @@ Hart<URV>::execVslide1up_vx(const DecodedInst* di)
       return;
     }
 
-  URV amount = 1,  replacement = intRegs_.read(rs2);
+  URV amount = 1;
+
+  // Sign extend scalar value
+  SRV replacement = SRV(intRegs_.read(rs2));
 
   unsigned errors = 0;
 
@@ -4268,56 +4239,56 @@ Hart<URV>::execVslide1up_vx(const DecodedInst* di)
       if (not vslideup<uint8_t>(vd, vs1, amount, group, start, elems, masked))
         errors++;
       else
-        vecRegs_.write(vd, 0, group, uint8_t(replacement));
+        vecRegs_.write(vd, 0, group, int8_t(replacement));
       break;
 
     case ElementWidth::HalfWord:
       if (not vslideup<uint16_t>(vd, vs1, amount, group, start, elems, masked))
         errors++;
       else
-        vecRegs_.write(vd, 0, group, uint16_t(replacement));
+        vecRegs_.write(vd, 0, group, int16_t(replacement));
       break;
 
     case ElementWidth::Word:
       if (not vslideup<uint32_t>(vd, vs1, amount, group, start, elems, masked))
         errors++;
       else
-        vecRegs_.write(vd, 0, group, uint32_t(replacement));
+        vecRegs_.write(vd, 0, group, int32_t(replacement));
       break;
 
     case ElementWidth::DoubleWord:
       if (not vslideup<uint64_t>(vd, vs1, amount, group, start, elems, masked))
         errors++;
       else
-        vecRegs_.write(vd, 0, group, uint64_t(replacement));
+        vecRegs_.write(vd, 0, group, int64_t(replacement));
       break;
 
     case ElementWidth::QuadWord:
       if (not vslideup<Uint128>(vd, vs1, amount, group, start, elems, masked))
         errors++;
       else
-        vecRegs_.write(vd, 0, group, Uint128(replacement));
+        vecRegs_.write(vd, 0, group, Int128(replacement));
       break;
 
     case ElementWidth::OctWord:
       if (not vslideup<Uint256>(vd, vs1, amount, group, start, elems, masked))
         errors++;
       else
-        vecRegs_.write(vd, 0, group, Uint256(replacement));
+        vecRegs_.write(vd, 0, group, Int256(replacement));
       break;
 
     case ElementWidth::HalfKbits:
       if (not vslideup<Uint512>(vd, vs1, amount, group, start, elems, masked))
         errors++;
       else
-        vecRegs_.write(vd, 0, group, Uint512(replacement));
+        vecRegs_.write(vd, 0, group, Int512(replacement));
       break;
 
     case ElementWidth::Kbits:
       if (not vslideup<Uint1024>(vd, vs1, amount, group, start, elems, masked))
         errors++;
       else
-        vecRegs_.write(vd, 0, group, Uint1024(replacement));
+        vecRegs_.write(vd, 0, group, Int1024(replacement));
       break;
     }
 }
@@ -4613,9 +4584,7 @@ Hart<URV>::vmul_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 {
   unsigned errors = 0;
 
-  SRV srv2 = intRegs_.read(rs2);
-
-  ELEM_TYPE val2 = srv2, e1 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, e2 = SRV(intRegs_.read(rs2)), dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -4624,7 +4593,7 @@ Hart<URV>::vmul_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
       if (vecRegs_.read(vs1, ix, group, e1))
         {
-          dest = e1 * val2;
+          dest = e1 * e2;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -4705,6 +4674,42 @@ Hart<URV>::execVmul_vx(const DecodedInst* di)
 }
 
 
+// Return the width in bits of the given integer type T. This is
+// usually 8*sizeof(T) but is different for wide types implemented
+// using boost multiprecision types.
+template <typename T>
+static
+unsigned
+integerWidth()
+{
+  if constexpr (std::is_same<Int128, T>::value)
+    return 128;
+
+  if constexpr (std::is_same<Int256, T>::value)
+    return 256;
+
+  if constexpr (std::is_same<Int512, T>::value)
+    return 512;
+
+  if constexpr (std::is_same<Int1024, T>::value)
+    return 1024;
+
+  if constexpr (std::is_same<Uint128, T>::value)
+    return 128;
+
+  if constexpr (std::is_same<Uint256, T>::value)
+    return 256;
+
+  if constexpr (std::is_same<Uint512, T>::value)
+    return 512;
+
+  if constexpr (std::is_same<Uint1024, T>::value)
+    return 1024;
+
+  return 8*sizeof(T);
+}
+
+
 template <typename URV>
 template <typename ELEM_TYPE, typename ELEM_TYPE_X2>
 bool
@@ -4713,15 +4718,7 @@ Hart<URV>::vmulh_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
 {
   unsigned errors = 0;
 
-  unsigned elemBits = 8*sizeof(ELEM_TYPE);
-  if constexpr (std::is_same<Int128, ELEM_TYPE>::value)
-    elemBits = 128;
-  if constexpr (std::is_same<Int256, ELEM_TYPE>::value)
-    elemBits = 256;
-  if constexpr (std::is_same<Int512, ELEM_TYPE>::value)
-    elemBits = 512;
-  if constexpr (std::is_same<Int1024, ELEM_TYPE>::value)
-    elemBits = 1024;
+  unsigned elemBits = integerWidth<ELEM_TYPE> ();
 
   ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
   ELEM_TYPE_X2 temp = 0;
@@ -4826,15 +4823,7 @@ Hart<URV>::vmulh_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 {
   unsigned errors = 0;
 
-  unsigned elemBits = 8*sizeof(ELEM_TYPE);
-  if constexpr (std::is_same<Int128, ELEM_TYPE>::value)
-    elemBits = 128;
-  if constexpr (std::is_same<Int256, ELEM_TYPE>::value)
-    elemBits = 256;
-  if constexpr (std::is_same<Int512, ELEM_TYPE>::value)
-    elemBits = 512;
-  if constexpr (std::is_same<Int1024, ELEM_TYPE>::value)
-    elemBits = 1024;
+  unsigned elemBits = integerWidth<ELEM_TYPE> ();
 
   ELEM_TYPE e1 = 0, e2 = SRV(intRegs_.read(rs2)), dest = 0;
   ELEM_TYPE_X2 temp = 0;
@@ -5007,15 +4996,7 @@ Hart<URV>::vmulhu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 {
   unsigned errors = 0;
 
-  unsigned elemBits = 8*sizeof(ELEM_TYPE);
-  if constexpr (std::is_same<Int128, ELEM_TYPE>::value)
-    elemBits = 128;
-  if constexpr (std::is_same<Int256, ELEM_TYPE>::value)
-    elemBits = 256;
-  if constexpr (std::is_same<Int512, ELEM_TYPE>::value)
-    elemBits = 512;
-  if constexpr (std::is_same<Int1024, ELEM_TYPE>::value)
-    elemBits = 1024;
+  unsigned elemBits = integerWidth<ELEM_TYPE> ();
 
   ELEM_TYPE e1 = 0, e2 = intRegs_.read(rs2), dest = 0;
   ELEM_TYPE_X2 temp = 0;
@@ -5120,15 +5101,7 @@ Hart<URV>::vmulhsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
   typedef typename std::make_unsigned<ELEM_TYPE>::type U_ELEM_TYPE;
   unsigned errors = 0;
 
-  unsigned elemBits = 8*sizeof(ELEM_TYPE);
-  if constexpr (std::is_same<Int128, ELEM_TYPE>::value)
-    elemBits = 128;
-  if constexpr (std::is_same<Int256, ELEM_TYPE>::value)
-    elemBits = 256;
-  if constexpr (std::is_same<Int512, ELEM_TYPE>::value)
-    elemBits = 512;
-  if constexpr (std::is_same<Int1024, ELEM_TYPE>::value)
-    elemBits = 1024;
+  unsigned elemBits = integerWidth<ELEM_TYPE> ();
 
   ELEM_TYPE e1 = 0, dest = 0;
   U_ELEM_TYPE e2 = 0;
@@ -5235,15 +5208,7 @@ Hart<URV>::vmulhsu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
   typedef typename std::make_unsigned<ELEM_TYPE>::type U_ELEM_TYPE;
   unsigned errors = 0;
 
-  unsigned elemBits = 8*sizeof(ELEM_TYPE);
-  if constexpr (std::is_same<Int128, ELEM_TYPE>::value)
-    elemBits = 128;
-  if constexpr (std::is_same<Int256, ELEM_TYPE>::value)
-    elemBits = 256;
-  if constexpr (std::is_same<Int512, ELEM_TYPE>::value)
-    elemBits = 512;
-  if constexpr (std::is_same<Int1024, ELEM_TYPE>::value)
-    elemBits = 1024;
+  unsigned elemBits = integerWidth<ELEM_TYPE> ();
 
   ELEM_TYPE e1 = 0, dest = 0;
   U_ELEM_TYPE e2 = intRegs_.read(rs2);
@@ -5346,7 +5311,29 @@ bool
 Hart<URV>::vdivu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                     unsigned start, unsigned elems, bool masked)
 {
-  return false;
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, group, e1) and
+          vecRegs_.read(vs2, ix, group, e2))
+        {
+          dest = ~ ELEM_TYPE(0); // divide by zero result
+          if (e2 != 0)
+            dest = e1 / e2;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  return errors == 0;
 }
 
 
@@ -5354,6 +5341,68 @@ template <typename URV>
 void
 Hart<URV>::execVdivu_vv(const DecodedInst* di)
 {
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vdivu_vv<uint8_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vdivu_vv<uint16_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vdivu_vv<uint32_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vdivu_vv<uint64_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vdivu_vv<Uint128>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vdivu_vv<Uint256>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vdivu_vv<Uint512>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vdivu_vv<Uint1024>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+    }
 }
 
 
@@ -5363,7 +5412,30 @@ bool
 Hart<URV>::vdivu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                     unsigned start, unsigned elems, bool masked)
 {
-  return false;
+  unsigned errors = 0;
+
+  // Spec (sep 24, 2020) says scalar register value should be sign
+  // extended. We hope they come to their senses.
+  ELEM_TYPE e1 = 0, e2 = intRegs_.read(rs2), dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, group, e1))
+        {
+          dest = ~ ELEM_TYPE(0); // divide by zero result
+          if (e2 != 0)
+            dest = e1 / e2;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  return errors == 0;
 }
 
 
@@ -5371,6 +5443,68 @@ template <typename URV>
 void
 Hart<URV>::execVdivu_vx(const DecodedInst* di)
 {
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vdivu_vv<uint8_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vdivu_vv<uint16_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vdivu_vv<uint32_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vdivu_vv<uint64_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vdivu_vv<Uint128>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vdivu_vv<Uint256>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vdivu_vv<Uint512>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vdivu_vv<Uint1024>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+    }
 }
 
 
@@ -5380,7 +5514,39 @@ bool
 Hart<URV>::vdiv_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                    unsigned start, unsigned elems, bool masked)
 {
-  return false;
+  unsigned errors = 0;
+
+  unsigned elemBits = integerWidth<ELEM_TYPE> ();
+
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+
+  ELEM_TYPE minInt = ELEM_TYPE(1) << (elemBits - 1);
+  ELEM_TYPE negOne = ELEM_TYPE(-1);
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, group, e1) and
+          vecRegs_.read(vs2, ix, group, e2))
+        {
+          dest = negOne; // Divide by zero result
+          if (e2 != 0)
+            {
+              if (e1 == minInt and e2 == negOne)
+                dest = e1;
+              else
+                dest = e1 / e2;
+            }
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  return errors == 0;
 }
 
 
@@ -5388,6 +5554,68 @@ template <typename URV>
 void
 Hart<URV>::execVdiv_vv(const DecodedInst* di)
 {
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vdiv_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vdiv_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vdiv_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vdiv_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vdiv_vv<Int128>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vdiv_vv<Int256>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vdiv_vv<Int512>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vdiv_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+    }
 }
 
 
@@ -5397,7 +5625,38 @@ bool
 Hart<URV>::vdiv_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                    unsigned start, unsigned elems, bool masked)
 {
-  return false;
+  unsigned errors = 0;
+
+  unsigned elemBits = integerWidth<ELEM_TYPE> ();
+
+  ELEM_TYPE e1 = 0, e2 = SRV(intRegs_.read(rs2)), dest = 0;
+
+  ELEM_TYPE minInt = ELEM_TYPE(1) << (elemBits - 1);
+  ELEM_TYPE negOne = ELEM_TYPE(-1);
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, group, e1))
+        {
+          dest = negOne; // Divide by zero result
+          if (e2 != 0)
+            {
+              if (e1 == minInt and e2 == negOne)
+                dest = e1;
+              else
+                dest = e1 / e2;
+            }
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  return errors == 0;
 }
 
 
@@ -5405,6 +5664,68 @@ template <typename URV>
 void
 Hart<URV>::execVdiv_vx(const DecodedInst* di)
 {
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vdiv_vx<int8_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vdiv_vx<int16_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vdiv_vx<int32_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vdiv_vx<int64_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vdiv_vx<Int128>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vdiv_vx<Int256>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vdiv_vx<Int512>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      if (not vdiv_vx<Int1024>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+    }
 }
 
 
