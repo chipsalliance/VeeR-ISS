@@ -2191,22 +2191,19 @@ namespace WdRiscv
                   unsigned start, unsigned elems, bool masked);
     void execVmulh_vx(const DecodedInst*);
 
-    template<typename ELEM_TYPE>
-    bool vmulhu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                   unsigned start, unsigned elems, bool masked);
     void execVmulhu_vv(const DecodedInst*);
 
-    template<typename ELEM_TYPE>
+    template<typename ELEM_TYPE, typename ELEM_TYPE_X2>
     bool vmulhu_vx(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                    unsigned start, unsigned elems, bool masked);
     void execVmulhu_vx(const DecodedInst*);
 
-    template<typename ELEM_TYPE>
+    template<typename ELEM_TYPE, typename ELEM_TYPE_X2>
     bool vmulhsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                     unsigned start, unsigned elems, bool masked);
     void execVmulhsu_vv(const DecodedInst*);
 
-    template<typename ELEM_TYPE>
+    template<typename ELEM_TYPE, typename ELEM_TYPE_X2>
     bool vmulhsu_vx(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                     unsigned start, unsigned elems, bool masked);
     void execVmulhsu_vx(const DecodedInst*);

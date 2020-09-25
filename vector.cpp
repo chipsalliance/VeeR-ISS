@@ -17,10 +17,13 @@
 #include <cmath>
 #include <climits>
 #include <cassert>
-
 #include <boost/multiprecision/cpp_int.hpp>
+#include "instforms.hpp"
+#include "DecodedInst.hpp"
+#include "Hart.hpp"
 
-// On pure 32-bit machines, use boost for 128-bit integer type.
+
+// On pure 32-bit machines, use boost for 128-bit and higher integer types.
 #if __x86_64__
   typedef __int128_t  Int128;
   typedef __uint128_t Uint128;
@@ -37,9 +40,38 @@ typedef boost::multiprecision::int1024_t  Int1024;
 typedef boost::multiprecision::uint1024_t Uint1024;
 
 
-#include "instforms.hpp"
-#include "DecodedInst.hpp"
-#include "Hart.hpp"
+// make_unsigned does not work on boost types -- compensate.
+namespace std
+{
+  template <>
+  struct
+  make_unsigned<Int128>
+  {
+    typedef Uint128 type;
+  };
+
+  template <>
+  struct
+  make_unsigned<Int256>
+  {
+    typedef Uint256 type;
+  };
+
+  template <>
+  struct
+  make_unsigned<Int512>
+  {
+    typedef Uint512 type;
+  };
+
+  template <>
+  struct
+  make_unsigned<Int1024>
+  {
+    typedef Uint1024 type;
+  };
+}
+
 
 using namespace WdRiscv;
 
@@ -856,7 +888,7 @@ bool Hart<URV>::vminu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group
 {
   unsigned errors = 0;
 
-  URV srv2 = intRegs_.read(rs2);
+  URV srv2 = intRegs_.read(rs2);  // Spec (sep 24, 2020) says this should be sign extended. We hope they come to their senses.
 
   ELEM_TYPE val2 = srv2;
 
@@ -1258,7 +1290,7 @@ bool Hart<URV>::vmaxu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group
 {
   unsigned errors = 0;
 
-  ELEM_TYPE val2 = intRegs_.read(rs2);
+  ELEM_TYPE val2 = intRegs_.read(rs2);   // Spec (sep 24, 2020) says this should be sign extended. We hope they come to their senses.
 
   ELEM_TYPE e1 = 0, dest = 0;
 
@@ -4804,7 +4836,7 @@ Hart<URV>::vmulh_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
   if constexpr (std::is_same<Int1024, ELEM_TYPE>::value)
     elemBits = 1024;
 
-  ELEM_TYPE e1 = 0, e2 = intRegs_.read(rs2), dest = 0;
+  ELEM_TYPE e1 = 0, e2 = SRV(intRegs_.read(rs2)), dest = 0;
   ELEM_TYPE_X2 temp = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
@@ -4899,29 +4931,114 @@ Hart<URV>::execVmulh_vx(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename ELEM_TYPE>
-bool
-Hart<URV>::vmulhu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                     unsigned start, unsigned elems, bool masked)
-{
-  return false;
-}
-
-
-template <typename URV>
 void
 Hart<URV>::execVmulhu_vv(const DecodedInst* di)
 {
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vmulh_vv<uint8_t,uint16_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vmulh_vv<uint16_t,uint32_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vmulh_vv<uint32_t,uint64_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vmulh_vv<uint64_t,Uint128>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vmulh_vv<Uint128,Uint256>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vmulh_vv<Uint256,Uint512>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vmulh_vv<Uint512,Uint1024>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      std::cerr << "vmulhu_vv not yet supported for SEW=1024\n";
+      errors++;
+      break;
+    }
 }
 
 
 template <typename URV>
-template <typename ELEM_TYPE>
+template <typename ELEM_TYPE, typename ELEM_TYPE_X2>
 bool
 Hart<URV>::vmulhu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                     unsigned start, unsigned elems, bool masked)
+                    unsigned start, unsigned elems, bool masked)
 {
-  return false;
+  unsigned errors = 0;
+
+  unsigned elemBits = 8*sizeof(ELEM_TYPE);
+  if constexpr (std::is_same<Int128, ELEM_TYPE>::value)
+    elemBits = 128;
+  if constexpr (std::is_same<Int256, ELEM_TYPE>::value)
+    elemBits = 256;
+  if constexpr (std::is_same<Int512, ELEM_TYPE>::value)
+    elemBits = 512;
+  if constexpr (std::is_same<Int1024, ELEM_TYPE>::value)
+    elemBits = 1024;
+
+  ELEM_TYPE e1 = 0, e2 = intRegs_.read(rs2), dest = 0;
+  ELEM_TYPE_X2 temp = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, group, e1))
+        {
+          temp = e1;
+          temp = temp * e2;
+          temp = temp >> elemBits;
+          dest = ELEM_TYPE(temp);
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  return errors == 0;
 }
 
 
@@ -4929,16 +5046,114 @@ template <typename URV>
 void
 Hart<URV>::execVmulhu_vx(const DecodedInst* di)
 {
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vmulhu_vx<uint8_t,uint16_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vmulhu_vx<uint16_t,uint32_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vmulhu_vx<uint32_t,uint64_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vmulhu_vx<uint64_t,Uint128>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vmulhu_vx<Uint128,Uint256>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vmulhu_vx<Uint256,Uint512>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vmulhu_vx<Uint512,Uint1024>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      std::cerr << "vmulhu_vx not yet supported for SEW=1024\n";
+      errors++;
+      break;
+    }
 }
 
 
 template <typename URV>
-template <typename ELEM_TYPE>
+template <typename ELEM_TYPE, typename ELEM_TYPE_X2>
 bool
 Hart<URV>::vmulhsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                       unsigned start, unsigned elems, bool masked)
 {
-  return false;
+  typedef typename std::make_unsigned<ELEM_TYPE>::type U_ELEM_TYPE;
+  unsigned errors = 0;
+
+  unsigned elemBits = 8*sizeof(ELEM_TYPE);
+  if constexpr (std::is_same<Int128, ELEM_TYPE>::value)
+    elemBits = 128;
+  if constexpr (std::is_same<Int256, ELEM_TYPE>::value)
+    elemBits = 256;
+  if constexpr (std::is_same<Int512, ELEM_TYPE>::value)
+    elemBits = 512;
+  if constexpr (std::is_same<Int1024, ELEM_TYPE>::value)
+    elemBits = 1024;
+
+  ELEM_TYPE e1 = 0, dest = 0;
+  U_ELEM_TYPE e2 = 0;
+  ELEM_TYPE_X2 temp = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, group, e1) and
+          vecRegs_.read(vs2, ix, group, e2))
+        {
+          temp = e1;
+          temp = temp * e2;
+          temp = temp >> elemBits;
+          dest = ELEM_TYPE(temp);
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  return errors == 0;
 }
 
 
@@ -4946,16 +5161,113 @@ template <typename URV>
 void
 Hart<URV>::execVmulhsu_vv(const DecodedInst* di)
 {
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vmulhsu_vv<int8_t,int16_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vmulhsu_vv<int16_t,int32_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vmulhsu_vv<int32_t,int64_t>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vmulhsu_vv<int64_t,Int128>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vmulhsu_vv<Int128,Int256>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vmulhsu_vv<Int256,Int512>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vmulhsu_vv<Int512,Int1024>(vd, vs1, vs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      std::cerr << "vmulhsu_vv not yet supported for SEW=1024\n";
+      errors++;
+      break;
+    }
 }
 
 
 template <typename URV>
-template <typename ELEM_TYPE>
+template <typename ELEM_TYPE, typename ELEM_TYPE_X2>
 bool
 Hart<URV>::vmulhsu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                       unsigned start, unsigned elems, bool masked)
 {
-  return false;
+  typedef typename std::make_unsigned<ELEM_TYPE>::type U_ELEM_TYPE;
+  unsigned errors = 0;
+
+  unsigned elemBits = 8*sizeof(ELEM_TYPE);
+  if constexpr (std::is_same<Int128, ELEM_TYPE>::value)
+    elemBits = 128;
+  if constexpr (std::is_same<Int256, ELEM_TYPE>::value)
+    elemBits = 256;
+  if constexpr (std::is_same<Int512, ELEM_TYPE>::value)
+    elemBits = 512;
+  if constexpr (std::is_same<Int1024, ELEM_TYPE>::value)
+    elemBits = 1024;
+
+  ELEM_TYPE e1 = 0, dest = 0;
+  U_ELEM_TYPE e2 = intRegs_.read(rs2);
+  ELEM_TYPE_X2 temp = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, group, e1))
+        {
+          temp = e1;
+          temp = temp * e2;
+          temp = temp >> elemBits;
+          dest = ELEM_TYPE(temp);
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  return errors == 0;
 }
 
 
@@ -4963,6 +5275,68 @@ template <typename URV>
 void
 Hart<URV>::execVmulhsu_vx(const DecodedInst* di)
 {
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  unsigned errors = 0;
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      if (not vmulhsu_vx<int8_t,int16_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfWord:
+      if (not vmulhsu_vx<int16_t,int32_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Word:
+      if (not vmulhsu_vx<int32_t,int64_t>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::DoubleWord:
+      if (not vmulhsu_vx<int64_t,Int128>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::QuadWord:
+      if (not vmulhsu_vx<Int128,Int256>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::OctWord:
+      if (not vmulhsu_vx<Int256,Int512>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::HalfKbits:
+      if (not vmulhsu_vx<Int512,Int1024>(vd, vs1, rs2, group, start, elems, masked))
+        errors++;
+      break;
+
+    case ElementWidth::Kbits:
+      std::cerr << "vmulhsu_vx not yet supported for SEW=1024\n";
+      errors++;
+      break;
+    }
 }
 
 
