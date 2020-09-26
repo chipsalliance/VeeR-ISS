@@ -23,7 +23,7 @@
 namespace WdRiscv
 {
 
-  enum class VecGroupMultiplier : uint32_t
+  enum class GroupMultiplier : uint32_t
     {
      One      = 0,
      Two      = 1,
@@ -49,6 +49,12 @@ namespace WdRiscv
      Kbits        = 7
     };
 
+
+  enum class VecEnums : uint32_t
+    {
+     GroupLimit = 8, // One past largest VecGroupMultiplier value
+     WidthLimit = 8  // One past largest ElementWidth value
+    };
 
   /// Symbolic names of the integer registers.
   enum VecRegNumber
@@ -118,12 +124,13 @@ namespace WdRiscv
     /// Set value to that of the element with given index within the
     /// vector register of the given number returning true on sucess
     /// and false if the combination of element index, vector number
-    /// and group multipier is invalid.
+    /// and group multipier (presecaled by 8) is invalid. We pre-scale
+    /// the group multiplier to avoid passing a fraction.
     template<typename T>
-    bool read(unsigned regNum, unsigned elementIx, unsigned groupMultiplier,
+    bool read(unsigned regNum, unsigned elementIx, unsigned groupX8,
               T& value) const
     {
-      if ((elementIx + 1) * sizeof(T) > bytesPerReg_*groupMultiplier)
+      if ((elementIx + 1) * sizeof(T) > ((bytesPerReg_*groupX8) >> 3))
         return false;
       if (regNum*bytesPerReg_ + (elementIx + 1)*sizeof(T) > bytesPerReg_*regCount_)
         return false;
@@ -132,11 +139,16 @@ namespace WdRiscv
       return true;
     }
 
+    /// Set the element with given index within the vector register of
+    /// the given number to the given value returning true on sucess
+    /// and false if the combination of element index, vector number
+    /// and group multipier (presecaled by 8) is invalid. We pre-scale
+    /// the group multiplier to avoid passing a fraction.
     template<typename T>
-    bool write(unsigned regNum, unsigned elementIx, unsigned groupMultiplier,
+    bool write(unsigned regNum, unsigned elementIx, unsigned groupX8,
                const T& value)
     {
-      if ((elementIx + 1) * sizeof(T) > bytesPerReg_*groupMultiplier)
+      if ((elementIx + 1) * sizeof(T) > ((bytesPerReg_*groupX8) >> 3))
         return false;
       if (regNum*bytesPerReg_ + (elementIx + 1)*sizeof(T) > bytesPerReg_*regCount_)
         return false;
@@ -153,18 +165,39 @@ namespace WdRiscv
     uint32_t bitsPerReg() const
     { return 8*bytesPerReg_; }
 
+    /// Return the currently configured element width.
+    ElementWidth elemWidth() const
+    { return sew_; }
+
+    /// Return the current configured group multiplier.
+    GroupMultiplier groupMultiplier() const
+    { return group_; }
+
+    /// Return the currently configured element width in bits (for example
+    /// if SEW is Byte, then this reurns 8).
+    unsigned elemWidthInBits() const
+    { return sewInBits_; }
+
+    /// Return the currently configured group multiplier as a unsigned
+    /// integer scaled by 8.  For example if group multiplier is One,
+    /// this reurns 8. If group multiplier is Eigth, this returns 1.
+    /// We pre-scale by 8 to avoid division when the multiplier is a
+    /// fraction.
+    unsigned groupMultiplierX8() const
+    {return groupX8_; }
+    
     /// Convert the given symbolic element width to a byte count.
     static uint32_t elementWidthInBytes(ElementWidth sew)
     { return uint32_t(1) << uint32_t(sew); }
 
     /// Convert the given symbolic group multiplier to a number scaled by
-    /// eight (e.g. One is converted to 8, and Eighth to 1). Return 0 if
+    /// eight (e.g. One is converted to 8, and Eigth to 1). Return 0 if
     /// given symbolic multiplier is not valid.
-    static uint32_t groupMultiplierX8(VecGroupMultiplier vm)
+    static uint32_t groupMultiplierX8(GroupMultiplier vm)
     {
-      if (vm < VecGroupMultiplier::Reserved)
+      if (vm < GroupMultiplier::Reserved)
         return 8*(uint32_t(1) << uint32_t(vm));
-      if (vm > VecGroupMultiplier::Reserved)
+      if (vm > GroupMultiplier::Reserved and vm <= GroupMultiplier::Half)
         return 8 >> (8 - unsigned(vm));
       return 0;
     }
@@ -205,24 +238,35 @@ namespace WdRiscv
 
     void reset();
 
-    unsigned groupMultiplier() const
-    { return group_; }
-
     unsigned startIndex() const
     { return start_; }
 
     unsigned elemCount() const
     { return elems_; }
 
-    ElementWidth elemWidth() const
-    { return sew_; }
-
-    // Return true if current vtype configuration is legal. This is a cached
-    // value of VTYPE.VILL.
+    /// Return true if current vtype configuration is legal. This is a cached
+    /// value of VTYPE.VILL.
     bool legalConfig() const
     { return not vill_; }
 
+    /// Return true if the given element width and grouping
+    /// combination is legal.
+    bool leaglConfig(ElementWidth ew, GroupMultiplier mul) const
+    {
+      if (size_t(ew) >= legalConfigs_.size()) return false;
+      const auto& groupFlags = legalConfigs_.at(size_t(ew));
+      if (size_t(mul) >= groupFlags.size()) return false;
+      return groupFlags.at(size_t(mul));
+    }
+
   private:
+
+    /// Map an vector group multiplier to a flag indicating whether given
+    /// group is supporte.
+    typedef std::vector<bool> GroupFlags;
+
+    /// Map an element width to a vector of flags indicating supported groups.
+    typedef std::vector<GroupFlags> GroupsForWidth;
 
     unsigned regCount_ = 0;
     unsigned bytesPerReg_ = 0;
@@ -230,10 +274,15 @@ namespace WdRiscv
     unsigned bytesInRegFile_ = 0;
     uint8_t* data_ = nullptr;
 
-    unsigned group_ = 1;                    // Group multiplier -- cached VTYPE.VLMUL
-    unsigned start_ = 0;                    // Cached VSTART
-    unsigned elems_ = 0;                    // Cached VL
-    ElementWidth sew_ = ElementWidth::Byte; // Cached VTYPE.SEW
-    bool vill_ = false;                     // Cached VTYPE.VILL
+    GroupMultiplier group_ = GroupMultiplier::One; // Cached VTYPE.VLMUL
+    ElementWidth sew_ = ElementWidth::Byte;        // Cached VTYPE.SEW
+    unsigned start_ = 0;                           // Cached VSTART
+    unsigned elems_ = 0;                           // Cached VL
+    bool vill_ = false;                            // Cached VTYPE.VILL
+
+    unsigned groupX8_ = 8;    // Group multipler as a number scaled by 8.
+    unsigned sewInBits_ = 8;  // SEW expressed in bits (Byte corresponds to 8).
+
+    GroupsForWidth legalConfigs_;
   };
 }

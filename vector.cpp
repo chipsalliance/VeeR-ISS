@@ -123,7 +123,7 @@ Hart<URV>::execVadd_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -222,7 +222,7 @@ Hart<URV>::execVadd_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -321,7 +321,7 @@ Hart<URV>::execVadd_vi(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -419,7 +419,7 @@ Hart<URV>::execVsub_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -518,7 +518,7 @@ Hart<URV>::execVsub_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -617,7 +617,7 @@ Hart<URV>::execVrsub_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -716,7 +716,7 @@ Hart<URV>::execVrsub_vi(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -814,7 +814,7 @@ Hart<URV>::execVminu_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -917,7 +917,7 @@ Hart<URV>::execVminu_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1015,7 +1015,7 @@ Hart<URV>::execVmin_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1114,7 +1114,7 @@ Hart<URV>::execVmin_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1212,7 +1212,7 @@ Hart<URV>::execVmaxu_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1315,7 +1315,7 @@ Hart<URV>::execVmaxu_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1413,7 +1413,7 @@ Hart<URV>::execVmax_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1512,7 +1512,7 @@ Hart<URV>::execVmax_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1610,7 +1610,7 @@ Hart<URV>::execVand_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1710,7 +1710,7 @@ Hart<URV>::execVand_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1810,7 +1810,7 @@ Hart<URV>::execVand_vi(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -1908,7 +1908,7 @@ Hart<URV>::execVor_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2008,7 +2008,7 @@ Hart<URV>::execVor_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2109,7 +2109,7 @@ Hart<URV>::execVor_vi(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2207,7 +2207,7 @@ Hart<URV>::execVxor_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2307,7 +2307,7 @@ Hart<URV>::execVxor_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2408,7 +2408,7 @@ Hart<URV>::execVxor_vi(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2500,7 +2500,7 @@ Hart<URV>::execVrgather_vv(const DecodedInst* di)
 
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2591,7 +2591,7 @@ Hart<URV>::execVrgather_vx(const DecodedInst* di)
   unsigned vs1 = di->op1();
   unsigned rs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2682,7 +2682,7 @@ Hart<URV>::execVrgather_vi(const DecodedInst* di)
   unsigned vs1 = di->op1();
   uint32_t imm = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2779,7 +2779,7 @@ Hart<URV>::execVrgatherei16_vv(const DecodedInst* di)
 
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2882,7 +2882,7 @@ Hart<URV>::execVcompress_vm(const DecodedInst* di)
 
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -2974,7 +2974,7 @@ Hart<URV>::execVredsum_vs(const DecodedInst* di)
 
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -3065,7 +3065,7 @@ Hart<URV>::execVredand_vs(const DecodedInst* di)
 
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -3156,7 +3156,7 @@ Hart<URV>::execVredor_vs(const DecodedInst* di)
 
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -3247,7 +3247,7 @@ Hart<URV>::execVredxor_vs(const DecodedInst* di)
 
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -3339,7 +3339,7 @@ Hart<URV>::execVredminu_vs(const DecodedInst* di)
 
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -3430,7 +3430,7 @@ Hart<URV>::execVredmin_vs(const DecodedInst* di)
 
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -3521,7 +3521,7 @@ Hart<URV>::execVredmaxu_vs(const DecodedInst* di)
 
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -3612,7 +3612,7 @@ Hart<URV>::execVredmax_vs(const DecodedInst* di)
 
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
-  unsigned group = vecRegs_.groupMultiplier(), start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(), start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -4059,7 +4059,7 @@ Hart<URV>::execVslideup_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -4137,7 +4137,7 @@ Hart<URV>::execVslideup_vi(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -4215,7 +4215,7 @@ Hart<URV>::execVslide1up_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -4339,7 +4339,7 @@ Hart<URV>::execVslidedown_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -4417,7 +4417,7 @@ Hart<URV>::execVslidedown_vi(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -4525,7 +4525,7 @@ Hart<URV>::execVmul_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -4623,7 +4623,7 @@ Hart<URV>::execVmul_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -4674,50 +4674,64 @@ Hart<URV>::execVmul_vx(const DecodedInst* di)
 }
 
 
-// Return the width in bits of the given integer type T. This is
-// usually 8*sizeof(T) but is different for wide types implemented
-// using boost multiprecision types.
-template <typename T>
-static
-unsigned
-integerWidth()
+namespace WdRiscv
 {
-  if constexpr (std::is_same<Int128, T>::value)
-    return 128;
+  // Return the width in bits of the given integer type T. This is
+  // usually 8*sizeof(T) but is different for wide types implemented
+  // using boost multiprecision types.
+  template <typename T>
+  unsigned
+  integerWidth()
+  {
+    if constexpr (std::is_same<Int128, T>::value)   return 128;
+    if constexpr (std::is_same<Int256, T>::value)   return 256;
+    if constexpr (std::is_same<Int512, T>::value)   return 512;
+    if constexpr (std::is_same<Int1024, T>::value)  return 1024;
+    if constexpr (std::is_same<Uint128, T>::value)  return 128;
+    if constexpr (std::is_same<Uint256, T>::value)  return 256;
+    if constexpr (std::is_same<Uint512, T>::value)  return 512;
+    if constexpr (std::is_same<Uint1024, T>::value) return 1024;
 
-  if constexpr (std::is_same<Int256, T>::value)
-    return 256;
+    return 8*sizeof(T);
+  }
 
-  if constexpr (std::is_same<Int512, T>::value)
-    return 512;
 
-  if constexpr (std::is_same<Int1024, T>::value)
-    return 1024;
+  /// Return the integral type that is twice as wide as the given
+  /// type. For example: makeDoubleWider<uint16_t>::type yields
+  /// uint32_t.
+  ///
+  template <typename T>
+  struct makeDoubleWide
+  {
+  };
 
-  if constexpr (std::is_same<Uint128, T>::value)
-    return 128;
+  template <> struct makeDoubleWide<uint8_t>    { typedef uint16_t type; };
+  template <> struct makeDoubleWide<uint16_t>   { typedef uint32_t type; };
+  template <> struct makeDoubleWide<uint32_t>   { typedef uint64_t type; };
+  template <> struct makeDoubleWide<uint64_t>   { typedef Uint128  type; };
+  template <> struct makeDoubleWide<Uint128>    { typedef Uint256  type; };
+  template <> struct makeDoubleWide<Uint256>    { typedef Uint512  type; };
+  template <> struct makeDoubleWide<Uint512>    { typedef Uint1024 type; };
 
-  if constexpr (std::is_same<Uint256, T>::value)
-    return 256;
-
-  if constexpr (std::is_same<Uint512, T>::value)
-    return 512;
-
-  if constexpr (std::is_same<Uint1024, T>::value)
-    return 1024;
-
-  return 8*sizeof(T);
+  template <> struct makeDoubleWide<int8_t>     { typedef int16_t type; };
+  template <> struct makeDoubleWide<int16_t>    { typedef int32_t type; };
+  template <> struct makeDoubleWide<int32_t>    { typedef int64_t type; };
+  template <> struct makeDoubleWide<int64_t>    { typedef Int128  type; };
+  template <> struct makeDoubleWide<Int128>     { typedef Int256  type; };
+  template <> struct makeDoubleWide<Int256>     { typedef Int512  type; };
+  template <> struct makeDoubleWide<Int512>     { typedef Int1024 type; };
 }
 
 
 template <typename URV>
-template <typename ELEM_TYPE, typename ELEM_TYPE_X2>
+template <typename ELEM_TYPE>
 bool
 Hart<URV>::vmulh_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                     unsigned start, unsigned elems, bool masked)
 {
-  unsigned errors = 0;
+  typedef typename makeDoubleWide<ELEM_TYPE>::type ELEM_TYPE_X2;
 
+  unsigned errors = 0;
   unsigned elemBits = integerWidth<ELEM_TYPE> ();
 
   ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
@@ -4764,7 +4778,7 @@ Hart<URV>::execVmulh_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -4773,37 +4787,37 @@ Hart<URV>::execVmulh_vv(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:
-      if (not vmulh_vv<int8_t,int16_t>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulh_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfWord:
-      if (not vmulh_vv<int16_t,int32_t>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulh_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::Word:
-      if (not vmulh_vv<int32_t,int64_t>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulh_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::DoubleWord:
-      if (not vmulh_vv<int64_t,Int128>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulh_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::QuadWord:
-      if (not vmulh_vv<Int128,Int256>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulh_vv<Int128>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::OctWord:
-      if (not vmulh_vv<Int256,Int512>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulh_vv<Int256>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfKbits:
-      if (not vmulh_vv<Int512,Int1024>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulh_vv<Int512>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
@@ -4816,13 +4830,14 @@ Hart<URV>::execVmulh_vv(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename ELEM_TYPE, typename ELEM_TYPE_X2>
+template <typename ELEM_TYPE>
 bool
 Hart<URV>::vmulh_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                     unsigned start, unsigned elems, bool masked)
 {
-  unsigned errors = 0;
+  typedef typename makeDoubleWide<ELEM_TYPE>::type ELEM_TYPE_X2;
 
+  unsigned errors = 0;
   unsigned elemBits = integerWidth<ELEM_TYPE> ();
 
   ELEM_TYPE e1 = 0, e2 = SRV(intRegs_.read(rs2)), dest = 0;
@@ -4868,7 +4883,7 @@ Hart<URV>::execVmulh_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -4877,37 +4892,37 @@ Hart<URV>::execVmulh_vx(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:
-      if (not vmulh_vx<int8_t,int16_t>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulh_vx<int8_t>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfWord:
-      if (not vmulh_vx<int16_t,int32_t>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulh_vx<int16_t>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::Word:
-      if (not vmulh_vx<int32_t,int64_t>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulh_vx<int32_t>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::DoubleWord:
-      if (not vmulh_vx<int64_t,Int128>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulh_vx<int64_t>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::QuadWord:
-      if (not vmulh_vx<Int128,Int256>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulh_vx<Int128>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::OctWord:
-      if (not vmulh_vx<Int256,Int512>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulh_vx<Int256>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfKbits:
-      if (not vmulh_vx<Int512,Int1024>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulh_vx<Int512>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
@@ -4937,7 +4952,7 @@ Hart<URV>::execVmulhu_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -4946,37 +4961,37 @@ Hart<URV>::execVmulhu_vv(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:
-      if (not vmulh_vv<uint8_t,uint16_t>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulh_vv<uint8_t>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfWord:
-      if (not vmulh_vv<uint16_t,uint32_t>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulh_vv<uint16_t>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::Word:
-      if (not vmulh_vv<uint32_t,uint64_t>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulh_vv<uint32_t>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::DoubleWord:
-      if (not vmulh_vv<uint64_t,Uint128>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulh_vv<uint64_t>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::QuadWord:
-      if (not vmulh_vv<Uint128,Uint256>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulh_vv<Uint128>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::OctWord:
-      if (not vmulh_vv<Uint256,Uint512>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulh_vv<Uint256>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfKbits:
-      if (not vmulh_vv<Uint512,Uint1024>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulh_vv<Uint512>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
@@ -4989,13 +5004,14 @@ Hart<URV>::execVmulhu_vv(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename ELEM_TYPE, typename ELEM_TYPE_X2>
+template <typename ELEM_TYPE>
 bool
 Hart<URV>::vmulhu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                     unsigned start, unsigned elems, bool masked)
 {
-  unsigned errors = 0;
+  typedef typename makeDoubleWide<ELEM_TYPE>::type ELEM_TYPE_X2;
 
+  unsigned errors = 0;
   unsigned elemBits = integerWidth<ELEM_TYPE> ();
 
   ELEM_TYPE e1 = 0, e2 = intRegs_.read(rs2), dest = 0;
@@ -5041,7 +5057,7 @@ Hart<URV>::execVmulhu_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -5050,37 +5066,37 @@ Hart<URV>::execVmulhu_vx(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:
-      if (not vmulhu_vx<uint8_t,uint16_t>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulhu_vx<uint8_t>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfWord:
-      if (not vmulhu_vx<uint16_t,uint32_t>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulhu_vx<uint16_t>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::Word:
-      if (not vmulhu_vx<uint32_t,uint64_t>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulhu_vx<uint32_t>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::DoubleWord:
-      if (not vmulhu_vx<uint64_t,Uint128>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulhu_vx<uint64_t>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::QuadWord:
-      if (not vmulhu_vx<Uint128,Uint256>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulhu_vx<Uint128>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::OctWord:
-      if (not vmulhu_vx<Uint256,Uint512>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulhu_vx<Uint256>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfKbits:
-      if (not vmulhu_vx<Uint512,Uint1024>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulhu_vx<Uint512>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
@@ -5093,14 +5109,15 @@ Hart<URV>::execVmulhu_vx(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename ELEM_TYPE, typename ELEM_TYPE_X2>
+template <typename ELEM_TYPE>
 bool
 Hart<URV>::vmulhsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                       unsigned start, unsigned elems, bool masked)
 {
-  typedef typename std::make_unsigned<ELEM_TYPE>::type U_ELEM_TYPE;
-  unsigned errors = 0;
+  typedef typename std::make_unsigned<ELEM_TYPE>::type  U_ELEM_TYPE;
+  typedef typename makeDoubleWide<ELEM_TYPE>::type  ELEM_TYPE_X2;
 
+  unsigned errors = 0;
   unsigned elemBits = integerWidth<ELEM_TYPE> ();
 
   ELEM_TYPE e1 = 0, dest = 0;
@@ -5148,7 +5165,7 @@ Hart<URV>::execVmulhsu_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -5157,37 +5174,37 @@ Hart<URV>::execVmulhsu_vv(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:
-      if (not vmulhsu_vv<int8_t,int16_t>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulhsu_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfWord:
-      if (not vmulhsu_vv<int16_t,int32_t>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulhsu_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::Word:
-      if (not vmulhsu_vv<int32_t,int64_t>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulhsu_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::DoubleWord:
-      if (not vmulhsu_vv<int64_t,Int128>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulhsu_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::QuadWord:
-      if (not vmulhsu_vv<Int128,Int256>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulhsu_vv<Int128>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::OctWord:
-      if (not vmulhsu_vv<Int256,Int512>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulhsu_vv<Int256>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfKbits:
-      if (not vmulhsu_vv<Int512,Int1024>(vd, vs1, vs2, group, start, elems, masked))
+      if (not vmulhsu_vv<Int512>(vd, vs1, vs2, group, start, elems, masked))
         errors++;
       break;
 
@@ -5200,14 +5217,15 @@ Hart<URV>::execVmulhsu_vv(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename ELEM_TYPE, typename ELEM_TYPE_X2>
+template <typename ELEM_TYPE>
 bool
 Hart<URV>::vmulhsu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                       unsigned start, unsigned elems, bool masked)
 {
-  typedef typename std::make_unsigned<ELEM_TYPE>::type U_ELEM_TYPE;
-  unsigned errors = 0;
+  typedef typename std::make_unsigned<ELEM_TYPE>::type  U_ELEM_TYPE;
+  typedef typename makeDoubleWide<ELEM_TYPE>::type  ELEM_TYPE_X2;
 
+  unsigned errors = 0;
   unsigned elemBits = integerWidth<ELEM_TYPE> ();
 
   ELEM_TYPE e1 = 0, dest = 0;
@@ -5254,7 +5272,7 @@ Hart<URV>::execVmulhsu_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -5263,37 +5281,37 @@ Hart<URV>::execVmulhsu_vx(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:
-      if (not vmulhsu_vx<int8_t,int16_t>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulhsu_vx<int8_t>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfWord:
-      if (not vmulhsu_vx<int16_t,int32_t>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulhsu_vx<int16_t>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::Word:
-      if (not vmulhsu_vx<int32_t,int64_t>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulhsu_vx<int32_t>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::DoubleWord:
-      if (not vmulhsu_vx<int64_t,Int128>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulhsu_vx<int64_t>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::QuadWord:
-      if (not vmulhsu_vx<Int128,Int256>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulhsu_vx<Int128>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::OctWord:
-      if (not vmulhsu_vx<Int256,Int512>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulhsu_vx<Int256>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
     case ElementWidth::HalfKbits:
-      if (not vmulhsu_vx<Int512,Int1024>(vd, vs1, rs2, group, start, elems, masked))
+      if (not vmulhsu_vx<Int512>(vd, vs1, rs2, group, start, elems, masked))
         errors++;
       break;
 
@@ -5355,7 +5373,7 @@ Hart<URV>::execVdivu_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -5457,7 +5475,7 @@ Hart<URV>::execVdivu_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -5568,7 +5586,7 @@ Hart<URV>::execVdiv_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -5678,7 +5696,7 @@ Hart<URV>::execVdiv_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -5779,7 +5797,7 @@ Hart<URV>::execVremu_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -5881,7 +5899,7 @@ Hart<URV>::execVremu_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -5992,7 +6010,7 @@ Hart<URV>::execVrem_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
@@ -6102,7 +6120,7 @@ Hart<URV>::execVrem_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned group = vecRegs_.groupMultiplier(),  start = vecRegs_.startIndex();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 

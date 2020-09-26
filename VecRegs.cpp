@@ -23,6 +23,13 @@ using namespace WdRiscv;
 
 VecRegs::VecRegs()
 {
+  // Intialize structure (vector of vectors) defining legal
+  // element-width/group-multiplier combinations to all false: No
+  // combination is supported. Configuration code will later change
+  // this.
+  legalConfigs_.resize(size_t(VecEnums::WidthLimit));
+  for (auto& groupFlags : legalConfigs_)
+    groupFlags.resize(size_t(VecEnums::GroupLimit));
 }
 
 

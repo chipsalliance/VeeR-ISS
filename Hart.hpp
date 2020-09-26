@@ -2181,29 +2181,29 @@ namespace WdRiscv
                  unsigned start, unsigned elems, bool masked);
     void execVmul_vx(const DecodedInst*);
 
-    template<typename ELEM_TYPE, typename ELEM_TYPE_X2>
+    template<typename ELEM_TYPE>
     bool vmulh_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                   unsigned start, unsigned elems, bool masked);
     void execVmulh_vv(const DecodedInst*);
 
-    template<typename ELEM_TYPE, typename ELEM_TYPE_X2>
+    template<typename ELEM_TYPE>
     bool vmulh_vx(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                   unsigned start, unsigned elems, bool masked);
     void execVmulh_vx(const DecodedInst*);
 
     void execVmulhu_vv(const DecodedInst*);
 
-    template<typename ELEM_TYPE, typename ELEM_TYPE_X2>
+    template<typename ELEM_TYPE>
     bool vmulhu_vx(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                    unsigned start, unsigned elems, bool masked);
     void execVmulhu_vx(const DecodedInst*);
 
-    template<typename ELEM_TYPE, typename ELEM_TYPE_X2>
+    template<typename ELEM_TYPE>
     bool vmulhsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                     unsigned start, unsigned elems, bool masked);
     void execVmulhsu_vv(const DecodedInst*);
 
-    template<typename ELEM_TYPE, typename ELEM_TYPE_X2>
+    template<typename ELEM_TYPE>
     bool vmulhsu_vx(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                     unsigned start, unsigned elems, bool masked);
     void execVmulhsu_vx(const DecodedInst*);
