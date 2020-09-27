@@ -5697,5 +5697,545 @@ Hart<URV>::execVrem_vx(const DecodedInst* di)
 }
 
 
+template <typename URV>
+template <typename ELEM_TYPE, typename FROM_TYPE>
+void
+Hart<URV>::vsext(unsigned vd, unsigned vs1, unsigned group, unsigned fromGroup,
+                 unsigned start, unsigned elems, bool masked)
+{
+  unsigned errors = 0;
+
+  FROM_TYPE e1 = 0;
+  ELEM_TYPE dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, fromGroup, e1))
+        {
+          dest = e1;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsext_f2(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8();
+  unsigned fromGroup = group/2;
+  if (fromGroup == 0)
+    {
+      illegalInst(di);
+      return;
+    }
+  GroupMultiplier emul = GroupMultiplier::One;
+  if (not vecRegs_.groupNumberX8ToSymbol(fromGroup, emul))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  ElementWidth sew = vecRegs_.elemWidth();
+  ElementWidth eew = sew;  // Effective elem width of source.
+  switch (sew)
+    {
+    case ElementWidth::Byte:       illegalInst(di);                return;
+    case ElementWidth::HalfWord:   eew = ElementWidth::Byte;       break;
+    case ElementWidth::Word:       eew = ElementWidth::HalfWord;   break;
+    case ElementWidth::DoubleWord: eew = ElementWidth::Word;       break;
+    case ElementWidth::QuadWord:   eew = ElementWidth::DoubleWord; break;
+    case ElementWidth::OctWord:    eew = ElementWidth::QuadWord;   break;
+    case ElementWidth::HalfKbits:  eew = ElementWidth::OctWord;    break;
+    case ElementWidth::Kbits:      eew = ElementWidth::HalfKbits;  break;
+    }
+  if (not vecRegs_.legalConfig(eew, emul))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1();
+  unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      illegalInst(di);
+      break;
+
+    case ElementWidth::HalfWord:
+      vsext<int16_t,int8_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::Word:
+      vsext<int32_t, int16_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vsext<int64_t, int32_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::QuadWord:
+      vsext<Int128, int64_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::OctWord:
+      vsext<Int256, Int128>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vsext<Int512, Int256>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::Kbits:
+      vsext<Int1024, Int512>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsext_f4(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8();
+  unsigned fromGroup = group/4;
+  if (fromGroup == 0)
+    {
+      illegalInst(di);
+      return;
+    }
+  GroupMultiplier emul = GroupMultiplier::One;
+  if (not vecRegs_.groupNumberX8ToSymbol(fromGroup, emul))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  ElementWidth sew = vecRegs_.elemWidth();
+  ElementWidth eew = sew;  // Effective elem width of source.
+  switch (sew)
+    {
+    case ElementWidth::Byte:       illegalInst(di);                return;
+    case ElementWidth::HalfWord:   illegalInst(di);                return;
+    case ElementWidth::Word:       eew = ElementWidth::Byte;       break;
+    case ElementWidth::DoubleWord: eew = ElementWidth::HalfWord;   break;
+    case ElementWidth::QuadWord:   eew = ElementWidth::Word;       break;
+    case ElementWidth::OctWord:    eew = ElementWidth::DoubleWord; break;
+    case ElementWidth::HalfKbits:  eew = ElementWidth::QuadWord;   break;
+    case ElementWidth::Kbits:      eew = ElementWidth::OctWord;    break;
+    }
+  if (not vecRegs_.legalConfig(eew, emul))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1();
+  unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+    case ElementWidth::HalfWord:
+      illegalInst(di);
+      break;
+
+    case ElementWidth::Word:
+      vsext<int32_t, int8_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vsext<int64_t, int16_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::QuadWord:
+      vsext<Int128, int32_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::OctWord:
+      vsext<Int256, int64_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vsext<Int512, Int128>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::Kbits:
+      vsext<Int1024, Int256>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsext_f8(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8();
+  unsigned fromGroup = group/8;
+  if (fromGroup == 0)
+    {
+      illegalInst(di);
+      return;
+    }
+  GroupMultiplier emul = GroupMultiplier::One;
+  if (not vecRegs_.groupNumberX8ToSymbol(fromGroup, emul))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  ElementWidth sew = vecRegs_.elemWidth();
+  ElementWidth eew = sew;  // Effective elem width of source.
+  switch (sew)
+    {
+    case ElementWidth::Byte:       illegalInst(di);                return;
+    case ElementWidth::HalfWord:   illegalInst(di);                return;
+    case ElementWidth::Word:       illegalInst(di);                return;
+    case ElementWidth::DoubleWord: eew = ElementWidth::Byte;       break;
+    case ElementWidth::QuadWord:   eew = ElementWidth::HalfWord;   break;
+    case ElementWidth::OctWord:    eew = ElementWidth::Word;       break;
+    case ElementWidth::HalfKbits:  eew = ElementWidth::DoubleWord; break;
+    case ElementWidth::Kbits:      eew = ElementWidth::QuadWord;   break;
+    }
+  if (not vecRegs_.legalConfig(eew, emul))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1();
+  unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+    case ElementWidth::HalfWord:
+    case ElementWidth::Word:
+    case ElementWidth::DoubleWord:
+      vsext<int64_t, int8_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::QuadWord:
+      vsext<Int128, int16_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::OctWord:
+      vsext<Int256, int32_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vsext<Int512, int64_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::Kbits:
+      vsext<Int1024, Int128>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+    }
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE, typename FROM_TYPE>
+void
+Hart<URV>::vzext(unsigned vd, unsigned vs1, unsigned group, unsigned fromGroup,
+                 unsigned start, unsigned elems, bool masked)
+{
+  unsigned errors = 0;
+
+  FROM_TYPE e1 = 0;
+  ELEM_TYPE dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, fromGroup, e1))
+        {
+          dest = e1;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVzext_f2(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8();
+  unsigned fromGroup = group/2;
+  if (fromGroup == 0)
+    {
+      illegalInst(di);
+      return;
+    }
+  GroupMultiplier emul = GroupMultiplier::One;
+  if (not vecRegs_.groupNumberX8ToSymbol(fromGroup, emul))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  ElementWidth sew = vecRegs_.elemWidth();
+  ElementWidth eew = sew;  // Effective elem width of source.
+  switch (sew)
+    {
+    case ElementWidth::Byte:       illegalInst(di);                return;
+    case ElementWidth::HalfWord:   eew = ElementWidth::Byte;       break;
+    case ElementWidth::Word:       eew = ElementWidth::HalfWord;   break;
+    case ElementWidth::DoubleWord: eew = ElementWidth::Word;       break;
+    case ElementWidth::QuadWord:   eew = ElementWidth::DoubleWord; break;
+    case ElementWidth::OctWord:    eew = ElementWidth::QuadWord;   break;
+    case ElementWidth::HalfKbits:  eew = ElementWidth::OctWord;    break;
+    case ElementWidth::Kbits:      eew = ElementWidth::HalfKbits;  break;
+    }
+  if (not vecRegs_.legalConfig(eew, emul))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1();
+  unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      illegalInst(di);
+      break;
+
+    case ElementWidth::HalfWord:
+      vzext<uint16_t,uint8_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::Word:
+      vzext<uint32_t, uint16_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vzext<uint64_t, uint32_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::QuadWord:
+      vzext<Uint128, uint64_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::OctWord:
+      vzext<Uint256, Uint128>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vzext<Uint512, Uint256>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::Kbits:
+      vzext<Uint1024, Uint512>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVzext_f4(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8();
+  unsigned fromGroup = group/4;
+  if (fromGroup == 0)
+    {
+      illegalInst(di);
+      return;
+    }
+  GroupMultiplier emul = GroupMultiplier::One;
+  if (not vecRegs_.groupNumberX8ToSymbol(fromGroup, emul))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  ElementWidth sew = vecRegs_.elemWidth();
+  ElementWidth eew = sew;  // Effective elem width of source.
+  switch (sew)
+    {
+    case ElementWidth::Byte:       illegalInst(di);                return;
+    case ElementWidth::HalfWord:   illegalInst(di);                return;
+    case ElementWidth::Word:       eew = ElementWidth::Byte;       break;
+    case ElementWidth::DoubleWord: eew = ElementWidth::HalfWord;   break;
+    case ElementWidth::QuadWord:   eew = ElementWidth::Word;       break;
+    case ElementWidth::OctWord:    eew = ElementWidth::DoubleWord; break;
+    case ElementWidth::HalfKbits:  eew = ElementWidth::QuadWord;   break;
+    case ElementWidth::Kbits:      eew = ElementWidth::OctWord;    break;
+    }
+  if (not vecRegs_.legalConfig(eew, emul))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1();
+  unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+    case ElementWidth::HalfWord:
+      illegalInst(di);
+      break;
+
+    case ElementWidth::Word:
+      vzext<uint32_t, uint8_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vzext<uint64_t, uint16_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::QuadWord:
+      vzext<Uint128, uint32_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::OctWord:
+      vzext<Uint256, uint64_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vzext<Uint512, Uint128>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::Kbits:
+      vzext<Uint1024, Uint256>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVzext_f8(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8();
+  unsigned fromGroup = group/8;
+  if (fromGroup == 0)
+    {
+      illegalInst(di);
+      return;
+    }
+  GroupMultiplier emul = GroupMultiplier::One;
+  if (not vecRegs_.groupNumberX8ToSymbol(fromGroup, emul))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  ElementWidth sew = vecRegs_.elemWidth();
+  ElementWidth eew = sew;  // Effective elem width of source.
+  switch (sew)
+    {
+    case ElementWidth::Byte:       illegalInst(di);                return;
+    case ElementWidth::HalfWord:   illegalInst(di);                return;
+    case ElementWidth::Word:       illegalInst(di);                return;
+    case ElementWidth::DoubleWord: eew = ElementWidth::Byte;       break;
+    case ElementWidth::QuadWord:   eew = ElementWidth::HalfWord;   break;
+    case ElementWidth::OctWord:    eew = ElementWidth::Word;       break;
+    case ElementWidth::HalfKbits:  eew = ElementWidth::DoubleWord; break;
+    case ElementWidth::Kbits:      eew = ElementWidth::QuadWord;   break;
+    }
+  if (not vecRegs_.legalConfig(eew, emul))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1();
+  unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+    case ElementWidth::HalfWord:
+    case ElementWidth::Word:
+    case ElementWidth::DoubleWord:
+      vzext<uint64_t, uint8_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::QuadWord:
+      vzext<Uint128, uint16_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::OctWord:
+      vzext<Uint256, uint32_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vzext<Uint512, uint64_t>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+
+    case ElementWidth::Kbits:
+      vzext<Uint1024, Uint128>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+    }
+}
+
+
 template class WdRiscv::Hart<uint32_t>;
 template class WdRiscv::Hart<uint64_t>;

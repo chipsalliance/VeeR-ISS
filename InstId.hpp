@@ -430,6 +430,13 @@ namespace WdRiscv
      vrem_vv,
      vrem_vx,
 
-     maxId = vrem_vx
+     vsext_f2,
+     vsext_f4,
+     vsext_f8,
+     vzext_f2,
+     vzext_f4,
+     vzext_f8,
+
+     maxId = vzext_f8
     };
 }

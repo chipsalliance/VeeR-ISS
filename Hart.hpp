@@ -2248,6 +2248,20 @@ namespace WdRiscv
                  unsigned start, unsigned elems, bool masked);
     void execVrem_vx(const DecodedInst*);
 
+    template<typename ELEM_TYPE, typename FROM_TYPE>
+    void vsext(unsigned vd, unsigned vs1, unsigned group, unsigned fromGroup,
+               unsigned start, unsigned elems, bool masked);
+    void execVsext_f2(const DecodedInst*);
+    void execVsext_f4(const DecodedInst*);
+    void execVsext_f8(const DecodedInst*);
+
+    template<typename ELEM_TYPE, typename FROM_TYPE>
+    void vzext(unsigned vd, unsigned vs1, unsigned group, unsigned from,
+               unsigned start, unsigned elems, bool masked);
+    void execVzext_f2(const DecodedInst*);
+    void execVzext_f4(const DecodedInst*);
+    void execVzext_f8(const DecodedInst*);
+
   private:
 
     // We model store buffer in order to undo store effects after an

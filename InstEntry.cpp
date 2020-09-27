@@ -2407,7 +2407,54 @@ InstTable::setupInstVec()
         OperandType::VecReg, OperandMode::Write, rdMask,
         OperandType::VecReg, OperandMode::Read, rs1Mask,
         OperandType::VecReg, OperandMode::Read, rs2Mask,
-      }
+      },
 
+      { "vsext.f2", InstId::vsext_f2,
+        0b010010'1'00000'00111'010'00000'1010111,
+        0b111111'0'00000'00111'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vsext.f4", InstId::vsext_f4,
+        0b010010'1'00000'00101'010'00000'1010111,
+        0b111111'0'00000'00111'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vsext.f8", InstId::vsext_f8,
+        0b010010'1'00000'00011'010'00000'1010111,
+        0b111111'0'00000'00111'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vzext.f2", InstId::vzext_f2,
+        0b010010'1'00000'00110'010'00000'1010111,
+        0b111111'0'00000'00111'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vzext.f4", InstId::vzext_f4,
+        0b010010'1'00000'00100'010'00000'1010111,
+        0b111111'0'00000'00111'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vzext.f8", InstId::vzext_f8,
+        0b010010'1'00000'00010'010'00000'1010111,
+        0b111111'0'00000'00111'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
     };
 }

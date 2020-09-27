@@ -2038,6 +2038,30 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       out << "vrem.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
       break;
 
+    case InstId::vsext_f2:
+      out << "vsext.f2 v" << di.op0() << ", v" << di.op1();
+      break;
+
+    case InstId::vsext_f4:
+      out << "vsext.f4 v" << di.op0() << ", v" << di.op1();
+      break;
+
+    case InstId::vsext_f8:
+      out << "vsext.f8 v" << di.op0() << ", v" << di.op1();
+      break;
+
+    case InstId::vzext_f2:
+      out << "vsext.f8 v" << di.op0() << ", v" << di.op1();
+      break;
+
+    case InstId::vzext_f4:
+      out << "vsext.f8 v" << di.op0() << ", v" << di.op1();
+      break;
+
+    case InstId::vzext_f8:
+      out << "vsext.f8 v" << di.op0() << ", v" << di.op1();
+      break;
+
     default:
       out << "illegal";
     }

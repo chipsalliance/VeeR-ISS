@@ -185,6 +185,22 @@ namespace WdRiscv
     /// fraction.
     unsigned groupMultiplierX8() const
     {return groupX8_; }
+
+    /// Set symbol to the sybolic value of the given numeric group
+    /// multiplier (premultiplier by 8). Return true on success and
+    /// false if groupX8 is out of bounds.
+    static
+    bool groupNumberX8ToSymbol(unsigned groupX8, GroupMultiplier& symbol)
+    {
+      if (groupX8 == 1)  { symbol = GroupMultiplier::Eighth;   return true; }
+      if (groupX8 == 2)  { symbol = GroupMultiplier::Quarter;  return true; }
+      if (groupX8 == 4)  { symbol = GroupMultiplier::Half;     return true; }
+      if (groupX8 == 8)  { symbol = GroupMultiplier::One;      return true; }
+      if (groupX8 == 16) { symbol = GroupMultiplier::Two;      return true; }
+      if (groupX8 == 32) { symbol = GroupMultiplier::Four;     return true; }
+      if (groupX8 == 64) { symbol = GroupMultiplier::Eight;    return true; }
+      return false;
+    }
     
     /// Convert the given symbolic element width to a byte count.
     static uint32_t elementWidthInBytes(ElementWidth sew)
@@ -251,7 +267,7 @@ namespace WdRiscv
 
     /// Return true if the given element width and grouping
     /// combination is legal.
-    bool leaglConfig(ElementWidth ew, GroupMultiplier mul) const
+    bool legalConfig(ElementWidth ew, GroupMultiplier mul) const
     {
       if (size_t(ew) >= legalConfigs_.size()) return false;
       const auto& groupFlags = legalConfigs_.at(size_t(ew));
