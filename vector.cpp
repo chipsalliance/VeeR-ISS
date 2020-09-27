@@ -97,7 +97,7 @@ namespace WdRiscv
 
   /// Return the integral type that is twice as wide as the given
   /// type. For example:
-  ///    makeDoubleWider<uint16_t>::type
+  ///    makeDoubleWide<uint16_t>::type
   /// yields the type
   ///    uint32_t.
   template <typename T>
