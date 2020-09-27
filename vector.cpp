@@ -233,6 +233,8 @@ namespace WdRiscv
     Int1024 smallest = Int1024(1) << 1023;  // Smallest 1024-bit integer.
     if (a == smallest)
       {
+        // Result consists of bits 1024 to 2047 of -(power(2,1023)*b)
+        // computed in unlimited precision.
         Uint1024 temp = b;
         temp >>= 1;
         result = temp;
