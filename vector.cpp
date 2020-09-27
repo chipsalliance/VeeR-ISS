@@ -73,6 +73,114 @@ namespace std
 }
 
 
+namespace WdRiscv
+{
+  /// Return the width in bits of the given integer type T. This is
+  /// usually 8*sizeof(T) but is different for wide types implemented
+  /// using boost multiprecision types.
+  template <typename T>
+  unsigned
+  integerWidth()
+  {
+    if constexpr (std::is_same<Int128, T>::value)   return 128;
+    if constexpr (std::is_same<Int256, T>::value)   return 256;
+    if constexpr (std::is_same<Int512, T>::value)   return 512;
+    if constexpr (std::is_same<Int1024, T>::value)  return 1024;
+    if constexpr (std::is_same<Uint128, T>::value)  return 128;
+    if constexpr (std::is_same<Uint256, T>::value)  return 256;
+    if constexpr (std::is_same<Uint512, T>::value)  return 512;
+    if constexpr (std::is_same<Uint1024, T>::value) return 1024;
+
+    return 8*sizeof(T);
+  }
+
+
+  /// Return the integral type that is twice as wide as the given
+  /// type. For example:
+  ///    makeDoubleWider<uint16_t>::type
+  /// yields the type
+  ///    uint32_t.
+  template <typename T>
+  struct makeDoubleWide
+  {
+  };
+
+  template <> struct makeDoubleWide<uint8_t>    { typedef uint16_t type; };
+  template <> struct makeDoubleWide<uint16_t>   { typedef uint32_t type; };
+  template <> struct makeDoubleWide<uint32_t>   { typedef uint64_t type; };
+  template <> struct makeDoubleWide<uint64_t>   { typedef Uint128  type; };
+  template <> struct makeDoubleWide<Uint128>    { typedef Uint256  type; };
+  template <> struct makeDoubleWide<Uint256>    { typedef Uint512  type; };
+  template <> struct makeDoubleWide<Uint512>    { typedef Uint1024 type; };
+
+  template <> struct makeDoubleWide<int8_t>     { typedef int16_t type; };
+  template <> struct makeDoubleWide<int16_t>    { typedef int32_t type; };
+  template <> struct makeDoubleWide<int32_t>    { typedef int64_t type; };
+  template <> struct makeDoubleWide<int64_t>    { typedef Int128  type; };
+  template <> struct makeDoubleWide<Int128>     { typedef Int256  type; };
+  template <> struct makeDoubleWide<Int256>     { typedef Int512  type; };
+  template <> struct makeDoubleWide<Int512>     { typedef Int1024 type; };
+
+
+  /// Set result to the upper half of a*b computed in double width
+  /// intermediate.
+  template <typename T>
+  void mulh(const T& a, const T& b, T& result)
+  {
+    typedef typename makeDoubleWide<T>::type T2; // Double wide type
+
+    unsigned tbits = integerWidth<T> (); // Number of bits in T
+
+    T2 temp = a;
+    temp *= b;
+    temp >>= tbits;
+    result = T(temp);
+  }
+
+
+  template <>
+  void mulh(const Uint1024& a, const Uint1024& b, Uint1024& result)
+  {
+    result = a * b;
+    assert(0);
+  }
+
+
+  template <>
+  void mulh(const Int1024& a, const Int1024& b, Int1024& result)
+  {
+    result = a * b;
+    assert(0);
+  }
+
+
+  /// Set result to the upper half of a*b computed in double width
+  /// intermediate. TS is a signed integer type (e.g. int8_t).
+  /// TU is the corresponding unsigned integer type (e.g. uint8_t).
+  template <typename TS, typename TU>
+  void mulhsu(const TS& a, const TU& b, TS& result)
+  {
+    typedef typename makeDoubleWide<TS>::type TS2; // Double wide signed type
+
+    unsigned bits = integerWidth<TS> (); // Number of bits in TS and TU
+
+    TS2 temp = a;
+    temp *= b;
+    temp >>= bits;
+    result = TS(temp);
+  }
+
+
+  template <>
+  void mulhsu(const Int1024& a, const Uint1024& b, Int1024& result)
+  {
+    result = a * b;
+    assert(0);
+  }
+
+}
+
+
 using namespace WdRiscv;
 
 
@@ -4245,68 +4353,14 @@ Hart<URV>::execVmul_vx(const DecodedInst* di)
 }
 
 
-namespace WdRiscv
-{
-  // Return the width in bits of the given integer type T. This is
-  // usually 8*sizeof(T) but is different for wide types implemented
-  // using boost multiprecision types.
-  template <typename T>
-  unsigned
-  integerWidth()
-  {
-    if constexpr (std::is_same<Int128, T>::value)   return 128;
-    if constexpr (std::is_same<Int256, T>::value)   return 256;
-    if constexpr (std::is_same<Int512, T>::value)   return 512;
-    if constexpr (std::is_same<Int1024, T>::value)  return 1024;
-    if constexpr (std::is_same<Uint128, T>::value)  return 128;
-    if constexpr (std::is_same<Uint256, T>::value)  return 256;
-    if constexpr (std::is_same<Uint512, T>::value)  return 512;
-    if constexpr (std::is_same<Uint1024, T>::value) return 1024;
-
-    return 8*sizeof(T);
-  }
-
-
-  /// Return the integral type that is twice as wide as the given
-  /// type. For example: makeDoubleWider<uint16_t>::type yields
-  /// uint32_t.
-  ///
-  template <typename T>
-  struct makeDoubleWide
-  {
-  };
-
-  template <> struct makeDoubleWide<uint8_t>    { typedef uint16_t type; };
-  template <> struct makeDoubleWide<uint16_t>   { typedef uint32_t type; };
-  template <> struct makeDoubleWide<uint32_t>   { typedef uint64_t type; };
-  template <> struct makeDoubleWide<uint64_t>   { typedef Uint128  type; };
-  template <> struct makeDoubleWide<Uint128>    { typedef Uint256  type; };
-  template <> struct makeDoubleWide<Uint256>    { typedef Uint512  type; };
-  template <> struct makeDoubleWide<Uint512>    { typedef Uint1024 type; };
-
-  template <> struct makeDoubleWide<int8_t>     { typedef int16_t type; };
-  template <> struct makeDoubleWide<int16_t>    { typedef int32_t type; };
-  template <> struct makeDoubleWide<int32_t>    { typedef int64_t type; };
-  template <> struct makeDoubleWide<int64_t>    { typedef Int128  type; };
-  template <> struct makeDoubleWide<Int128>     { typedef Int256  type; };
-  template <> struct makeDoubleWide<Int256>     { typedef Int512  type; };
-  template <> struct makeDoubleWide<Int512>     { typedef Int1024 type; };
-}
-
-
 template <typename URV>
 template <typename ELEM_TYPE>
 void
 Hart<URV>::vmulh_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                     unsigned start, unsigned elems, bool masked)
 {
-  typedef typename makeDoubleWide<ELEM_TYPE>::type ELEM_TYPE_X2;
-
   unsigned errors = 0;
-  unsigned elemBits = integerWidth<ELEM_TYPE> ();
-
   ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
-  ELEM_TYPE_X2 temp = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -4316,10 +4370,7 @@ Hart<URV>::vmulh_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
       if (vecRegs_.read(vs1, ix, group, e1) and
           vecRegs_.read(vs2, ix, group, e2))
         {
-          temp = e1;
-          temp = temp * e2;
-          temp = temp >> elemBits;
-          dest = ELEM_TYPE(temp);
+          mulh<ELEM_TYPE>(e1, e2, dest);
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -4384,7 +4435,7 @@ Hart<URV>::execVmulh_vv(const DecodedInst* di)
       break;
 
     case ElementWidth::Kbits:
-      std::cerr << "vmulh_vv not yet supported for SEW=1024\n";
+      vmul_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked);
       assert(0);
       break;
     }
@@ -4397,13 +4448,9 @@ void
 Hart<URV>::vmulh_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                     unsigned start, unsigned elems, bool masked)
 {
-  typedef typename makeDoubleWide<ELEM_TYPE>::type ELEM_TYPE_X2;
-
   unsigned errors = 0;
-  unsigned elemBits = integerWidth<ELEM_TYPE> ();
 
   ELEM_TYPE e1 = 0, e2 = SRV(intRegs_.read(rs2)), dest = 0;
-  ELEM_TYPE_X2 temp = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -4412,10 +4459,7 @@ Hart<URV>::vmulh_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
       if (vecRegs_.read(vs1, ix, group, e1))
         {
-          temp = e1;
-          temp = temp * e2;
-          temp = temp >> elemBits;
-          dest = ELEM_TYPE(temp);
+          mulh(e1, e2, dest);
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -4480,8 +4524,7 @@ Hart<URV>::execVmulh_vx(const DecodedInst* di)
       break;
 
     case ElementWidth::Kbits:
-      assert(0);
-      std::cerr << "vmulh_vx not yet supported for SEW=1024\n";
+      vmulh_vx<Int1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
 }
@@ -4540,8 +4583,7 @@ Hart<URV>::execVmulhu_vv(const DecodedInst* di)
       break;
 
     case ElementWidth::Kbits:
-      std::cerr << "vmulhu_vv not yet supported for SEW=1024\n";
-      assert(0);
+      vmulh_vv<Uint1024>(vd, vs1, vs2, group, start, elems, masked);
       break;
     }
 }
@@ -4553,13 +4595,9 @@ void
 Hart<URV>::vmulhu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                     unsigned start, unsigned elems, bool masked)
 {
-  typedef typename makeDoubleWide<ELEM_TYPE>::type ELEM_TYPE_X2;
-
   unsigned errors = 0;
-  unsigned elemBits = integerWidth<ELEM_TYPE> ();
 
   ELEM_TYPE e1 = 0, e2 = intRegs_.read(rs2), dest = 0;
-  ELEM_TYPE_X2 temp = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -4568,10 +4606,7 @@ Hart<URV>::vmulhu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
       if (vecRegs_.read(vs1, ix, group, e1))
         {
-          temp = e1;
-          temp = temp * e2;
-          temp = temp >> elemBits;
-          dest = ELEM_TYPE(temp);
+          mulh(e1, e2, dest);
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -4636,8 +4671,7 @@ Hart<URV>::execVmulhu_vx(const DecodedInst* di)
       break;
 
     case ElementWidth::Kbits:
-      std::cerr << "vmulhu_vx not yet supported for SEW=1024\n";
-      assert(0);
+      vmulhu_vx<Uint1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
 }
@@ -4650,14 +4684,11 @@ Hart<URV>::vmulhsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                       unsigned start, unsigned elems, bool masked)
 {
   typedef typename std::make_unsigned<ELEM_TYPE>::type  U_ELEM_TYPE;
-  typedef typename makeDoubleWide<ELEM_TYPE>::type  ELEM_TYPE_X2;
 
   unsigned errors = 0;
-  unsigned elemBits = integerWidth<ELEM_TYPE> ();
 
   ELEM_TYPE e1 = 0, dest = 0;
   U_ELEM_TYPE e2 = 0;
-  ELEM_TYPE_X2 temp = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -4667,10 +4698,7 @@ Hart<URV>::vmulhsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
       if (vecRegs_.read(vs1, ix, group, e1) and
           vecRegs_.read(vs2, ix, group, e2))
         {
-          temp = e1;
-          temp = temp * e2;
-          temp = temp >> elemBits;
-          dest = ELEM_TYPE(temp);
+          mulhsu(e1, e2, dest);
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -4735,8 +4763,7 @@ Hart<URV>::execVmulhsu_vv(const DecodedInst* di)
       break;
 
     case ElementWidth::Kbits:
-      assert(0);
-      std::cerr << "vmulhsu_vv not yet supported for SEW=1024\n";
+      vmulhsu_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked);
       break;
     }
 }
@@ -4749,14 +4776,11 @@ Hart<URV>::vmulhsu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                       unsigned start, unsigned elems, bool masked)
 {
   typedef typename std::make_unsigned<ELEM_TYPE>::type  U_ELEM_TYPE;
-  typedef typename makeDoubleWide<ELEM_TYPE>::type  ELEM_TYPE_X2;
 
   unsigned errors = 0;
-  unsigned elemBits = integerWidth<ELEM_TYPE> ();
 
   ELEM_TYPE e1 = 0, dest = 0;
   U_ELEM_TYPE e2 = intRegs_.read(rs2);
-  ELEM_TYPE_X2 temp = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -4765,10 +4789,7 @@ Hart<URV>::vmulhsu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 
       if (vecRegs_.read(vs1, ix, group, e1))
         {
-          temp = e1;
-          temp = temp * e2;
-          temp = temp >> elemBits;
-          dest = ELEM_TYPE(temp);
+          mulhsu(e1, e2, dest);
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -4833,8 +4854,7 @@ Hart<URV>::execVmulhsu_vx(const DecodedInst* di)
       break;
 
     case ElementWidth::Kbits:
-      assert(0);
-      std::cerr << "vmulhsu_vx not yet supported for SEW=1024\n";
+      vmulhsu_vx<Int1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
 }
