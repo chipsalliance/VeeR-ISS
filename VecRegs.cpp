@@ -31,9 +31,13 @@ VecRegs::VecRegs()
   for (auto& groupFlags : legalConfigs_)
     groupFlags.resize(size_t(VecEnums::GroupLimit));
 
-  // Temporary, for testing, make all combinations legal.
+  // Temporary, for testing, make all combinations legal. FIX.
   for (auto& groupFlags : legalConfigs_)
     groupFlags.assign(groupFlags.size(), true);
+
+  // Temporary, for testing. FIX.
+  sew_ = ElementWidth::DoubleWord;
+  sewInBits_ = 64;
 }
 
 

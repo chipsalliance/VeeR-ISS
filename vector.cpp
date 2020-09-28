@@ -3999,7 +3999,10 @@ Hart<URV>::vredsum_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
   unsigned errors = 0;
 
   ELEM_TYPE e2 = 0;
-  if (not vecRegs_.read(vs2, 0, 1, e2))
+
+  unsigned scalarElemIx = 0, scalarElemGroupX8 = 8;
+
+  if (not vecRegs_.read(vs2, scalarElemIx, scalarElemGroupX8, e2))
     errors++;
   
   ELEM_TYPE e1 = 0, result = e2;
@@ -4010,7 +4013,7 @@ Hart<URV>::vredsum_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
     else
       errors++;
 
-  if (not vecRegs_.write(vd, 0, group, result))
+  if (not vecRegs_.write(vd, scalarElemIx, scalarElemGroupX8, result))
     errors++;
 
   assert(errors == 0);
@@ -4079,7 +4082,10 @@ Hart<URV>::vredand_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
   unsigned errors = 0;
 
   ELEM_TYPE e2 = 0;
-  if (not vecRegs_.read(vs2, 0, 1, e2))
+
+  unsigned scalarElemIx = 0, scalarElemGroupX8 = 8;
+
+  if (not vecRegs_.read(vs2, scalarElemIx, scalarElemGroupX8, e2))
     errors++;
   
   ELEM_TYPE e1 = 0, result = e2;
@@ -4090,7 +4096,7 @@ Hart<URV>::vredand_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
     else
       errors++;
 
-  if (not vecRegs_.write(vd, 0, group, result))
+  if (not vecRegs_.write(vd, scalarElemIx, scalarElemGroupX8, result))
     errors++;
 
   assert(errors == 0);
@@ -4159,7 +4165,10 @@ Hart<URV>::vredor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
   unsigned errors = 0;
 
   ELEM_TYPE e2 = 0;
-  if (not vecRegs_.read(vs2, 0, 1, e2))
+
+  unsigned scalarElemIx = 0, scalarElemGroupX8 = 8;
+
+  if (not vecRegs_.read(vs2, scalarElemIx, scalarElemGroupX8, e2))
     errors++;
   
   ELEM_TYPE e1 = 0, result = e2;
@@ -4170,7 +4179,7 @@ Hart<URV>::vredor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
     else
       errors++;
 
-  if (not vecRegs_.write(vd, 0, group, result))
+  if (not vecRegs_.write(vd, scalarElemIx, scalarElemGroupX8, result))
     errors++;
 
   assert(errors == 0);
@@ -4239,7 +4248,10 @@ Hart<URV>::vredxor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
   unsigned errors = 0;
 
   ELEM_TYPE e2 = 0;
-  if (not vecRegs_.read(vs2, 0, 1, e2))
+
+  unsigned scalarElemIx = 0, scalarElemGroupX8 = 8;
+
+  if (not vecRegs_.read(vs2, scalarElemIx, scalarElemGroupX8, e2))
     errors++;
   
   ELEM_TYPE e1 = 0, result = e2;
@@ -4250,7 +4262,7 @@ Hart<URV>::vredxor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
     else
       errors++;
 
-  if (not vecRegs_.write(vd, 0, group, result))
+  if (not vecRegs_.write(vd, scalarElemIx, scalarElemGroupX8, result))
     errors++;
 
   assert(errors == 0);
@@ -4319,7 +4331,10 @@ Hart<URV>::vredminu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
   unsigned errors = 0;
 
   ELEM_TYPE e2 = 0;
-  if (not vecRegs_.read(vs2, 0, 1, e2))
+
+  unsigned scalarElemIx = 0, scalarElemGroupX8 = 8;
+
+  if (not vecRegs_.read(vs2, scalarElemIx, scalarElemGroupX8, e2))
     errors++;
   
   ELEM_TYPE e1 = 0, result = e2;
@@ -4330,7 +4345,7 @@ Hart<URV>::vredminu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
     else
       errors++;
 
-  if (not vecRegs_.write(vd, 0, group, result))
+  if (not vecRegs_.write(vd, scalarElemIx, scalarElemGroupX8, result))
     errors++;
 
   assert(errors == 0);
@@ -4400,7 +4415,10 @@ Hart<URV>::vredmin_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
   unsigned errors = 0;
 
   ELEM_TYPE e2 = 0;
-  if (not vecRegs_.read(vs2, 0, 1, e2))
+
+  unsigned scalarElemIx = 0, scalarElemGroupX8 = 8;
+
+  if (not vecRegs_.read(vs2, scalarElemIx, scalarElemGroupX8, e2))
     errors++;
   
   ELEM_TYPE e1 = 0, result = e2;
@@ -4411,7 +4429,7 @@ Hart<URV>::vredmin_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
     else
       errors++;
 
-  if (not vecRegs_.write(vd, 0, group, result))
+  if (not vecRegs_.write(vd, scalarElemIx, scalarElemGroupX8, result))
     errors++;
 
   assert(errors == 0);
@@ -4480,7 +4498,10 @@ Hart<URV>::vredmaxu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
   unsigned errors = 0;
 
   ELEM_TYPE e2 = 0;
-  if (not vecRegs_.read(vs2, 0, 1, e2))
+
+  unsigned scalarElemIx = 0, scalarElemGroupX8 = 8;
+
+  if (not vecRegs_.read(vs2, scalarElemIx, scalarElemGroupX8, e2))
     errors++;
   
   ELEM_TYPE e1 = 0, result = e2;
@@ -4491,7 +4512,7 @@ Hart<URV>::vredmaxu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
     else
       errors++;
 
-  if (not vecRegs_.write(vd, 0, group, result))
+  if (not vecRegs_.write(vd, scalarElemIx, scalarElemGroupX8, result))
     errors++;
 
   assert(errors == 0);
@@ -4560,7 +4581,10 @@ Hart<URV>::vredmax_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
   unsigned errors = 0;
 
   ELEM_TYPE e2 = 0;
-  if (not vecRegs_.read(vs2, 0, 1, e2))
+
+  unsigned scalarElemIx = 0, scalarElemGroupX8 = 8;
+
+  if (not vecRegs_.read(vs2, scalarElemIx, scalarElemGroupX8, e2))
     errors++;
   
   ELEM_TYPE e1 = 0, result = e2;
@@ -4571,7 +4595,7 @@ Hart<URV>::vredmax_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
     else
       errors++;
 
-  if (not vecRegs_.write(vd, 0, group, result))
+  if (not vecRegs_.write(vd, scalarElemIx, scalarElemGroupX8, result))
     errors++;
 
   assert(errors == 0);
