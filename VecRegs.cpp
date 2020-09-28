@@ -30,6 +30,10 @@ VecRegs::VecRegs()
   legalConfigs_.resize(size_t(VecEnums::WidthLimit));
   for (auto& groupFlags : legalConfigs_)
     groupFlags.resize(size_t(VecEnums::GroupLimit));
+
+  // Temporary, for testing, make all combinations legal.
+  for (auto& groupFlags : legalConfigs_)
+    groupFlags.assign(groupFlags.size(), true);
 }
 
 

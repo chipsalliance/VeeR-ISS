@@ -186,6 +186,20 @@ namespace WdRiscv
     unsigned groupMultiplierX8() const
     {return groupX8_; }
 
+    bool isDoubleWideLegal(ElementWidth sew, unsigned groupX8) const
+    {
+      unsigned wideGroup = groupX8 * 2;
+      GroupMultiplier emul = GroupMultiplier::One;
+      if (not groupNumberX8ToSymbol(wideGroup, emul))
+        return false;
+
+      ElementWidth eew = sew;
+      if (not doubleSew(sew, eew))
+        return false;
+
+      return legalConfig(eew, emul);
+    }
+
     /// Set symbol to the sybolic value of the given numeric group
     /// multiplier (premultiplier by 8). Return true on success and
     /// false if groupX8 is out of bounds.
@@ -202,6 +216,23 @@ namespace WdRiscv
       return false;
     }
     
+    /// Set dsew to the double of the given sew returning true on
+    /// succes and false if given sew cannot be doubled.  false if
+    /// groupX8 is out of bounds.
+    static
+    bool doubleSew(ElementWidth sew, ElementWidth& dsew)
+    {
+      typedef ElementWidth EW;
+      if (sew == EW::Byte       ) { dsew = EW:: HalfWord;   return true; }
+      if (sew == EW::HalfWord   ) { dsew = EW:: Word;       return true; }
+      if (sew == EW::Word       ) { dsew = EW:: DoubleWord; return true; }
+      if (sew == EW::DoubleWord ) { dsew = EW:: QuadWord;   return true; }
+      if (sew == EW::QuadWord   ) { dsew = EW:: OctWord;    return true; }
+      if (sew == EW::OctWord    ) { dsew = EW:: HalfKbits;  return true; }
+      if (sew == EW::HalfKbits  ) { dsew = EW:: Kbits;      return true; }
+      return false;
+    }
+
     /// Convert the given symbolic element width to a byte count.
     static uint32_t elementWidthInBytes(ElementWidth sew)
     { return uint32_t(1) << uint32_t(sew); }

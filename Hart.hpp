@@ -1960,7 +1960,7 @@ namespace WdRiscv
     void execVadd_vv(const DecodedInst*);
 
     template<typename ELEM_TYPE>
-    void vadd_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+    void vadd_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
                  unsigned start, unsigned elems, bool masked);
     void execVadd_vx(const DecodedInst*);
 
@@ -1991,6 +1991,42 @@ namespace WdRiscv
                   unsigned start, unsigned elems, bool masked);
     void execVrsub_vi(const DecodedInst*);
 
+    template<typename ELEM_TYPE>
+    void vwadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVwaddu_vv(const DecodedInst*);
+    void execVwadd_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vwadd_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVwaddu_vx(const DecodedInst*);
+    void execVwadd_vx(const DecodedInst*);
+    void execVwsubu_vx(const DecodedInst*);
+    void execVwsub_vx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vwsub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVwsubu_vv(const DecodedInst*);
+    void execVwsub_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vwadd_wv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVwaddu_wv(const DecodedInst*);
+    void execVwadd_wv(const DecodedInst*);
+
+    void execVwaddu_wx(const DecodedInst*);
+    void execVwadd_wx(const DecodedInst*);
+    void execVwsubu_wx(const DecodedInst*);
+    void execVwsub_wx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vwsub_wv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVwsubu_wv(const DecodedInst*);
+    void execVwsub_wv(const DecodedInst*);
 
     template<typename ELEM_TYPE>
     void vminu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,

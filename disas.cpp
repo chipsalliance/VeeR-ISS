@@ -1781,6 +1781,70 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       if (di.isMasked()) out << ", v0.t";
       break;
 
+    case InstId::vwaddu_vv:
+      out << "vwaddu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vwaddu_vx:
+      out << "vwaddu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
+    case InstId::vwsubu_vv:
+      out << "vwsubu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vwsubu_vx:
+      out << "vwsubu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
+    case InstId::vwadd_vv:
+      out << "vwadd.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vwadd_vx:
+      out << "vwadd.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
+    case InstId::vwsub_vv:
+      out << "vwsub.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vwsub_vx:
+      out << "vwsub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
+    case InstId::vwaddu_wv:
+      out << "vwaddu.wv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vwaddu_wx:
+      out << "vwaddu.wx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
+    case InstId::vwsubu_wv:
+      out << "vwsubu.wv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vwsubu_wx:
+      out << "vwsubu.wx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
+    case InstId::vwadd_wv:
+      out << "vwadd.wv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vwadd_wx:
+      out << "vwadd.wx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
+    case InstId::vwsub_wv:
+      out << "vwsub.wv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      break;
+
+    case InstId::vwsub_wx:
+      out << "vwsub.wx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      break;
+
     case InstId::vminu_vv:
       out << "vminu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
       if (di.isMasked()) out << ", v0.t";

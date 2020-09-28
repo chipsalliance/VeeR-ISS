@@ -5408,6 +5408,22 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vsub_vx,
      &&vrsub_vx,
      &&vrsub_vi,
+     &&vwaddu_vv,
+     &&vwaddu_vx,
+     &&vwsubu_vv,
+     &&vwsubu_vx,
+     &&vwadd_vv,
+     &&vwadd_vx,
+     &&vwsub_vv,
+     &&vwsub_vx,
+     &&vwaddu_wv,
+     &&vwaddu_wx,
+     &&vwsubu_wv,
+     &&vwsubu_wx,
+     &&vwadd_wv,
+     &&vwadd_wx,
+     &&vwsub_wv,
+     &&vwsub_wx,
      &&vminu_vv,
      &&vminu_vx,
      &&vmin_vv,
@@ -6644,6 +6660,70 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vrsub_vi:
   execVrsub_vi(di);
+  return;
+
+ vwaddu_vv:
+  execVwaddu_vv(di);
+  return;
+
+ vwaddu_vx:
+  execVwaddu_vx(di);
+  return;
+
+ vwsubu_vv:
+  execVwsubu_vv(di);
+  return;
+
+ vwsubu_vx:
+  execVwsubu_vx(di);
+  return;
+
+ vwadd_vv:
+  execVwadd_vv(di);
+  return;
+
+ vwadd_vx:
+  execVwadd_vx(di);
+  return;
+
+ vwsub_vv:
+  execVwsub_vv(di);
+  return;
+
+ vwsub_vx:
+  execVwsub_vx(di);
+  return;
+
+ vwaddu_wv:
+  execVwaddu_wv(di);
+  return;
+
+ vwaddu_wx:
+  execVwaddu_wx(di);
+  return;
+
+ vwsubu_wv:
+  execVwsubu_wv(di);
+  return;
+
+ vwsubu_wx:
+  execVwsubu_wx(di);
+  return;
+
+ vwadd_wv:
+  execVwadd_wv(di);
+  return;
+
+ vwadd_wx:
+  execVwadd_wx(di);
+  return;
+
+ vwsub_wv:
+  execVwsub_wv(di);
+  return;
+
+ vwsub_wx:
+  execVwsub_wx(di);
   return;
 
  vminu_vv:

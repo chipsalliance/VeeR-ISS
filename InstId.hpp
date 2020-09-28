@@ -353,18 +353,32 @@ namespace WdRiscv
      vadd_vv,
      vadd_vx,
      vadd_vi,
-
      vsub_vv,
      vsub_vx,
-
      vrsub_vx,
      vrsub_vi,
+
+     vwaddu_vv,
+     vwaddu_vx,
+     vwsubu_vv,
+     vwsubu_vx,
+     vwadd_vv,
+     vwadd_vx,
+     vwsub_vv,
+     vwsub_vx,
+     vwaddu_wv,
+     vwaddu_wx,
+     vwsubu_wv,
+     vwsubu_wx,
+     vwadd_wv,
+     vwadd_wx,
+     vwsub_wv,
+     vwsub_wx,
 
      vminu_vv,
      vminu_vx,
      vmin_vv,
      vmin_vx,
-
      vmaxu_vv,
      vmaxu_vx,
      vmax_vv,
@@ -373,11 +387,9 @@ namespace WdRiscv
      vand_vv,
      vand_vx,
      vand_vi,
-
      vor_vv,
      vor_vx,
      vor_vi,
-
      vxor_vv,
      vxor_vx,
      vxor_vi,

@@ -246,6 +246,14 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       if (f6 == 0x25) return instTable_.getEntry(InstId::vmul_vv);
       if (f6 == 0x26) return instTable_.getEntry(InstId::vmulhsu_vv);
       if (f6 == 0x27) return instTable_.getEntry(InstId::vmulh_vv);
+      if (f6 == 0x30) return instTable_.getEntry(InstId::vwaddu_vv);
+      if (f6 == 0x31) return instTable_.getEntry(InstId::vwadd_vv);
+      if (f6 == 0x32) return instTable_.getEntry(InstId::vwsubu_vv);
+      if (f6 == 0x33) return instTable_.getEntry(InstId::vwsub_vv);
+      if (f6 == 0x34) return instTable_.getEntry(InstId::vwaddu_wv);
+      if (f6 == 0x35) return instTable_.getEntry(InstId::vwadd_wv);
+      if (f6 == 0x36) return instTable_.getEntry(InstId::vwsubu_wv);
+      if (f6 == 0x37) return instTable_.getEntry(InstId::vwsub_wv);
       return instTable_.getEntry(InstId::illegal);  
     }
 
@@ -304,6 +312,14 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       if (f6 == 0x25)  return instTable_.getEntry(InstId::vmul_vx);
       if (f6 == 0x26)  return instTable_.getEntry(InstId::vmulhsu_vx);
       if (f6 == 0x27)  return instTable_.getEntry(InstId::vmulh_vx);
+      if (f6 == 0x30) return instTable_.getEntry(InstId::vwaddu_vx);
+      if (f6 == 0x31) return instTable_.getEntry(InstId::vwadd_vx);
+      if (f6 == 0x32) return instTable_.getEntry(InstId::vwsubu_vx);
+      if (f6 == 0x33) return instTable_.getEntry(InstId::vwsub_vx);
+      if (f6 == 0x34) return instTable_.getEntry(InstId::vwaddu_wx);
+      if (f6 == 0x35) return instTable_.getEntry(InstId::vwadd_wx);
+      if (f6 == 0x36) return instTable_.getEntry(InstId::vwsubu_wx);
+      if (f6 == 0x37) return instTable_.getEntry(InstId::vwsub_wx);
       return instTable_.getEntry(InstId::illegal);  
     }
 
