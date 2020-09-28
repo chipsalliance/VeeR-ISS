@@ -43,7 +43,8 @@ namespace WdRiscv
     /// Constructor: Construct a system with n (coreCount) cores each
     /// consisting of m (hartsPerCore) harts. The harts in this system
     /// are indexed with 0 to n*m - 1.
-    System(unsigned coreCount, unsigned hartsPerCore, Memory& memory);
+    System(unsigned coreCount, unsigned hartsPerCore, size_t memSize,
+           size_t pageSize);
 
     ~System();
 
@@ -69,6 +70,11 @@ namespace WdRiscv
       return sysHarts_.at(i);
     }
 
+    /// With a true flag, when loading ELF files, error out if ELF
+    /// file refers to unmapped memory. With a false flag, ignore
+    /// unmapped memory in the ELF file.
+    void checkUnmappedElf(bool flag);
+
   private:
 
     unsigned hartCount_;
@@ -76,5 +82,6 @@ namespace WdRiscv
 
     std::vector< std::shared_ptr<CoreClass> > cores_;
     std::vector< std::shared_ptr<HartClass> > sysHarts_; // All harts in system.
+    std::shared_ptr<Memory> memory_ = nullptr;
   };
 }

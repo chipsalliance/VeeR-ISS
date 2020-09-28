@@ -20,15 +20,21 @@ using namespace WdRiscv;
 
 
 template <typename URV>
-System<URV>::System(unsigned coreCount, unsigned hartsPerCore, Memory& memory)
+System<URV>::System(unsigned coreCount, unsigned hartsPerCore, size_t memSize,
+                    size_t pageSize)
   : hartCount_(coreCount * hartsPerCore), hartsPerCore_(hartsPerCore)
 {
   cores_.resize(coreCount);
 
+  memory_ = std::make_shared<Memory>(memSize, pageSize);
+
+  Memory& mem = *(memory_.get());
+  mem.setHartCount(hartCount_);
+
   for (unsigned ix = 0; ix < coreCount; ++ix)
     {
       URV hartIdBase = ix * hartsPerCore;
-      cores_.at(ix) = std::make_shared<CoreClass>(hartIdBase, hartsPerCore, memory);
+      cores_.at(ix) = std::make_shared<CoreClass>(hartIdBase, hartsPerCore, mem);
 
       // Maintain a vector of all the harts in the system.
       auto core = cores_.at(ix);
@@ -44,6 +50,15 @@ System<URV>::System(unsigned coreCount, unsigned hartsPerCore, Memory& memory)
 template <typename URV>
 System<URV>::~System()
 {
+}
+
+
+template <typename URV>
+void
+System<URV>::checkUnmappedElf(bool flag)
+{
+  if (memory_)
+    memory_->checkUnmappedElf(flag);
 }
 
 

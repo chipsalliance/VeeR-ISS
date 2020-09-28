@@ -59,7 +59,12 @@ namespace WdRiscv
     bool configHarts(System<URV>& system, const std::string& isaString,
                      bool verbose) const;
 
-    /// Apply the memory configuration in this object.
+    /// Configure memory.
+    template<typename URV>
+    bool configMemory(System<URV>& system, bool iccmRw, bool unmappedElfOf,
+                      bool verbose) const;
+
+    /// Apply the memory configuration in this object. Helper to configMemory.
     template<typename URV>
     bool applyMemoryConfig(Hart<URV>&, bool iccmRw, bool verbose) const;
     

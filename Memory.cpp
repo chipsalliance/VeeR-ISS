@@ -112,7 +112,7 @@ Memory::loadHexFile(const std::string& fileName)
       return false;
     }
 
-  size_t address = 0, errors = 0, overwrites = 0;
+  size_t addr = 0, errors = 0, overwrites = 0, unmappedCount = 0;
 
   std::string line;
 
@@ -132,7 +132,7 @@ Memory::loadHexFile(const std::string& fileName)
 	      continue;
 	    }
 	  char* end = nullptr;
-	  address = std::strtoull(line.c_str() + 1, &end, 16);
+	  addr = std::strtoull(line.c_str() + 1, &end, 16);
 	  if (end and *end and not isspace(*end))
 	    {
 	      std::cerr << "File " << fileName << ", Line " << lineNum << ": "
@@ -161,19 +161,29 @@ Memory::loadHexFile(const std::string& fileName)
 			<< std::dec;
 	      errors++;
 	    }
-	  if (address < size_)
+	  if (addr < size_)
 	    {
 	      if (not errors)
 		{
-		  if (data_[address] != 0)
+		  if (data_[addr] != 0)
 		    overwrites++;
-		  data_[address++] = value & 0xff;
+                  if (not specialInitializeByte(addr, value & 0xff))
+                    {
+                      if (unmappedCount == 0)
+                        std::cerr << "Failed to copy HEX file byte at address 0x"
+                                  << std::hex << addr << std::dec
+                                  << ": corresponding location is not mapped\n";
+                      unmappedCount++;
+                      if (checkUnmappedElf_)
+                        return false;
+                    }
+                  addr++;
 		}
 	    }
 	  else
 	    {
 	      std::cerr << "File " << fileName << ", Line " << lineNum << ": "
-			<< "Address out of bounds: " << std::hex << address
+			<< "Address out of bounds: " << std::hex << addr
 			<< '\n' << std::dec;
 	      errors++;
 	      break;
