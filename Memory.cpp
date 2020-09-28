@@ -231,9 +231,10 @@ Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end,
 
   size_t unmappedCount = 0;
 
-#if 1
+#if 0
 
-  // Load sections of segment.
+  // Load sections of segment. This is not ideal since it fails to load
+  // orhaned data (data not belonging to any section).
   auto segSecCount = seg->get_sections_num();
   for (int secOrder = 0; secOrder < segSecCount; ++secOrder)
     {
