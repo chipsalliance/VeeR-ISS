@@ -182,6 +182,8 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 
   RFormInst rform(inst);
   unsigned f3 = rform.bits.funct3, f6 = rform.top6();
+  unsigned vm = (inst >> 25) & 1;
+
 
   op3 = 0;
 
@@ -204,7 +206,14 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         case 11:   return instTable_.getEntry(InstId::vxor_vv);
         case 12:   return instTable_.getEntry(InstId::vrgather_vv);
         case 14:   return instTable_.getEntry(InstId::vrgatherei16_vv);
-        case 0x17: return instTable_.getEntry(InstId::vmerge_vv);
+        case 0x17:
+          if (vm == 0) return instTable_.getEntry(InstId::vmerge_vv);
+          if (vm == 1)
+            {
+              std::swap(op1, op2);  // Per spec !
+              if (op2 == 0) return instTable_.getEntry(InstId::vmv_v_v);
+            }
+          break;
         }
       return instTable_.getEntry(InstId::illegal);  
     }
@@ -280,7 +289,15 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         case 12:   return instTable_.getEntry(InstId::vrgather_vi);
         case 14:   return instTable_.getEntry(InstId::vslideup_vi);
         case 15:   return instTable_.getEntry(InstId::vslidedown_vi);
-        case 0x17: return instTable_.getEntry(InstId::vmerge_vi);
+        case 0x17:
+          if (vm == 0) return instTable_.getEntry(InstId::vmerge_vi);
+          if (vm == 1)
+            {
+              op1 = (int32_t(rform.bits.rs1) << 27) >> 27;
+              op2 = rform.bits.rs2;
+              if (op2 == 0) return instTable_.getEntry(InstId::vmv_v_i);
+            }
+          break;
         }
       return instTable_.getEntry(InstId::illegal);  
     }
@@ -306,7 +323,14 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         case 12:   return instTable_.getEntry(InstId::vrgather_vx);
         case 14:   return instTable_.getEntry(InstId::vslideup_vx);
         case 15:   return instTable_.getEntry(InstId::vslidedown_vx);
-        case 0x17: return instTable_.getEntry(InstId::vmerge_vx);
+        case 0x17:
+          if (vm == 0) return instTable_.getEntry(InstId::vmerge_vx);
+          if (vm == 1)
+            {
+              std::swap(op1, op2);  // Per spec!
+              if (op2 == 0) return instTable_.getEntry(InstId::vmv_v_x);
+            }
+          break;
         }
       return instTable_.getEntry(InstId::illegal);  
     }

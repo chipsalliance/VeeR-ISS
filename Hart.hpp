@@ -2309,6 +2309,17 @@ namespace WdRiscv
     void execVmv_x_s(const DecodedInst*);
     void execVmv_s_x(const DecodedInst*);
 
+    template<typename ELEM_TYPE>
+    void vmv_v_v(unsigned vd, unsigned vs1, unsigned group,
+                 unsigned start, unsigned elems);
+    void execVmv_v_v(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmv_v_x(unsigned vd, ELEM_TYPE e1, unsigned group,
+                 unsigned start, unsigned elems);
+    void execVmv_v_x(const DecodedInst*);
+    void execVmv_v_i(const DecodedInst*);
+
   private:
 
     // We model store buffer in order to undo store effects after an
