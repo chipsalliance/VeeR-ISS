@@ -202,6 +202,7 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       if (f6 == 11)   return instTable_.getEntry(InstId::vxor_vv);
       if (f6 == 12)   return instTable_.getEntry(InstId::vrgather_vv);
       if (f6 == 14)   return instTable_.getEntry(InstId::vrgatherei16_vv);
+      if (f6 == 0x17) return instTable_.getEntry(InstId::vmerge_vv);
       return instTable_.getEntry(InstId::illegal);  
     }
 
@@ -272,6 +273,7 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       if (f6 == 12)   return instTable_.getEntry(InstId::vrgather_vi);
       if (f6 == 14)   return instTable_.getEntry(InstId::vslideup_vi);
       if (f6 == 15)   return instTable_.getEntry(InstId::vslidedown_vi);
+      if (f6 == 0x17) return instTable_.getEntry(InstId::vmerge_vi);
       return instTable_.getEntry(InstId::illegal);  
     }
 
@@ -294,6 +296,7 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       if (f6 == 12)   return instTable_.getEntry(InstId::vrgather_vx);
       if (f6 == 14)   return instTable_.getEntry(InstId::vslideup_vx);
       if (f6 == 15)   return instTable_.getEntry(InstId::vslidedown_vx);
+      if (f6 == 0x17) return instTable_.getEntry(InstId::vmerge_vx);
       return instTable_.getEntry(InstId::illegal);  
     }
 

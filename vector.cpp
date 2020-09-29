@@ -435,35 +435,6 @@ Hart<URV>::execVadd_vx(const DecodedInst* di)
 
 
 template <typename URV>
-template <typename ELEM_TYPE>
-void
-Hart<URV>::vadd_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
-                   unsigned start, unsigned elems, bool masked)
-{
-  unsigned errors = 0;
-
-  ELEM_TYPE e1 = 0, e2 = imm, dest = 0;
-
-  for (unsigned ix = start; ix < elems; ++ix)
-    {
-      if (masked and not vecRegs_.isActive(0, ix))
-        continue;
-
-      if (vecRegs_.read(vs1, ix, group, e1))
-        {
-          dest = e1 + e2;
-          if (not vecRegs_.write(vd, ix, group, dest))
-            errors++;
-        }
-      else
-        errors++;
-    }
-
-  assert(errors == 0);
-}
-
-
-template <typename URV>
 void
 Hart<URV>::execVadd_vi(const DecodedInst* di)
 {
@@ -490,35 +461,35 @@ Hart<URV>::execVadd_vi(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:
-      vadd_vi<int8_t>(vd, vs1, imm, group, start, elems, masked);
+      vadd_vx<int8_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
     case ElementWidth::HalfWord:
-      vadd_vi<int16_t>(vd, vs1, imm, group, start, elems, masked);
+      vadd_vx<int16_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
     case ElementWidth::Word:
-      vadd_vi<int32_t>(vd, vs1, imm, group, start, elems, masked);
+      vadd_vx<int32_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
     case ElementWidth::DoubleWord:
-      vadd_vi<int64_t>(vd, vs1, imm, group, start, elems, masked);
+      vadd_vx<int64_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
     case ElementWidth::QuadWord:
-      vadd_vi<Int128>(vd, vs1, imm, group, start, elems, masked);
+      vadd_vx<Int128>(vd, vs1, Int128(imm), group, start, elems, masked);
       break;
 
     case ElementWidth::OctWord:
-      vadd_vi<Int256>(vd, vs1, imm, group, start, elems, masked);
+      vadd_vx<Int256>(vd, vs1, Int256(imm), group, start, elems, masked);
       break;
 
     case ElementWidth::HalfKbits:
-      vadd_vi<Int512>(vd, vs1, imm, group, start, elems, masked);
+      vadd_vx<Int512>(vd, vs1, Int512(imm), group, start, elems, masked);
       break;
 
     case ElementWidth::Kbits:
-      vadd_vi<Int1024>(vd, vs1, imm, group, start, elems, masked);
+      vadd_vx<Int1024>(vd, vs1, Int1024(imm), group, start, elems, masked);
       break;
     }
 }
@@ -7398,6 +7369,242 @@ Hart<URV>::execVzext_f8(const DecodedInst* di)
 
     case ElementWidth::Kbits:
       vzext<Uint1024, Uint128>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+    }
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vmerge_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                     unsigned start, unsigned elems)
+{
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (vecRegs_.read(vs1, ix, group, e1) and
+          vecRegs_.read(vs2, ix, group, e2))
+        {
+          dest = vecRegs_.isActive(0, ix) ? e2 : e1;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmerge_vv(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
+  if (not masked)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vmerge_vv<int8_t>(vd, vs1, vs2, group, start, elems);
+      break;
+
+    case ElementWidth::HalfWord:
+      vmerge_vv<int16_t>(vd, vs1, vs2, group, start, elems);
+      break;
+
+    case ElementWidth::Word:
+      vmerge_vv<int32_t>(vd, vs1, vs2, group, start, elems);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vmerge_vv<int64_t>(vd, vs1, vs2, group, start, elems);
+      break;
+
+    case ElementWidth::QuadWord:
+      vmerge_vv<Int128>(vd, vs1, vs2, group, start, elems);
+      break;
+
+    case ElementWidth::OctWord:
+      vmerge_vv<Int256>(vd, vs1, vs2, group, start, elems);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vmerge_vv<Int512>(vd, vs1, vs2, group, start, elems);
+      break;
+
+    case ElementWidth::Kbits:
+      vmerge_vv<Int1024>(vd, vs1, vs2, group, start, elems);
+      break;
+    }
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vmerge_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                     unsigned start, unsigned elems)
+{
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (vecRegs_.read(vs1, ix, group, e1))
+        {
+          dest = vecRegs_.isActive(0, ix) ? e2 : e1;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmerge_vx(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  unsigned rs2 = di->op2();
+  if (not masked)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  SRV e2 = SRV(intRegs_.read(rs2));
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vmerge_vx<int8_t>(vd, vs1, e2, group, start, elems);
+      break;
+
+    case ElementWidth::HalfWord:
+      vmerge_vx<int16_t>(vd, vs1, e2, group, start, elems);
+      break;
+
+    case ElementWidth::Word:
+      vmerge_vx<int32_t>(vd, vs1, e2, group, start, elems);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vmerge_vx<int64_t>(vd, vs1, e2, group, start, elems);
+      break;
+
+    case ElementWidth::QuadWord:
+      vmerge_vx<Int128>(vd, vs1, Int128(e2), group, start, elems);
+      break;
+
+    case ElementWidth::OctWord:
+      vmerge_vx<Int256>(vd, vs1, Int256(e2), group, start, elems);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vmerge_vx<Int512>(vd, vs1, Int512(e2), group, start, elems);
+      break;
+
+    case ElementWidth::Kbits:
+      vmerge_vx<Int1024>(vd, vs1, Int1024(e2), group, start, elems);
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmerge_vi(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0();
+  unsigned vs1 = di->op1();
+  int32_t imm = di->op2As<int32_t>();
+  if (not masked)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vmerge_vx<int8_t>(vd, vs1, imm, group, start, elems);
+      break;
+
+    case ElementWidth::HalfWord:
+      vmerge_vx<int16_t>(vd, vs1, imm, group, start, elems);
+      break;
+
+    case ElementWidth::Word:
+      vmerge_vx<int32_t>(vd, vs1, imm, group, start, elems);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vmerge_vx<int64_t>(vd, vs1, imm, group, start, elems);
+      break;
+
+    case ElementWidth::QuadWord:
+      vmerge_vx<Int128>(vd, vs1, Int128(imm), group, start, elems);
+      break;
+
+    case ElementWidth::OctWord:
+      vmerge_vx<Int256>(vd, vs1, Int256(imm), group, start, elems);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vmerge_vx<Int512>(vd, vs1, Int512(imm), group, start, elems);
+      break;
+
+    case ElementWidth::Kbits:
+      vmerge_vx<Int1024>(vd, vs1, Int1024(imm), group, start, elems);
       break;
     }
 }

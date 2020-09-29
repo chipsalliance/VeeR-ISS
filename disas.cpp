@@ -2126,6 +2126,21 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       out << "vsext.f8 v" << di.op0() << ", v" << di.op1();
       break;
 
+    case InstId::vmerge_vv:
+      out << "vmerge.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vmerge_vx:
+      out << "vmerge.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vmerge_vi:
+      out << "vmerge.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
     default:
       out << "illegal";
     }

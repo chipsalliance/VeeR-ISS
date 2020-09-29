@@ -449,6 +449,10 @@ namespace WdRiscv
      vzext_f4,
      vzext_f8,
 
-     maxId = vzext_f8
+     vmerge_vv,
+     vmerge_vx,
+     vmerge_vi,
+
+     maxId = vmerge_vi
     };
 }

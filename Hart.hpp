@@ -1964,11 +1964,7 @@ namespace WdRiscv
                  unsigned start, unsigned elems, bool masked);
     void execVadd_vx(const DecodedInst*);
 
-    template<typename ELEM_TYPE>
-    void vadd_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
     void execVadd_vi(const DecodedInst*);
-
 
     template<typename ELEM_TYPE>
     void vsub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
@@ -2297,6 +2293,18 @@ namespace WdRiscv
     void execVzext_f2(const DecodedInst*);
     void execVzext_f4(const DecodedInst*);
     void execVzext_f8(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmerge_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                   unsigned start, unsigned elems);
+    void execVmerge_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmerge_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                   unsigned start, unsigned elems);
+    void execVmerge_vx(const DecodedInst*);
+
+    void execVmerge_vi(const DecodedInst*);
 
   private:
 
