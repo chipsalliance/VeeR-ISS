@@ -191,18 +191,21 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       op1 = rform.bits.rs2; // operand order reversed
       op2 = rform.bits.rs1;
 
-      if (f6 == 0)    return instTable_.getEntry(InstId::vadd_vv);
-      if (f6 == 2)    return instTable_.getEntry(InstId::vsub_vv);
-      if (f6 == 4)    return instTable_.getEntry(InstId::vminu_vv);
-      if (f6 == 5)    return instTable_.getEntry(InstId::vmin_vv);
-      if (f6 == 6)    return instTable_.getEntry(InstId::vmaxu_vv);
-      if (f6 == 7)    return instTable_.getEntry(InstId::vmax_vv);
-      if (f6 == 9)    return instTable_.getEntry(InstId::vand_vv);
-      if (f6 == 10)   return instTable_.getEntry(InstId::vor_vv);
-      if (f6 == 11)   return instTable_.getEntry(InstId::vxor_vv);
-      if (f6 == 12)   return instTable_.getEntry(InstId::vrgather_vv);
-      if (f6 == 14)   return instTable_.getEntry(InstId::vrgatherei16_vv);
-      if (f6 == 0x17) return instTable_.getEntry(InstId::vmerge_vv);
+      switch (f6)
+        {
+        case 0:    return instTable_.getEntry(InstId::vadd_vv);
+        case 2:    return instTable_.getEntry(InstId::vsub_vv);
+        case 4:    return instTable_.getEntry(InstId::vminu_vv);
+        case 5:    return instTable_.getEntry(InstId::vmin_vv);
+        case 6:    return instTable_.getEntry(InstId::vmaxu_vv);
+        case 7:    return instTable_.getEntry(InstId::vmax_vv);
+        case 9:    return instTable_.getEntry(InstId::vand_vv);
+        case 10:   return instTable_.getEntry(InstId::vor_vv);
+        case 11:   return instTable_.getEntry(InstId::vxor_vv);
+        case 12:   return instTable_.getEntry(InstId::vrgather_vv);
+        case 14:   return instTable_.getEntry(InstId::vrgatherei16_vv);
+        case 0x17: return instTable_.getEntry(InstId::vmerge_vv);
+        }
       return instTable_.getEntry(InstId::illegal);  
     }
 
@@ -212,49 +215,51 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       op1 = rform.bits.rs2; // operand order reversed
       op2 = rform.bits.rs1;
 
-      if (f6 == 0)    return instTable_.getEntry(InstId::vredsum_vs);
-      if (f6 == 1)    return instTable_.getEntry(InstId::vredand_vs);
-      if (f6 == 2)    return instTable_.getEntry(InstId::vredor_vs);
-      if (f6 == 3)    return instTable_.getEntry(InstId::vredxor_vs);
-      if (f6 == 4)    return instTable_.getEntry(InstId::vredminu_vs);
-      if (f6 == 5)    return instTable_.getEntry(InstId::vredmin_vs);
-      if (f6 == 6)    return instTable_.getEntry(InstId::vredmaxu_vs);
-      if (f6 == 7)    return instTable_.getEntry(InstId::vredmax_vs);
-      if (f6 == 0x12)
+      switch(f6)
         {
+        case 0:    return instTable_.getEntry(InstId::vredsum_vs);
+        case 1:    return instTable_.getEntry(InstId::vredand_vs);
+        case 2:    return instTable_.getEntry(InstId::vredor_vs);
+        case 3:    return instTable_.getEntry(InstId::vredxor_vs);
+        case 4:    return instTable_.getEntry(InstId::vredminu_vs);
+        case 5:    return instTable_.getEntry(InstId::vredmin_vs);
+        case 6:    return instTable_.getEntry(InstId::vredmaxu_vs);
+        case 7:    return instTable_.getEntry(InstId::vredmax_vs);
+        case 0x10: return instTable_.getEntry(InstId::vmv_x_s);
+        case 0x12:
           if (op2 == 2)  return instTable_.getEntry(InstId::vzext_f8);
           if (op2 == 4)  return instTable_.getEntry(InstId::vzext_f4);
           if (op2 == 6)  return instTable_.getEntry(InstId::vzext_f2);
           if (op2 == 3)  return instTable_.getEntry(InstId::vsext_f8);
           if (op2 == 5)  return instTable_.getEntry(InstId::vsext_f4);
           if (op2 == 7)  return instTable_.getEntry(InstId::vsext_f2);
-          return instTable_.getEntry(InstId::illegal);  
+          return instTable_.getEntry(InstId::illegal);
+        case 0x17: return instTable_.getEntry(InstId::vcompress_vm);
+        case 0x19: return instTable_.getEntry(InstId::vmand_mm);
+        case 0x1d: return instTable_.getEntry(InstId::vmnand_mm);
+        case 0x18: return instTable_.getEntry(InstId::vmandnot_mm);
+        case 0x1b: return instTable_.getEntry(InstId::vmxor_mm);
+        case 0x1a: return instTable_.getEntry(InstId::vmor_mm);
+        case 0x1e: return instTable_.getEntry(InstId::vmnor_mm);
+        case 0x1c: return instTable_.getEntry(InstId::vmornot_mm);
+        case 0x1f: return instTable_.getEntry(InstId::vmxnor_mm);
+        case 0x20: return instTable_.getEntry(InstId::vdivu_vv);
+        case 0x21: return instTable_.getEntry(InstId::vdiv_vv);
+        case 0x22: return instTable_.getEntry(InstId::vremu_vv);
+        case 0x23: return instTable_.getEntry(InstId::vrem_vv);
+        case 0x24: return instTable_.getEntry(InstId::vmulhu_vv);
+        case 0x25: return instTable_.getEntry(InstId::vmul_vv);
+        case 0x26: return instTable_.getEntry(InstId::vmulhsu_vv);
+        case 0x27: return instTable_.getEntry(InstId::vmulh_vv);
+        case 0x30: return instTable_.getEntry(InstId::vwaddu_vv);
+        case 0x31: return instTable_.getEntry(InstId::vwadd_vv);
+        case 0x32: return instTable_.getEntry(InstId::vwsubu_vv);
+        case 0x33: return instTable_.getEntry(InstId::vwsub_vv);
+        case 0x34: return instTable_.getEntry(InstId::vwaddu_wv);
+        case 0x35: return instTable_.getEntry(InstId::vwadd_wv);
+        case 0x36: return instTable_.getEntry(InstId::vwsubu_wv);
+        case 0x37: return instTable_.getEntry(InstId::vwsub_wv);
         }
-      if (f6 == 0x17) return instTable_.getEntry(InstId::vcompress_vm);
-      if (f6 == 0x19) return instTable_.getEntry(InstId::vmand_mm);
-      if (f6 == 0x1d) return instTable_.getEntry(InstId::vmnand_mm);
-      if (f6 == 0x18) return instTable_.getEntry(InstId::vmandnot_mm);
-      if (f6 == 0x1b) return instTable_.getEntry(InstId::vmxor_mm);
-      if (f6 == 0x1a) return instTable_.getEntry(InstId::vmor_mm);
-      if (f6 == 0x1e) return instTable_.getEntry(InstId::vmnor_mm);
-      if (f6 == 0x1c) return instTable_.getEntry(InstId::vmornot_mm);
-      if (f6 == 0x1f) return instTable_.getEntry(InstId::vmxnor_mm);
-      if (f6 == 0x20) return instTable_.getEntry(InstId::vdivu_vv);
-      if (f6 == 0x21) return instTable_.getEntry(InstId::vdiv_vv);
-      if (f6 == 0x22) return instTable_.getEntry(InstId::vremu_vv);
-      if (f6 == 0x23) return instTable_.getEntry(InstId::vrem_vv);
-      if (f6 == 0x24) return instTable_.getEntry(InstId::vmulhu_vv);
-      if (f6 == 0x25) return instTable_.getEntry(InstId::vmul_vv);
-      if (f6 == 0x26) return instTable_.getEntry(InstId::vmulhsu_vv);
-      if (f6 == 0x27) return instTable_.getEntry(InstId::vmulh_vv);
-      if (f6 == 0x30) return instTable_.getEntry(InstId::vwaddu_vv);
-      if (f6 == 0x31) return instTable_.getEntry(InstId::vwadd_vv);
-      if (f6 == 0x32) return instTable_.getEntry(InstId::vwsubu_vv);
-      if (f6 == 0x33) return instTable_.getEntry(InstId::vwsub_vv);
-      if (f6 == 0x34) return instTable_.getEntry(InstId::vwaddu_wv);
-      if (f6 == 0x35) return instTable_.getEntry(InstId::vwadd_wv);
-      if (f6 == 0x36) return instTable_.getEntry(InstId::vwsubu_wv);
-      if (f6 == 0x37) return instTable_.getEntry(InstId::vwsub_wv);
       return instTable_.getEntry(InstId::illegal);  
     }
 
@@ -265,15 +270,18 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       int32_t imm = (int32_t(rform.bits.rs1) << 27) >> 27;
       op2 = imm;
 
-      if (f6 == 0)    return instTable_.getEntry(InstId::vadd_vi);
-      if (f6 == 3)    return instTable_.getEntry(InstId::vrsub_vi);
-      if (f6 == 9)    return instTable_.getEntry(InstId::vand_vi);
-      if (f6 == 10)   return instTable_.getEntry(InstId::vor_vi);
-      if (f6 == 11)   return instTable_.getEntry(InstId::vxor_vi);
-      if (f6 == 12)   return instTable_.getEntry(InstId::vrgather_vi);
-      if (f6 == 14)   return instTable_.getEntry(InstId::vslideup_vi);
-      if (f6 == 15)   return instTable_.getEntry(InstId::vslidedown_vi);
-      if (f6 == 0x17) return instTable_.getEntry(InstId::vmerge_vi);
+      switch (f6)
+        {
+        case 0:    return instTable_.getEntry(InstId::vadd_vi);
+        case 3:    return instTable_.getEntry(InstId::vrsub_vi);
+        case 9:    return instTable_.getEntry(InstId::vand_vi);
+        case 10:   return instTable_.getEntry(InstId::vor_vi);
+        case 11:   return instTable_.getEntry(InstId::vxor_vi);
+        case 12:   return instTable_.getEntry(InstId::vrgather_vi);
+        case 14:   return instTable_.getEntry(InstId::vslideup_vi);
+        case 15:   return instTable_.getEntry(InstId::vslidedown_vi);
+        case 0x17: return instTable_.getEntry(InstId::vmerge_vi);
+        }
       return instTable_.getEntry(InstId::illegal);  
     }
 
@@ -283,20 +291,23 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       op1 = rform.bits.rs2; // operand order reversed
       op2 = rform.bits.rs1;
 
-      if (f6 == 0)    return instTable_.getEntry(InstId::vadd_vx);
-      if (f6 == 2)    return instTable_.getEntry(InstId::vsub_vx);
-      if (f6 == 3)    return instTable_.getEntry(InstId::vrsub_vx);
-      if (f6 == 4)    return instTable_.getEntry(InstId::vminu_vx);
-      if (f6 == 5)    return instTable_.getEntry(InstId::vmin_vx);
-      if (f6 == 6)    return instTable_.getEntry(InstId::vmaxu_vx);
-      if (f6 == 7)    return instTable_.getEntry(InstId::vmax_vx);
-      if (f6 == 9)    return instTable_.getEntry(InstId::vand_vx);
-      if (f6 == 10)   return instTable_.getEntry(InstId::vor_vx);
-      if (f6 == 11)   return instTable_.getEntry(InstId::vxor_vx);
-      if (f6 == 12)   return instTable_.getEntry(InstId::vrgather_vx);
-      if (f6 == 14)   return instTable_.getEntry(InstId::vslideup_vx);
-      if (f6 == 15)   return instTable_.getEntry(InstId::vslidedown_vx);
-      if (f6 == 0x17) return instTable_.getEntry(InstId::vmerge_vx);
+      switch (f6)
+        {
+        case 0:    return instTable_.getEntry(InstId::vadd_vx);
+        case 2:    return instTable_.getEntry(InstId::vsub_vx);
+        case 3:    return instTable_.getEntry(InstId::vrsub_vx);
+        case 4:    return instTable_.getEntry(InstId::vminu_vx);
+        case 5:    return instTable_.getEntry(InstId::vmin_vx);
+        case 6:    return instTable_.getEntry(InstId::vmaxu_vx);
+        case 7:    return instTable_.getEntry(InstId::vmax_vx);
+        case 9:    return instTable_.getEntry(InstId::vand_vx);
+        case 10:   return instTable_.getEntry(InstId::vor_vx);
+        case 11:   return instTable_.getEntry(InstId::vxor_vx);
+        case 12:   return instTable_.getEntry(InstId::vrgather_vx);
+        case 14:   return instTable_.getEntry(InstId::vslideup_vx);
+        case 15:   return instTable_.getEntry(InstId::vslidedown_vx);
+        case 0x17: return instTable_.getEntry(InstId::vmerge_vx);
+        }
       return instTable_.getEntry(InstId::illegal);  
     }
 
@@ -306,23 +317,28 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       op1 = rform.bits.rs2; // operand order reversed
       op2 = rform.bits.rs1;
 
-      if (f6 == 0xe)   return instTable_.getEntry(InstId::vslide1up_vx);
-      if (f6 == 0x20)  return instTable_.getEntry(InstId::vdivu_vx);
-      if (f6 == 0x21)  return instTable_.getEntry(InstId::vdiv_vx);
-      if (f6 == 0x22)  return instTable_.getEntry(InstId::vremu_vx);
-      if (f6 == 0x23)  return instTable_.getEntry(InstId::vrem_vx);
-      if (f6 == 0x24)  return instTable_.getEntry(InstId::vmulhu_vx);
-      if (f6 == 0x25)  return instTable_.getEntry(InstId::vmul_vx);
-      if (f6 == 0x26)  return instTable_.getEntry(InstId::vmulhsu_vx);
-      if (f6 == 0x27)  return instTable_.getEntry(InstId::vmulh_vx);
-      if (f6 == 0x30) return instTable_.getEntry(InstId::vwaddu_vx);
-      if (f6 == 0x31) return instTable_.getEntry(InstId::vwadd_vx);
-      if (f6 == 0x32) return instTable_.getEntry(InstId::vwsubu_vx);
-      if (f6 == 0x33) return instTable_.getEntry(InstId::vwsub_vx);
-      if (f6 == 0x34) return instTable_.getEntry(InstId::vwaddu_wx);
-      if (f6 == 0x35) return instTable_.getEntry(InstId::vwadd_wx);
-      if (f6 == 0x36) return instTable_.getEntry(InstId::vwsubu_wx);
-      if (f6 == 0x37) return instTable_.getEntry(InstId::vwsub_wx);
+      switch (f6)
+        {
+        case 0xe:   return instTable_.getEntry(InstId::vslide1up_vx);
+        case 0x10:  std::swap(op1, op2); // per spec !
+                    return instTable_.getEntry(InstId::vmv_s_x);
+        case 0x20:  return instTable_.getEntry(InstId::vdivu_vx);
+        case 0x21:  return instTable_.getEntry(InstId::vdiv_vx);
+        case 0x22:  return instTable_.getEntry(InstId::vremu_vx);
+        case 0x23:  return instTable_.getEntry(InstId::vrem_vx);
+        case 0x24:  return instTable_.getEntry(InstId::vmulhu_vx);
+        case 0x25:  return instTable_.getEntry(InstId::vmul_vx);
+        case 0x26:  return instTable_.getEntry(InstId::vmulhsu_vx);
+        case 0x27:  return instTable_.getEntry(InstId::vmulh_vx);
+        case 0x30:  return instTable_.getEntry(InstId::vwaddu_vx);
+        case 0x31:  return instTable_.getEntry(InstId::vwadd_vx);
+        case 0x32:  return instTable_.getEntry(InstId::vwsubu_vx);
+        case 0x33:  return instTable_.getEntry(InstId::vwsub_vx);
+        case 0x34:  return instTable_.getEntry(InstId::vwaddu_wx);
+        case 0x35:  return instTable_.getEntry(InstId::vwadd_wx);
+        case 0x36:  return instTable_.getEntry(InstId::vwsubu_wx);
+        case 0x37:  return instTable_.getEntry(InstId::vwsub_wx);
+        }
       return instTable_.getEntry(InstId::illegal);  
     }
 

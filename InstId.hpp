@@ -453,6 +453,9 @@ namespace WdRiscv
      vmerge_vx,
      vmerge_vi,
 
-     maxId = vmerge_vi
+     vmv_x_s,
+     vmv_s_x,
+
+     maxId = vmv_s_x
     };
 }

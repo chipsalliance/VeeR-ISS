@@ -7610,5 +7610,155 @@ Hart<URV>::execVmerge_vi(const DecodedInst* di)
 }
 
 
+template <typename URV>
+void
+Hart<URV>::execVmv_x_s(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  if (masked)
+    {
+      illegalInst(di);   // Masked version reserved.
+      return;
+    }
+
+  unsigned rd = di->op0(), vs1 = di->op1(), groupX8 = 8;
+
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      {
+        int8_t val = 0;
+        vecRegs_.read(vs1, 0, groupX8, val);
+        intRegs_.write(rd, SRV(val));
+      }
+      break;
+
+    case ElementWidth::HalfWord:
+      {
+        int16_t val = 0;
+        vecRegs_.read(vs1, 0, groupX8, val);
+        intRegs_.write(rd, SRV(val));
+      }
+      break;
+
+    case ElementWidth::Word:
+      {
+        uint32_t val = 0;
+        vecRegs_.read(vs1, 0, groupX8, val);
+        intRegs_.write(rd, SRV(val));
+      }
+      break;
+
+    case ElementWidth::DoubleWord:
+      {
+        int64_t val = 0;
+        vecRegs_.read(vs1, 0, groupX8, val);
+        intRegs_.write(rd, SRV(val));
+      }
+      break;
+
+    case ElementWidth::QuadWord:
+      {
+        Int128 val = 0;
+        vecRegs_.read(vs1, 0, groupX8, val);
+        intRegs_.write(rd, SRV(val));
+      }
+      break;
+
+    case ElementWidth::OctWord:
+      {
+        Int256 val = 0;
+        vecRegs_.read(vs1, 0, groupX8, val);
+        intRegs_.write(rd, SRV(val));
+      }
+      break;
+
+    case ElementWidth::HalfKbits:
+      {
+        Int512 val = 0;
+        vecRegs_.read(vs1, 0, groupX8, val);
+        intRegs_.write(rd, SRV(val));
+      }
+      break;
+
+    case ElementWidth::Kbits:
+      {
+        Int1024 val = 0;
+        vecRegs_.read(vs1, 0, groupX8, val);
+        intRegs_.write(rd, SRV(val));
+      }
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmv_s_x(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  if (masked)
+    {
+      illegalInst(di);    // Masked version reserved.
+      return;
+    }
+
+  unsigned vd = di->op0(), rs1 = di->op1(), groupX8 = 8;
+
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  SRV val = intRegs_.read(rs1);
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vecRegs_.write(vd, 0, groupX8, int8_t(val));
+      break;
+
+    case ElementWidth::HalfWord:
+      vecRegs_.write(vd, 0, groupX8, int16_t(val));
+      break;
+
+    case ElementWidth::Word:
+      vecRegs_.write(vd, 0, groupX8, int32_t(val));
+      break;
+
+    case ElementWidth::DoubleWord:
+      vecRegs_.write(vd, 0, groupX8, int64_t(val));
+      break;
+
+    case ElementWidth::QuadWord:
+      vecRegs_.write(vd, 0, groupX8, Int128(val));
+      break;
+
+    case ElementWidth::OctWord:
+      vecRegs_.write(vd, 0, groupX8, Int256(val));
+      break;
+
+    case ElementWidth::HalfKbits:
+      vecRegs_.write(vd, 0, groupX8, Int512(val));
+      break;
+
+    case ElementWidth::Kbits:
+      vecRegs_.write(vd, 0, groupX8, Int1024(val));
+      break;
+    }
+}
+
+
 template class WdRiscv::Hart<uint32_t>;
 template class WdRiscv::Hart<uint64_t>;

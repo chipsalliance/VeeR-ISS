@@ -2306,6 +2306,9 @@ namespace WdRiscv
 
     void execVmerge_vi(const DecodedInst*);
 
+    void execVmv_x_s(const DecodedInst*);
+    void execVmv_s_x(const DecodedInst*);
+
   private:
 
     // We model store buffer in order to undo store effects after an
