@@ -4641,9 +4641,9 @@ Hart<URV>::execVmand_mm(const DecodedInst* di)
   if (elems > vecRegs_.bytesPerRegister())
     assert(0);
 
-  uint8_t* vdData = vecRegs_.getVecBytes(di->op0());
-  uint8_t* vs1Data = vecRegs_.getVecBytes(di->op1());
-  uint8_t* vs2Data = vecRegs_.getVecBytes(di->op2());
+  uint8_t* vdData = vecRegs_.getVecData(di->op0());
+  uint8_t* vs1Data = vecRegs_.getVecData(di->op1());
+  uint8_t* vs2Data = vecRegs_.getVecData(di->op2());
   if (not vs1Data or not vs2Data or not vdData)
     assert(0);
 
@@ -4684,9 +4684,9 @@ Hart<URV>::execVmnand_mm(const DecodedInst* di)
   if (elems > vecRegs_.bytesPerRegister())
     assert(0);
 
-  uint8_t* vdData = vecRegs_.getVecBytes(di->op0());
-  uint8_t* vs1Data = vecRegs_.getVecBytes(di->op1());
-  uint8_t* vs2Data = vecRegs_.getVecBytes(di->op2());
+  uint8_t* vdData = vecRegs_.getVecData(di->op0());
+  uint8_t* vs1Data = vecRegs_.getVecData(di->op1());
+  uint8_t* vs2Data = vecRegs_.getVecData(di->op2());
   if (not vs1Data or not vs2Data or not vdData)
     assert(0);
 
@@ -4727,9 +4727,9 @@ Hart<URV>::execVmandnot_mm(const DecodedInst* di)
   if (elems > vecRegs_.bytesPerRegister())
     assert(0);
 
-  uint8_t* vdData = vecRegs_.getVecBytes(di->op0());
-  uint8_t* vs1Data = vecRegs_.getVecBytes(di->op1());
-  uint8_t* vs2Data = vecRegs_.getVecBytes(di->op2());
+  uint8_t* vdData = vecRegs_.getVecData(di->op0());
+  uint8_t* vs1Data = vecRegs_.getVecData(di->op1());
+  uint8_t* vs2Data = vecRegs_.getVecData(di->op2());
   if (not vs1Data or not vs2Data or not vdData)
     assert(0);
 
@@ -4770,9 +4770,9 @@ Hart<URV>::execVmxor_mm(const DecodedInst* di)
   if (elems > vecRegs_.bytesPerRegister())
     assert(0);
 
-  uint8_t* vdData = vecRegs_.getVecBytes(di->op0());
-  uint8_t* vs1Data = vecRegs_.getVecBytes(di->op1());
-  uint8_t* vs2Data = vecRegs_.getVecBytes(di->op2());
+  uint8_t* vdData = vecRegs_.getVecData(di->op0());
+  uint8_t* vs1Data = vecRegs_.getVecData(di->op1());
+  uint8_t* vs2Data = vecRegs_.getVecData(di->op2());
   if (not vs1Data or not vs2Data or not vdData)
     assert(0);
 
@@ -4813,9 +4813,9 @@ Hart<URV>::execVmor_mm(const DecodedInst* di)
   if (elems > vecRegs_.bytesPerRegister())
     assert(0);
 
-  uint8_t* vdData = vecRegs_.getVecBytes(di->op0());
-  uint8_t* vs1Data = vecRegs_.getVecBytes(di->op1());
-  uint8_t* vs2Data = vecRegs_.getVecBytes(di->op2());
+  uint8_t* vdData = vecRegs_.getVecData(di->op0());
+  uint8_t* vs1Data = vecRegs_.getVecData(di->op1());
+  uint8_t* vs2Data = vecRegs_.getVecData(di->op2());
   if (not vs1Data or not vs2Data or not vdData)
     assert(0);
 
@@ -4856,9 +4856,9 @@ Hart<URV>::execVmnor_mm(const DecodedInst* di)
   if (elems > vecRegs_.bytesPerRegister())
     assert(0);
 
-  uint8_t* vdData = vecRegs_.getVecBytes(di->op0());
-  uint8_t* vs1Data = vecRegs_.getVecBytes(di->op1());
-  uint8_t* vs2Data = vecRegs_.getVecBytes(di->op2());
+  uint8_t* vdData = vecRegs_.getVecData(di->op0());
+  uint8_t* vs1Data = vecRegs_.getVecData(di->op1());
+  uint8_t* vs2Data = vecRegs_.getVecData(di->op2());
   if (not vs1Data or not vs2Data or not vdData)
     assert(0);
 
@@ -4899,9 +4899,9 @@ Hart<URV>::execVmornot_mm(const DecodedInst* di)
   if (elems > vecRegs_.bytesPerRegister())
     assert(0);
 
-  uint8_t* vdData = vecRegs_.getVecBytes(di->op0());
-  uint8_t* vs1Data = vecRegs_.getVecBytes(di->op1());
-  uint8_t* vs2Data = vecRegs_.getVecBytes(di->op2());
+  uint8_t* vdData = vecRegs_.getVecData(di->op0());
+  uint8_t* vs1Data = vecRegs_.getVecData(di->op1());
+  uint8_t* vs2Data = vecRegs_.getVecData(di->op2());
   if (not vs1Data or not vs2Data or not vdData)
     assert(0);
 
@@ -4942,9 +4942,9 @@ Hart<URV>::execVmxnor_mm(const DecodedInst* di)
   if (elems > vecRegs_.bytesPerRegister())
     assert(0);
 
-  uint8_t* vdData = vecRegs_.getVecBytes(di->op0());
-  uint8_t* vs1Data = vecRegs_.getVecBytes(di->op1());
-  uint8_t* vs2Data = vecRegs_.getVecBytes(di->op2());
+  uint8_t* vdData = vecRegs_.getVecData(di->op0());
+  uint8_t* vs1Data = vecRegs_.getVecData(di->op1());
+  uint8_t* vs2Data = vecRegs_.getVecData(di->op2());
   if (not vs1Data or not vs2Data or not vdData)
     assert(0);
 
@@ -7972,6 +7972,132 @@ Hart<URV>::execVmv_v_i(const DecodedInst* di)
       vmv_v_x<Int1024>(vd, Int1024(e1), group, start, elems);
       break;
     }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmv1r_v(const DecodedInst* di)
+{
+  bool masked = di->isMasked();
+
+  if (masked or (not isVecLegal()) or (not vecRegs_.legalConfig()))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned vd = di->op0(), vs1 = di->op1();
+  if (vd == vs1)
+    return;
+
+  unsigned bytes = vecRegs_.bytesPerRegister();
+
+  uint8_t* dest = vecRegs_.getVecData(vd);
+  uint8_t* source = vecRegs_.getVecData(vs1);
+  assert(dest);
+  assert(source);
+
+  memcpy(dest, source, bytes);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmv2r_v(const DecodedInst* di)
+{
+  bool masked = di->isMasked();
+
+  if (masked or (not isVecLegal()) or (not vecRegs_.legalConfig()))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned vd = di->op0(), vs1 = di->op1();
+  if ((vd & 1) != 0 or (vs1 & 1) != 0)
+    {
+      illegalInst(di);   // Vec indices must be even
+      return;
+    }
+
+  if (vd == vs1)
+    return;
+
+  unsigned bytes = vecRegs_.bytesPerRegister() * 2;
+
+  uint8_t* dest = vecRegs_.getVecData(vd);
+  uint8_t* source = vecRegs_.getVecData(vs1);
+  assert(dest);
+  assert(source);
+
+  memcpy(dest, source, bytes);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmv4r_v(const DecodedInst* di)
+{
+  bool masked = di->isMasked();
+
+  if (masked or (not isVecLegal()) or (not vecRegs_.legalConfig()))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned vd = di->op0(), vs1 = di->op1();
+  if ((vd & 3) != 0 or (vs1 & 3) != 0)
+    {
+      illegalInst(di);   // Vec indices must be multiples of 4
+      return;
+    }
+
+  if (vd == vs1)
+    return;
+
+  unsigned bytes = vecRegs_.bytesPerRegister() * 4;
+
+  uint8_t* dest = vecRegs_.getVecData(vd);
+  uint8_t* source = vecRegs_.getVecData(vs1);
+  assert(dest);
+  assert(source);
+
+  memcpy(dest, source, bytes);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmv8r_v(const DecodedInst* di)
+{
+  bool masked = di->isMasked();
+
+  if (masked or (not isVecLegal()) or (not vecRegs_.legalConfig()))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned vd = di->op0(), vs1 = di->op1();
+  if ((vd & 7) != 0 or (vs1 & 7) != 0)
+    {
+      illegalInst(di);   // Vec indices must be multiples of 8
+      return;
+    }
+
+  if (vd == vs1)
+    return;
+
+  unsigned bytes = vecRegs_.bytesPerRegister() * 8;
+
+  uint8_t* dest = vecRegs_.getVecData(vd);
+  uint8_t* source = vecRegs_.getVecData(vs1);
+  assert(dest);
+  assert(source);
+
+  memcpy(dest, source, bytes);
 }
 
 

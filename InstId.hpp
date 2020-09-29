@@ -460,6 +460,11 @@ namespace WdRiscv
      vmv_v_x,
      vmv_v_i,
 
-     maxId = vmv_v_i
+     vmv1r_v,
+     vmv2r_v,
+     vmv4r_v,
+     vmv8r_v,
+
+     maxId = vmv8r_v
     };
 }

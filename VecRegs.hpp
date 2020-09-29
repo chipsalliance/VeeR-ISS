@@ -271,7 +271,7 @@ namespace WdRiscv
     /// Return the pointers to the 1st byte of the memory area
     /// associated with the given vector. Return nullptr if
     /// vector index is out of bounds.
-    uint8_t* getVecBytes(unsigned vecIx)
+    uint8_t* getVecData(unsigned vecIx)
     {
       if (vecIx >= regCount_)
         return nullptr;

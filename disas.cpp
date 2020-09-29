@@ -2158,6 +2158,22 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       out << "vmv.v.i v" << di.op0() << ", " << di.op1As<int32_t>();
       break;
 
+    case InstId::vmv1r_v:
+      out << "vmv1r.v v" << di.op0() << ", v" << di.op1();
+      break;
+
+    case InstId::vmv2r_v:
+      out << "vmv2r.v v" << di.op0() << ", v" << di.op1();
+      break;
+
+    case InstId::vmv4r_v:
+      out << "vmv4r.v v" << di.op0() << ", v" << di.op1();
+      break;
+
+    case InstId::vmv8r_v:
+      out << "vmv8r.v v" << di.op0() << ", v" << di.op1();
+      break;
+
     default:
       out << "illegal";
     }

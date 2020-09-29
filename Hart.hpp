@@ -2320,6 +2320,11 @@ namespace WdRiscv
     void execVmv_v_x(const DecodedInst*);
     void execVmv_v_i(const DecodedInst*);
 
+    void execVmv1r_v(const DecodedInst*);
+    void execVmv2r_v(const DecodedInst*);
+    void execVmv4r_v(const DecodedInst*);
+    void execVmv8r_v(const DecodedInst*);
+
   private:
 
     // We model store buffer in order to undo store effects after an
