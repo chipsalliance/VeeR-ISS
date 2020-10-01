@@ -36,7 +36,30 @@ Uint128::operator *= (Uint128 x)
 Uint128&
 Uint128::operator /= (Uint128 x)
 {
-  assert(0);
+  unsigned n = width();
+  SelfType rem(0), result(0);
+
+  SelfType y = *this;  // Dividend
+
+  uint8_t* remLow = (uint8_t*) &rem;  // Least sig byte of rem
+  uint8_t* resultLow = (uint8_t*) &result;  // Least sig byte of result
+  uint8_t* yHigh = ((uint8_t*) &y) + sizeof(y) - 1; // Most sig byte of dividend
+
+  for (unsigned i = 0; i < n; ++i)
+    {
+      uint8_t yMsb = *yHigh >> 7; // Most sig bit of dividend
+      rem <<= 1;
+      result <<= 1;
+      y <<= 1;
+      *remLow |= yMsb;
+      if (x <= rem)
+        {
+          *resultLow |= 1;
+          rem -= x;
+        }
+    }
+
+  *this = result;
   return *this;
 }
 
@@ -44,7 +67,30 @@ Uint128::operator /= (Uint128 x)
 Uint128&
 Uint128::operator %= (Uint128 x)
 {
-  assert(0);
+  unsigned n = width();
+  SelfType rem(0), result(0);
+
+  SelfType y = *this;  // Dividend
+
+  uint8_t* remLow = (uint8_t*) &rem;  // Least sig byte of rem
+  uint8_t* resultLow = (uint8_t*) &result;  // Least sig byte of result
+  uint8_t* yHigh = ((uint8_t*) &y) + sizeof(y) - 1; // Most sig byte of dividend
+
+  for (unsigned i = 0; i < n; ++i)
+    {
+      uint8_t yMsb = *yHigh >> 7; // Most sig bit of dividend
+      rem <<= 1;
+      result <<= 1;
+      y <<= 1;
+      *remLow |= yMsb;
+      if (x <= rem)
+        {
+          *resultLow |= 1;
+          rem -= x;
+        }
+    }
+
+  *this = rem;
   return *this;
 }
 
@@ -64,7 +110,7 @@ Uint128::operator >>= (int n)
     }
   else
     {
-      HalfType temp = high_ << (n - halfw);
+      HalfType temp = high_ << (halfw - n);
       high_ >>= n;
       low_ >>= n;
       low_ |= temp;
@@ -88,7 +134,7 @@ Uint128::operator <<= (int n)
     }
   else
     {
-      HalfType temp = low_ >> (n - halfw);
+      HalfType temp = low_ >> (halfw - n);
       high_ <<= n;
       low_ <<= n;
       high_ |= temp;
@@ -152,15 +198,80 @@ Int128::operator *= (Int128 xx)
 Int128&
 Int128::operator /= (Int128 xx)
 {
-  assert(0);
+  if (*this == xx)
+    {
+      *this = 1;
+      return *this;
+    }
+
+  SelfType minInt(1);
+  minInt <<= width() - 1;
+
+  if (xx == minInt)
+    {
+      *this = 0;
+      return *this;
+    }
+
+  bool neg = false;
+
+  if (*this < 0 and xx >= 0)
+    {
+      neg = true;
+      *this = - *this;
+    }
+  else if (*this >= 0 and xx < 0)
+    {
+      neg = true;
+      xx = - xx;
+    }
+  else if (*this < 0 and xx < 0)
+    {
+      *this = - *this;
+      xx = - xx;
+    }
+
+  UnsignedType aa = *this, bb = xx;
+  aa /= bb;
+  *this = aa;
+  if (neg)
+    *this = - *this;
+
   return *this;
 }
 
 
 Int128&
-Int128::operator %= (Int128 x)
+Int128::operator %= (Int128 xx)
 {
-  assert(0);
+  if (*this == xx)
+    {
+      *this = 0;
+      return *this;
+    }
+
+  SelfType minInt(1);
+  minInt <<= width() - 1;
+
+  if (xx == minInt)
+    return *this;
+
+  bool neg = false;
+
+  if (*this < 0)
+    {
+      neg = true;
+      *this = - *this;
+    }
+  if (xx < 0)
+    xx = - xx;
+
+  UnsignedType aa = *this, bb = xx;
+  aa %= bb;
+  *this = aa;
+  if (neg)
+    *this = - *this;
+
   return *this;
 }
 
@@ -168,7 +279,7 @@ Int128::operator %= (Int128 x)
 Int128&
 Int128::operator >>= (int n)
 {
-  bool neg = high_ < SelfType(0);
+  bool neg = high_ < HalfType(0);
 
   int halfw = halfWidth();
 
@@ -189,7 +300,7 @@ Int128::operator >>= (int n)
     }
   else
     {
-      HalfUnsigned temp = high_ << (n - halfw);
+      HalfUnsigned temp = high_ << (halfw - n);
       high_ >>= n;
       low_ = HalfUnsigned(low_) >> n;
       low_ |= temp;
@@ -214,7 +325,7 @@ Int128::operator <<= (int n)
     }
   else
     {
-      HalfUnsigned temp = low_ >> (n - halfw);
+      HalfUnsigned temp = low_ >> (halfw - n);
       high_ <<= n;
       low_ <<= n;
       high_ |= temp;
@@ -260,7 +371,30 @@ Uint256::operator *= (Uint256 x)
 Uint256&
 Uint256::operator /= (Uint256 x)
 {
-  assert(0);
+  unsigned n = width();
+  SelfType rem(0), result(0);
+
+  SelfType y = *this;  // Dividend
+
+  uint8_t* remLow = (uint8_t*) &rem;  // Least sig byte of rem
+  uint8_t* resultLow = (uint8_t*) &result;  // Least sig byte of result
+  uint8_t* yHigh = ((uint8_t*) &y) + sizeof(y) - 1; // Most sig byte of dividend
+
+  for (unsigned i = 0; i < n; ++i)
+    {
+      uint8_t yMsb = *yHigh >> 7; // Most sig bit of dividend
+      rem <<= 1;
+      result <<= 1;
+      y <<= 1;
+      *remLow |= yMsb;
+      if (x <= rem)
+        {
+          *resultLow |= 1;
+          rem -= x;
+        }
+    }
+
+  *this = result;
   return *this;
 }
 
@@ -268,7 +402,30 @@ Uint256::operator /= (Uint256 x)
 Uint256&
 Uint256::operator %= (Uint256 x)
 {
-  assert(0);
+  unsigned n = width();
+  SelfType rem(0), result(0);
+
+  SelfType y = *this;  // Dividend
+
+  uint8_t* remLow = (uint8_t*) &rem;  // Least sig byte of rem
+  uint8_t* resultLow = (uint8_t*) &result;  // Least sig byte of result
+  uint8_t* yHigh = ((uint8_t*) &y) + sizeof(y) - 1; // Most sig byte of dividend
+
+  for (unsigned i = 0; i < n; ++i)
+    {
+      uint8_t yMsb = *yHigh >> 7; // Most sig bit of dividend
+      rem <<= 1;
+      result <<= 1;
+      y <<= 1;
+      *remLow |= yMsb;
+      if (x <= rem)
+        {
+          *resultLow |= 1;
+          rem -= x;
+        }
+    }
+
+  *this = rem;
   return *this;
 }
 
@@ -288,7 +445,7 @@ Uint256::operator >>= (int n)
     }
   else
     {
-      HalfType temp = high_ << (n - halfw);
+      HalfType temp = high_ << (halfw - n);
       high_ >>= n;
       low_ >>= n;
       low_ |= temp;
@@ -312,7 +469,7 @@ Uint256::operator <<= (int n)
     }
   else
     {
-      HalfType temp = low_ >> (n - halfw);
+      HalfType temp = low_ >> (halfw - n);
       high_ <<= n;
       low_ <<= n;
       high_ |= temp;
@@ -376,15 +533,80 @@ Int256::operator *= (Int256 xx)
 Int256&
 Int256::operator /= (Int256 xx)
 {
-  assert(0);
+  if (*this == xx)
+    {
+      *this = 1;
+      return *this;
+    }
+
+  SelfType minInt(1);
+  minInt <<= width() - 1;
+
+  if (xx == minInt)
+    {
+      *this = 0;
+      return *this;
+    }
+
+  bool neg = false;
+
+  if (*this < 0 and xx >= 0)
+    {
+      neg = true;
+      *this = - *this;
+    }
+  else if (*this >= 0 and xx < 0)
+    {
+      neg = true;
+      xx = - xx;
+    }
+  else if (*this < 0 and xx < 0)
+    {
+      *this = - *this;
+      xx = - xx;
+    }
+
+  UnsignedType aa = *this, bb = xx;
+  aa /= bb;
+  *this = aa;
+  if (neg)
+    *this = - *this;
+
   return *this;
 }
 
 
 Int256&
-Int256::operator %= (Int256 x)
+Int256::operator %= (Int256 xx)
 {
-  assert(0);
+  if (*this == xx)
+    {
+      *this = 0;
+      return *this;
+    }
+
+  SelfType minInt(1);
+  minInt <<= width() - 1;
+
+  if (xx == minInt)
+    return *this;
+
+  bool neg = false;
+
+  if (*this < 0)
+    {
+      neg = true;
+      *this = - *this;
+    }
+  if (xx < 0)
+    xx = - xx;
+
+  UnsignedType aa = *this, bb = xx;
+  aa %= bb;
+  *this = aa;
+  if (neg)
+    *this = - *this;
+
   return *this;
 }
 
@@ -392,7 +614,7 @@ Int256::operator %= (Int256 x)
 Int256&
 Int256::operator >>= (int n)
 {
-  bool neg = high_ < SelfType(0);
+  bool neg = high_ < HalfType(0);
 
   int halfw = halfWidth();
 
@@ -413,7 +635,7 @@ Int256::operator >>= (int n)
     }
   else
     {
-      HalfUnsigned temp = high_ << (n - halfw);
+      HalfUnsigned temp = high_ << (halfw - n);
       high_ >>= n;
       low_ = HalfUnsigned(low_) >> n;
       low_ |= temp;
@@ -438,7 +660,7 @@ Int256::operator <<= (int n)
     }
   else
     {
-      HalfUnsigned temp = low_ >> (n - halfw);
+      HalfUnsigned temp = low_ >> (halfw - n);
       high_ <<= n;
       low_ <<= n;
       high_ |= temp;
@@ -484,7 +706,30 @@ Uint512::operator *= (Uint512 x)
 Uint512&
 Uint512::operator /= (Uint512 x)
 {
-  assert(0);
+  unsigned n = width();
+  SelfType rem(0), result(0);
+
+  SelfType y = *this;  // Dividend
+
+  uint8_t* remLow = (uint8_t*) &rem;  // Least sig byte of rem
+  uint8_t* resultLow = (uint8_t*) &result;  // Least sig byte of result
+  uint8_t* yHigh = ((uint8_t*) &y) + sizeof(y) - 1; // Most sig byte of dividend
+
+  for (unsigned i = 0; i < n; ++i)
+    {
+      uint8_t yMsb = *yHigh >> 7; // Most sig bit of dividend
+      rem <<= 1;
+      result <<= 1;
+      y <<= 1;
+      *remLow |= yMsb;
+      if (x <= rem)
+        {
+          *resultLow |= 1;
+          rem -= x;
+        }
+    }
+
+  *this = result;
   return *this;
 }
 
@@ -492,7 +737,30 @@ Uint512::operator /= (Uint512 x)
 Uint512&
 Uint512::operator %= (Uint512 x)
 {
-  assert(0);
+  unsigned n = width();
+  SelfType rem(0), result(0);
+
+  SelfType y = *this;  // Dividend
+
+  uint8_t* remLow = (uint8_t*) &rem;  // Least sig byte of rem
+  uint8_t* resultLow = (uint8_t*) &result;  // Least sig byte of result
+  uint8_t* yHigh = ((uint8_t*) &y) + sizeof(y) - 1; // Most sig byte of dividend
+
+  for (unsigned i = 0; i < n; ++i)
+    {
+      uint8_t yMsb = *yHigh >> 7; // Most sig bit of dividend
+      rem <<= 1;
+      result <<= 1;
+      y <<= 1;
+      *remLow |= yMsb;
+      if (x <= rem)
+        {
+          *resultLow |= 1;
+          rem -= x;
+        }
+    }
+
+  *this = rem;
   return *this;
 }
 
@@ -512,7 +780,7 @@ Uint512::operator >>= (int n)
     }
   else
     {
-      HalfType temp = high_ << (n - halfw);
+      HalfType temp = high_ << (halfw - n);
       high_ >>= n;
       low_ >>= n;
       low_ |= temp;
@@ -536,7 +804,7 @@ Uint512::operator <<= (int n)
     }
   else
     {
-      HalfType temp = low_ >> (n - halfw);
+      HalfType temp = low_ >> (halfw - n);
       high_ <<= n;
       low_ <<= n;
       high_ |= temp;
@@ -600,15 +868,80 @@ Int512::operator *= (Int512 xx)
 Int512&
 Int512::operator /= (Int512 xx)
 {
-  assert(0);
+  if (*this == xx)
+    {
+      *this = 1;
+      return *this;
+    }
+
+  SelfType minInt(1);
+  minInt <<= width() - 1;
+
+  if (xx == minInt)
+    {
+      *this = 0;
+      return *this;
+    }
+
+  bool neg = false;
+
+  if (*this < 0 and xx >= 0)
+    {
+      neg = true;
+      *this = - *this;
+    }
+  else if (*this >= 0 and xx < 0)
+    {
+      neg = true;
+      xx = - xx;
+    }
+  else if (*this < 0 and xx < 0)
+    {
+      *this = - *this;
+      xx = - xx;
+    }
+
+  UnsignedType aa = *this, bb = xx;
+  aa /= bb;
+  *this = aa;
+  if (neg)
+    *this = - *this;
+
   return *this;
 }
 
 
 Int512&
-Int512::operator %= (Int512 x)
+Int512::operator %= (Int512 xx)
 {
-  assert(0);
+  if (*this == xx)
+    {
+      *this = 0;
+      return *this;
+    }
+
+  SelfType minInt(1);
+  minInt <<= width() - 1;
+
+  if (xx == minInt)
+    return *this;
+
+  bool neg = false;
+
+  if (*this < 0)
+    {
+      neg = true;
+      *this = - *this;
+    }
+  if (xx < 0)
+    xx = - xx;
+
+  UnsignedType aa = *this, bb = xx;
+  aa %= bb;
+  *this = aa;
+  if (neg)
+    *this = - *this;
+
   return *this;
 }
 
@@ -616,7 +949,7 @@ Int512::operator %= (Int512 x)
 Int512&
 Int512::operator >>= (int n)
 {
-  bool neg = high_ < SelfType(0);
+  bool neg = high_ < HalfType(0);
 
   int halfw = halfWidth();
 
@@ -637,7 +970,7 @@ Int512::operator >>= (int n)
     }
   else
     {
-      HalfUnsigned temp = high_ << (n - halfw);
+      HalfUnsigned temp = high_ << (halfw - n);
       high_ >>= n;
       low_ = HalfUnsigned(low_) >> n;
       low_ |= temp;
@@ -662,7 +995,7 @@ Int512::operator <<= (int n)
     }
   else
     {
-      HalfUnsigned temp = low_ >> (n - halfw);
+      HalfUnsigned temp = low_ >> (halfw - n);
       high_ <<= n;
       low_ <<= n;
       high_ |= temp;
@@ -708,7 +1041,30 @@ Uint1024::operator *= (Uint1024 x)
 Uint1024&
 Uint1024::operator /= (Uint1024 x)
 {
-  assert(0);
+  unsigned n = width();
+  SelfType rem(0), result(0);
+
+  SelfType y = *this;  // Dividend
+
+  uint8_t* remLow = (uint8_t*) &rem;  // Least sig byte of rem
+  uint8_t* resultLow = (uint8_t*) &result;  // Least sig byte of result
+  uint8_t* yHigh = ((uint8_t*) &y) + sizeof(y) - 1; // Most sig byte of dividend
+
+  for (unsigned i = 0; i < n; ++i)
+    {
+      uint8_t yMsb = *yHigh >> 7; // Most sig bit of dividend
+      rem <<= 1;
+      result <<= 1;
+      y <<= 1;
+      *remLow |= yMsb;
+      if (x <= rem)
+        {
+          *resultLow |= 1;
+          rem -= x;
+        }
+    }
+
+  *this = result;
   return *this;
 }
 
@@ -716,7 +1072,30 @@ Uint1024::operator /= (Uint1024 x)
 Uint1024&
 Uint1024::operator %= (Uint1024 x)
 {
-  assert(0);
+  unsigned n = width();
+  SelfType rem(0), result(0);
+
+  SelfType y = *this;  // Dividend
+
+  uint8_t* remLow = (uint8_t*) &rem;  // Least sig byte of rem
+  uint8_t* resultLow = (uint8_t*) &result;  // Least sig byte of result
+  uint8_t* yHigh = ((uint8_t*) &y) + sizeof(y) - 1; // Most sig byte of dividend
+
+  for (unsigned i = 0; i < n; ++i)
+    {
+      uint8_t yMsb = *yHigh >> 7; // Most sig bit of dividend
+      rem <<= 1;
+      result <<= 1;
+      y <<= 1;
+      *remLow |= yMsb;
+      if (x <= rem)
+        {
+          *resultLow |= 1;
+          rem -= x;
+        }
+    }
+
+  *this = rem;
   return *this;
 }
 
@@ -736,7 +1115,7 @@ Uint1024::operator >>= (int n)
     }
   else
     {
-      HalfType temp = high_ << (n - halfw);
+      HalfType temp = high_ << (halfw - n);
       high_ >>= n;
       low_ >>= n;
       low_ |= temp;
@@ -760,7 +1139,7 @@ Uint1024::operator <<= (int n)
     }
   else
     {
-      HalfType temp = low_ >> (n - halfw);
+      HalfType temp = low_ >> (halfw - n);
       high_ <<= n;
       low_ <<= n;
       high_ |= temp;
@@ -824,15 +1203,80 @@ Int1024::operator *= (Int1024 xx)
 Int1024&
 Int1024::operator /= (Int1024 xx)
 {
-  assert(0);
+  if (*this == xx)
+    {
+      *this = 1;
+      return *this;
+    }
+
+  SelfType minInt(1);
+  minInt <<= width() - 1;
+
+  if (xx == minInt)
+    {
+      *this = 0;
+      return *this;
+    }
+
+  bool neg = false;
+
+  if (*this < 0 and xx >= 0)
+    {
+      neg = true;
+      *this = - *this;
+    }
+  else if (*this >= 0 and xx < 0)
+    {
+      neg = true;
+      xx = - xx;
+    }
+  else if (*this < 0 and xx < 0)
+    {
+      *this = - *this;
+      xx = - xx;
+    }
+
+  UnsignedType aa = *this, bb = xx;
+  aa /= bb;
+  *this = aa;
+  if (neg)
+    *this = - *this;
+
   return *this;
 }
 
 
 Int1024&
-Int1024::operator %= (Int1024 x)
+Int1024::operator %= (Int1024 xx)
 {
-  assert(0);
+  if (*this == xx)
+    {
+      *this = 0;
+      return *this;
+    }
+
+  SelfType minInt(1);
+  minInt <<= width() - 1;
+
+  if (xx == minInt)
+    return *this;
+
+  bool neg = false;
+
+  if (*this < 0)
+    {
+      neg = true;
+      *this = - *this;
+    }
+  if (xx < 0)
+    xx = - xx;
+
+  UnsignedType aa = *this, bb = xx;
+  aa %= bb;
+  *this = aa;
+  if (neg)
+    *this = - *this;
+
   return *this;
 }
 
@@ -840,7 +1284,7 @@ Int1024::operator %= (Int1024 x)
 Int1024&
 Int1024::operator >>= (int n)
 {
-  bool neg = high_ < SelfType(0);
+  bool neg = high_ < HalfType(0);
 
   int halfw = halfWidth();
 
@@ -861,7 +1305,7 @@ Int1024::operator >>= (int n)
     }
   else
     {
-      HalfUnsigned temp = high_ << (n - halfw);
+      HalfUnsigned temp = high_ << (halfw - n);
       high_ >>= n;
       low_ = HalfUnsigned(low_) >> n;
       low_ |= temp;
@@ -886,7 +1330,7 @@ Int1024::operator <<= (int n)
     }
   else
     {
-      HalfUnsigned temp = low_ >> (n - halfw);
+      HalfUnsigned temp = low_ >> (halfw - n);
       high_ <<= n;
       low_ <<= n;
       high_ |= temp;

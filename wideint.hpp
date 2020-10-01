@@ -20,6 +20,7 @@
 /// of signed integers.
 
 
+#include <type_traits>
 #include <cstdint>
 
 
@@ -71,8 +72,10 @@ namespace WdRiscv
     HalfType high() const
     { return high_; }
 
-    /// Convert to a 64-bit.
-    operator uint64_t() const
+    /// Convert to a built-in integral type.
+    template <typename INT,
+              std::enable_if_t<std::is_integral<INT>::value, int> = 0>
+    explicit operator INT() const
     { return low_; }
 
     SelfType& operator += (SelfType x)
@@ -100,6 +103,9 @@ namespace WdRiscv
 
     SelfType& operator &= (SelfType x)
     { low_ &= x.low_; high_ &= x.high_; return *this; }
+
+    SelfType& operator ^= (SelfType x)
+    { low_ ^= x.low_; high_ ^= x.high_; return *this; }
 
     SelfType& operator ++ ()
     { *this += 1; return *this; }
@@ -192,8 +198,10 @@ namespace WdRiscv
     HalfType high() const
     { return high_; }
 
-    /// Convert to a 64-bit.
-    operator int64_t() const
+    /// Convert to a built-in integral type.
+    template <typename INT,
+              std::enable_if_t<std::is_integral<INT>::value, int> = 0>
+    explicit operator INT() const
     { return low_; }
 
     SelfType& operator += (SelfType x)
@@ -217,6 +225,9 @@ namespace WdRiscv
 
     SelfType& operator &= (SelfType x)
     { low_ &= x.low_; high_ &= x.high_; return *this; }
+
+    SelfType& operator ^= (SelfType x)
+    { low_ ^= x.low_; high_ ^= x.high_; return *this; }
 
     SelfType& operator ++ ()
     { *this += 1; return *this; }
@@ -334,9 +345,11 @@ namespace WdRiscv
     operator HalfType() const
     { return low_; }
 
-    /// Convert to a 64-bit.
-    operator uint64_t() const
-    { return low_.low(); }
+    /// Convert to a built-in integral type.
+    template <typename INT,
+              std::enable_if_t<std::is_integral<INT>::value, int> = 0>
+    explicit operator INT() const
+    { return INT(low_); }
 
     SelfType& operator += (SelfType x)
     {
@@ -363,6 +376,9 @@ namespace WdRiscv
 
     SelfType& operator &= (SelfType x)
     { low_ &= x.low_; high_ &= x.high_; return *this; }
+
+    SelfType& operator ^= (SelfType x)
+    { low_ ^= x.low_; high_ ^= x.high_; return *this; }
 
     SelfType& operator ++ ()
     { *this += 1; return *this; }
@@ -448,7 +464,7 @@ namespace WdRiscv
 
     /// Construct from a 64-bit int.
     Int256(int64_t x)
-      : low_(x), high_(x < HalfType(0)? ~HalfType(0) : HalfType(0))
+      : low_(x), high_(x < 0? ~HalfType(0) : HalfType(0))
     { }
 
     /// Construct from a pair of half-type ints.
@@ -468,9 +484,11 @@ namespace WdRiscv
     operator HalfType() const
     { return low_; }
 
-    /// Convert to a 64-bit.
-    operator int64_t() const
-    { return low_.low(); }
+    /// Convert to a built-in integral type.
+    template <typename INT,
+              std::enable_if_t<std::is_integral<INT>::value, int> = 0>
+    explicit operator INT() const
+    { return INT(low_); }
 
     SelfType& operator += (SelfType x)
     {
@@ -493,6 +511,9 @@ namespace WdRiscv
 
     SelfType& operator &= (SelfType x)
     { low_ &= x.low_; high_ &= x.high_; return *this; }
+
+    SelfType& operator ^= (SelfType x)
+    { low_ ^= x.low_; high_ ^= x.high_; return *this; }
 
     SelfType& operator ++ ()
     { *this += 1; return *this; }
@@ -615,9 +636,11 @@ namespace WdRiscv
     operator HalfType() const
     { return low_; }
 
-    /// Convert to a 64-bit.
-    operator uint64_t() const
-    { return low_.low().low(); }
+    /// Convert to a built-in integral type.
+    template <typename INT,
+              std::enable_if_t<std::is_integral<INT>::value, int> = 0>
+    explicit operator INT() const
+    { return INT(low_); }
 
     SelfType& operator += (SelfType x)
     {
@@ -644,6 +667,9 @@ namespace WdRiscv
 
     SelfType& operator &= (SelfType x)
     { low_ &= x.low_; high_ &= x.high_; return *this; }
+
+    SelfType& operator ^= (SelfType x)
+    { low_ ^= x.low_; high_ ^= x.high_; return *this; }
 
     SelfType& operator ++ ()
     { *this += 1; return *this; }
@@ -734,7 +760,7 @@ namespace WdRiscv
 
     /// Construct from a 64-bit int.
     Int512(int64_t x)
-      : low_(x), high_(x < HalfType(0)? ~HalfType(0) : HalfType(0))
+      : low_(x), high_(x < 0? ~HalfType(0) : HalfType(0))
     { }
 
     /// Construct from a pair of 256-bit ints.
@@ -754,9 +780,11 @@ namespace WdRiscv
     operator HalfType() const
     { return low_; }
 
-    /// Convert to a 64-bit.
-    operator int64_t() const
-    { return low_.low().low(); }
+    /// Convert to a built-in integral type.
+    template <typename INT,
+              std::enable_if_t<std::is_integral<INT>::value, int> = 0>
+    explicit operator INT() const
+    { return INT(low_); }
 
     SelfType& operator += (SelfType x)
     {
@@ -779,6 +807,9 @@ namespace WdRiscv
 
     SelfType& operator &= (SelfType x)
     { low_ &= x.low_; high_ &= x.high_; return *this; }
+
+    SelfType& operator ^= (SelfType x)
+    { low_ ^= x.low_; high_ ^= x.high_; return *this; }
 
     SelfType& operator ++ ()
     { *this += 1; return *this; }
@@ -906,9 +937,11 @@ namespace WdRiscv
     operator HalfType() const
     { return low_; }
 
-    /// Convert to a 64-bit.
-    operator uint64_t() const
-    { return low_.low().low().low(); }
+    /// Convert to a built-in integral type.
+    template <typename INT,
+              std::enable_if_t<std::is_integral<INT>::value, int> = 0>
+    explicit operator INT() const
+    { return INT(low_); }
 
     SelfType& operator += (SelfType x)
     {
@@ -935,6 +968,9 @@ namespace WdRiscv
 
     SelfType& operator &= (SelfType x)
     { low_ &= x.low_; high_ &= x.high_; return *this; }
+
+    SelfType& operator ^= (SelfType x)
+    { low_ ^= x.low_; high_ ^= x.high_; return *this; }
 
     SelfType& operator ++ ()
     { *this += 1; return *this; }
@@ -1025,12 +1061,12 @@ namespace WdRiscv
 
     /// Construct from a 128-bit int.
     Int1024(Int128 x)
-      : low_(x), high_(x < HalfType(0)? ~HalfType(0) : HalfType(0))
+      : low_(x), high_(x < 0? ~HalfType(0) : HalfType(0))
     { }
 
     /// Construct from a 64-bit int.
     Int1024(int64_t x)
-      : low_(x), high_(x < HalfType(0)? ~HalfType(0) : HalfType(0))
+      : low_(x), high_(x < 0? ~HalfType(0) : HalfType(0))
     { }
 
     /// Construct from a pair of 512-bit ints.
@@ -1050,9 +1086,11 @@ namespace WdRiscv
     operator HalfType() const
     { return low_; }
 
-    /// Convert to a 64-bit.
-    operator int64_t() const
-    { return low_.low().low().low(); }
+    /// Convert to a built-in integral type.
+    template <typename INT,
+              std::enable_if_t<std::is_integral<INT>::value, int> = 0>
+    explicit operator INT() const
+    { return INT(low_); }
 
     SelfType& operator += (SelfType x)
     {
@@ -1075,6 +1113,9 @@ namespace WdRiscv
 
     SelfType& operator &= (SelfType x)
     { low_ &= x.low_; high_ &= x.high_; return *this; }
+
+    SelfType& operator ^= (SelfType x)
+    { low_ ^= x.low_; high_ ^= x.high_; return *this; }
 
     SelfType& operator ++ ()
     { *this += 1; return *this; }
@@ -1143,127 +1184,72 @@ namespace WdRiscv
     : low_(x.low()), high_(x.high())
   { }
 
+  inline Uint128 operator + (Uint128 a, Uint128 b)
+  { Uint128 c = a; c += b; return c; }
 
-  inline
-  Uint128 operator + (Uint128 a, Uint128 b)
-  {
-    Uint128 c = a;
-    c += b;
-    return c;
-  }
+  inline Uint128 operator - (Uint128 a, Uint128 b)
+  { Uint128 c = a; c -= b; return c; }
 
+  inline Uint128 operator * (Uint128 a, Uint128 b)
+  { Uint128 c = a; c *= b; return c; }
 
-  inline
-  Uint128 operator - (Uint128 a, Uint128 b)
-  {
-    Uint128 c = a;
-    c -= b;
-    return c;
-  }
+  inline Uint128 operator / (Uint128 a, Uint128 b)
+  { Uint128 c = a; c /= b; return c; }
 
+  inline Uint128 operator % (Uint128 a, Uint128 b)
+  { Uint128 c = a; c %= b; return c; }
 
-  inline
-  Uint128 operator * (Uint128 a, Uint128 b)
-  {
-    Uint128 c = a;
-    c *= b;
-    return c;
-  }
+  inline Uint128 operator - (Uint128 a)
+  { Uint128 c = 0; c -= a; return c; }
 
+  inline Uint128 operator >> (Uint128 x, int n)
+  { x >>= n; return x; }
 
-  inline
-  Uint128 operator / (Uint128 a, Uint128 b)
-  {
-    Uint128 c = a;
-    c /= b;
-    return c;
-  }
+  inline Uint128 operator << (Uint128 x, int n)
+  { x <<= n; return x; }
+
+  inline Uint128 operator | (Uint128 a, Uint128 b)
+  { Uint128 c = a; c &= b; return c; }
+
+  inline Uint128 operator & (Uint128 a, Uint128 b)
+  { Uint128 c = a; c &= b; return c; }
+
+  inline Uint128 operator ^ (Uint128 a, Uint128 b)
+  { Uint128 c = a; c ^= b; return c; }
 
 
-  inline
-  Uint128 operator - (Uint128 a)
-  {
-    Uint128 c = 0UL;
-    c -= a;
-    return c;
-  }
+  inline Int128 operator + (Int128 a, Int128 b)
+  { Int128 c = a; c += b; return c; }
 
+  inline Int128 operator - (Int128 a, Int128 b)
+  { Int128 c = a; c -= b; return c; }
 
-  inline
-  Uint128 operator >> (Uint128 x, int n)
-  {
-    x >>= n;
-    return x;
-  }
+  inline Int128 operator * (Int128 a, Int128 b)
+  { Int128 c = a; c *= b; return c; }
 
+  inline Int128 operator / (Int128 a, Int128 b)
+  { Int128 c = a; c /= b; return c; }
 
-  inline
-  Uint128 operator << (Uint128 x, int n)
-  {
-    x <<= n;
-    return x;
-  }
+  inline Int128 operator % (Int128 a, Int128 b)
+  { Int128 c = a; c %= b; return c; }
 
+  inline Int128 operator - (Int128 a)
+  { Int128 c = 0L; c -= a; return c; }
 
-  inline
-  Int128 operator + (Int128 a, Int128 b)
-  {
-    Int128 c = a;
-    c += b;
-    return c;
-  }
+  inline Int128 operator >> (Int128 x, int n)
+  { x >>= n; return x; }
 
+  inline Int128 operator << (Int128 x, int n)
+  { x <<= n; return x; }
 
-  inline
-  Int128 operator - (Int128 a, Int128 b)
-  {
-    Int128 c = a;
-    c -= b;
-    return c;
-  }
+  inline Int128 operator | (Int128 a, Int128 b)
+  { Int128 c = a; c &= b; return c; }
 
+  inline Int128 operator & (Int128 a, Int128 b)
+  { Int128 c = a; c &= b; return c; }
 
-  inline
-  Int128 operator * (Int128 a, Int128 b)
-  {
-    Int128 c = a;
-    c *= b;
-    return c;
-  }
-
-
-  inline
-  Int128 operator / (Int128 a, Int128 b)
-  {
-    Int128 c = a;
-    c /= b;
-    return c;
-  }
-
-
-  inline
-  Int128 operator - (Int128 a)
-  {
-    Int128 c = 0L;
-    c -= a;
-    return c;
-  }
-
-
-  inline
-  Int128 operator >> (Int128 x, int n)
-  {
-    x >>= n;
-    return x;
-  }
-
-
-  inline
-  Int128 operator << (Int128 x, int n)
-  {
-    x <<= n;
-    return x;
-  }
+  inline Int128 operator ^ (Int128 a, Int128 b)
+  { Int128 c = a; c ^= b; return c; }
 
 
 
@@ -1272,127 +1258,72 @@ namespace WdRiscv
     : low_(x.low()), high_(x.high())
   { }
 
+  inline Uint256 operator + (Uint256 a, Uint256 b)
+  { Uint256 c = a; c += b; return c; }
 
-  inline
-  Uint256 operator + (Uint256 a, Uint256 b)
-  {
-    Uint256 c = a;
-    c += b;
-    return c;
-  }
+  inline Uint256 operator - (Uint256 a, Uint256 b)
+  { Uint256 c = a; c -= b; return c; }
 
+  inline Uint256 operator * (Uint256 a, Uint256 b)
+  { Uint256 c = a; c *= b; return c; }
 
-  inline
-  Uint256 operator - (Uint256 a, Uint256 b)
-  {
-    Uint256 c = a;
-    c -= b;
-    return c;
-  }
+  inline Uint256 operator / (Uint256 a, Uint256 b)
+  { Uint256 c = a; c /= b; return c; }
 
+  inline Uint256 operator % (Uint256 a, Uint256 b)
+  { Uint256 c = a; c %= b; return c; }
 
-  inline
-  Uint256 operator * (Uint256 a, Uint256 b)
-  {
-    Uint256 c = a;
-    c *= b;
-    return c;
-  }
+  inline Uint256 operator - (Uint256 a)
+  { Uint256 c = 0UL; c -= a; return c; }
 
+  inline Uint256 operator >> (Uint256 x, int n)
+  { x >>= n; return x; }
 
-  inline
-  Uint256 operator / (Uint256 a, Uint256 b)
-  {
-    Uint256 c = a;
-    c /= b;
-    return c;
-  }
+  inline Uint256 operator << (Uint256 x, int n)
+  { x <<= n; return x; }
+
+  inline Uint256 operator | (Uint256 a, Uint256 b)
+  { Uint256 c = a; c &= b; return c; }
+
+  inline Uint256 operator & (Uint256 a, Uint256 b)
+  { Uint256 c = a; c &= b; return c; }
+
+  inline Uint256 operator ^ (Uint256 a, Uint256 b)
+  { Uint256 c = a; c ^= b; return c; }
 
 
-  inline
-  Uint256 operator - (Uint256 a)
-  {
-    Uint256 c = 0UL;
-    c -= a;
-    return c;
-  }
+  inline Int256 operator + (Int256 a, Int256 b)
+  { Int256 c = a; c += b; return c; }
 
+  inline Int256 operator - (Int256 a, Int256 b)
+  { Int256 c = a; c -= b; return c; }
 
-  inline
-  Uint256 operator >> (Uint256 x, int n)
-  {
-    x >>= n;
-    return x;
-  }
+  inline Int256 operator * (Int256 a, Int256 b)
+  { Int256 c = a; c *= b; return c; }
 
+  inline Int256 operator / (Int256 a, Int256 b)
+  { Int256 c = a; c /= b; return c; }
 
-  inline
-  Uint256 operator << (Uint256 x, int n)
-  {
-    x <<= n;
-    return x;
-  }
+  inline Int256 operator % (Int256 a, Int256 b)
+  { Int256 c = a; c %= b; return c; }
 
+  inline Int256 operator - (Int256 a)
+  { Int256 c = 0L; c -= a; return c; }
 
-  inline
-  Int256 operator + (Int256 a, Int256 b)
-  {
-    Int256 c = a;
-    c += b;
-    return c;
-  }
+  inline Int256 operator >> (Int256 x, int n)
+  { x >>= n; return x; }
 
+  inline Int256 operator << (Int256 x, int n)
+  { x <<= n; return x; }
 
-  inline
-  Int256 operator - (Int256 a, Int256 b)
-  {
-    Int256 c = a;
-    c -= b;
-    return c;
-  }
+  inline Int256 operator | (Int256 a, Int256 b)
+  { Int256 c = a; c &= b; return c; }
 
+  inline Int256 operator & (Int256 a, Int256 b)
+  { Int256 c = a; c &= b; return c; }
 
-  inline
-  Int256 operator * (Int256 a, Int256 b)
-  {
-    Int256 c = a;
-    c *= b;
-    return c;
-  }
-
-
-  inline
-  Int256 operator / (Int256 a, Int256 b)
-  {
-    Int256 c = a;
-    c /= b;
-    return c;
-  }
-
-
-  inline
-  Int256 operator - (Int256 a)
-  {
-    Int256 c = 0L;
-    c -= a;
-    return c;
-  }
-
-
-  inline
-  Int256 operator >> (Int256 x, int n)
-  {
-    x >>= n;
-    return x;
-  }
-
-
-  inline
-  Int256 operator << (Int256 x, int n)
-  {
-    x <<= n;
-    return x;
-  }
+  inline Int256 operator ^ (Int256 a, Int256 b)
+  { Int256 c = a; c ^= b; return c; }
 
 
 
@@ -1401,127 +1332,72 @@ namespace WdRiscv
     : low_(x.low()), high_(x.high())
   { }
 
+  inline Uint512 operator + (Uint512 a, Uint512 b)
+  { Uint512 c = a; c += b; return c; }
 
-  inline
-  Uint512 operator + (Uint512 a, Uint512 b)
-  {
-    Uint512 c = a;
-    c += b;
-    return c;
-  }
+  inline Uint512 operator - (Uint512 a, Uint512 b)
+  { Uint512 c = a; c -= b; return c; }
 
+  inline Uint512 operator * (Uint512 a, Uint512 b)
+  { Uint512 c = a; c *= b; return c; }
 
-  inline
-  Uint512 operator - (Uint512 a, Uint512 b)
-  {
-    Uint512 c = a;
-    c -= b;
-    return c;
-  }
+  inline Uint512 operator / (Uint512 a, Uint512 b)
+  { Uint512 c = a; c /= b; return c; }
 
+  inline Uint512 operator % (Uint512 a, Uint512 b)
+  { Uint512 c = a; c %= b; return c; }
 
-  inline
-  Uint512 operator * (Uint512 a, Uint512 b)
-  {
-    Uint512 c = a;
-    c *= b;
-    return c;
-  }
+  inline Uint512 operator - (Uint512 a)
+  { Uint512 c = 0UL; c -= a; return c; }
 
+  inline Uint512 operator >> (Uint512 x, int n)
+  { x >>= n; return x; }
 
-  inline
-  Uint512 operator / (Uint512 a, Uint512 b)
-  {
-    Uint512 c = a;
-    c /= b;
-    return c;
-  }
+  inline Uint512 operator << (Uint512 x, int n)
+  { x <<= n; return x; }
+
+  inline Uint512 operator | (Uint512 a, Uint512 b)
+  { Uint512 c = a; c &= b; return c; }
+
+  inline Uint512 operator & (Uint512 a, Uint512 b)
+  { Uint512 c = a; c &= b; return c; }
+
+  inline Uint512 operator ^ (Uint512 a, Uint512 b)
+  { Uint512 c = a; c ^= b; return c; }
 
 
-  inline
-  Uint512 operator - (Uint512 a)
-  {
-    Uint512 c = 0UL;
-    c -= a;
-    return c;
-  }
+  inline Int512 operator + (Int512 a, Int512 b)
+  { Int512 c = a; c += b; return c; }
 
+  inline Int512 operator - (Int512 a, Int512 b)
+  { Int512 c = a; c -= b; return c; }
 
-  inline
-  Uint512 operator >> (Uint512 x, int n)
-  {
-    x >>= n;
-    return x;
-  }
+  inline Int512 operator * (Int512 a, Int512 b)
+  { Int512 c = a; c *= b; return c; }
 
+  inline Int512 operator / (Int512 a, Int512 b)
+  { Int512 c = a; c /= b; return c; }
 
-  inline
-  Uint512 operator << (Uint512 x, int n)
-  {
-    x <<= n;
-    return x;
-  }
+  inline Int512 operator % (Int512 a, Int512 b)
+  { Int512 c = a; c %= b; return c; }
 
+  inline Int512 operator - (Int512 a)
+  { Int512 c = 0L; c -= a; return c; }
 
-  inline
-  Int512 operator + (Int512 a, Int512 b)
-  {
-    Int512 c = a;
-    c += b;
-    return c;
-  }
+  inline Int512 operator >> (Int512 x, int n)
+  { x >>= n; return x; }
 
+  inline Int512 operator << (Int512 x, int n)
+  { x <<= n; return x; }
 
-  inline
-  Int512 operator - (Int512 a, Int512 b)
-  {
-    Int512 c = a;
-    c -= b;
-    return c;
-  }
+  inline Int512 operator | (Int512 a, Int512 b)
+  { Int512 c = a; c &= b; return c; }
 
+  inline Int512 operator & (Int512 a, Int512 b)
+  { Int512 c = a; c &= b; return c; }
 
-  inline
-  Int512 operator * (Int512 a, Int512 b)
-  {
-    Int512 c = a;
-    c *= b;
-    return c;
-  }
-
-
-  inline
-  Int512 operator / (Int512 a, Int512 b)
-  {
-    Int512 c = a;
-    c /= b;
-    return c;
-  }
-
-
-  inline
-  Int512 operator - (Int512 a)
-  {
-    Int512 c = 0L;
-    c -= a;
-    return c;
-  }
-
-
-  inline
-  Int512 operator >> (Int512 x, int n)
-  {
-    x >>= n;
-    return x;
-  }
-
-
-  inline
-  Int512 operator << (Int512 x, int n)
-  {
-    x <<= n;
-    return x;
-  }
+  inline Int512 operator ^ (Int512 a, Int512 b)
+  { Int512 c = a; c ^= b; return c; }
 
 
 
@@ -1530,125 +1406,71 @@ namespace WdRiscv
     : low_(x.low()), high_(x.high())
   { }
 
+  inline Uint1024 operator + (Uint1024 a, Uint1024 b)
+  { Uint1024 c = a; c += b; return c; }
 
-  inline
-  Uint1024 operator + (Uint1024 a, Uint1024 b)
-  {
-    Uint1024 c = a;
-    c += b;
-    return c;
-  }
+  inline Uint1024 operator - (Uint1024 a, Uint1024 b)
+  { Uint1024 c = a; c -= b; return c; }
 
+  inline Uint1024 operator * (Uint1024 a, Uint1024 b)
+  { Uint1024 c = a; c *= b; return c; }
 
-  inline
-  Uint1024 operator - (Uint1024 a, Uint1024 b)
-  {
-    Uint1024 c = a;
-    c -= b;
-    return c;
-  }
+  inline Uint1024 operator / (Uint1024 a, Uint1024 b)
+  { Uint1024 c = a; c /= b; return c; }
 
+  inline Uint1024 operator % (Uint1024 a, Uint1024 b)
+  { Uint1024 c = a; c %= b; return c; }
 
-  inline
-  Uint1024 operator * (Uint1024 a, Uint1024 b)
-  {
-    Uint1024 c = a;
-    c *= b;
-    return c;
-  }
+  inline Uint1024 operator - (Uint1024 a)
+  { Uint1024 c = 0UL; c -= a; return c; }
 
+  inline Uint1024 operator >> (Uint1024 x, int n)
+  { x >>= n; return x; }
 
-  inline
-  Uint1024 operator / (Uint1024 a, Uint1024 b)
-  {
-    Uint1024 c = a;
-    c /= b;
-    return c;
-  }
+  inline Uint1024 operator << (Uint1024 x, int n)
+  { x <<= n; return x; }
+
+  inline Uint1024 operator | (Uint1024 a, Uint1024 b)
+  { Uint1024 c = a; c &= b; return c; }
+
+  inline Uint1024 operator & (Uint1024 a, Uint1024 b)
+  { Uint1024 c = a; c &= b; return c; }
+
+  inline Uint1024 operator ^ (Uint1024 a, Uint1024 b)
+  { Uint1024 c = a; c ^= b; return c; }
 
 
-  inline
-  Uint1024 operator - (Uint1024 a)
-  {
-    Uint1024 c = 0UL;
-    c -= a;
-    return c;
-  }
+  inline Int1024 operator + (Int1024 a, Int1024 b)
+  { Int1024 c = a; c += b; return c; }
 
+  inline Int1024 operator - (Int1024 a, Int1024 b)
+  { Int1024 c = a; c -= b; return c; }
 
-  inline
-  Uint1024 operator >> (Uint1024 x, int n)
-  {
-    x >>= n;
-    return x;
-  }
+  inline Int1024 operator * (Int1024 a, Int1024 b)
+  { Int1024 c = a; c *= b; return c; }
 
+  inline Int1024 operator / (Int1024 a, Int1024 b)
+  { Int1024 c = a; c /= b; return c; }
 
-  inline
-  Uint1024 operator << (Uint1024 x, int n)
-  {
-    x <<= n;
-    return x;
-  }
+  inline Int1024 operator % (Int1024 a, Int1024 b)
+  { Int1024 c = a; c %= b; return c; }
 
+  inline Int1024 operator - (Int1024 a)
+  { Int1024 c = 0L; c -= a; return c; }
 
-  inline
-  Int1024 operator + (Int1024 a, Int1024 b)
-  {
-    Int1024 c = a;
-    c += b;
-    return c;
-  }
+  inline Int1024 operator >> (Int1024 x, int n)
+  { x >>= n; return x; }
 
+  inline Int1024 operator << (Int1024 x, int n)
+  { x <<= n; return x; }
 
-  inline
-  Int1024 operator - (Int1024 a, Int1024 b)
-  {
-    Int1024 c = a;
-    c -= b;
-    return c;
-  }
+  inline Int1024 operator | (Int1024 a, Int1024 b)
+  { Int1024 c = a; c &= b; return c; }
 
+  inline Int1024 operator & (Int1024 a, Int1024 b)
+  { Int1024 c = a; c &= b; return c; }
 
-  inline
-  Int1024 operator * (Int1024 a, Int1024 b)
-  {
-    Int1024 c = a;
-    c *= b;
-    return c;
-  }
-
-
-  inline
-  Int1024 operator / (Int1024 a, Int1024 b)
-  {
-    Int1024 c = a;
-    c /= b;
-    return c;
-  }
-
-
-  inline
-  Int1024 operator - (Int1024 a)
-  {
-    Int1024 c = 0L;
-    c -= a;
-    return c;
-  }
-
-
-  inline
-  Int1024 operator >> (Int1024 x, int n)
-  {
-    x >>= n;
-    return x;
-  }
-
-  inline
-  Int1024 operator << (Int1024 x, int n)
-  {
-    x <<= n;
-    return x;
-  }
+  inline Int1024 operator ^ (Int1024 a, Int1024 b)
+  { Int1024 c = a; c ^= b; return c; }
 
 }

@@ -709,9 +709,16 @@ namespace WdRiscv
     /// to "enter debug mode".
     bool hasEnterDebugModeTripped() const
     {
-      for (const auto& t : triggers_)
-	if (t.hasTripped() and t.getAction() == Trigger<URV>::Action::EnterDebug)
-	  return true;
+      for (const auto& trig : triggers_)
+	if (trig.hasTripped())
+          {
+            // If chained, use action of last trigger in chain.
+            size_t start = 0, end = 0;
+            trig.getChainBounds(start, end);
+            auto& last = triggers_.at(end - 1);
+            if (last.getAction() == Trigger<URV>::Action::EnterDebug)
+              return true;
+          }
       return false;
     }
 

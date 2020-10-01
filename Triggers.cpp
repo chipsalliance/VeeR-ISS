@@ -72,13 +72,39 @@ Triggers<URV>::writeData1(URV trigIx, bool debugMode, URV value)
     return false;
 
   auto& trig = triggers_.at(trigIx);
-  bool prevChain = trig.getChain();
+
+  Data1Bits d1bits(value); // Unpack value of attempted write.
+
+  // If next trigger has a dmode of 1 (debugger only), then clear
+  // chain bit in attempted wirte if write would also set dmode to 0.
+  // Otherwise we would have a chain with different dmodes.
+  if (trigIx + 1 < triggers_.size())
+    {
+      auto& nextTrig = triggers_.at(trigIx + 1);
+      if (nextTrig.isDebugModeOnly() and d1bits.mcontrol_.dmode_ == 0)
+        {
+          d1bits.mcontrol_.chain_ = 0;
+          value = d1bits.value_;
+        }
+    }
+
+  // Write is ignored if it would set dmode and previous trigger has
+  // both dmode=0 and chain=1. Otherwise, we would have a chain with
+  // different dmodes.
+  if (d1bits.mcontrol_.dmode_ == 1 and trigIx > 0)
+    {
+      auto& prevTrig = triggers_.at(trigIx - 1);
+      if (prevTrig.getChain() and not prevTrig.isDebugModeOnly())
+        return false;
+    }
+
+  bool oldChain = trig.getChain();
 
   if (not trig.writeData1(debugMode, value))
     return false;
 
   bool newChain = trig.getChain();
-  if (prevChain != newChain)
+  if (oldChain != newChain)
     defineChainBounds();
 
   return true;
