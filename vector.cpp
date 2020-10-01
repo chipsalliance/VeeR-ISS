@@ -18,26 +18,20 @@
 #include <climits>
 #include <cassert>
 #include <boost/multiprecision/cpp_int.hpp>
+#include "wideint.hpp"
 #include "instforms.hpp"
 #include "DecodedInst.hpp"
 #include "Hart.hpp"
 
 
-// On pure 32-bit machines, use boost for 128-bit and higher integer types.
-#if __x86_64__
-  typedef __int128_t  Int128;
-  typedef __uint128_t Uint128;
-#else
-  typedef boost::multiprecision::int128_t  Int128;
-  typedef boost::multiprecision::uint128_t Uint128;
-#endif
-
+#if 0
 typedef boost::multiprecision::int256_t   Int256;
 typedef boost::multiprecision::uint256_t  Uint256;
 typedef boost::multiprecision::int512_t   Int512;
 typedef boost::multiprecision::uint512_t  Uint512;
 typedef boost::multiprecision::int1024_t  Int1024;
 typedef boost::multiprecision::uint1024_t Uint1024;
+#endif
 
 
 // make_unsigned does not work on boost types -- compensate.
@@ -45,30 +39,30 @@ namespace std
 {
   template <>
   struct
-  make_unsigned<Int128>
+  make_unsigned<WdRiscv::Int128>
   {
-    typedef Uint128 type;
+    typedef WdRiscv::Uint128 type;
   };
 
   template <>
   struct
-  make_unsigned<Int256>
+  make_unsigned<WdRiscv::Int256>
   {
-    typedef Uint256 type;
+    typedef WdRiscv::Uint256 type;
   };
 
   template <>
   struct
-  make_unsigned<Int512>
+  make_unsigned<WdRiscv::Int512>
   {
-    typedef Uint512 type;
+    typedef WdRiscv::Uint512 type;
   };
 
   template <>
   struct
-  make_unsigned<Int1024>
+  make_unsigned<WdRiscv::Int1024>
   {
-    typedef Uint1024 type;
+    typedef WdRiscv::Uint1024 type;
   };
 }
 
@@ -211,7 +205,7 @@ namespace WdRiscv
     unsigned bits = integerWidth<TS> (); // Number of bits in TS and TU
 
     TS2 temp = a;
-    temp *= b;
+    temp *= TS(b);
     temp >>= bits;
     result = TS(temp);
   }
@@ -221,7 +215,7 @@ namespace WdRiscv
   template <>
   void mulhsu(const Int1024& a, const Uint1024& b, Int1024& result)
   {
-    if (a > 0)
+    if (a > Int1024(0))
       {
         Uint1024 ua(a);
         Uint1024 temp = 0;
@@ -1215,7 +1209,7 @@ Hart<URV>::execVwsubu_vx(const DecodedInst* di)
       break;
 
     case ElementWidth::HalfKbits:
-      vwadd_vx<Uint512>(vd, vs1, Uint256(0)-Uint512(e2), group, start, elems, masked);
+      vwadd_vx<Uint512>(vd, vs1, Uint512(0)-Uint512(e2), group, start, elems, masked);
       break;
 
     case ElementWidth::Kbits:
@@ -6085,7 +6079,7 @@ Hart<URV>::vdivu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
           vecRegs_.read(vs2, ix, group, e2))
         {
           dest = ~ ELEM_TYPE(0); // divide by zero result
-          if (e2 != 0)
+          if (e2 != ELEM_TYPE(0))
             dest = e1 / e2;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
@@ -6177,7 +6171,7 @@ Hart<URV>::vdivu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
       if (vecRegs_.read(vs1, ix, group, e1))
         {
           dest = ~ ELEM_TYPE(0); // divide by zero result
-          if (e2 != 0)
+          if (e2 != ELEM_TYPE(0))
             dest = e1 / e2;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
@@ -6257,7 +6251,7 @@ Hart<URV>::vdiv_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
 {
   unsigned errors = 0;
 
-  unsigned elemBits = integerWidth<ELEM_TYPE> ();
+  int elemBits = integerWidth<ELEM_TYPE> ();
 
   ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
 
@@ -6273,7 +6267,7 @@ Hart<URV>::vdiv_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
           vecRegs_.read(vs2, ix, group, e2))
         {
           dest = negOne; // Divide by zero result
-          if (e2 != 0)
+          if (e2 != ELEM_TYPE(0))
             {
               if (e1 == minInt and e2 == negOne)
                 dest = e1;
@@ -6358,7 +6352,7 @@ Hart<URV>::vdiv_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 {
   unsigned errors = 0;
 
-  unsigned elemBits = integerWidth<ELEM_TYPE> ();
+  int elemBits = integerWidth<ELEM_TYPE> ();
 
   ELEM_TYPE e1 = 0, e2 = SRV(intRegs_.read(rs2)), dest = 0;
 
@@ -6373,7 +6367,7 @@ Hart<URV>::vdiv_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
       if (vecRegs_.read(vs1, ix, group, e1))
         {
           dest = negOne; // Divide by zero result
-          if (e2 != 0)
+          if (e2 != ELEM_TYPE(0))
             {
               if (e1 == minInt and e2 == negOne)
                 dest = e1;
@@ -6469,7 +6463,7 @@ Hart<URV>::vremu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
           vecRegs_.read(vs2, ix, group, e2))
         {
           dest = e1; // divide by zero result
-          if (e2 != 0)
+          if (e2 != ELEM_TYPE(0))
             dest = e1 % e2;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
@@ -6561,7 +6555,7 @@ Hart<URV>::vremu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
       if (vecRegs_.read(vs1, ix, group, e1))
         {
           dest = e1; // divide by zero result
-          if (e2 != 0)
+          if (e2 != ELEM_TYPE(0))
             dest = e1 % e2;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
@@ -6641,7 +6635,7 @@ Hart<URV>::vrem_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
 {
   unsigned errors = 0;
 
-  unsigned elemBits = integerWidth<ELEM_TYPE> ();
+  int elemBits = integerWidth<ELEM_TYPE> ();
 
   ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
 
@@ -6657,7 +6651,7 @@ Hart<URV>::vrem_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
           vecRegs_.read(vs2, ix, group, e2))
         {
           dest = e1; // Divide by zero remainder
-          if (e2 != 0)
+          if (e2 != ELEM_TYPE(0))
             {
               if (e1 == minInt and e2 == negOne)
                 dest = 0;
@@ -6757,7 +6751,7 @@ Hart<URV>::vrem_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
       if (vecRegs_.read(vs1, ix, group, e1))
         {
           dest = e1; // Divide by zero remainder
-          if (e2 != 0)
+          if (e2 != ELEM_TYPE(0))
             {
               if (e1 == minInt and e2 == negOne)
                 dest = 0;

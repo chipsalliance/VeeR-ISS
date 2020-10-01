@@ -1,0 +1,895 @@
+#include <cassert>
+#include "wideint.hpp"
+
+using namespace WdRiscv;
+
+
+Uint128&
+Uint128::operator *= (Uint128 x)
+{
+  QuarterType* multiplicand = (QuarterType*) &low_;
+  QuarterType* multiplier = (QuarterType*) &x.low_;
+
+  SelfType prod[2];
+  QuarterType* acc = (QuarterType*) &prod[0];
+
+  for (unsigned i = 0; i < 4; ++i, ++acc)
+    {
+      QuarterType a = multiplier[i];
+      QuarterType carry = 0;
+      QuarterType* row = acc;
+      for (unsigned j = 0; j < 4; ++j, ++row)
+        {
+          HalfType b = multiplicand[j];
+          b *= a;
+          HalfType* sum = (HalfType*) row;
+          HalfType prev = *sum;
+          *sum += b + HalfType(carry);
+          carry = (*sum < prev)? QuarterType(1) : QuarterType(0);
+        }
+    }
+  *this = prod[0];
+  return *this;
+}
+
+
+Uint128&
+Uint128::operator /= (Uint128 x)
+{
+  assert(0);
+  return *this;
+}
+
+
+Uint128&
+Uint128::operator %= (Uint128 x)
+{
+  assert(0);
+  return *this;
+}
+
+
+Uint128&
+Uint128::operator >>= (int n)
+{
+  int halfw = halfWidth();
+
+  if (n >= width())
+    low_ = high_ = HalfType(0);
+  else if (n >= halfw)
+    {
+      low_ = high_;
+      high_ = HalfType(0);
+      low_ >>= (n - halfw);
+    }
+  else
+    {
+      HalfType temp = high_ << (n - halfw);
+      high_ >>= n;
+      low_ >>= n;
+      low_ |= temp;
+    }
+  return *this;
+}
+
+
+Uint128&
+Uint128::operator <<= (int n)
+{
+  int halfw = halfWidth();
+
+  if (n >= width())
+    low_ = high_ = HalfType(0);
+  else if (n >= halfw)
+    {
+      high_ = low_;
+      low_ = HalfType(0);
+      high_ <<= (n - halfw);
+    }
+  else
+    {
+      HalfType temp = low_ >> (n - halfw);
+      high_ <<= n;
+      low_ <<= n;
+      high_ |= temp;
+    }
+  return *this;
+}
+
+
+//
+
+
+Int128&
+Int128::operator *= (Int128 xx)
+{
+  if (*this >= SelfType(0) and xx >= SelfType(0))
+    {
+      UnsignedType a = *this, b = xx;
+      a *= b;
+      *this = a;
+      return *this;
+    }
+
+  SelfType minInt(1);
+  minInt <<= width() - 1;
+
+  if (*this == minInt or xx == minInt)
+    {
+      *this = SelfType(0);
+      return *this;
+    }
+
+  bool neg = false;
+
+  if (*this < SelfType(0) and xx >= SelfType(0))
+    {
+      neg = true;
+      *this = - *this;
+    }
+  else if (*this >= SelfType(0) and xx < SelfType(0))
+    {
+      neg = true;
+      xx = -xx;
+    }
+  else
+    {
+      *this = - *this;
+      xx = -xx;
+    }
+      
+  SelfType a = *this, b = xx;
+  a *= b;
+  if (neg)
+    a = -a;
+
+  *this = a;
+
+  return *this;
+}
+
+
+Int128&
+Int128::operator /= (Int128 xx)
+{
+  assert(0);
+  return *this;
+}
+
+
+Int128&
+Int128::operator %= (Int128 x)
+{
+  assert(0);
+  return *this;
+}
+
+
+Int128&
+Int128::operator >>= (int n)
+{
+  bool neg = high_ < SelfType(0);
+
+  int halfw = halfWidth();
+
+  if (n >= width())
+    {
+      if (neg)
+        low_ = high_ = ~HalfType(0);
+      else
+        low_ = high_ = HalfType(0);
+    }
+  else if (n >= halfw)
+    {
+      low_ = high_;
+      if (neg)
+        low_ |= HalfType(1) << (sizeof(low_)*8 - 1);
+      high_ = neg? ~HalfType(0) : HalfType(0);
+      low_ >>= (n - halfw);
+    }
+  else
+    {
+      HalfUnsigned temp = high_ << (n - halfw);
+      high_ >>= n;
+      low_ = HalfUnsigned(low_) >> n;
+      low_ |= temp;
+    }
+
+  return *this;
+}
+
+
+Int128&
+Int128::operator <<= (int n)
+{
+  int halfw = halfWidth();
+
+  if (n >= width())
+    low_ = high_ = HalfType(0);
+  else if (n >= halfw)
+    {
+      high_ = low_;
+      low_ = HalfType(0);
+      high_ <<= (n - halfw);
+    }
+  else
+    {
+      HalfUnsigned temp = low_ >> (n - halfw);
+      high_ <<= n;
+      low_ <<= n;
+      high_ |= temp;
+    }
+  return *this;
+}
+
+
+
+// 256
+
+
+
+Uint256&
+Uint256::operator *= (Uint256 x)
+{
+  QuarterType* multiplicand = (QuarterType*) &low_;
+  QuarterType* multiplier = (QuarterType*) &x.low_;
+
+  SelfType prod[2];
+  QuarterType* acc = (QuarterType*) &prod[0];
+
+  for (unsigned i = 0; i < 4; ++i, ++acc)
+    {
+      QuarterType a = multiplier[i];
+      QuarterType carry = 0;
+      QuarterType* row = acc;
+      for (unsigned j = 0; j < 4; ++j, ++row)
+        {
+          HalfType b = multiplicand[j];
+          b *= a;
+          HalfType* sum = (HalfType*) row;
+          HalfType prev = *sum;
+          *sum += b + HalfType(carry);
+          carry = (*sum < prev)? QuarterType(1) : QuarterType(0);
+        }
+    }
+  *this = prod[0];
+  return *this;
+}
+
+
+Uint256&
+Uint256::operator /= (Uint256 x)
+{
+  assert(0);
+  return *this;
+}
+
+
+Uint256&
+Uint256::operator %= (Uint256 x)
+{
+  assert(0);
+  return *this;
+}
+
+
+Uint256&
+Uint256::operator >>= (int n)
+{
+  int halfw = halfWidth();
+
+  if (n >= width())
+    low_ = high_ = HalfType(0);
+  else if (n >= halfw)
+    {
+      low_ = high_;
+      high_ = HalfType(0);
+      low_ >>= (n - halfw);
+    }
+  else
+    {
+      HalfType temp = high_ << (n - halfw);
+      high_ >>= n;
+      low_ >>= n;
+      low_ |= temp;
+    }
+  return *this;
+}
+
+
+Uint256&
+Uint256::operator <<= (int n)
+{
+  int halfw = halfWidth();
+
+  if (n >= width())
+    low_ = high_ = HalfType(0);
+  else if (n >= halfw)
+    {
+      high_ = low_;
+      low_ = HalfType(0);
+      high_ <<= (n - halfw);
+    }
+  else
+    {
+      HalfType temp = low_ >> (n - halfw);
+      high_ <<= n;
+      low_ <<= n;
+      high_ |= temp;
+    }
+  return *this;
+}
+
+
+//
+
+
+Int256&
+Int256::operator *= (Int256 xx)
+{
+  if (*this >= SelfType(0) and xx >= SelfType(0))
+    {
+      UnsignedType a = *this, b = xx;
+      a *= b;
+      *this = a;
+      return *this;
+    }
+
+  SelfType minInt(1);
+  minInt <<= width() - 1;
+
+  if (*this == minInt or xx == minInt)
+    {
+      *this = SelfType(0);
+      return *this;
+    }
+
+  bool neg = false;
+
+  if (*this < SelfType(0) and xx >= SelfType(0))
+    {
+      neg = true;
+      *this = - *this;
+    }
+  else if (*this >= SelfType(0) and xx < SelfType(0))
+    {
+      neg = true;
+      xx = -xx;
+    }
+  else
+    {
+      *this = - *this;
+      xx = -xx;
+    }
+      
+  SelfType a = *this, b = xx;
+  a *= b;
+  if (neg)
+    a = -a;
+
+  *this = a;
+
+  return *this;
+}
+
+
+Int256&
+Int256::operator /= (Int256 xx)
+{
+  assert(0);
+  return *this;
+}
+
+
+Int256&
+Int256::operator %= (Int256 x)
+{
+  assert(0);
+  return *this;
+}
+
+
+Int256&
+Int256::operator >>= (int n)
+{
+  bool neg = high_ < SelfType(0);
+
+  int halfw = halfWidth();
+
+  if (n >= width())
+    {
+      if (neg)
+        low_ = high_ = ~HalfType(0);
+      else
+        low_ = high_ = HalfType(0);
+    }
+  else if (n >= halfw)
+    {
+      low_ = high_;
+      if (neg)
+        low_ |= HalfType(1) << int(sizeof(low_)*8 - 1);
+      high_ = neg? ~HalfType(0) : HalfType(0);
+      low_ >>= (n - halfw);
+    }
+  else
+    {
+      HalfUnsigned temp = high_ << (n - halfw);
+      high_ >>= n;
+      low_ = HalfUnsigned(low_) >> n;
+      low_ |= temp;
+    }
+
+  return *this;
+}
+
+
+Int256&
+Int256::operator <<= (int n)
+{
+  int halfw = halfWidth();
+
+  if (n >= width())
+    low_ = high_ = HalfType(0);
+  else if (n >= halfw)
+    {
+      high_ = low_;
+      low_ = HalfType(0);
+      high_ <<= (n - halfw);
+    }
+  else
+    {
+      HalfUnsigned temp = low_ >> (n - halfw);
+      high_ <<= n;
+      low_ <<= n;
+      high_ |= temp;
+    }
+  return *this;
+}
+
+
+
+// 512
+
+
+
+Uint512&
+Uint512::operator *= (Uint512 x)
+{
+  QuarterType* multiplicand = (QuarterType*) &low_;
+  QuarterType* multiplier = (QuarterType*) &x.low_;
+
+  SelfType prod[2];
+  QuarterType* acc = (QuarterType*) &prod[0];
+
+  for (unsigned i = 0; i < 4; ++i, ++acc)
+    {
+      QuarterType a = multiplier[i];
+      QuarterType carry = 0;
+      QuarterType* row = acc;
+      for (unsigned j = 0; j < 4; ++j, ++row)
+        {
+          HalfType b = multiplicand[j];
+          b *= a;
+          HalfType* sum = (HalfType*) row;
+          HalfType prev = *sum;
+          *sum += b + HalfType(carry);
+          carry = (*sum < prev)? QuarterType(1) : QuarterType(0);
+        }
+    }
+  *this = prod[0];
+  return *this;
+}
+
+
+Uint512&
+Uint512::operator /= (Uint512 x)
+{
+  assert(0);
+  return *this;
+}
+
+
+Uint512&
+Uint512::operator %= (Uint512 x)
+{
+  assert(0);
+  return *this;
+}
+
+
+Uint512&
+Uint512::operator >>= (int n)
+{
+  int halfw = halfWidth();
+
+  if (n >= width())
+    low_ = high_ = HalfType(0);
+  else if (n >= halfw)
+    {
+      low_ = high_;
+      high_ = HalfType(0);
+      low_ >>= (n - halfw);
+    }
+  else
+    {
+      HalfType temp = high_ << (n - halfw);
+      high_ >>= n;
+      low_ >>= n;
+      low_ |= temp;
+    }
+  return *this;
+}
+
+
+Uint512&
+Uint512::operator <<= (int n)
+{
+  int halfw = halfWidth();
+
+  if (n >= width())
+    low_ = high_ = HalfType(0);
+  else if (n >= halfw)
+    {
+      high_ = low_;
+      low_ = HalfType(0);
+      high_ <<= (n - halfw);
+    }
+  else
+    {
+      HalfType temp = low_ >> (n - halfw);
+      high_ <<= n;
+      low_ <<= n;
+      high_ |= temp;
+    }
+  return *this;
+}
+
+
+//
+
+
+Int512&
+Int512::operator *= (Int512 xx)
+{
+  if (*this >= SelfType(0) and xx >= SelfType(0))
+    {
+      UnsignedType a = *this, b = xx;
+      a *= b;
+      *this = a;
+      return *this;
+    }
+
+  SelfType minInt(1);
+  minInt <<= width() - 1;
+
+  if (*this == minInt or xx == minInt)
+    {
+      *this = SelfType(0);
+      return *this;
+    }
+
+  bool neg = false;
+
+  if (*this < SelfType(0) and xx >= SelfType(0))
+    {
+      neg = true;
+      *this = - *this;
+    }
+  else if (*this >= SelfType(0) and xx < SelfType(0))
+    {
+      neg = true;
+      xx = -xx;
+    }
+  else
+    {
+      *this = - *this;
+      xx = -xx;
+    }
+      
+  SelfType a = *this, b = xx;
+  a *= b;
+  if (neg)
+    a = -a;
+
+  *this = a;
+
+  return *this;
+}
+
+
+Int512&
+Int512::operator /= (Int512 xx)
+{
+  assert(0);
+  return *this;
+}
+
+
+Int512&
+Int512::operator %= (Int512 x)
+{
+  assert(0);
+  return *this;
+}
+
+
+Int512&
+Int512::operator >>= (int n)
+{
+  bool neg = high_ < SelfType(0);
+
+  int halfw = halfWidth();
+
+  if (n >= width())
+    {
+      if (neg)
+        low_ = high_ = ~HalfType(0);
+      else
+        low_ = high_ = HalfType(0);
+    }
+  else if (n >= halfw)
+    {
+      low_ = high_;
+      if (neg)
+        low_ |= HalfType(1) << int(sizeof(low_)*8 - 1);
+      high_ = neg? ~HalfType(0) : HalfType(0);
+      low_ >>= (n - halfw);
+    }
+  else
+    {
+      HalfUnsigned temp = high_ << (n - halfw);
+      high_ >>= n;
+      low_ = HalfUnsigned(low_) >> n;
+      low_ |= temp;
+    }
+
+  return *this;
+}
+
+
+Int512&
+Int512::operator <<= (int n)
+{
+  int halfw = halfWidth();
+
+  if (n >= width())
+    low_ = high_ = HalfType(0);
+  else if (n >= halfw)
+    {
+      high_ = low_;
+      low_ = HalfType(0);
+      high_ <<= (n - halfw);
+    }
+  else
+    {
+      HalfUnsigned temp = low_ >> (n - halfw);
+      high_ <<= n;
+      low_ <<= n;
+      high_ |= temp;
+    }
+  return *this;
+}
+
+
+
+// 1024
+
+
+
+Uint1024&
+Uint1024::operator *= (Uint1024 x)
+{
+  QuarterType* multiplicand = (QuarterType*) &low_;
+  QuarterType* multiplier = (QuarterType*) &x.low_;
+
+  SelfType prod[2];
+  QuarterType* acc = (QuarterType*) &prod[0];
+
+  for (unsigned i = 0; i < 4; ++i, ++acc)
+    {
+      QuarterType a = multiplier[i];
+      QuarterType carry = 0;
+      QuarterType* row = acc;
+      for (unsigned j = 0; j < 4; ++j, ++row)
+        {
+          HalfType b = multiplicand[j];
+          b *= a;
+          HalfType* sum = (HalfType*) row;
+          HalfType prev = *sum;
+          *sum += b + HalfType(carry);
+          carry = (*sum < prev)? QuarterType(1) : QuarterType(0);
+        }
+    }
+  *this = prod[0];
+  return *this;
+}
+
+
+Uint1024&
+Uint1024::operator /= (Uint1024 x)
+{
+  assert(0);
+  return *this;
+}
+
+
+Uint1024&
+Uint1024::operator %= (Uint1024 x)
+{
+  assert(0);
+  return *this;
+}
+
+
+Uint1024&
+Uint1024::operator >>= (int n)
+{
+  int halfw = halfWidth();
+
+  if (n >= width())
+    low_ = high_ = HalfType(0);
+  else if (n >= halfw)
+    {
+      low_ = high_;
+      high_ = HalfType(0);
+      low_ >>= (n - halfw);
+    }
+  else
+    {
+      HalfType temp = high_ << (n - halfw);
+      high_ >>= n;
+      low_ >>= n;
+      low_ |= temp;
+    }
+  return *this;
+}
+
+
+Uint1024&
+Uint1024::operator <<= (int n)
+{
+  int halfw = halfWidth();
+
+  if (n >= width())
+    low_ = high_ = HalfType(0);
+  else if (n >= halfw)
+    {
+      high_ = low_;
+      low_ = HalfType(0);
+      high_ <<= (n - halfw);
+    }
+  else
+    {
+      HalfType temp = low_ >> (n - halfw);
+      high_ <<= n;
+      low_ <<= n;
+      high_ |= temp;
+    }
+  return *this;
+}
+
+
+//
+
+
+Int1024&
+Int1024::operator *= (Int1024 xx)
+{
+  if (*this >= SelfType(0) and xx >= SelfType(0))
+    {
+      UnsignedType a = *this, b = xx;
+      a *= b;
+      *this = a;
+      return *this;
+    }
+
+  SelfType minInt(1);
+  minInt <<= width() - 1;
+
+  if (*this == minInt or xx == minInt)
+    {
+      *this = SelfType(0);
+      return *this;
+    }
+
+  bool neg = false;
+
+  if (*this < SelfType(0) and xx >= SelfType(0))
+    {
+      neg = true;
+      *this = - *this;
+    }
+  else if (*this >= SelfType(0) and xx < SelfType(0))
+    {
+      neg = true;
+      xx = -xx;
+    }
+  else
+    {
+      *this = - *this;
+      xx = -xx;
+    }
+      
+  SelfType a = *this, b = xx;
+  a *= b;
+  if (neg)
+    a = -a;
+
+  *this = a;
+
+  return *this;
+}
+
+
+Int1024&
+Int1024::operator /= (Int1024 xx)
+{
+  assert(0);
+  return *this;
+}
+
+
+Int1024&
+Int1024::operator %= (Int1024 x)
+{
+  assert(0);
+  return *this;
+}
+
+
+Int1024&
+Int1024::operator >>= (int n)
+{
+  bool neg = high_ < SelfType(0);
+
+  int halfw = halfWidth();
+
+  if (n >= width())
+    {
+      if (neg)
+        low_ = high_ = ~HalfType(0);
+      else
+        low_ = high_ = HalfType(0);
+    }
+  else if (n >= halfw)
+    {
+      low_ = high_;
+      if (neg)
+        low_ |= HalfType(1) << int(sizeof(low_)*8 - 1);
+      high_ = neg? ~HalfType(0) : HalfType(0);
+      low_ >>= (n - halfw);
+    }
+  else
+    {
+      HalfUnsigned temp = high_ << (n - halfw);
+      high_ >>= n;
+      low_ = HalfUnsigned(low_) >> n;
+      low_ |= temp;
+    }
+
+  return *this;
+}
+
+
+Int1024&
+Int1024::operator <<= (int n)
+{
+  int halfw = halfWidth();
+
+  if (n >= width())
+    low_ = high_ = HalfType(0);
+  else if (n >= halfw)
+    {
+      high_ = low_;
+      low_ = HalfType(0);
+      high_ <<= (n - halfw);
+    }
+  else
+    {
+      HalfUnsigned temp = low_ >> (n - halfw);
+      high_ <<= n;
+      low_ <<= n;
+      high_ |= temp;
+    }
+  return *this;
+}

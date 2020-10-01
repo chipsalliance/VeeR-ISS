@@ -130,6 +130,7 @@ namespace WdRiscv
     bool read(unsigned regNum, unsigned elementIx, unsigned groupX8,
               T& value) const
     {
+      // FIX: cannot use sizeof here.  sizeof(Int1024) will not be right.
       if ((elementIx + 1) * sizeof(T) > ((bytesPerReg_*groupX8) >> 3))
         return false;
       if (regNum*bytesPerReg_ + (elementIx + 1)*sizeof(T) > bytesPerReg_*regCount_)
@@ -148,12 +149,16 @@ namespace WdRiscv
     bool write(unsigned regNum, unsigned elementIx, unsigned groupX8,
                const T& value)
     {
+      // FIX: cannot use sizeof here.  sizeof(Int1024) will not be right.
       if ((elementIx + 1) * sizeof(T) > ((bytesPerReg_*groupX8) >> 3))
         return false;
       if (regNum*bytesPerReg_ + (elementIx + 1)*sizeof(T) > bytesPerReg_*regCount_)
         return false;
       T* data = reinterpret_cast<T*>(data_ + regNum*bytesPerReg_);
       data[elementIx] = value;
+      lastWrittenReg_ = regNum;
+      lastElemIx_ = elementIx;
+      lastElemWidth_ = sizeof(T)*8;
       return true;
     }
 
@@ -251,6 +256,23 @@ namespace WdRiscv
 
   protected:
 
+    /// Clear the number denoting the last written register.
+    void clearLastWrittenReg()
+    { lastWrittenReg_ = -1; }
+    
+    /// Return the number of the last written vector regsiter or -1 if no
+    /// no register has been written since the last clearLastWrittenReg.
+    int getLastWrittenReg(unsigned& lastElemWidth, unsigned& lastElemIx) const
+    {
+      if (lastWrittenReg_ >= 0)
+        {
+          lastElemWidth = lastElemWidth_;
+          lastElemIx = lastElemIx_;
+          return lastWrittenReg_;
+        }
+      return -1;
+    }
+
     /// Return true if element of given index is active with respect
     /// to the given mask vector register. Element is active if the
     /// corresponding mask bit is 1.
@@ -331,5 +353,9 @@ namespace WdRiscv
     unsigned sewInBits_ = 8;  // SEW expressed in bits (Byte corresponds to 8).
 
     GroupsForWidth legalConfigs_;
+
+    int lastWrittenReg_ = -1;
+    unsigned lastElemIx_ = 0;     // Index of last written element.
+    unsigned lastElemWidth_ = 0;   // Width (in bits) of last written element.
   };
 }

@@ -3335,6 +3335,12 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
       pending = true;
     }
 
+  // Process vector register diff.
+  int vecReg = intRegs_.getLastWrittenReg();
+  if (vecReg >= 0)
+    {
+    }      
+
   if (pending) 
     fprintf(out, "\n");
   else
@@ -3801,6 +3807,7 @@ Hart<URV>::clearTraceData()
   intRegs_.clearLastWrittenReg();
   fpRegs_.clearLastWrittenReg();
   csRegs_.clearLastWrittenRegs();
+  vecRegs_.clearLastWrittenReg();
   memory_.clearLastWriteInfo(hartIx_);
 }
 
