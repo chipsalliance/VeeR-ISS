@@ -200,6 +200,11 @@ Memory::loadHexFile(const std::string& fileName)
 	}
     }
 
+  // In case writing ELF data modified last-written-data associated
+  // with each hart.
+  for (unsigned hartId = 0; hartId < reservations_.size(); ++hartId)
+    clearLastWriteInfo(hartId);
+
   if (overwrites)
     std::cerr << "File " << fileName << ": Overwrote previously loaded data "
 	      << "changing " << overwrites << " or more bytes\n";

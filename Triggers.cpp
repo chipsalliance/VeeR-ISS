@@ -357,18 +357,44 @@ Triggers<URV>::poke(URV trigger, URV v1, URV v2, URV v3)
 
 template <typename URV>
 bool
-Triggers<URV>::pokeData1(URV trigger, URV val)
+Triggers<URV>::pokeData1(URV trigIx, URV value)
 {
-  if (trigger >= triggers_.size())
+  if (trigIx >= triggers_.size())
     return false;
 
-  auto& trig = triggers_.at(trigger);
-  bool prevChain = trig.getChain();
+  auto& trig = triggers_.at(trigIx);
 
-  trig.pokeData1(val);
+  Data1Bits d1bits(value); // Unpack value of attempted write.
+
+  // If next trigger has a dmode of 1 (debugger only), then clear
+  // chain bit in attempted wirte if write would also set dmode to 0.
+  // Otherwise we would have a chain with different dmodes.
+  if (trigIx + 1 < triggers_.size())
+    {
+      auto& nextTrig = triggers_.at(trigIx + 1);
+      if (nextTrig.isDebugModeOnly() and d1bits.mcontrol_.dmode_ == 0)
+        {
+          d1bits.mcontrol_.chain_ = 0;
+          value = d1bits.value_;
+        }
+    }
+
+  // Write is ignored if it would set dmode and previous trigger has
+  // both dmode=0 and chain=1. Otherwise, we would have a chain with
+  // different dmodes.
+  if (d1bits.mcontrol_.dmode_ == 1 and trigIx > 0)
+    {
+      auto& prevTrig = triggers_.at(trigIx - 1);
+      if (prevTrig.getChain() and not prevTrig.isDebugModeOnly())
+        return false;
+    }
+
+  bool oldChain = trig.getChain();
+
+  trig.pokeData1(value);
 
   bool newChain = trig.getChain();
-  if (prevChain != newChain)
+  if (oldChain != newChain)
     defineChainBounds();
 
   return true;
