@@ -1056,7 +1056,7 @@ Hart<URV>::execVwaddu_vx(const DecodedInst* di)
   unsigned vd = di->op0(),  vs1 = di->op1();
   unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
 
-  URV e2 =intRegs_.read(di->op2());
+  URV e2 = intRegs_.read(di->op2());
 
   switch (sew)
     {

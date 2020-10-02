@@ -130,7 +130,6 @@ namespace WdRiscv
     bool read(unsigned regNum, unsigned elementIx, unsigned groupX8,
               T& value) const
     {
-      // FIX: cannot use sizeof here.  sizeof(Int1024) will not be right.
       if ((elementIx + 1) * sizeof(T) > ((bytesPerReg_*groupX8) >> 3))
         return false;
       if (regNum*bytesPerReg_ + (elementIx + 1)*sizeof(T) > bytesPerReg_*regCount_)
@@ -149,7 +148,6 @@ namespace WdRiscv
     bool write(unsigned regNum, unsigned elementIx, unsigned groupX8,
                const T& value)
     {
-      // FIX: cannot use sizeof here.  sizeof(Int1024) will not be right.
       if ((elementIx + 1) * sizeof(T) > ((bytesPerReg_*groupX8) >> 3))
         return false;
       if (regNum*bytesPerReg_ + (elementIx + 1)*sizeof(T) > bytesPerReg_*regCount_)
@@ -206,9 +204,9 @@ namespace WdRiscv
     }
 
     /// Set symbol to the sybolic value of the given numeric group
-    /// multiplier (premultiplier by 8). Return true on success and
+    /// multiplier (premultiplied by 8). Return true on success and
     /// false if groupX8 is out of bounds.
-    static
+    static inline
     bool groupNumberX8ToSymbol(unsigned groupX8, GroupMultiplier& symbol)
     {
       if (groupX8 == 1)  { symbol = GroupMultiplier::Eighth;   return true; }
@@ -220,7 +218,7 @@ namespace WdRiscv
       if (groupX8 == 64) { symbol = GroupMultiplier::Eight;    return true; }
       return false;
     }
-    
+
     /// Set dsew to the double of the given sew returning true on
     /// succes and false if given sew cannot be doubled.  false if
     /// groupX8 is out of bounds.

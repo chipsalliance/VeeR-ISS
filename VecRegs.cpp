@@ -38,6 +38,11 @@ VecRegs::VecRegs()
   // Temporary, for testing. FIX.
   sew_ = ElementWidth::DoubleWord;
   sewInBits_ = 64;
+
+  // Temporary, for testing. FIX.
+  elems_ = 2;
+
+  std::cerr << "VecRegs::VecRegs: Remove test code\n";
 }
 
 

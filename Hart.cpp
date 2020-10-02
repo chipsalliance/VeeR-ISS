@@ -3336,9 +3336,16 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
     }
 
   // Process vector register diff.
-  int vecReg = intRegs_.getLastWrittenReg();
+  unsigned elemWidth = 0, elemIx = 0;
+  int vecReg = vecRegs_.getLastWrittenReg(elemWidth, elemIx);
   if (vecReg >= 0)
     {
+      if (pending)
+        fprintf(out, " +\n");
+      URV checksum = 1;
+      formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'v',
+			   vecReg, checksum, tmp.c_str());
+      pending = true;
     }      
 
   if (pending) 
