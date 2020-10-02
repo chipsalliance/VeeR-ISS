@@ -4648,18 +4648,18 @@ Hart<URV>::execVmand_mm(const DecodedInst* di)
       elems = elems >> 3;
       for (unsigned i = start; i < elems; ++i)
         vdData[i] = vs1Data[i] & vs2Data[i];
-      return;
     }
+  else     // Bit indices are not byte aligned.
+    for (unsigned i = start; i < elems; ++i)
+      {
+        unsigned byteIx = i >> 3;
+        unsigned bitIx = i & 7; // Bit index in byte
+        uint8_t mask = 1 << bitIx;
+        vdData[i] = ( (vdData[byteIx] & ~mask) |
+                      (vs1Data[byteIx] & vs2Data[byteIx] & mask) );
+      }
 
-  // Bit indices are not byte aligned.
-  for (unsigned i = start; i < elems; ++i)
-    {
-      unsigned byteIx = i >> 3;
-      unsigned bitIx = i & 7; // Bit index in byte
-      uint8_t mask = 1 << bitIx;
-      vdData[i] = ( (vdData[byteIx] & ~mask) |
-                    (vs1Data[byteIx] & vs2Data[byteIx] & mask) );
-    }
+  vecRegs_.setLastWrittenReg(di->op0(), elems-1, 1);
 }
 
 
@@ -4691,18 +4691,18 @@ Hart<URV>::execVmnand_mm(const DecodedInst* di)
       elems = elems >> 3;
       for (unsigned i = start; i < elems; ++i)
         vdData[i] = ~ (vs1Data[i] & vs2Data[i]);
-      return;
     }
+  else    // Bit indices are not byte aligned.
+    for (unsigned i = start; i < elems; ++i)
+      {
+        unsigned byteIx = i >> 3;
+        unsigned bitIx = i & 7; // Bit index in byte
+        uint8_t mask = 1 << bitIx;
+        vdData[i] = ( (vdData[byteIx] & ~mask) |
+                      (~(vs1Data[byteIx] & vs2Data[byteIx]) & mask) );
+      }
 
-  // Bit indices are not byte aligned.
-  for (unsigned i = start; i < elems; ++i)
-    {
-      unsigned byteIx = i >> 3;
-      unsigned bitIx = i & 7; // Bit index in byte
-      uint8_t mask = 1 << bitIx;
-      vdData[i] = ( (vdData[byteIx] & ~mask) |
-                    (~(vs1Data[byteIx] & vs2Data[byteIx]) & mask) );
-    }
+  vecRegs_.setLastWrittenReg(di->op0(), elems-1, 1);
 }
 
 
@@ -4734,18 +4734,18 @@ Hart<URV>::execVmandnot_mm(const DecodedInst* di)
       elems = elems >> 3;
       for (unsigned i = start; i < elems; ++i)
         vdData[i] = vs1Data[i] & ~vs2Data[i];
-      return;
     }
+  else    // Bit indices are not byte aligned.
+    for (unsigned i = start; i < elems; ++i)
+      {
+        unsigned byteIx = i >> 3;
+        unsigned bitIx = i & 7; // Bit index in byte
+        uint8_t mask = 1 << bitIx;
+        vdData[i] = ( (vdData[byteIx] & ~mask) |
+                      ((vs1Data[byteIx] & ~vs2Data[byteIx]) & mask) );
+      }
 
-  // Bit indices are not byte aligned.
-  for (unsigned i = start; i < elems; ++i)
-    {
-      unsigned byteIx = i >> 3;
-      unsigned bitIx = i & 7; // Bit index in byte
-      uint8_t mask = 1 << bitIx;
-      vdData[i] = ( (vdData[byteIx] & ~mask) |
-                    ((vs1Data[byteIx] & ~vs2Data[byteIx]) & mask) );
-    }
+  vecRegs_.setLastWrittenReg(di->op0(), elems-1, 1);
 }
 
 
@@ -4779,16 +4779,17 @@ Hart<URV>::execVmxor_mm(const DecodedInst* di)
         vdData[i] = vs1Data[i] ^ vs2Data[i];
       return;
     }
+  else    // Bit indices are not byte aligned.
+    for (unsigned i = start; i < elems; ++i)
+      {
+        unsigned byteIx = i >> 3;
+        unsigned bitIx = i & 7; // Bit index in byte
+        uint8_t mask = 1 << bitIx;
+        vdData[i] = ( (vdData[byteIx] & ~mask) |
+                      ((vs1Data[byteIx] ^ vs2Data[byteIx]) & mask) );
+      }
 
-  // Bit indices are not byte aligned.
-  for (unsigned i = start; i < elems; ++i)
-    {
-      unsigned byteIx = i >> 3;
-      unsigned bitIx = i & 7; // Bit index in byte
-      uint8_t mask = 1 << bitIx;
-      vdData[i] = ( (vdData[byteIx] & ~mask) |
-                    ((vs1Data[byteIx] ^ vs2Data[byteIx]) & mask) );
-    }
+  vecRegs_.setLastWrittenReg(di->op0(), elems-1, 1);
 }
 
 
@@ -4822,16 +4823,17 @@ Hart<URV>::execVmor_mm(const DecodedInst* di)
         vdData[i] = vs1Data[i] | vs2Data[i];
       return;
     }
+  else    // Bit indices are not byte aligned.
+    for (unsigned i = start; i < elems; ++i)
+      {
+        unsigned byteIx = i >> 3;
+        unsigned bitIx = i & 7; // Bit index in byte
+        uint8_t mask = 1 << bitIx;
+        vdData[i] = ( (vdData[byteIx] & ~mask) |
+                      ((vs1Data[byteIx] | vs2Data[byteIx]) & mask) );
+      }
 
-  // Bit indices are not byte aligned.
-  for (unsigned i = start; i < elems; ++i)
-    {
-      unsigned byteIx = i >> 3;
-      unsigned bitIx = i & 7; // Bit index in byte
-      uint8_t mask = 1 << bitIx;
-      vdData[i] = ( (vdData[byteIx] & ~mask) |
-                    ((vs1Data[byteIx] | vs2Data[byteIx]) & mask) );
-    }
+  vecRegs_.setLastWrittenReg(di->op0(), elems-1, 1);
 }
 
 
@@ -4863,18 +4865,18 @@ Hart<URV>::execVmnor_mm(const DecodedInst* di)
       elems = elems >> 3;
       for (unsigned i = start; i < elems; ++i)
         vdData[i] = ~(vs1Data[i] | vs2Data[i]);
-      return;
     }
+  else    // Bit indices are not byte aligned.
+    for (unsigned i = start; i < elems; ++i)
+      {
+        unsigned byteIx = i >> 3;
+        unsigned bitIx = i & 7; // Bit index in byte
+        uint8_t mask = 1 << bitIx;
+        vdData[i] = ( (vdData[byteIx] & ~mask) |
+                      ( ~(vs1Data[byteIx] | vs2Data[byteIx]) & mask) );
+      }
 
-  // Bit indices are not byte aligned.
-  for (unsigned i = start; i < elems; ++i)
-    {
-      unsigned byteIx = i >> 3;
-      unsigned bitIx = i & 7; // Bit index in byte
-      uint8_t mask = 1 << bitIx;
-      vdData[i] = ( (vdData[byteIx] & ~mask) |
-                    ( ~(vs1Data[byteIx] | vs2Data[byteIx]) & mask) );
-    }
+  vecRegs_.setLastWrittenReg(di->op0(), elems-1, 1);
 }
 
 
@@ -4906,18 +4908,18 @@ Hart<URV>::execVmornot_mm(const DecodedInst* di)
       elems = elems >> 3;
       for (unsigned i = start; i < elems; ++i)
         vdData[i] = vs1Data[i] | ~vs2Data[i];
-      return;
     }
+  else     // Bit indices are not byte aligned.
+    for (unsigned i = start; i < elems; ++i)
+      {
+        unsigned byteIx = i >> 3;
+        unsigned bitIx = i & 7; // Bit index in byte
+        uint8_t mask = 1 << bitIx;
+        vdData[i] = ( (vdData[byteIx] & ~mask) |
+                      ((vs1Data[byteIx] | ~vs2Data[byteIx]) & mask) );
+      }
 
-  // Bit indices are not byte aligned.
-  for (unsigned i = start; i < elems; ++i)
-    {
-      unsigned byteIx = i >> 3;
-      unsigned bitIx = i & 7; // Bit index in byte
-      uint8_t mask = 1 << bitIx;
-      vdData[i] = ( (vdData[byteIx] & ~mask) |
-                    ((vs1Data[byteIx] | ~vs2Data[byteIx]) & mask) );
-    }
+  vecRegs_.setLastWrittenReg(di->op0(), elems-1, 1);
 }
 
 
@@ -4949,18 +4951,18 @@ Hart<URV>::execVmxnor_mm(const DecodedInst* di)
       elems = elems >> 3;
       for (unsigned i = start; i < elems; ++i)
         vdData[i] = vs1Data[i] ^ ~vs2Data[i];
-      return;
     }
+  else     // Bit indices are not byte aligned.
+    for (unsigned i = start; i < elems; ++i)
+      {
+        unsigned byteIx = i >> 3;
+        unsigned bitIx = i & 7; // Bit index in byte
+        uint8_t mask = 1 << bitIx;
+        vdData[i] = ( (vdData[byteIx] & ~mask) |
+                      ((vs1Data[byteIx] ^ ~vs2Data[byteIx]) & mask) );
+      }
 
-  // Bit indices are not byte aligned.
-  for (unsigned i = start; i < elems; ++i)
-    {
-      unsigned byteIx = i >> 3;
-      unsigned bitIx = i & 7; // Bit index in byte
-      uint8_t mask = 1 << bitIx;
-      vdData[i] = ( (vdData[byteIx] & ~mask) |
-                    ((vs1Data[byteIx] ^ ~vs2Data[byteIx]) & mask) );
-    }
+  vecRegs_.setLastWrittenReg(di->op0(), elems-1, 1);
 }
 
 
@@ -7993,6 +7995,8 @@ Hart<URV>::execVmv1r_v(const DecodedInst* di)
   assert(source);
 
   memcpy(dest, source, bytes);
+
+  vecRegs_.setLastWrittenReg(vd, bytes-1, 8);
 }
 
 
@@ -8026,6 +8030,8 @@ Hart<URV>::execVmv2r_v(const DecodedInst* di)
   assert(source);
 
   memcpy(dest, source, bytes);
+
+  vecRegs_.setLastWrittenReg(vd, bytes-1, 8);
 }
 
 
@@ -8059,6 +8065,8 @@ Hart<URV>::execVmv4r_v(const DecodedInst* di)
   assert(source);
 
   memcpy(dest, source, bytes);
+
+  vecRegs_.setLastWrittenReg(vd, bytes-1, 8);
 }
 
 
@@ -8092,6 +8100,8 @@ Hart<URV>::execVmv8r_v(const DecodedInst* di)
   assert(source);
 
   memcpy(dest, source, bytes);
+
+  vecRegs_.setLastWrittenReg(vd, bytes-1, 8);
 }
 
 

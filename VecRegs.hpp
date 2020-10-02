@@ -127,15 +127,15 @@ namespace WdRiscv
     /// and group multipier (presecaled by 8) is invalid. We pre-scale
     /// the group multiplier to avoid passing a fraction.
     template<typename T>
-    bool read(unsigned regNum, unsigned elementIx, unsigned groupX8,
+    bool read(unsigned regNum, unsigned elemIx, unsigned groupX8,
               T& value) const
     {
-      if ((elementIx + 1) * sizeof(T) > ((bytesPerReg_*groupX8) >> 3))
+      if ((elemIx + 1) * sizeof(T) > ((bytesPerReg_*groupX8) >> 3))
         return false;
-      if (regNum*bytesPerReg_ + (elementIx + 1)*sizeof(T) > bytesPerReg_*regCount_)
+      if (regNum*bytesPerReg_ + (elemIx + 1)*sizeof(T) > bytesPerReg_*regCount_)
         return false;
       const T* data = reinterpret_cast<const T*>(data_ + regNum*bytesPerReg_);
-      value = data[elementIx];
+      value = data[elemIx];
       return true;
     }
 
@@ -145,18 +145,18 @@ namespace WdRiscv
     /// and group multipier (presecaled by 8) is invalid. We pre-scale
     /// the group multiplier to avoid passing a fraction.
     template<typename T>
-    bool write(unsigned regNum, unsigned elementIx, unsigned groupX8,
+    bool write(unsigned regNum, unsigned elemIx, unsigned groupX8,
                const T& value)
     {
-      if ((elementIx + 1) * sizeof(T) > ((bytesPerReg_*groupX8) >> 3))
+      if ((elemIx + 1) * sizeof(T) > ((bytesPerReg_*groupX8) >> 3))
         return false;
-      if (regNum*bytesPerReg_ + (elementIx + 1)*sizeof(T) > bytesPerReg_*regCount_)
+      if (regNum*bytesPerReg_ + (elemIx + 1)*sizeof(T) > bytesPerReg_*regCount_)
         return false;
       T* data = reinterpret_cast<T*>(data_ + regNum*bytesPerReg_);
-      data[elementIx] = value;
+      data[elemIx] = value;
       lastWrittenReg_ = regNum;
-      lastElemIx_ = elementIx;
       lastElemWidth_ = sizeof(T)*8;
+      lastElemIx_ = elemIx;
       return true;
     }
 
@@ -189,6 +189,8 @@ namespace WdRiscv
     unsigned groupMultiplierX8() const
     {return groupX8_; }
 
+    /// Return true if double the given element width (eew=2*sew) is
+    /// legal with the given group multiplier (prescaled by 8).
     bool isDoubleWideLegal(ElementWidth sew, unsigned groupX8) const
     {
       unsigned wideGroup = groupX8 * 2;
@@ -202,6 +204,14 @@ namespace WdRiscv
 
       return legalConfig(eew, emul);
     }
+
+    /// Return the checksum of the elements of the given register
+    /// between the given element indices inclusive.  We checksum the
+    /// bytes covered by the given index range. The indices are allowed
+    /// to be out of bounds. Indices outside the vector regiter file are
+    /// replaced by zero.
+    uint64_t checksum(unsigned regIx, unsigned elemIx0, unsigned elemIx1,
+                      unsigned elemWidth) const;
 
     /// Set symbol to the sybolic value of the given numeric group
     /// multiplier (premultiplied by 8). Return true on success and
@@ -260,7 +270,7 @@ namespace WdRiscv
     
     /// Return the number of the last written vector regsiter or -1 if no
     /// no register has been written since the last clearLastWrittenReg.
-    int getLastWrittenReg(unsigned& lastElemWidth, unsigned& lastElemIx) const
+    int getLastWrittenReg(unsigned& lastElemIx, unsigned& lastElemWidth) const
     {
       if (lastWrittenReg_ >= 0)
         {
@@ -270,6 +280,11 @@ namespace WdRiscv
         }
       return -1;
     }
+
+    /// For instructions that do not use the write method, mark the
+    /// last written register and the effective element widht.
+    void setLastWrittenReg(unsigned reg, unsigned lastIx, unsigned elemWidth)
+    { lastWrittenReg_ = reg; lastElemIx_ = lastIx; lastElemWidth_ = elemWidth; }
 
     /// Return true if element of given index is active with respect
     /// to the given mask vector register. Element is active if the
@@ -292,6 +307,13 @@ namespace WdRiscv
     /// associated with the given vector. Return nullptr if
     /// vector index is out of bounds.
     uint8_t* getVecData(unsigned vecIx)
+    {
+      if (vecIx >= regCount_)
+        return nullptr;
+      return data_ + vecIx*bytesPerReg_;
+    }
+
+    const uint8_t* getVecData(unsigned vecIx) const
     {
       if (vecIx >= regCount_)
         return nullptr;
@@ -353,7 +375,7 @@ namespace WdRiscv
     GroupsForWidth legalConfigs_;
 
     int lastWrittenReg_ = -1;
-    unsigned lastElemIx_ = 0;     // Index of last written element.
     unsigned lastElemWidth_ = 0;   // Width (in bits) of last written element.
+    unsigned lastElemIx_ = 0;
   };
 }

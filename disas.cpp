@@ -1757,7 +1757,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::vadd_vi:
-      out << "vadd.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>();
+      out << "vadd.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
       if (di.isMasked()) out << ", v0.t";
       break;
 
@@ -1777,7 +1777,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::vrsub_vi:
-      out << "vrsub.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>();
+      out << "vrsub.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
       if (di.isMasked()) out << ", v0.t";
       break;
 
@@ -1896,7 +1896,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::vand_vi:
-      out << "vand.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>();
+      out << "vand.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
       if (di.isMasked()) out << ", v0.t";
       break;
 
@@ -1911,7 +1911,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::vor_vi:
-      out << "vor.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>();
+      out << "vor.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
       if (di.isMasked()) out << ", v0.t";
       break;
 
@@ -1926,7 +1926,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::vxor_vi:
-      out << "vxor.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>();
+      out << "vxor.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
       if (di.isMasked()) out << ", v0.t";
       break;
 
@@ -1941,7 +1941,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::vrgather_vi:
-      out << "vrgather.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>();
+      out << "vrgather.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
       if (di.isMasked()) out << ", v0.t";
       break;
 
@@ -2135,7 +2135,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::vmerge_vi:
-      out << "vmerge.vi v" << di.op0() << ", v" << di.op1() << ", x" << di.op2As<int32_t>();
+      out << "vmerge.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
       break;
 
     case InstId::vmv_x_s:

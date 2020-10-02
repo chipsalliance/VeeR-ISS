@@ -116,6 +116,30 @@ VecRegs::config(unsigned bytesPerReg, unsigned bytesPerElem)
 }
 
 
+uint64_t
+VecRegs::checksum(unsigned regIx, unsigned elemIx0, unsigned elemIx1,
+                  unsigned elemWidth) const
+{
+  uint64_t sum = 0;
+
+  unsigned byteIx0 = (elemWidth*elemIx0) / 8;
+  unsigned byteIx1 = (elemWidth*elemIx1) / 8;
+
+  const uint8_t* regData = getVecData(regIx);
+  const uint8_t* end = data_ + bytesInRegFile_;
+
+  for (unsigned i = byteIx0; i <= byteIx1; ++i)
+    {
+      uint8_t byte = 0;
+      if (regData and regData + i < end)
+        byte = regData[i];
+      sum += byte;  // FIX BOGUS replace my md5sum
+    }      
+
+  return sum;
+}
+
+
 void
 VecRegs::reset()
 {
