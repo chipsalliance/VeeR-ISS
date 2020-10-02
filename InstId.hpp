@@ -350,6 +350,9 @@ namespace WdRiscv
      fsri,
 
      // vector
+     vsetvli,
+     vsetvl,
+
      vadd_vv,
      vadd_vx,
      vadd_vi,

@@ -1746,6 +1746,14 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printRdRs1Rs3Imm(*this, out, "fsri", di);
       break;
 
+    case InstId::vsetvli:
+      out << "vsetvli x" << di.op0() << ", x" << di.op1() << ", " << di.op2();
+      break;
+
+    case InstId::vsetvl:
+      out << "vsetvl x" << di.op0() << ", x" << di.op1() << ", x" << di.op2();
+      break;
+
     case InstId::vadd_vv:
       out << "vadd.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
       if (di.isMasked()) out << ", v0.t";

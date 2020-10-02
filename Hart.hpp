@@ -1954,6 +1954,9 @@ namespace WdRiscv
     void execFsri(const DecodedInst*);
 
 
+    void execVsetvli(const DecodedInst*);
+    void execVsetvl(const DecodedInst*);
+
     template<typename ELEM_TYPE>
     void vadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                  unsigned start, unsigned elems, bool masked);

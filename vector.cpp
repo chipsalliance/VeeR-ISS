@@ -248,6 +248,22 @@ using namespace WdRiscv;
 
 
 template <typename URV>
+void
+Hart<URV>::execVsetvli(const DecodedInst* di)
+{
+  std::cerr << "Implement vsetvli\n";
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsetvl(const DecodedInst* di)
+{
+  std::cerr << "Implement vsetvl\n";
+}
+
+
+template <typename URV>
 template <typename ELEM_TYPE>
 void
 Hart<URV>::vadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
