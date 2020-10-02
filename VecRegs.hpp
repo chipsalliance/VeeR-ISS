@@ -213,7 +213,7 @@ namespace WdRiscv
     uint64_t checksum(unsigned regIx, unsigned elemIx0, unsigned elemIx1,
                       unsigned elemWidth) const;
 
-    /// Set symbol to the sybolic value of the given numeric group
+    /// Set symbol to the symbolic value of the given numeric group
     /// multiplier (premultiplied by 8). Return true on success and
     /// false if groupX8 is out of bounds.
     static inline
@@ -261,6 +261,21 @@ namespace WdRiscv
         return 8 >> (8 - unsigned(vm));
       return 0;
     }
+
+    static std::string to_string(GroupMultiplier group)
+    {
+      static std::vector<std::string> vec =
+        {"m1", "m2", "m4", "m8", "m?", "mf8", "mf4", "mf2"};
+      return size_t(group) < vec.size()? vec.at(size_t(group)) : "m?";
+    }
+
+    static std::string to_string(ElementWidth ew)
+    {
+      static std::vector<std::string> vec =
+        {"e8", "e16", "e32", "e64", "e128", "e256", "e512", "e1024"};
+      return size_t(ew) < vec.size()? vec.at(size_t(ew)) : "e?";
+    }
+
 
   protected:
 

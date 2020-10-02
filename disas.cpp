@@ -1747,7 +1747,14 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::vsetvli:
-      out << "vsetvli x" << di.op0() << ", x" << di.op1() << ", " << di.op2();
+      {
+        out << "vsetvli x" << di.op0() << ", x" << di.op1() << ", ";
+        std::string mm = (di.op2() & 1) ? "ma" : "mu";
+        std::string tt = (di.op2() & 2) ? "ta" : "tu";
+        auto gm = VecRegs::to_string(GroupMultiplier((di.op2() >> 2) & 7));
+        auto ew = VecRegs::to_string(ElementWidth((di.op2() >> 5) & 7));
+        out << ew << ',' << gm << ',' << tt << ',' << mm;
+      }
       break;
 
     case InstId::vsetvl:
