@@ -2033,6 +2033,41 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       out << "vmxnor.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
       break;
 
+    case InstId::vpopc_m:
+      out << "vpopc.m x" << di.op0() << ", v" << di.op1();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vfirst_m:
+      out << "vfirst.m x" << di.op0() << ", v" << di.op1();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vmsbf_m:
+      out << "vmsbf.m v" << di.op0() << ", v" << di.op1();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vmsif_m:
+      out << "vmsif.m v" << di.op0() << ", v" << di.op1();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vmsof_m:
+      out << "vmsof.m v" << di.op0() << ", v" << di.op1();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::viota_m:
+      out << "viota.m v" << di.op0() << ", v" << di.op1();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vid_v:
+      out << "vid.v v" << di.op0();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
     case InstId::vslideup_vx:
       out << "vslideup.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
       break;
@@ -2130,15 +2165,15 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::vzext_f2:
-      out << "vsext.f8 v" << di.op0() << ", v" << di.op1();
+      out << "vzext.f2 v" << di.op0() << ", v" << di.op1();
       break;
 
     case InstId::vzext_f4:
-      out << "vsext.f8 v" << di.op0() << ", v" << di.op1();
+      out << "vzext.f4 v" << di.op0() << ", v" << di.op1();
       break;
 
     case InstId::vzext_f8:
-      out << "vsext.f8 v" << di.op0() << ", v" << di.op1();
+      out << "vzext.f8 v" << di.op0() << ", v" << di.op1();
       break;
 
     case InstId::vmerge_vv:

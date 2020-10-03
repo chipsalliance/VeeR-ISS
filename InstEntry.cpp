@@ -2382,6 +2382,62 @@ InstTable::setupInstVec()
         OperandType::VecReg, OperandMode::Read, rs2Mask,
       },
 
+      { "vpopc.m", InstId::vpopc_m,
+        0b010000'1'00000'10000'010'00000'1010111,
+        0b111111'0'00000'11111'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::IntReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vfirst.m", InstId::vfirst_m,
+        0b010000'1'00000'10001'010'00000'1010111,
+        0b111111'0'00000'11111'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::IntReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vmsbf.m", InstId::vmsbf_m,
+        0b010100'1'00000'00001'010'00000'1010111,
+        0b111111'0'00000'11111'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vmsif.m", InstId::vmsif_m,
+        0b010100'1'00000'00011'010'00000'1010111,
+        0b111111'0'00000'11111'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vmsof.m", InstId::vmsof_m,
+        0b010100'1'00000'00010'010'00000'1010111,
+        0b111111'0'00000'11111'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "viota.m", InstId::viota_m,
+        0b010100'1'00000'10000'010'00000'1010111,
+        0b111111'0'00000'11111'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vid.v", InstId::vid_v,
+        0b010100'1'00000'10001'010'00000'1010111,
+        0b111111'0'00000'11111'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+      },
+
       { "vslideup.vx", InstId::vslideup_vx,
         0b001110'0'00000'00000'100'00000'1010111,
         0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits

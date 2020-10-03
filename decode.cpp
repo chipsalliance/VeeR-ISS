@@ -234,7 +234,11 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         case 5:    return instTable_.getEntry(InstId::vredmin_vs);
         case 6:    return instTable_.getEntry(InstId::vredmaxu_vs);
         case 7:    return instTable_.getEntry(InstId::vredmax_vs);
-        case 0x10: return instTable_.getEntry(InstId::vmv_x_s);
+        case 0x10:
+          if (op2 == 0)    return instTable_.getEntry(InstId::vmv_x_s);
+          if (op2 == 0x10) return instTable_.getEntry(InstId::vpopc_m);
+          if (op2 == 0x11) return instTable_.getEntry(InstId::vfirst_m);
+          return instTable_.getEntry(InstId::illegal);
         case 0x12:
           if (op2 == 2)  return instTable_.getEntry(InstId::vzext_f8);
           if (op2 == 4)  return instTable_.getEntry(InstId::vzext_f4);
@@ -242,6 +246,13 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
           if (op2 == 3)  return instTable_.getEntry(InstId::vsext_f8);
           if (op2 == 5)  return instTable_.getEntry(InstId::vsext_f4);
           if (op2 == 7)  return instTable_.getEntry(InstId::vsext_f2);
+          return instTable_.getEntry(InstId::illegal);
+        case 0x14:
+          if (op2 == 1)    return instTable_.getEntry(InstId::vmsbf_m);
+          if (op2 == 2)    return instTable_.getEntry(InstId::vmsof_m);
+          if (op2 == 3)    return instTable_.getEntry(InstId::vmsif_m);
+          if (op2 == 0x10) return instTable_.getEntry(InstId::viota_m);
+          if (op2 == 0x11) return instTable_.getEntry(InstId::vid_v);
           return instTable_.getEntry(InstId::illegal);
         case 0x17: return instTable_.getEntry(InstId::vcompress_vm);
         case 0x19: return instTable_.getEntry(InstId::vmand_mm);

@@ -4758,8 +4758,8 @@ Hart<URV>::execVmand_mm(const DecodedInst* di)
         unsigned byteIx = i >> 3;
         unsigned bitIx = i & 7; // Bit index in byte
         uint8_t mask = 1 << bitIx;
-        vdData[i] = ( (vdData[byteIx] & ~mask) |
-                      (vs1Data[byteIx] & vs2Data[byteIx] & mask) );
+        vdData[byteIx] = ( (vdData[byteIx] & ~mask) |
+                           (vs1Data[byteIx] & vs2Data[byteIx] & mask) );
       }
 
   vecRegs_.setLastWrittenReg(di->op0(), elems-1, 1);
@@ -4801,8 +4801,8 @@ Hart<URV>::execVmnand_mm(const DecodedInst* di)
         unsigned byteIx = i >> 3;
         unsigned bitIx = i & 7; // Bit index in byte
         uint8_t mask = 1 << bitIx;
-        vdData[i] = ( (vdData[byteIx] & ~mask) |
-                      (~(vs1Data[byteIx] & vs2Data[byteIx]) & mask) );
+        vdData[byteIx] = ( (vdData[byteIx] & ~mask) |
+                           (~(vs1Data[byteIx] & vs2Data[byteIx]) & mask) );
       }
 
   vecRegs_.setLastWrittenReg(di->op0(), elems-1, 1);
@@ -4844,8 +4844,8 @@ Hart<URV>::execVmandnot_mm(const DecodedInst* di)
         unsigned byteIx = i >> 3;
         unsigned bitIx = i & 7; // Bit index in byte
         uint8_t mask = 1 << bitIx;
-        vdData[i] = ( (vdData[byteIx] & ~mask) |
-                      ((vs1Data[byteIx] & ~vs2Data[byteIx]) & mask) );
+        vdData[byteIx] = ( (vdData[byteIx] & ~mask) |
+                           ((vs1Data[byteIx] & ~vs2Data[byteIx]) & mask) );
       }
 
   vecRegs_.setLastWrittenReg(di->op0(), elems-1, 1);
@@ -4888,8 +4888,8 @@ Hart<URV>::execVmxor_mm(const DecodedInst* di)
         unsigned byteIx = i >> 3;
         unsigned bitIx = i & 7; // Bit index in byte
         uint8_t mask = 1 << bitIx;
-        vdData[i] = ( (vdData[byteIx] & ~mask) |
-                      ((vs1Data[byteIx] ^ vs2Data[byteIx]) & mask) );
+        vdData[byteIx] = ( (vdData[byteIx] & ~mask) |
+                           ((vs1Data[byteIx] ^ vs2Data[byteIx]) & mask) );
       }
 
   vecRegs_.setLastWrittenReg(di->op0(), elems-1, 1);
@@ -4932,8 +4932,8 @@ Hart<URV>::execVmor_mm(const DecodedInst* di)
         unsigned byteIx = i >> 3;
         unsigned bitIx = i & 7; // Bit index in byte
         uint8_t mask = 1 << bitIx;
-        vdData[i] = ( (vdData[byteIx] & ~mask) |
-                      ((vs1Data[byteIx] | vs2Data[byteIx]) & mask) );
+        vdData[byteIx] = ( (vdData[byteIx] & ~mask) |
+                           ((vs1Data[byteIx] | vs2Data[byteIx]) & mask) );
       }
 
   vecRegs_.setLastWrittenReg(di->op0(), elems-1, 1);
@@ -4975,8 +4975,8 @@ Hart<URV>::execVmnor_mm(const DecodedInst* di)
         unsigned byteIx = i >> 3;
         unsigned bitIx = i & 7; // Bit index in byte
         uint8_t mask = 1 << bitIx;
-        vdData[i] = ( (vdData[byteIx] & ~mask) |
-                      ( ~(vs1Data[byteIx] | vs2Data[byteIx]) & mask) );
+        vdData[byteIx] = ( (vdData[byteIx] & ~mask) |
+                           ( ~(vs1Data[byteIx] | vs2Data[byteIx]) & mask) );
       }
 
   vecRegs_.setLastWrittenReg(di->op0(), elems-1, 1);
@@ -5018,8 +5018,8 @@ Hart<URV>::execVmornot_mm(const DecodedInst* di)
         unsigned byteIx = i >> 3;
         unsigned bitIx = i & 7; // Bit index in byte
         uint8_t mask = 1 << bitIx;
-        vdData[i] = ( (vdData[byteIx] & ~mask) |
-                      ((vs1Data[byteIx] | ~vs2Data[byteIx]) & mask) );
+        vdData[byteIx] = ( (vdData[byteIx] & ~mask) |
+                           ((vs1Data[byteIx] | ~vs2Data[byteIx]) & mask) );
       }
 
   vecRegs_.setLastWrittenReg(di->op0(), elems-1, 1);
@@ -5061,11 +5061,375 @@ Hart<URV>::execVmxnor_mm(const DecodedInst* di)
         unsigned byteIx = i >> 3;
         unsigned bitIx = i & 7; // Bit index in byte
         uint8_t mask = 1 << bitIx;
-        vdData[i] = ( (vdData[byteIx] & ~mask) |
-                      ((vs1Data[byteIx] ^ ~vs2Data[byteIx]) & mask) );
+        vdData[byteIx] = ( (vdData[byteIx] & ~mask) |
+                           ((vs1Data[byteIx] ^ ~vs2Data[byteIx]) & mask) );
       }
 
   vecRegs_.setLastWrittenReg(di->op0(), elems-1, 1);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVpopc_m(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t start = vecRegs_.startIndex();
+  if (start > 0)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned rd = di->op0(),  vs1 = di->op1(),  elems = vecRegs_.elemCount();;
+
+  uint32_t count = 0;
+  for (uint32_t ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+      if (vecRegs_.isActive(vs1, ix))
+        count++;
+    }
+
+  intRegs_.write(rd, count);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVfirst_m(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t start = vecRegs_.startIndex();
+  if (start > 0)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned rd = di->op0(),  vs1 = di->op1(),  elems = vecRegs_.elemCount();
+
+  SRV first = -1;
+
+  for (uint32_t ix = start; ix < elems; ++ix)
+    if (vecRegs_.isActive(vs1, ix))
+      {
+        first = ix;
+        break;
+      }
+
+  intRegs_.write(rd, first);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmsbf_m(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t start = vecRegs_.startIndex();
+  if (start > 0)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  elems = vecRegs_.elemCount();;
+
+  if (vd == vs1 or (masked and vd == 0))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint8_t* vdData = vecRegs_.getVecData(vd);
+  uint8_t* vs1Data = vecRegs_.getVecData(vs1);
+
+  bool found = false;  // true if set bit is found in vs1
+
+  for (uint32_t ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+      if (vecRegs_.isActive(vs1, ix))
+        {
+          unsigned byteIx = ix >> 3;
+          unsigned bitIx = ix & 7; // Bit index in byte
+          uint8_t mask = 1 << bitIx;
+          vdData[ix] = vdData[ix] & ~mask;
+          found = found or (vs1Data[byteIx] & mask);
+          if (not found)
+            vdData[byteIx] |= mask;
+        }
+    }
+
+  vecRegs_.setLastWrittenReg(vd, elems-1, 1);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmsif_m(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t start = vecRegs_.startIndex();
+  if (start > 0)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  elems = vecRegs_.elemCount();;
+
+  if (vd == vs1 or (masked and vd == 0))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint8_t* vdData = vecRegs_.getVecData(vd);
+  uint8_t* vs1Data = vecRegs_.getVecData(vs1);
+
+  bool found = false;  // true if set bit is found in vs1
+
+  for (uint32_t ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+      if (vecRegs_.isActive(vs1, ix))
+        {
+          unsigned byteIx = ix >> 3;
+          unsigned bitIx = ix & 7; // Bit index in byte
+          uint8_t mask = 1 << bitIx;
+          vdData[ix] = vdData[ix] & ~mask;
+          if (not found)
+            vdData[byteIx] |= mask;
+          found = vs1Data[byteIx] & mask;
+        }
+    }
+
+  vecRegs_.setLastWrittenReg(vd, elems-1, 1);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmsof_m(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t start = vecRegs_.startIndex();
+  if (start > 0)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  elems = vecRegs_.elemCount();;
+
+  if (vd == vs1 or (masked and vd == 0))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint8_t* vdData = vecRegs_.getVecData(vd);
+  uint8_t* vs1Data = vecRegs_.getVecData(vs1);
+
+  bool found = false;  // true if set bit is found in vs1
+
+  for (uint32_t ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+      if (vecRegs_.isActive(vs1, ix))
+        {
+          unsigned byteIx = ix >> 3;
+          unsigned bitIx = ix & 7; // Bit index in byte
+          uint8_t mask = 1 << bitIx;
+          vdData[ix] = vdData[ix] & ~mask;
+          if (not found)
+            {
+              found = vs1Data[byteIx] & mask;
+              if (found)
+                vdData[byteIx] |= mask;
+            }
+        }
+    }
+
+  vecRegs_.setLastWrittenReg(vd, elems-1, 1);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execViota_m(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  // Spec does not explicitly state this.   FIX double check.
+  uint32_t start = vecRegs_.startIndex();
+  if (start > 0)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  elems = vecRegs_.elemCount();;
+
+  // Spec does not explicitly state this.  FIX double check.
+  if (masked and vd == 0)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned sum = 0;
+
+  for (uint32_t ix = start; ix < elems; ++ix)
+    {
+      bool sourceSet = vecRegs_.isActive(vs1, ix);
+
+      if (masked and not vecRegs_.isActive(0, ix))
+        {
+          if (sourceSet)
+            sum++;
+          continue;
+        }
+
+      switch (sew)
+        {
+        case ElementWidth::Byte:
+          vecRegs_.write(vd, ix, group, int8_t(sum)); break;
+
+        case ElementWidth::HalfWord:
+          vecRegs_.write(vd, 0, group, int16_t(sum)); break;
+
+        case ElementWidth::Word:
+          vecRegs_.write(vd, 0, group, int32_t(sum)); break;
+
+        case ElementWidth::DoubleWord:
+          vecRegs_.write(vd, 0, group, int64_t(sum)); break;
+
+        case ElementWidth::QuadWord:
+          vecRegs_.write(vd, 0, group, Int128(sum)); break;
+
+        case ElementWidth::OctWord:
+          vecRegs_.write(vd, 0, group, Int256(sum)); break;
+
+        case ElementWidth::HalfKbits:
+          vecRegs_.write(vd, 0, group, Int512(sum)); break;
+
+        case ElementWidth::Kbits:
+          vecRegs_.write(vd, 0, group, Int1024(sum)); break;
+        }
+
+      if (sourceSet)
+        sum++;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVid_v(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  // Spec does not explicitly state this.   FIX double check.
+  uint32_t start = vecRegs_.startIndex();
+  if (start > 0)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  elems = vecRegs_.elemCount();;
+
+  // Spec does not explicitly state this.  FIX double check.
+  if (masked and vd == 0)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  for (uint32_t ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      switch (sew)
+        {
+        case ElementWidth::Byte:
+          vecRegs_.write(vd, ix, group, int8_t(ix)); break;
+
+        case ElementWidth::HalfWord:
+          vecRegs_.write(vd, 0, group, int16_t(ix)); break;
+
+        case ElementWidth::Word:
+          vecRegs_.write(vd, 0, group, int32_t(ix)); break;
+
+        case ElementWidth::DoubleWord:
+          vecRegs_.write(vd, 0, group, int64_t(ix)); break;
+
+        case ElementWidth::QuadWord:
+          vecRegs_.write(vd, 0, group, Int128(ix)); break;
+
+        case ElementWidth::OctWord:
+          vecRegs_.write(vd, 0, group, Int256(ix)); break;
+
+        case ElementWidth::HalfKbits:
+          vecRegs_.write(vd, 0, group, Int512(ix)); break;
+
+        case ElementWidth::Kbits:
+          vecRegs_.write(vd, 0, group, Int1024(ix)); break;
+        }
+    }
 }
 
 

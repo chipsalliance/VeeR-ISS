@@ -2194,6 +2194,13 @@ namespace WdRiscv
     void execVmnor_mm(const DecodedInst*);
     void execVmornot_mm(const DecodedInst*);
     void execVmxnor_mm(const DecodedInst*);
+    void execVpopc_m(const DecodedInst*);
+    void execVfirst_m(const DecodedInst*);
+    void execVmsbf_m(const DecodedInst*);
+    void execVmsif_m(const DecodedInst*);
+    void execVmsof_m(const DecodedInst*);
+    void execViota_m(const DecodedInst*);
+    void execVid_v(const DecodedInst*);
 
     template<typename ELEM_TYPE>
     void vslideup(unsigned vd, unsigned vs1, URV amount, unsigned group,

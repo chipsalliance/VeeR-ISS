@@ -421,6 +421,13 @@ namespace WdRiscv
      vmnor_mm,
      vmornot_mm,
      vmxnor_mm,
+     vpopc_m,
+     vfirst_m,
+     vmsbf_m,
+     vmsif_m,
+     vmsof_m,
+     viota_m,
+     vid_v,
 
      vslideup_vx,
      vslideup_vi,

@@ -5478,6 +5478,13 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vmnor_mm,
      &&vmornot_mm,
      &&vmxnor_mm,
+     &&vpopc_m,
+     &&vfirst_m,
+     &&vmsbf_m,
+     &&vmsif_m,
+     &&vmsof_m,
+     &&viota_m,
+     &&vid_v,
      &&vslideup_vx,
      &&vslideup_vi,
      &&vslide1up_vx,
@@ -6912,6 +6919,34 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vmxnor_mm:
   execVmxnor_mm(di);
+  return;
+
+ vpopc_m:
+  execVpopc_m(di);
+  return;
+
+ vfirst_m:
+  execVfirst_m(di);
+  return;
+
+ vmsbf_m:
+  execVmsbf_m(di);
+  return;
+
+ vmsif_m:
+  execVmsif_m(di);
+  return;
+
+ vmsof_m:
+  execVmsof_m(di);
+  return;
+
+ viota_m:
+  execViota_m(di);
+  return;
+
+ vid_v:
+  execVid_v(di);
   return;
 
  vslideup_vx:
