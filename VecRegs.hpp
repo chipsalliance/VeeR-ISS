@@ -184,7 +184,7 @@ namespace WdRiscv
     /// Return the element width in bit given the symbolic element width.
     /// Rturn 0 if symbolic value is out of bounds.
     static uint32_t elementWidthInBits(ElementWidth ew)
-    { return ew > ElementWidth::Kbits ? 0 : uint32_t(1) << uint32_t(ew); }
+    { return ew > ElementWidth::Kbits ? 0 : uint32_t(8) << uint32_t(ew); }
 
     /// Return the currently configured group multiplier as a unsigned
     /// integer scaled by 8.  For example if group multiplier is One,

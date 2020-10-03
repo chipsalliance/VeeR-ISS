@@ -5340,25 +5340,25 @@ Hart<URV>::execViota_m(const DecodedInst* di)
           vecRegs_.write(vd, ix, group, int8_t(sum)); break;
 
         case ElementWidth::HalfWord:
-          vecRegs_.write(vd, 0, group, int16_t(sum)); break;
+          vecRegs_.write(vd, ix, group, int16_t(sum)); break;
 
         case ElementWidth::Word:
-          vecRegs_.write(vd, 0, group, int32_t(sum)); break;
+          vecRegs_.write(vd, ix, group, int32_t(sum)); break;
 
         case ElementWidth::DoubleWord:
-          vecRegs_.write(vd, 0, group, int64_t(sum)); break;
+          vecRegs_.write(vd, ix, group, int64_t(sum)); break;
 
         case ElementWidth::QuadWord:
-          vecRegs_.write(vd, 0, group, Int128(sum)); break;
+          vecRegs_.write(vd, ix, group, Int128(sum)); break;
 
         case ElementWidth::OctWord:
-          vecRegs_.write(vd, 0, group, Int256(sum)); break;
+          vecRegs_.write(vd, ix, group, Int256(sum)); break;
 
         case ElementWidth::HalfKbits:
-          vecRegs_.write(vd, 0, group, Int512(sum)); break;
+          vecRegs_.write(vd, ix, group, Int512(sum)); break;
 
         case ElementWidth::Kbits:
-          vecRegs_.write(vd, 0, group, Int1024(sum)); break;
+          vecRegs_.write(vd, ix, group, Int1024(sum)); break;
         }
 
       if (sourceSet)
@@ -5409,25 +5409,25 @@ Hart<URV>::execVid_v(const DecodedInst* di)
           vecRegs_.write(vd, ix, group, int8_t(ix)); break;
 
         case ElementWidth::HalfWord:
-          vecRegs_.write(vd, 0, group, int16_t(ix)); break;
+          vecRegs_.write(vd, ix, group, int16_t(ix)); break;
 
         case ElementWidth::Word:
-          vecRegs_.write(vd, 0, group, int32_t(ix)); break;
+          vecRegs_.write(vd, ix, group, int32_t(ix)); break;
 
         case ElementWidth::DoubleWord:
-          vecRegs_.write(vd, 0, group, int64_t(ix)); break;
+          vecRegs_.write(vd, ix, group, int64_t(ix)); break;
 
         case ElementWidth::QuadWord:
-          vecRegs_.write(vd, 0, group, Int128(ix)); break;
+          vecRegs_.write(vd, ix, group, Int128(ix)); break;
 
         case ElementWidth::OctWord:
-          vecRegs_.write(vd, 0, group, Int256(ix)); break;
+          vecRegs_.write(vd, ix, group, Int256(ix)); break;
 
         case ElementWidth::HalfKbits:
-          vecRegs_.write(vd, 0, group, Int512(ix)); break;
+          vecRegs_.write(vd, ix, group, Int512(ix)); break;
 
         case ElementWidth::Kbits:
-          vecRegs_.write(vd, 0, group, Int1024(ix)); break;
+          vecRegs_.write(vd, ix, group, Int1024(ix)); break;
         }
     }
 }
