@@ -113,12 +113,12 @@ namespace WdRiscv
     ~VecRegs();
     
     /// Return vector register count.
-    unsigned registerCount() const
+    uint32_t registerCount() const
     { return regCount_; }
 
     /// Return the number of bytes per register. This is independent
     /// of group multiplier.
-    unsigned bytesPerRegister() const
+    uint32_t bytesPerRegister() const
     { return bytesPerReg_; }
 
     /// Set value to that of the element with given index within the
@@ -127,7 +127,7 @@ namespace WdRiscv
     /// and group multipier (presecaled by 8) is invalid. We pre-scale
     /// the group multiplier to avoid passing a fraction.
     template<typename T>
-    bool read(unsigned regNum, unsigned elemIx, unsigned groupX8,
+    bool read(uint32_t regNum, uint32_t elemIx, uint32_t groupX8,
               T& value) const
     {
       if ((elemIx + 1) * sizeof(T) > ((bytesPerReg_*groupX8) >> 3))
@@ -145,7 +145,7 @@ namespace WdRiscv
     /// and group multipier (presecaled by 8) is invalid. We pre-scale
     /// the group multiplier to avoid passing a fraction.
     template<typename T>
-    bool write(unsigned regNum, unsigned elemIx, unsigned groupX8,
+    bool write(uint32_t regNum, uint32_t elemIx, uint32_t groupX8,
                const T& value)
     {
       if ((elemIx + 1) * sizeof(T) > ((bytesPerReg_*groupX8) >> 3))
@@ -165,7 +165,7 @@ namespace WdRiscv
     { return regCount_; }
 
     /// Return the number of bits in a register in this register file.
-    uint32_t bitsPerReg() const
+    uint32_t bitsPerRegister() const
     { return 8*bytesPerReg_; }
 
     /// Return the currently configured element width.
@@ -178,22 +178,27 @@ namespace WdRiscv
 
     /// Return the currently configured element width in bits (for example
     /// if SEW is Byte, then this reurns 8).
-    unsigned elemWidthInBits() const
+    uint32_t elementWidthInBits() const
     { return sewInBits_; }
+
+    /// Return the element width in bit given the symbolic element width.
+    /// Rturn 0 if symbolic value is out of bounds.
+    static uint32_t elementWidthInBits(ElementWidth ew)
+    { return ew > ElementWidth::Kbits ? 0 : uint32_t(1) << uint32_t(ew); }
 
     /// Return the currently configured group multiplier as a unsigned
     /// integer scaled by 8.  For example if group multiplier is One,
     /// this reurns 8. If group multiplier is Eigth, this returns 1.
     /// We pre-scale by 8 to avoid division when the multiplier is a
     /// fraction.
-    unsigned groupMultiplierX8() const
+    uint32_t groupMultiplierX8() const
     {return groupX8_; }
 
     /// Return true if double the given element width (eew=2*sew) is
     /// legal with the given group multiplier (prescaled by 8).
-    bool isDoubleWideLegal(ElementWidth sew, unsigned groupX8) const
+    bool isDoubleWideLegal(ElementWidth sew, uint32_t groupX8) const
     {
-      unsigned wideGroup = groupX8 * 2;
+      uint32_t wideGroup = groupX8 * 2;
       GroupMultiplier emul = GroupMultiplier::One;
       if (not groupNumberX8ToSymbol(wideGroup, emul))
         return false;
@@ -210,14 +215,14 @@ namespace WdRiscv
     /// bytes covered by the given index range. The indices are allowed
     /// to be out of bounds. Indices outside the vector regiter file are
     /// replaced by zero.
-    uint64_t checksum(unsigned regIx, unsigned elemIx0, unsigned elemIx1,
-                      unsigned elemWidth) const;
+    uint64_t checksum(uint32_t regIx, uint32_t elemIx0, uint32_t elemIx1,
+                      uint32_t elemWidth) const;
 
     /// Set symbol to the symbolic value of the given numeric group
     /// multiplier (premultiplied by 8). Return true on success and
     /// false if groupX8 is out of bounds.
     static inline
-    bool groupNumberX8ToSymbol(unsigned groupX8, GroupMultiplier& symbol)
+    bool groupNumberX8ToSymbol(uint32_t groupX8, GroupMultiplier& symbol)
     {
       if (groupX8 == 1)  { symbol = GroupMultiplier::Eighth;   return true; }
       if (groupX8 == 2)  { symbol = GroupMultiplier::Quarter;  return true; }
@@ -253,12 +258,12 @@ namespace WdRiscv
     /// Convert the given symbolic group multiplier to a number scaled by
     /// eight (e.g. One is converted to 8, and Eigth to 1). Return 0 if
     /// given symbolic multiplier is not valid.
-    static uint32_t groupMultiplierX8(GroupMultiplier vm)
+    static uint32_t groupMultiplierX8(GroupMultiplier gm)
     {
-      if (vm < GroupMultiplier::Reserved)
-        return 8*(uint32_t(1) << uint32_t(vm));
-      if (vm > GroupMultiplier::Reserved and vm <= GroupMultiplier::Half)
-        return 8 >> (8 - unsigned(vm));
+      if (gm < GroupMultiplier::Reserved)
+        return 8*(uint32_t(1) << uint32_t(gm));
+      if (gm > GroupMultiplier::Reserved and gm <= GroupMultiplier::Half)
+        return 8 >> (8 - uint32_t(gm));
       return 0;
     }
 
@@ -285,7 +290,7 @@ namespace WdRiscv
     
     /// Return the number of the last written vector regsiter or -1 if no
     /// no register has been written since the last clearLastWrittenReg.
-    int getLastWrittenReg(unsigned& lastElemIx, unsigned& lastElemWidth) const
+    int getLastWrittenReg(uint32_t& lastElemIx, uint32_t& lastElemWidth) const
     {
       if (lastWrittenReg_ >= 0)
         {
@@ -298,19 +303,19 @@ namespace WdRiscv
 
     /// For instructions that do not use the write method, mark the
     /// last written register and the effective element widht.
-    void setLastWrittenReg(unsigned reg, unsigned lastIx, unsigned elemWidth)
+    void setLastWrittenReg(uint32_t reg, uint32_t lastIx, uint32_t elemWidth)
     { lastWrittenReg_ = reg; lastElemIx_ = lastIx; lastElemWidth_ = elemWidth; }
 
     /// Return true if element of given index is active with respect
     /// to the given mask vector register. Element is active if the
     /// corresponding mask bit is 1.
-    bool isActive(unsigned maskReg, unsigned ix) const
+    bool isActive(uint32_t maskReg, uint32_t ix) const
     {
       if (maskReg >= regCount_)
         return false;
 
-      unsigned byteIx = ix >> 3;
-      unsigned bitIx = ix & 7;  // bit in byte
+      uint32_t byteIx = ix >> 3;
+      uint32_t bitIx = ix & 7;  // bit in byte
       if (byteIx >= bytesPerReg_)
         return false;
 
@@ -321,14 +326,14 @@ namespace WdRiscv
     /// Return the pointers to the 1st byte of the memory area
     /// associated with the given vector. Return nullptr if
     /// vector index is out of bounds.
-    uint8_t* getVecData(unsigned vecIx)
+    uint8_t* getVecData(uint32_t vecIx)
     {
       if (vecIx >= regCount_)
         return nullptr;
       return data_ + vecIx*bytesPerReg_;
     }
 
-    const uint8_t* getVecData(unsigned vecIx) const
+    const uint8_t* getVecData(uint32_t vecIx) const
     {
       if (vecIx >= regCount_)
         return nullptr;
@@ -338,15 +343,20 @@ namespace WdRiscv
     /// It is convenient to contruct an empty regiter file (bytesPerReg = 0)
     /// and configure it later. Old configuration is lost. Register of
     /// newly configured file are initlaized to zero.
-    void config(unsigned bytesPerReg, unsigned maxBytesPerElem);
+    void config(uint32_t bytesPerReg, uint32_t maxBytesPerElem);
 
     void reset();
 
-    unsigned startIndex() const
+    uint32_t startIndex() const
     { return start_; }
 
-    unsigned elemCount() const
+    /// Return currently configure element count (cached valye of VL).
+    uint32_t elemCount() const
     { return elems_; }
+
+    /// Set currently configure element count (cached valye of VL).
+    void elemCount(uint32_t n)
+    { elems_ = n; }
 
     /// Return true if current vtype configuration is legal. This is a cached
     /// value of VTYPE.VILL.
@@ -363,6 +373,21 @@ namespace WdRiscv
       return groupFlags.at(size_t(mul));
     }
 
+    /// Update cached vtype fields. This is called when Vsetvli is
+    /// executed.
+    void updateConfig(ElementWidth sew, GroupMultiplier gm,
+                      bool maskAgn, bool tailAgn, bool illegal)
+    {
+      sew_ = sew;
+      group_ = gm;
+      maskAgn_ = maskAgn;
+      tailAgn_ = tailAgn;
+      vill_ = illegal;
+
+      groupX8_ = groupMultiplierX8(gm);
+      sewInBits_ = elementWidthInBits(sew);
+    }
+
   private:
 
     /// Map an vector group multiplier to a flag indicating whether given
@@ -372,25 +397,27 @@ namespace WdRiscv
     /// Map an element width to a vector of flags indicating supported groups.
     typedef std::vector<GroupFlags> GroupsForWidth;
 
-    unsigned regCount_ = 0;
-    unsigned bytesPerReg_ = 0;
-    unsigned bytesPerElem_ = 0;
-    unsigned bytesInRegFile_ = 0;
+    uint32_t regCount_ = 0;
+    uint32_t bytesPerReg_ = 0;
+    uint32_t bytesPerElem_ = 0;
+    uint32_t bytesInRegFile_ = 0;
     uint8_t* data_ = nullptr;
 
-    GroupMultiplier group_ = GroupMultiplier::One; // Cached VTYPE.VLMUL
+    uint32_t start_ = 0;                           // Cached VSTART
+    uint32_t elems_ = 0;                           // Cached VL
     ElementWidth sew_ = ElementWidth::Byte;        // Cached VTYPE.SEW
-    unsigned start_ = 0;                           // Cached VSTART
-    unsigned elems_ = 0;                           // Cached VL
+    GroupMultiplier group_ = GroupMultiplier::One; // Cached VTYPE.VLMUL
+    bool maskAgn_ = false;                         // Cached VTYPE.ma
+    bool tailAgn_ = false;                         // Cached VTYPE.ta
     bool vill_ = false;                            // Cached VTYPE.VILL
 
-    unsigned groupX8_ = 8;    // Group multipler as a number scaled by 8.
-    unsigned sewInBits_ = 8;  // SEW expressed in bits (Byte corresponds to 8).
+    uint32_t groupX8_ = 8;    // Group multipler as a number scaled by 8.
+    uint32_t sewInBits_ = 8;  // SEW expressed in bits (Byte corresponds to 8).
 
     GroupsForWidth legalConfigs_;
 
     int lastWrittenReg_ = -1;
-    unsigned lastElemWidth_ = 0;   // Width (in bits) of last written element.
-    unsigned lastElemIx_ = 0;
+    uint32_t lastElemWidth_ = 0;   // Width (in bits) of last written element.
+    uint32_t lastElemIx_ = 0;
   };
 }

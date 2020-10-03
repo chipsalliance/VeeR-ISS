@@ -1202,8 +1202,9 @@ namespace WdRiscv
     // Mark VS field of mstatus as dirty.
     void markVsDirty();
 
-    // Return truee if it is legal to execute a vector instruction: V extension must
-    // be enabled and VS feild of MSTATUS must not be OFF.
+    // Return true if it is legal to execute a vector instruction: V
+    // extension must be enabled and VS feild of MSTATUS must not be
+    // OFF.
     bool isVecLegal() const
     { return isRvv() and isVecEnabled(); }
 
@@ -1954,6 +1955,7 @@ namespace WdRiscv
     void execFsri(const DecodedInst*);
 
 
+    void vsetvl(unsigned rd, unsigned rs1, URV vtypeVal);
     void execVsetvli(const DecodedInst*);
     void execVsetvl(const DecodedInst*);
 

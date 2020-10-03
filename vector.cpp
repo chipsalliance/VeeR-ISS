@@ -249,9 +249,86 @@ using namespace WdRiscv;
 
 template <typename URV>
 void
+Hart<URV>::vsetvl(unsigned rd, unsigned rs1, URV vtypeVal)
+{
+  bool ma = (vtypeVal >> 6) & 1;  // Mask agnostic
+  bool ta = (vtypeVal >> 7) & 1;  // Tail agnostic
+  GroupMultiplier gm = GroupMultiplier(vtypeVal & 7);
+  ElementWidth ew = ElementWidth((vtypeVal >> 3) & 7);
+
+  bool vill = (vtypeVal >> (8*sizeof(URV) - 1)) & 1;
+  vill = vill or not vecRegs_.legalConfig(ew, gm);
+
+  // Determine vl
+  URV elems = 0;
+
+  if (gm == GroupMultiplier::Reserved)
+    vill = true;
+  else
+    {
+      uint32_t gm8 = vecRegs_.groupMultiplierX8(gm);
+      unsigned bitsPerElem = vecRegs_.elementWidthInBits(ew);
+      unsigned vlmax = (gm8*vecRegs_.bitsPerRegister()/bitsPerElem) / 8;
+      if (vlmax == 0)
+        vill = true;
+      else
+        {
+          if (rd != 0 and rs1 == 0)
+            elems = vlmax;
+          else if (rd == 0 and rs1 == 0)
+            peekCsr(CsrNumber::VL, elems);  // Keep current value of VL.
+          else  // strip mining
+            {
+              URV avl = intRegs_.read(rs1);  // Applical vl
+              if (avl <= vlmax)
+                elems = avl;
+              else if (avl >= 2*vlmax)
+                elems = vlmax;
+              else
+                elems = (avl + 1) / 2;
+            }
+        }
+    }
+
+  if (vill)
+    {
+      ma = false; ta = false; gm = GroupMultiplier(0); ew = ElementWidth(0);
+      elems = 0;
+    }
+
+  if (vill or (rd != 0 or rs1 != 0))
+    csRegs_.write(CsrNumber::VL, PrivilegeMode::Machine,elems);  // Update VL.
+  vecRegs_.elemCount(elems);  // Update cached value of VL.
+
+  intRegs_.write(rd, elems);
+
+  // Pack vtype values and update vtype
+  URV vtype = 0;
+  vtype |= URV(gm) | (URV(ew) << 3) | (URV(ta) << 6) | (URV(ma) << 6);
+  vtype |= (URV(vill) << (8*sizeof(URV) - 1));
+  csRegs_.write(CsrNumber::VTYPE, PrivilegeMode::Machine, vtype);
+
+  // Update cached vtype fields in vecRegs_.
+  vecRegs_.updateConfig(ew, gm, ma, ta, vill);
+}
+
+
+template <typename URV>
+void
 Hart<URV>::execVsetvli(const DecodedInst* di)
 {
-  std::cerr << "Implement vsetvli\n";
+  if (not isVecLegal())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned rd = di->op0();
+  unsigned rs1 = di->op1();
+  unsigned imm = di->op2();
+  
+  URV vtypeVal = imm;
+  vsetvl(rd, rs1, vtypeVal);
 }
 
 
@@ -259,7 +336,17 @@ template <typename URV>
 void
 Hart<URV>::execVsetvl(const DecodedInst* di)
 {
-  std::cerr << "Implement vsetvl\n";
+  if (not isVecLegal())
+    {
+      illegalInst(di);
+      return;
+    }
+  
+  unsigned rd = di->op0();
+  unsigned rs1 = di->op1();
+
+  URV vtypeVal = intRegs_.read(di->op2());
+  vsetvl(rd, rs1, vtypeVal);
 }
 
 
