@@ -251,8 +251,8 @@ template <typename URV>
 void
 Hart<URV>::vsetvl(unsigned rd, unsigned rs1, URV vtypeVal)
 {
-  bool ma = (vtypeVal >> 6) & 1;  // Mask agnostic
-  bool ta = (vtypeVal >> 7) & 1;  // Tail agnostic
+  bool ma = (vtypeVal >> 7) & 1;  // Mask agnostic
+  bool ta = (vtypeVal >> 6) & 1;  // Tail agnostic
   GroupMultiplier gm = GroupMultiplier(vtypeVal & 7);
   ElementWidth ew = ElementWidth((vtypeVal >> 3) & 7);
 
