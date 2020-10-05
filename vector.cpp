@@ -9091,14 +9091,13 @@ template <typename URV>
 void
 Hart<URV>::execVmv_v_v(const DecodedInst* di)
 {
-  if (not isVecLegal() or not vecRegs_.legalConfig())
+  bool masked = di->isMasked();
+
+  if (masked or (not isVecLegal()) or (not vecRegs_.legalConfig()))
     {
       illegalInst(di);
       return;
     }
-
-  bool masked = di->isMasked();
-  assert(not masked);
 
   unsigned vd = di->op0(),  vs1 = di->op1();
 
@@ -9163,14 +9162,12 @@ template <typename URV>
 void
 Hart<URV>::execVmv_v_x(const DecodedInst* di)
 {
-  if (not isVecLegal() or not vecRegs_.legalConfig())
+  bool masked = di->isMasked();
+  if (masked or (not isVecLegal()) or not (vecRegs_.legalConfig()))
     {
       illegalInst(di);
       return;
     }
-
-  bool masked = di->isMasked();
-  assert(not masked);
 
   unsigned vd = di->op0();
   unsigned rs1 = di->op1();
@@ -9222,14 +9219,12 @@ template <typename URV>
 void
 Hart<URV>::execVmv_v_i(const DecodedInst* di)
 {
-  if (not isVecLegal() or not vecRegs_.legalConfig())
+  bool masked = di->isMasked();
+  if (masked or (not isVecLegal()) or (not vecRegs_.legalConfig()))
     {
       illegalInst(di);
       return;
     }
-
-  bool masked = di->isMasked();
-  assert(not masked);
 
   unsigned vd = di->op0();
 
