@@ -323,6 +323,28 @@ namespace WdRiscv
       return (data[byteIx] >> bitIx) & 1;
     }
 
+    /// Set the ith bit of the given mask regiser to the given value.
+    /// Return true on success and false on failure (register or
+    /// element index out of bound.
+    bool setMaskRegister(uint32_t maskReg, uint32_t i, bool value)
+    {
+      if (maskReg >= regCount_)
+        return false;
+
+      uint32_t byteIx = i >> 3;
+      uint32_t bitIx = i & 7;  // bit in byte
+      if (byteIx >= bytesPerReg_)
+        return false;
+
+      uint8_t* data = data_ + maskReg*bytesPerReg_;
+      uint8_t mask = uint8_t(1) << bitIx;
+      if (value)
+        data[byteIx] |= mask;
+      else
+        data[byteIx] &= ~mask;
+      return true;
+    }
+
     /// Return the pointers to the 1st byte of the memory area
     /// associated with the given vector. Return nullptr if
     /// vector index is out of bounds.

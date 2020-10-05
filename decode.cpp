@@ -202,10 +202,14 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         case 6:    return instTable_.getEntry(InstId::vmaxu_vv);
         case 7:    return instTable_.getEntry(InstId::vmax_vv);
         case 9:    return instTable_.getEntry(InstId::vand_vv);
-        case 10:   return instTable_.getEntry(InstId::vor_vv);
-        case 11:   return instTable_.getEntry(InstId::vxor_vv);
-        case 12:   return instTable_.getEntry(InstId::vrgather_vv);
-        case 14:   return instTable_.getEntry(InstId::vrgatherei16_vv);
+        case 0xa:  return instTable_.getEntry(InstId::vor_vv);
+        case 0xb:  return instTable_.getEntry(InstId::vxor_vv);
+        case 0xc:  return instTable_.getEntry(InstId::vrgather_vv);
+        case 0xe:  return instTable_.getEntry(InstId::vrgatherei16_vv);
+        case 0x10: return instTable_.getEntry(InstId::vadc_vvm);
+        case 0x11: return instTable_.getEntry(InstId::vmadc_vvm);
+        case 0x12: return instTable_.getEntry(InstId::vsbc_vvm);
+        case 0x13: return instTable_.getEntry(InstId::vmsbc_vvm);
         case 0x17:
           if (vm == 0) return instTable_.getEntry(InstId::vmerge_vv);
           if (vm == 1)
@@ -240,12 +244,12 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
           if (op2 == 0x11) return instTable_.getEntry(InstId::vfirst_m);
           return instTable_.getEntry(InstId::illegal);
         case 0x12:
-          if (op2 == 2)  return instTable_.getEntry(InstId::vzext_f8);
-          if (op2 == 4)  return instTable_.getEntry(InstId::vzext_f4);
-          if (op2 == 6)  return instTable_.getEntry(InstId::vzext_f2);
-          if (op2 == 3)  return instTable_.getEntry(InstId::vsext_f8);
-          if (op2 == 5)  return instTable_.getEntry(InstId::vsext_f4);
-          if (op2 == 7)  return instTable_.getEntry(InstId::vsext_f2);
+          if (op2 == 2)  return instTable_.getEntry(InstId::vzext_vf8);
+          if (op2 == 4)  return instTable_.getEntry(InstId::vzext_vf4);
+          if (op2 == 6)  return instTable_.getEntry(InstId::vzext_vf2);
+          if (op2 == 3)  return instTable_.getEntry(InstId::vsext_vf8);
+          if (op2 == 5)  return instTable_.getEntry(InstId::vsext_vf4);
+          if (op2 == 7)  return instTable_.getEntry(InstId::vsext_vf2);
           return instTable_.getEntry(InstId::illegal);
         case 0x14:
           if (op2 == 1)    return instTable_.getEntry(InstId::vmsbf_m);
@@ -295,11 +299,13 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         case 0:    return instTable_.getEntry(InstId::vadd_vi);
         case 3:    return instTable_.getEntry(InstId::vrsub_vi);
         case 9:    return instTable_.getEntry(InstId::vand_vi);
-        case 10:   return instTable_.getEntry(InstId::vor_vi);
-        case 11:   return instTable_.getEntry(InstId::vxor_vi);
-        case 12:   return instTable_.getEntry(InstId::vrgather_vi);
-        case 14:   return instTable_.getEntry(InstId::vslideup_vi);
-        case 15:   return instTable_.getEntry(InstId::vslidedown_vi);
+        case 0xa:  return instTable_.getEntry(InstId::vor_vi);
+        case 0xb:  return instTable_.getEntry(InstId::vxor_vi);
+        case 0xc:  return instTable_.getEntry(InstId::vrgather_vi);
+        case 0xe:  return instTable_.getEntry(InstId::vslideup_vi);
+        case 0xf:  return instTable_.getEntry(InstId::vslidedown_vi);
+        case 0x10: return instTable_.getEntry(InstId::vadc_vim);
+        case 0x11: return instTable_.getEntry(InstId::vmadc_vim);
         case 0x17:
           if (vm == 0) return instTable_.getEntry(InstId::vmerge_vi);
           if (vm == 1)
@@ -335,11 +341,15 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         case 6:    return instTable_.getEntry(InstId::vmaxu_vx);
         case 7:    return instTable_.getEntry(InstId::vmax_vx);
         case 9:    return instTable_.getEntry(InstId::vand_vx);
-        case 10:   return instTable_.getEntry(InstId::vor_vx);
-        case 11:   return instTable_.getEntry(InstId::vxor_vx);
-        case 12:   return instTable_.getEntry(InstId::vrgather_vx);
-        case 14:   return instTable_.getEntry(InstId::vslideup_vx);
-        case 15:   return instTable_.getEntry(InstId::vslidedown_vx);
+        case 0xa:  return instTable_.getEntry(InstId::vor_vx);
+        case 0xb:  return instTable_.getEntry(InstId::vxor_vx);
+        case 0xc:  return instTable_.getEntry(InstId::vrgather_vx);
+        case 0xe:  return instTable_.getEntry(InstId::vslideup_vx);
+        case 0xf:  return instTable_.getEntry(InstId::vslidedown_vx);
+        case 0x10: return instTable_.getEntry(InstId::vadc_vxm);
+        case 0x11: return instTable_.getEntry(InstId::vmadc_vxm);
+        case 0x12: return instTable_.getEntry(InstId::vsbc_vxm);
+        case 0x13: return instTable_.getEntry(InstId::vmsbc_vxm);
         case 0x17:
           if (vm == 0) return instTable_.getEntry(InstId::vmerge_vx);
           if (vm == 1)

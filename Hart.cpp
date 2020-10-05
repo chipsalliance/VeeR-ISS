@@ -5506,12 +5506,22 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vremu_vx,
      &&vrem_vv,
      &&vrem_vx,
-     &&vsext_f2,
-     &&vsext_f4,
-     &&vsext_f8,
-     &&vzext_f2,
-     &&vzext_f4,
-     &&vzext_f8,
+     &&vsext_vf2,
+     &&vsext_vf4,
+     &&vsext_vf8,
+     &&vzext_vf2,
+     &&vzext_vf4,
+     &&vzext_vf8,
+     &&vadc_vvm,
+     &&vadc_vxm,
+     &&vadc_vim,
+     &&vsbc_vvm,
+     &&vsbc_vxm,
+     &&vmadc_vvm,
+     &&vmadc_vxm,
+     &&vmadc_vim,
+     &&vmsbc_vvm,
+     &&vmsbc_vxm,
      &&vmerge_vv,
      &&vmerge_vx,
      &&vmerge_vi,
@@ -7033,28 +7043,68 @@ Hart<URV>::execute(const DecodedInst* di)
   execVrem_vx(di);
   return;
 
- vsext_f2:
-  execVsext_f2(di);
+ vsext_vf2:
+  execVsext_vf2(di);
   return;
 
- vsext_f4:
-  execVsext_f4(di);
+ vsext_vf4:
+  execVsext_vf4(di);
   return;
 
- vsext_f8:
-  execVsext_f8(di);
+ vsext_vf8:
+  execVsext_vf8(di);
   return;
 
- vzext_f2:
-  execVzext_f2(di);
+ vzext_vf2:
+  execVzext_vf2(di);
   return;
 
- vzext_f4:
-  execVzext_f4(di);
+ vzext_vf4:
+  execVzext_vf4(di);
   return;
 
- vzext_f8:
-  execVzext_f8(di);
+ vzext_vf8:
+  execVzext_vf8(di);
+  return;
+
+ vadc_vvm:
+  execVadc_vvm(di);
+  return;
+
+ vadc_vxm:
+  execVadc_vxm(di);
+  return;
+
+ vadc_vim:
+  execVadc_vim(di);
+  return;
+
+ vsbc_vvm:
+  execVsbc_vvm(di);
+  return;
+
+ vsbc_vxm:
+  execVsbc_vxm(di);
+  return;
+
+ vmadc_vvm:
+  execVmadc_vvm(di);
+  return;
+
+ vmadc_vxm:
+  execVmadc_vxm(di);
+  return;
+
+ vmadc_vim:
+  execVmadc_vim(di);
+  return;
+
+ vmsbc_vvm:
+  execVmsbc_vvm(di);
+  return;
+
+ vmsbc_vxm:
+  execVmsbc_vxm(di);
   return;
 
  vmerge_vv:

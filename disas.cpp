@@ -2152,28 +2152,78 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       out << "vrem.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
       break;
 
-    case InstId::vsext_f2:
-      out << "vsext.f2 v" << di.op0() << ", v" << di.op1();
+    case InstId::vsext_vf2:
+      out << "vsext.vf2 v" << di.op0() << ", v" << di.op1();
       break;
 
-    case InstId::vsext_f4:
-      out << "vsext.f4 v" << di.op0() << ", v" << di.op1();
+    case InstId::vsext_vf4:
+      out << "vsext.vf4 v" << di.op0() << ", v" << di.op1();
       break;
 
-    case InstId::vsext_f8:
-      out << "vsext.f8 v" << di.op0() << ", v" << di.op1();
+    case InstId::vsext_vf8:
+      out << "vsext.vf8 v" << di.op0() << ", v" << di.op1();
       break;
 
-    case InstId::vzext_f2:
-      out << "vzext.f2 v" << di.op0() << ", v" << di.op1();
+    case InstId::vzext_vf2:
+      out << "vzext.vf2 v" << di.op0() << ", v" << di.op1();
       break;
 
-    case InstId::vzext_f4:
-      out << "vzext.f4 v" << di.op0() << ", v" << di.op1();
+    case InstId::vzext_vf4:
+      out << "vzext.vf4 v" << di.op0() << ", v" << di.op1();
       break;
 
-    case InstId::vzext_f8:
-      out << "vzext.f8 v" << di.op0() << ", v" << di.op1();
+    case InstId::vzext_vf8:
+      out << "vzext.vf8 v" << di.op0() << ", v" << di.op1();
+      break;
+
+    case InstId::vadc_vvm:
+      out << "vadc.vvm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      out << ", v0";
+      break;
+
+    case InstId::vadc_vxm:
+      out << "vadc.vxm v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      out << ", v0";
+      break;
+
+    case InstId::vadc_vim:
+      out << "vadc.vim v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
+      out << ", v0";
+      break;
+
+    case InstId::vsbc_vvm:
+      out << "vsbc.vvm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      out << ", v0";
+      break;
+
+    case InstId::vsbc_vxm:
+      out << "vsbc.vxm v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      out << ", v0";
+      break;
+
+    case InstId::vmadc_vvm:
+      out << "vmadc.vvm v" << di.op0() << ", v" << di.op1() << ", " << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vmadc_vxm:
+      out << "vmadc.vxm v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vmadc_vim:
+      out << "vmadc.vim v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vmsbc_vvm:
+      out << "vmsbc.vvm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vmsbc_vxm:
+      out << "vmsbc.vxm v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0";
       break;
 
     case InstId::vmerge_vv:

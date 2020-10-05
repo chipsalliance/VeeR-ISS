@@ -2295,16 +2295,63 @@ namespace WdRiscv
     template<typename ELEM_TYPE, typename FROM_TYPE>
     void vsext(unsigned vd, unsigned vs1, unsigned group, unsigned fromGroup,
                unsigned start, unsigned elems, bool masked);
-    void execVsext_f2(const DecodedInst*);
-    void execVsext_f4(const DecodedInst*);
-    void execVsext_f8(const DecodedInst*);
+    void execVsext_vf2(const DecodedInst*);
+    void execVsext_vf4(const DecodedInst*);
+    void execVsext_vf8(const DecodedInst*);
 
     template<typename ELEM_TYPE, typename FROM_TYPE>
     void vzext(unsigned vd, unsigned vs1, unsigned group, unsigned from,
                unsigned start, unsigned elems, bool masked);
-    void execVzext_f2(const DecodedInst*);
-    void execVzext_f4(const DecodedInst*);
-    void execVzext_f8(const DecodedInst*);
+    void execVzext_vf2(const DecodedInst*);
+    void execVzext_vf4(const DecodedInst*);
+    void execVzext_vf8(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vadc_vvm(unsigned vd, unsigned vs1, unsigned vs2, unsigned vcin,
+                  unsigned group, unsigned start, unsigned elems);
+
+    template<typename ELEM_TYPE>
+    void vadc_vxm(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned vcin,
+                  unsigned group, unsigned start, unsigned elems);
+    
+    template<typename ELEM_TYPE>
+    void vsbc_vvm(unsigned vd, unsigned vs1, unsigned vs2, unsigned vbin,
+                  unsigned group, unsigned start, unsigned elems);
+
+    template<typename ELEM_TYPE>
+    void vsbc_vxm(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned vbin,
+                  unsigned group, unsigned start, unsigned elems);
+
+    template<typename ELEM_TYPE>
+    void vmadc_vvm(unsigned vcout, unsigned vs1, unsigned vs2, bool carry,
+                   unsigned vcin, unsigned group, unsigned start,
+                   unsigned elems);
+
+    template<typename ELEM_TYPE>
+    void vmadc_vxm(unsigned vcout, unsigned vs1, ELEM_TYPE e2, bool carry,
+                   unsigned vcin, unsigned group, unsigned start,
+                   unsigned elems);
+
+    template<typename ELEM_TYPE>
+    void vmsbc_vvm(unsigned vbout, unsigned vs1, unsigned vs2, bool borrow,
+                   unsigned vbin, unsigned group, unsigned start,
+                   unsigned elems);
+
+    template<typename ELEM_TYPE>
+    void vmsbc_vxm(unsigned vbout, unsigned vs1, ELEM_TYPE e2, bool borrow,
+                   unsigned vbin, unsigned group, unsigned start,
+                   unsigned elems);
+
+    void execVadc_vvm(const DecodedInst*);
+    void execVadc_vxm(const DecodedInst*);
+    void execVadc_vim(const DecodedInst*);
+    void execVsbc_vvm(const DecodedInst*);
+    void execVsbc_vxm(const DecodedInst*);
+    void execVmadc_vvm(const DecodedInst*);
+    void execVmadc_vxm(const DecodedInst*);
+    void execVmadc_vim(const DecodedInst*);
+    void execVmsbc_vvm(const DecodedInst*);
+    void execVmsbc_vxm(const DecodedInst*);
 
     template<typename ELEM_TYPE>
     void vmerge_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,

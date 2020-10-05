@@ -7329,7 +7329,7 @@ Hart<URV>::vsext(unsigned vd, unsigned vs1, unsigned group, unsigned fromGroup,
 
 template <typename URV>
 void
-Hart<URV>::execVsext_f2(const DecodedInst* di)
+Hart<URV>::execVsext_vf2(const DecodedInst* di)
 {
   if (not isVecLegal() or not vecRegs_.legalConfig())
     {
@@ -7413,7 +7413,7 @@ Hart<URV>::execVsext_f2(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execVsext_f4(const DecodedInst* di)
+Hart<URV>::execVsext_vf4(const DecodedInst* di)
 {
   if (not isVecLegal() or not vecRegs_.legalConfig())
     {
@@ -7494,7 +7494,7 @@ Hart<URV>::execVsext_f4(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execVsext_f8(const DecodedInst* di)
+Hart<URV>::execVsext_vf8(const DecodedInst* di)
 {
   if (not isVecLegal() or not vecRegs_.legalConfig())
     {
@@ -7599,7 +7599,7 @@ Hart<URV>::vzext(unsigned vd, unsigned vs1, unsigned group, unsigned fromGroup,
 
 template <typename URV>
 void
-Hart<URV>::execVzext_f2(const DecodedInst* di)
+Hart<URV>::execVzext_vf2(const DecodedInst* di)
 {
   if (not isVecLegal() or not vecRegs_.legalConfig())
     {
@@ -7683,7 +7683,7 @@ Hart<URV>::execVzext_f2(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execVzext_f4(const DecodedInst* di)
+Hart<URV>::execVzext_vf4(const DecodedInst* di)
 {
   if (not isVecLegal() or not vecRegs_.legalConfig())
     {
@@ -7764,7 +7764,7 @@ Hart<URV>::execVzext_f4(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execVzext_f8(const DecodedInst* di)
+Hart<URV>::execVzext_vf8(const DecodedInst* di)
 {
   if (not isVecLegal() or not vecRegs_.legalConfig())
     {
@@ -7832,6 +7832,844 @@ Hart<URV>::execVzext_f8(const DecodedInst* di)
 
     case ElementWidth::Kbits:
       vzext<Uint1024, Uint128>(vd, vs1, group, fromGroup, start, elems, masked);
+      break;
+    }
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vadc_vvm(unsigned vd, unsigned vs1, unsigned vs2, unsigned vcin,
+                    unsigned group, unsigned start, unsigned elems)
+{
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (vecRegs_.read(vs1, ix, group, e1) and
+          vecRegs_.read(vs2, ix, group, e2))
+        {
+          dest = e1 + e2;
+          if (vecRegs_.isActive(vcin, ix))
+            dest += ELEM_TYPE(1);
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vadc_vxm(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned vcin,
+                    unsigned group, unsigned start, unsigned elems)
+{
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (vecRegs_.read(vs1, ix, group, e1))
+        {
+          dest = e1 + e2;
+          if (vecRegs_.isActive(vcin, ix))
+            dest += ELEM_TYPE(1);
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vsbc_vvm(unsigned vd, unsigned vs1, unsigned vs2, unsigned vbin,
+                    unsigned group, unsigned start, unsigned elems)
+{
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (vecRegs_.read(vs1, ix, group, e1) and
+          vecRegs_.read(vs2, ix, group, e2))
+        {
+          dest = e1 - e2;
+          if (vecRegs_.isActive(vbin, ix))
+            dest -= ELEM_TYPE(1);
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vsbc_vxm(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned vbin,
+                    unsigned group, unsigned start, unsigned elems)
+{
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (vecRegs_.read(vs1, ix, group, e1))
+        {
+          dest = e1 - e2;
+          if (vecRegs_.isActive(vbin, ix))
+            dest -= ELEM_TYPE(1);
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vmadc_vvm(unsigned vcout, unsigned vs1, unsigned vs2, bool carry, unsigned vcin,
+                     unsigned group, unsigned start, unsigned elems)
+{
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (vecRegs_.read(vs1, ix, group, e1) and
+          vecRegs_.read(vs2, ix, group, e2))
+        {
+          dest = e1 + e2;
+          if (carry and vecRegs_.isActive(vcin, ix))
+            dest += ELEM_TYPE(1);
+
+          bool cout = dest < e1;
+          if (not vecRegs_.setMaskRegister(vcout, ix, cout))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vmadc_vxm(unsigned vcout, unsigned vs1, ELEM_TYPE e2, bool carry, unsigned vcin,
+                     unsigned group, unsigned start, unsigned elems)
+{
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (vecRegs_.read(vs1, ix, group, e1))
+        {
+          dest = e1 + e2;
+          if (carry and vecRegs_.isActive(vcin, ix))
+            dest += ELEM_TYPE(1);
+
+          bool cout = dest < e1;
+          if (not vecRegs_.setMaskRegister(vcout, ix, cout))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vmsbc_vvm(unsigned vbout, unsigned vs1, unsigned vs2, bool borrow, unsigned vbin,
+                     unsigned group, unsigned start, unsigned elems)
+{
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (vecRegs_.read(vs1, ix, group, e1) and
+          vecRegs_.read(vs2, ix, group, e2))
+        {
+          dest = e1 - e2;
+          if (borrow and vecRegs_.isActive(vbin, ix))
+            dest -= ELEM_TYPE(1);
+
+          bool bout = e1 < e2;
+          if (not vecRegs_.setMaskRegister(vbout, ix, bout))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vmsbc_vxm(unsigned vbout, unsigned vs1, ELEM_TYPE e2, bool borrow, unsigned vbin,
+                     unsigned group, unsigned start, unsigned elems)
+{
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0, dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (vecRegs_.read(vs1, ix, group, e1))
+        {
+          dest = e1 - e2;
+          if (borrow and vecRegs_.isActive(vbin, ix))
+            dest -= ELEM_TYPE(1);
+
+          bool bout = e1 < e2;
+          if (not vecRegs_.setMaskRegister(vbout, ix, bout))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVadc_vvm(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2(),  vcin = 0;
+  if (vd == vcin or not masked)   // cannot overlap vcin, unmasked verion reserved
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vadc_vvm<uint8_t>(vd, vs1, vs2, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfWord:
+      vadc_vvm<uint16_t>(vd, vs1, vs2, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::Word:
+      vadc_vvm<uint32_t>(vd, vs1, vs2, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vadc_vvm<uint64_t>(vd, vs1, vs2, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::QuadWord:
+      vadc_vvm<Uint128>(vd, vs1, vs2, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::OctWord:
+      vadc_vvm<Uint256>(vd, vs1, vs2, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vadc_vvm<Uint512>(vd, vs1, vs2, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::Kbits:
+      vadc_vvm<Uint1024>(vd, vs1, vs2, vcin, group, start, elems);
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVadc_vxm(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vcin = 0;
+  if (vd == vcin or not masked)   // cannot overlap vcin, unmasked verion reserved
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  SRV e2 = SRV(intRegs_.read(di->op2()));
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vadc_vxm<uint8_t>(vd, vs1, e2, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfWord:
+      vadc_vxm<uint16_t>(vd, vs1, e2, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::Word:
+      vadc_vxm<uint32_t>(vd, vs1, int32_t(e2), vcin, group, start, elems);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vadc_vxm<uint64_t>(vd, vs1, int64_t(e2), vcin, group, start, elems);
+      break;
+
+    case ElementWidth::QuadWord:
+      vadc_vxm<Uint128>(vd, vs1, Int128(e2), vcin, group, start, elems);
+      break;
+
+    case ElementWidth::OctWord:
+      vadc_vxm<Uint256>(vd, vs1, Int256(e2), vcin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vadc_vxm<Uint512>(vd, vs1, Int512(e2), vcin, group, start, elems);
+      break;
+
+    case ElementWidth::Kbits:
+      vadc_vxm<Uint1024>(vd, vs1, Int1024(e2), vcin, group, start, elems);
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVadc_vim(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vcin = 0;
+  if (vd == vcin or not masked)   // cannot overlap vcin, unmasked verion reserved
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  SRV e2 = di->op2As<int32_t>();
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vadc_vxm<uint8_t>(vd, vs1, e2, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfWord:
+      vadc_vxm<uint16_t>(vd, vs1, e2, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::Word:
+      vadc_vxm<uint32_t>(vd, vs1, int32_t(e2), vcin, group, start, elems);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vadc_vxm<uint64_t>(vd, vs1, int64_t(e2), vcin, group, start, elems);
+      break;
+
+    case ElementWidth::QuadWord:
+      vadc_vxm<Uint128>(vd, vs1, Int128(e2), vcin, group, start, elems);
+      break;
+
+    case ElementWidth::OctWord:
+      vadc_vxm<Uint256>(vd, vs1, Int256(e2), vcin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vadc_vxm<Uint512>(vd, vs1, Int512(e2), vcin, group, start, elems);
+      break;
+
+    case ElementWidth::Kbits:
+      vadc_vxm<Uint1024>(vd, vs1, Int1024(e2), vcin, group, start, elems);
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsbc_vvm(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2(),  vbin = 0;
+  if (vd == vbin or not masked)   // cannot overlap borrow-in, unmasked verion reserved
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vsbc_vvm<uint8_t>(vd, vs1, vs2, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfWord:
+      vsbc_vvm<uint16_t>(vd, vs1, vs2, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::Word:
+      vsbc_vvm<uint32_t>(vd, vs1, vs2, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vsbc_vvm<uint64_t>(vd, vs1, vs2, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::QuadWord:
+      vsbc_vvm<Uint128>(vd, vs1, vs2, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::OctWord:
+      vsbc_vvm<Uint256>(vd, vs1, vs2, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vsbc_vvm<Uint512>(vd, vs1, vs2, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::Kbits:
+      vsbc_vvm<Uint1024>(vd, vs1, vs2, vbin, group, start, elems);
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsbc_vxm(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vbin = 0;
+  if (vd == vbin or not masked)   // cannot overlap borrow-in, unmasked verion reserved
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  SRV e2 = SRV(intRegs_.read(di->op2()));
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vsbc_vxm<uint8_t>(vd, vs1, e2, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfWord:
+      vsbc_vxm<uint16_t>(vd, vs1, e2, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::Word:
+      vsbc_vxm<uint32_t>(vd, vs1, int32_t(e2), vbin, group, start, elems);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vsbc_vxm<uint64_t>(vd, vs1, int64_t(e2), vbin, group, start, elems);
+      break;
+
+    case ElementWidth::QuadWord:
+      vsbc_vxm<Uint128>(vd, vs1, Int128(e2), vbin, group, start, elems);
+      break;
+
+    case ElementWidth::OctWord:
+      vsbc_vxm<Uint256>(vd, vs1, Int256(e2), vbin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vsbc_vxm<Uint512>(vd, vs1, Int512(e2), vbin, group, start, elems);
+      break;
+
+    case ElementWidth::Kbits:
+      vsbc_vxm<Uint1024>(vd, vs1, Int1024(e2), vbin, group, start, elems);
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmadc_vvm(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool carry = di->isMasked();
+  unsigned vcout = di->op0(),  vs1 = di->op1(),  vs2 = di->op2(),  vcin = 0;
+  if (vcout == vcin)   // cannot overlap vcin
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vmadc_vvm<uint8_t>(vcout, vs1, vs2, carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfWord:
+      vmadc_vvm<uint16_t>(vcout, vs1, vs2, carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::Word:
+      vmadc_vvm<uint32_t>(vcout, vs1, vs2, carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vmadc_vvm<uint64_t>(vcout, vs1, vs2, carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::QuadWord:
+      vmadc_vvm<Uint128>(vcout, vs1, vs2, carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::OctWord:
+      vmadc_vvm<Uint256>(vcout, vs1, vs2, carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vmadc_vvm<Uint512>(vcout, vs1, vs2, carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::Kbits:
+      vmadc_vvm<Uint1024>(vcout, vs1, vs2, carry, vcin, group, start, elems);
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmadc_vxm(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool carry = di->isMasked();
+  unsigned vcout = di->op0(),  vs1 = di->op1(),  vcin = 0;
+  if (vcout == vcin)   // cannot overlap vcin
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  SRV e2 = SRV(intRegs_.read(di->op2()));
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vmadc_vxm<uint8_t>(vcout, vs1, e2, carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfWord:
+      vmadc_vxm<uint16_t>(vcout, vs1, e2, carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::Word:
+      vmadc_vxm<uint32_t>(vcout, vs1, int32_t(e2), carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vmadc_vxm<uint64_t>(vcout, vs1, int64_t(e2), carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::QuadWord:
+      vmadc_vxm<Uint128>(vcout, vs1, Int128(e2), carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::OctWord:
+      vmadc_vxm<Uint256>(vcout, vs1, Int256(e2), carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vmadc_vxm<Uint512>(vcout, vs1, Int512(e2), carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::Kbits:
+      vmadc_vxm<Uint1024>(vcout, vs1, Int1024(e2), carry, vcin, group, start, elems);
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmadc_vim(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool carry = di->isMasked();
+  unsigned vcout = di->op0(),  vs1 = di->op1(),  vcin = 0;
+  if (vcout == vcin)   // cannot overlap vcin
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  SRV e2 = di->op2As<int32_t>();
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vmadc_vxm<uint8_t>(vcout, vs1, e2, carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfWord:
+      vmadc_vxm<uint16_t>(vcout, vs1, e2, carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::Word:
+      vmadc_vxm<uint32_t>(vcout, vs1, int32_t(e2), carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vmadc_vxm<uint64_t>(vcout, vs1, int64_t(e2), carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::QuadWord:
+      vmadc_vxm<Uint128>(vcout, vs1, Int128(e2), carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::OctWord:
+      vmadc_vxm<Uint256>(vcout, vs1, Int256(e2), carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vmadc_vxm<Uint512>(vcout, vs1, Int512(e2), carry, vcin, group, start, elems);
+      break;
+
+    case ElementWidth::Kbits:
+      vmadc_vxm<Uint1024>(vcout, vs1, Int1024(e2), carry, vcin, group, start, elems);
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmsbc_vvm(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool borrow = di->isMasked();
+  unsigned vbout = di->op0(),  vs1 = di->op1(),  vs2 = di->op2(),  vbin = 0;
+  if (vbout == vbin)   // cannot overlap borrow-in
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vmsbc_vvm<uint8_t>(vbout, vs1, vs2, borrow, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfWord:
+      vmsbc_vvm<uint16_t>(vbout, vs1, vs2, borrow, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::Word:
+      vmsbc_vvm<uint32_t>(vbout, vs1, vs2, borrow, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vmsbc_vvm<uint64_t>(vbout, vs1, vs2, borrow, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::QuadWord:
+      vmsbc_vvm<Uint128>(vbout, vs1, vs2, borrow, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::OctWord:
+      vmsbc_vvm<Uint256>(vbout, vs1, vs2, borrow, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vmsbc_vvm<Uint512>(vbout, vs1, vs2, borrow, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::Kbits:
+      vmsbc_vvm<Uint1024>(vbout, vs1, vs2, borrow, vbin, group, start, elems);
+      break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVmsbc_vxm(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool borrow = di->isMasked();
+  unsigned vbout = di->op0(),  vs1 = di->op1(),  vbin = 0;
+  if (vbout == vbin)   // cannot overlap borrow-in
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  SRV e2 = SRV(intRegs_.read(di->op2()));
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vmsbc_vxm<uint8_t>(vbout, vs1, e2, borrow, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfWord:
+      vmsbc_vxm<uint16_t>(vbout, vs1, e2, borrow, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::Word:
+      vmsbc_vxm<uint32_t>(vbout, vs1, int32_t(e2), borrow, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vmsbc_vxm<uint64_t>(vbout, vs1, int64_t(e2), borrow, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::QuadWord:
+      vmsbc_vxm<Uint128>(vbout, vs1, Int128(e2), borrow, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::OctWord:
+      vmsbc_vxm<Uint256>(vbout, vs1, Int256(e2), borrow, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vmsbc_vxm<Uint512>(vbout, vs1, Int512(e2), borrow, vbin, group, start, elems);
+      break;
+
+    case ElementWidth::Kbits:
+      vmsbc_vxm<Uint1024>(vbout, vs1, Int1024(e2), borrow, vbin, group, start, elems);
       break;
     }
 }

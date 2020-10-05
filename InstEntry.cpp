@@ -2627,7 +2627,7 @@ InstTable::setupInstVec()
         OperandType::VecReg, OperandMode::Read, rs2Mask,
       },
 
-      { "vsext.f2", InstId::vsext_f2,
+      { "vsext.vf2", InstId::vsext_vf2,
         0b010010'1'00000'00111'010'00000'1010111,
         0b111111'0'00000'00111'111'00000'1111111, // Mask of opcode bits
         InstType::Vector,
@@ -2635,7 +2635,7 @@ InstTable::setupInstVec()
         OperandType::VecReg, OperandMode::Read, rs2Mask,
       },
 
-      { "vsext.f4", InstId::vsext_f4,
+      { "vsext.vf4", InstId::vsext_vf4,
         0b010010'1'00000'00101'010'00000'1010111,
         0b111111'0'00000'00111'111'00000'1111111, // Mask of opcode bits
         InstType::Vector,
@@ -2643,7 +2643,7 @@ InstTable::setupInstVec()
         OperandType::VecReg, OperandMode::Read, rs2Mask,
       },
 
-      { "vsext.f8", InstId::vsext_f8,
+      { "vsext.vf8", InstId::vsext_vf8,
         0b010010'1'00000'00011'010'00000'1010111,
         0b111111'0'00000'00111'111'00000'1111111, // Mask of opcode bits
         InstType::Vector,
@@ -2651,7 +2651,7 @@ InstTable::setupInstVec()
         OperandType::VecReg, OperandMode::Read, rs2Mask,
       },
 
-      { "vzext.f2", InstId::vzext_f2,
+      { "vzext.vf2", InstId::vzext_vf2,
         0b010010'1'00000'00110'010'00000'1010111,
         0b111111'0'00000'00111'111'00000'1111111, // Mask of opcode bits
         InstType::Vector,
@@ -2659,7 +2659,7 @@ InstTable::setupInstVec()
         OperandType::VecReg, OperandMode::Read, rs2Mask,
       },
 
-      { "vzext.f4", InstId::vzext_f4,
+      { "vzext.vf4", InstId::vzext_vf4,
         0b010010'1'00000'00100'010'00000'1010111,
         0b111111'0'00000'00111'111'00000'1111111, // Mask of opcode bits
         InstType::Vector,
@@ -2667,11 +2667,101 @@ InstTable::setupInstVec()
         OperandType::VecReg, OperandMode::Read, rs2Mask,
       },
 
-      { "vzext.f8", InstId::vzext_f8,
+      { "vzext.vf8", InstId::vzext_vf8,
         0b010010'1'00000'00010'010'00000'1010111,
         0b111111'0'00000'00111'111'00000'1111111, // Mask of opcode bits
         InstType::Vector,
         OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vadc.vvm", InstId::vadc_vvm,
+        0b010000'0'00000'00000'000'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vadc.vxm", InstId::vadc_vxm,
+        0b010000'0'00000'00000'100'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vadc.vim", InstId::vadc_vim,
+        0b010000'0'00000'00000'011'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vsbc.vvm", InstId::vsbc_vvm,
+        0b010010'0'00000'00011'000'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vsbc.vxm", InstId::vsbc_vxm,
+        0b010010'0'00000'00011'100'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vmadc.vvm", InstId::vmadc_vvm,
+        0b010001'0'00000'00000'000'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vmadc.vxm", InstId::vmadc_vxm,
+        0b010001'0'00000'00000'100'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vmadc.vim", InstId::vmadc_vim,
+        0b010001'0'00000'00000'011'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vmsbc.vvm", InstId::vmsbc_vvm,
+        0b010011'0'00000'00011'000'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vmsbc.vxm", InstId::vmsbc_vxm,
+        0b010011'0'00000'00011'100'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
         OperandType::VecReg, OperandMode::Read, rs2Mask,
       },
 
