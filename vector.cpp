@@ -3721,8 +3721,12 @@ Hart<URV>::vrgather_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
 {
   unsigned errors = 0;
 
+  unsigned bytesPerElem = sizeof(ELEM_TYPE);
+  unsigned vlmax = group*vecRegs_.bitsPerRegister()/bytesPerElem;
+
   URV rv2 = intRegs_.read(rs2);
-  URV vs1Ix = rv2;    // FIX: if rv2 > VLMAX, rv2 = VLMAX
+
+  URV vs1Ix = rv2 < vlmax ? rv2 : vlmax;
 
   ELEM_TYPE e1 = 0, dest = 0;
 
@@ -5314,7 +5318,6 @@ Hart<URV>::execViota_m(const DecodedInst* di)
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  elems = vecRegs_.elemCount();;
 
-  // Spec does not explicitly state this.  FIX double check.
   if (masked and vd == 0)
     {
       illegalInst(di);
@@ -5391,7 +5394,6 @@ Hart<URV>::execVid_v(const DecodedInst* di)
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  elems = vecRegs_.elemCount();;
 
-  // Spec does not explicitly state this.  FIX double check.
   if (masked and vd == 0)
     {
       illegalInst(di);
