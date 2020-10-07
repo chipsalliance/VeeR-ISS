@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include <memory>               // For shared_ptr
 #include <Memory.hpp>
 
 
@@ -68,6 +69,15 @@ namespace WdRiscv
       if (i >= sysHarts_.size())
 	return std::shared_ptr<HartClass>();
       return sysHarts_.at(i);
+    }
+
+    /// Return pointer to the ith core in the system or null if i is
+    /// out of bounds.
+    std::shared_ptr<CoreClass> ithCore(unsigned i)
+    {
+      if (i >= cores_.size())
+	return std::shared_ptr<CoreClass>();
+      return cores_.at(i);
     }
 
     /// With a true flag, when loading ELF files, error out if ELF
