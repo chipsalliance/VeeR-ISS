@@ -972,7 +972,7 @@ Hart<URV>::vwadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
           vecRegs_.read(vs2, ix, group, e2))
         {
           dest = DWT(e1);
-          dest += e2;
+          dest += DWT(e2);
           if (not vecRegs_.write(vd, ix, wideGroup, dest))
             errors++;
         }
@@ -1124,7 +1124,7 @@ Hart<URV>::vwadd_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
       if (vecRegs_.read(vs1, ix, group, e1))
         {
           dest = DWT(e1);
-          dest += e2;
+          dest += DWT(e2);
           if (not vecRegs_.write(vd, ix, doubleGroup, dest))
             errors++;
         }
@@ -1405,7 +1405,7 @@ Hart<URV>::vwsub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
           vecRegs_.read(vs2, ix, group, e2))
         {
           dest = DWT(e1);
-          dest -= e2;
+          dest -= DWT(e2);
           if (not vecRegs_.write(vd, ix, doubleGroup, dest))
             errors++;
         }
@@ -1558,7 +1558,7 @@ Hart<URV>::vwadd_wv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
           vecRegs_.read(vs2, ix, group, e2))
         {
           dest = e1;
-          dest += e2;
+          dest += DWT(e2);
           if (not vecRegs_.write(vd, ix, doubleGroup, dest))
             errors++;
         }
@@ -1959,7 +1959,7 @@ Hart<URV>::vwsub_wv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
           vecRegs_.read(vs2, ix, group, e2))
         {
           dest = e1;
-          dest -= e2;
+          dest -= DWT(e2);
           if (not vecRegs_.write(vd, ix, doubleGroup, dest))
             errors++;
         }
@@ -6762,7 +6762,7 @@ Hart<URV>::vwmul_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
           vecRegs_.read(vs2, ix, group, e2))
         {
           dest = ELEM_TYPE_X2(e1);
-          dest *= e2;
+          dest *= ELEM_TYPE_X2(e2);
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -6856,6 +6856,7 @@ Hart<URV>::vwmul_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
 
   ELEM_TYPE e1 = 0;
   ELEM_TYPE_X2 dest = 0;
+  ELEM_TYPE_X2 e2Wide(e2);
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -6865,7 +6866,7 @@ Hart<URV>::vwmul_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
       if (vecRegs_.read(vs1, ix, group, e1))
         {
           dest = ELEM_TYPE_X2(e1);
-          dest *= e2;
+          dest *= e2Wide;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -6956,10 +6957,12 @@ Hart<URV>::vwmulsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                      unsigned start, unsigned elems, bool masked)
 {
   typedef typename makeDoubleWide<ELEM_TYPE>::type  ELEM_TYPE_X2;
+  typedef typename std::make_unsigned<ELEM_TYPE>::type ELEM_TYPE_U;
 
   unsigned errors = 0;
 
-  ELEM_TYPE e1 = 0, e2 = 0;
+  ELEM_TYPE e1 = 0;
+  ELEM_TYPE_U e2u = 0;
   ELEM_TYPE_X2 dest = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
@@ -6968,10 +6971,11 @@ Hart<URV>::vwmulsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
         continue;
 
       if (vecRegs_.read(vs1, ix, group, e1) and
-          vecRegs_.read(vs2, ix, group, e2))
+          vecRegs_.read(vs2, ix, group, e2u))
         {
           dest = ELEM_TYPE_X2(e1);
-          dest *= e2;
+          ELEM_TYPE_X2 tmp2(e2u);
+          dest *= tmp2;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -7060,11 +7064,13 @@ Hart<URV>::vwmulsu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
                      unsigned start, unsigned elems, bool masked)
 {
   typedef typename makeDoubleWide<ELEM_TYPE>::type  ELEM_TYPE_X2;
-
+  typedef typename std::make_unsigned<ELEM_TYPE>::type ELEM_TYPE_U;
   unsigned errors = 0;
 
   ELEM_TYPE e1 = 0;
   ELEM_TYPE_X2 dest = 0;
+  ELEM_TYPE_U e2u = ELEM_TYPE_U(e2);
+  ELEM_TYPE_X2 e2Wide(e2u);
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
@@ -7074,7 +7080,7 @@ Hart<URV>::vwmulsu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
       if (vecRegs_.read(vs1, ix, group, e1))
         {
           dest = ELEM_TYPE_X2(e1);
-          dest *= e2;
+          dest *= e2Wide;
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }

@@ -453,13 +453,18 @@ namespace WdRiscv
     { }
 
     /// Construct from an unsigned 256-bit int: Copy bits.
-    Int256(Uint256 x)
+    Int256(const Uint256& x)
       : low_(x.low()), high_(x.high())
     { }
 
     /// Construct from a 128-bit int.
-    Int256(Int128 x)
+    Int256(const HalfType& x)
       : low_(x), high_(x < HalfType(0)? ~HalfType(0) : HalfType(0))
+    { }
+
+    /// Construct from a 128-bit unsigned int.
+    Int256(const HalfUnsigned& x)
+      : low_(x), high_(0)
     { }
 
     /// Construct from a 64-bit int.
@@ -751,6 +756,11 @@ namespace WdRiscv
     /// Construct from a 256-bit int.
     Int512(HalfType x)
       : low_(x), high_(x < HalfType(0)? ~HalfType(0) : HalfType(0))
+    { }
+
+    /// Construct from a 256-bit unsigned int.
+    Int512(HalfUnsigned x)
+      : low_(x), high_(0)
     { }
 
     /// Construct from a 128-bit int.
@@ -1052,6 +1062,11 @@ namespace WdRiscv
     /// Construct from a 512-bit int.
     Int1024(HalfType x)
       : low_(x), high_(x < HalfType(0)? ~HalfType(0) : HalfType(0))
+    { }
+
+    /// Construct from a 512-bit unsigned int.
+    Int1024(HalfUnsigned x)
+      : low_(x), high_(0)
     { }
 
     /// Construct from a 256-bit int.
