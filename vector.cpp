@@ -24,16 +24,6 @@
 #include "Hart.hpp"
 
 
-#if 0
-typedef boost::multiprecision::int256_t   Int256;
-typedef boost::multiprecision::uint256_t  Uint256;
-typedef boost::multiprecision::int512_t   Int512;
-typedef boost::multiprecision::uint512_t  Uint512;
-typedef boost::multiprecision::int1024_t  Int1024;
-typedef boost::multiprecision::uint1024_t Uint1024;
-#endif
-
-
 // make_unsigned does not work on boost types -- compensate.
 namespace std
 {
