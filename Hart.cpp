@@ -5498,6 +5498,12 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vmulhu_vx,
      &&vmulhsu_vv,
      &&vmulhsu_vx,
+     &&vwmulu_vv,
+     &&vwmulu_vx,
+     &&vwmul_vv,
+     &&vwmul_vx,
+     &&vwmulsu_vv,
+     &&vwmulsu_vx,
      &&vdivu_vv,
      &&vdivu_vx,
      &&vdiv_vv,
@@ -7009,6 +7015,30 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vmulhsu_vx:
   execVmulhsu_vx(di);
+  return;
+
+ vwmulu_vv:
+  execVwmulu_vv(di);
+  return;
+
+ vwmulu_vx:
+  execVwmulu_vx(di);
+  return;
+
+ vwmul_vv:
+  execVwmul_vv(di);
+  return;
+
+ vwmul_vx:
+  execVwmul_vx(di);
+  return;
+
+ vwmulsu_vv:
+  execVwmulsu_vv(di);
+  return;
+
+ vwmulsu_vx:
+  execVwmulsu_vx(di);
   return;
 
  vdivu_vv:

@@ -443,6 +443,14 @@ namespace WdRiscv
      vmulhu_vx,
      vmulhsu_vv,
      vmulhsu_vx,
+
+     vwmulu_vv,
+     vwmulu_vx,
+     vwmul_vv,
+     vwmul_vx,
+     vwmulsu_vv,
+     vwmulsu_vx,
+
      vdivu_vv,
      vdivu_vx,
      vdiv_vv,

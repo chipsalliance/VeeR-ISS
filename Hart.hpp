@@ -2253,6 +2253,36 @@ namespace WdRiscv
     void execVmulhsu_vx(const DecodedInst*);
 
     template<typename ELEM_TYPE>
+    void vwmulu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                   unsigned start, unsigned elems, bool masked);
+    void execVwmulu_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vwmulu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                   unsigned start, unsigned elems, bool masked);
+    void execVwmulu_vx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vwmul_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                   unsigned start, unsigned elems, bool masked);
+    void execVwmul_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vwmul_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                   unsigned start, unsigned elems, bool masked);
+    void execVwmul_vx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vwmulsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                   unsigned start, unsigned elems, bool masked);
+    void execVwmulsu_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vwmulsu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                   unsigned start, unsigned elems, bool masked);
+    void execVwmulsu_vx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
     void vdivu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                   unsigned start, unsigned elems, bool masked);
     void execVdivu_vv(const DecodedInst*);

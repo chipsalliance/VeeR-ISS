@@ -6534,6 +6534,633 @@ Hart<URV>::execVmulhsu_vx(const DecodedInst* di)
 template <typename URV>
 template <typename ELEM_TYPE>
 void
+Hart<URV>::vwmulu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                     unsigned start, unsigned elems, bool masked)
+{
+  typedef typename makeDoubleWide<ELEM_TYPE>::type  ELEM_TYPE_X2;
+
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0, e2 = 0;
+  ELEM_TYPE_X2 dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, group, e1) and
+          vecRegs_.read(vs2, ix, group, e2))
+        {
+          dest = ELEM_TYPE_X2(e1);
+          dest *= e2;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVwmulu_vv(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+  if (not vecRegs_.isDoubleWideLegal(sew, group))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  if (((vd*8) % (group*2)) != 0)
+    {
+      illegalInst(di);  // Destination register must be a multipler of emul
+      return;
+    }
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vwmulu_vv<uint8_t>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfWord:
+      vwmulu_vv<uint16_t>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::Word:
+      vwmulu_vv<uint32_t>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vwmulu_vv<uint64_t>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::QuadWord:
+      vwmulu_vv<Uint128>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::OctWord:
+      vwmulu_vv<Uint256>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vwmulu_vv<Uint512>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::Kbits:
+      illegalInst(di);
+      break;
+    }
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vwmulu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                     unsigned start, unsigned elems, bool masked)
+{
+  typedef typename makeDoubleWide<ELEM_TYPE>::type  ELEM_TYPE_X2;
+
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0;
+  ELEM_TYPE_X2 dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, group, e1))
+        {
+          dest = ELEM_TYPE_X2(e1);
+          dest *= e2;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVwmulu_vx(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+  if (not vecRegs_.isDoubleWideLegal(sew, group))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  if (((vd*8) % (group*2)) != 0)
+    {
+      illegalInst(di);  // Destination register must be a multipler of emul
+      return;
+    }
+
+  SRV e2 = SRV(intRegs_.read(rs2));  // Spec says sign extend. Bogus.
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vwmulu_vx<uint8_t>(vd, vs1, e2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfWord:
+      vwmulu_vx<uint16_t>(vd, vs1, e2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::Word:
+      vwmulu_vx<uint32_t>(vd, vs1, e2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vwmulu_vx<uint64_t>(vd, vs1, int64_t(e2), group, start, elems, masked);
+      break;
+
+    case ElementWidth::QuadWord:
+      vwmulu_vx<Uint128>(vd, vs1, Int128(e2), group, start, elems, masked);
+      break;
+
+    case ElementWidth::OctWord:
+      vwmulu_vx<Uint256>(vd, vs1, Int256(e2), group, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vwmulu_vx<Uint512>(vd, vs1, Int512(e2), group, start, elems, masked);
+      break;
+
+    case ElementWidth::Kbits:
+      illegalInst(di);
+      break;
+    }
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vwmul_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                     unsigned start, unsigned elems, bool masked)
+{
+  typedef typename makeDoubleWide<ELEM_TYPE>::type  ELEM_TYPE_X2;
+
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0, e2 = 0;
+  ELEM_TYPE_X2 dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, group, e1) and
+          vecRegs_.read(vs2, ix, group, e2))
+        {
+          dest = ELEM_TYPE_X2(e1);
+          dest *= e2;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVwmul_vv(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+  if (not vecRegs_.isDoubleWideLegal(sew, group))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  if (((vd*8) % (group*2)) != 0)
+    {
+      illegalInst(di);  // Destination register must be a multipler of emul
+      return;
+    }
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vwmul_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfWord:
+      vwmul_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::Word:
+      vwmul_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vwmul_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::QuadWord:
+      vwmul_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::OctWord:
+      vwmul_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vwmul_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::Kbits:
+      illegalInst(di);
+      break;
+    }
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vwmul_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                     unsigned start, unsigned elems, bool masked)
+{
+  typedef typename makeDoubleWide<ELEM_TYPE>::type  ELEM_TYPE_X2;
+
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0;
+  ELEM_TYPE_X2 dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, group, e1))
+        {
+          dest = ELEM_TYPE_X2(e1);
+          dest *= e2;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVwmul_vx(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+  if (not vecRegs_.isDoubleWideLegal(sew, group))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  if (((vd*8) % (group*2)) != 0)
+    {
+      illegalInst(di);  // Destination register must be a multipler of emul
+      return;
+    }
+
+  SRV e2 = SRV(intRegs_.read(rs2));
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vwmul_vx<int8_t>(vd, vs1, e2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfWord:
+      vwmul_vx<int16_t>(vd, vs1, e2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::Word:
+      vwmul_vx<int32_t>(vd, vs1, e2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vwmul_vx<int64_t>(vd, vs1, int64_t(e2), group, start, elems, masked);
+      break;
+
+    case ElementWidth::QuadWord:
+      vwmul_vx<Int128>(vd, vs1, Int128(e2), group, start, elems, masked);
+      break;
+
+    case ElementWidth::OctWord:
+      vwmul_vx<Int256>(vd, vs1, Int256(e2), group, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vwmul_vx<Int512>(vd, vs1, Int512(e2), group, start, elems, masked);
+      break;
+
+    case ElementWidth::Kbits:
+      illegalInst(di);
+      break;
+    }
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vwmulsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                     unsigned start, unsigned elems, bool masked)
+{
+  typedef typename makeDoubleWide<ELEM_TYPE>::type  ELEM_TYPE_X2;
+
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0, e2 = 0;
+  ELEM_TYPE_X2 dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, group, e1) and
+          vecRegs_.read(vs2, ix, group, e2))
+        {
+          dest = ELEM_TYPE_X2(e1);
+          dest *= e2;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVwmulsu_vv(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+  if (not vecRegs_.isDoubleWideLegal(sew, group))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  if (((vd*8) % (group*2)) != 0)
+    {
+      illegalInst(di);  // Destination register must be a mulsutipler of emulsu
+      return;
+    }
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vwmulsu_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfWord:
+      vwmulsu_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::Word:
+      vwmulsu_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vwmulsu_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::QuadWord:
+      vwmulsu_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::OctWord:
+      vwmulsu_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vwmulsu_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::Kbits:
+      illegalInst(di);
+      break;
+    }
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vwmulsu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                     unsigned start, unsigned elems, bool masked)
+{
+  typedef typename makeDoubleWide<ELEM_TYPE>::type  ELEM_TYPE_X2;
+
+  unsigned errors = 0;
+
+  ELEM_TYPE e1 = 0;
+  ELEM_TYPE_X2 dest = 0;
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, group, e1))
+        {
+          dest = ELEM_TYPE_X2(e1);
+          dest *= e2;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVwmulsu_vx(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
+  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+  if (not vecRegs_.isDoubleWideLegal(sew, group))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  if (((vd*8) % (group*2)) != 0)
+    {
+      illegalInst(di);  // Destination register must be a mulsutipler of emulsu
+      return;
+    }
+
+  SRV e2 = SRV(intRegs_.read(rs2));   // Spec says sign extend. Bogus.
+
+  switch (sew)
+    {
+    case ElementWidth::Byte:
+      vwmulsu_vx<int8_t>(vd, vs1, e2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfWord:
+      vwmulsu_vx<int16_t>(vd, vs1, e2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::Word:
+      vwmulsu_vx<int32_t>(vd, vs1, e2, group, start, elems, masked);
+      break;
+
+    case ElementWidth::DoubleWord:
+      vwmulsu_vx<int64_t>(vd, vs1, int64_t(e2), group, start, elems, masked);
+      break;
+
+    case ElementWidth::QuadWord:
+      vwmulsu_vx<Int128>(vd, vs1, Int128(e2), group, start, elems, masked);
+      break;
+
+    case ElementWidth::OctWord:
+      vwmulsu_vx<Int256>(vd, vs1, Int256(e2), group, start, elems, masked);
+      break;
+
+    case ElementWidth::HalfKbits:
+      vwmulsu_vx<Int512>(vd, vs1, Int512(e2), group, start, elems, masked);
+      break;
+
+    case ElementWidth::Kbits:
+      illegalInst(di);
+      break;
+    }
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
 Hart<URV>::vdivu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                     unsigned start, unsigned elems, bool masked)
 {

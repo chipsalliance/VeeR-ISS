@@ -2120,6 +2120,36 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       out << "vmulhsu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
       break;
 
+    case InstId::vwmulu_vv:
+      out << "vwmulu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vwmulu_vx:
+      out << "vwmulu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vwmul_vv:
+      out << "vwmul.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vwmul_vx:
+      out << "vwmul.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vwmulsu_vv:
+      out << "vwmulsu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vwmulsu_vx:
+      out << "vwmulsu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
     case InstId::vdivu_vv:
       out << "vdivu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
       break;
