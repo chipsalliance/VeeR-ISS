@@ -1955,6 +1955,10 @@ namespace WdRiscv
     void execFsri(const DecodedInst*);
 
 
+    // Return true if maskable instruction is legal. Take an illegal instuction
+    // exception and return false otherwise.
+    bool checkMaskableInst(const DecodedInst* di);
+
     void vsetvl(unsigned rd, unsigned rs1, URV vtypeVal);
     void execVsetvli(const DecodedInst*);
     void execVsetvl(const DecodedInst*);

@@ -238,6 +238,26 @@ using namespace WdRiscv;
 
 
 template <typename URV>
+bool
+Hart<URV>::checkMaskableInst(const DecodedInst* di)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return false;
+    }
+
+  if (di->isMasked() and di->op0() == 0)  // Dest register cannot overlap mask register v0
+    {
+      illegalInst(di);
+      return false;
+    }
+
+  return true;
+}
+
+
+template <typename URV>
 void
 Hart<URV>::vsetvl(unsigned rd, unsigned rs1, URV vtypeVal)
 {
@@ -374,57 +394,26 @@ template <typename URV>
 void
 Hart<URV>::execVadd_vv(const DecodedInst* di)
 {
-  if (not isVecLegal() or not vecRegs_.legalConfig())
-    {
-      illegalInst(di);
-      return;
-    }
+  if (not checkMaskableInst(di))
+    return;
 
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
-  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
-    {
-      illegalInst(di);
-      return;
-    }
-
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
+  typedef ElementWidth EW;
   switch (sew)
     {
-    case ElementWidth::Byte:
-      vadd_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
-      break;
-
-    case ElementWidth::HalfWord:
-      vadd_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
-      break;
-
-    case ElementWidth::Word:
-      vadd_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
-      break;
-
-    case ElementWidth::DoubleWord:
-      vadd_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
-      break;
-
-    case ElementWidth::QuadWord:
-      vadd_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
-      break;
-
-    case ElementWidth::OctWord:
-      vadd_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
-      break;
-
-    case ElementWidth::HalfKbits:
-      vadd_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
-      break;
-
-    case ElementWidth::Kbits:
-      vadd_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked);
-      break;
+    case EW::Byte:   vadd_vv<int8_t> (vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Half:   vadd_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word:   vadd_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word2:  vadd_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word4:  vadd_vv<Int128> (vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word8:  vadd_vv<Int256> (vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word16: vadd_vv<Int512> (vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word32: vadd_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked); break;
     }
 }
 
@@ -462,61 +451,28 @@ template <typename URV>
 void
 Hart<URV>::execVadd_vx(const DecodedInst* di)
 {
-  if (not isVecLegal() or not vecRegs_.legalConfig())
-    {
-      illegalInst(di);
-      return;
-    }
+  if (not checkMaskableInst(di))
+    return;
 
   bool masked = di->isMasked();
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
-  unsigned rs2 = di->op2();
-  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
-    {
-      illegalInst(di);
-      return;
-    }
-
+  unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
   SRV e2 = SRV(intRegs_.read(rs2));
 
+  typedef ElementWidth EW;
   switch (sew)
     {
-    case ElementWidth::Byte:
-      vadd_vx<int8_t>(vd, vs1, e2, group, start, elems, masked);
-      break;
-
-    case ElementWidth::HalfWord:
-      vadd_vx<int16_t>(vd, vs1, e2, group, start, elems, masked);
-      break;
-
-    case ElementWidth::Word:
-      vadd_vx<int32_t>(vd, vs1, e2, group, start, elems, masked);
-      break;
-
-    case ElementWidth::DoubleWord:
-      vadd_vx<int64_t>(vd, vs1, e2, group, start, elems, masked);
-      break;
-
-    case ElementWidth::QuadWord:
-      vadd_vx<Int128>(vd, vs1, Int128(e2), group, start, elems, masked);
-      break;
-
-    case ElementWidth::OctWord:
-      vadd_vx<Int256>(vd, vs1, Int256(e2), group, start, elems, masked);
-      break;
-
-    case ElementWidth::HalfKbits:
-      vadd_vx<Int512>(vd, vs1, Int512(e2), group, start, elems, masked);
-      break;
-
-    case ElementWidth::Kbits:
-      vadd_vx<Int1024>(vd, vs1, Int1024(e2), group, start, elems, masked);
-      break;
+    case EW::Byte:   vadd_vx<int8_t> (vd, vs1, e2,          group, start, elems, masked); break;
+    case EW::Half:   vadd_vx<int16_t>(vd, vs1, e2,          group, start, elems, masked); break;
+    case EW::Word:   vadd_vx<int32_t>(vd, vs1, e2,          group, start, elems, masked); break;
+    case EW::Word2:  vadd_vx<int64_t>(vd, vs1, e2,          group, start, elems, masked); break;
+    case EW::Word4:  vadd_vx<Int128> (vd, vs1, Int128(e2),  group, start, elems, masked); break;
+    case EW::Word8:  vadd_vx<Int256> (vd, vs1, Int256(e2),  group, start, elems, masked); break;
+    case EW::Word16: vadd_vx<Int512> (vd, vs1, Int512(e2),  group, start, elems, masked); break;
+    case EW::Word32: vadd_vx<Int1024>(vd, vs1, Int1024(e2), group, start, elems, masked); break;
     }
 }
 
@@ -525,59 +481,28 @@ template <typename URV>
 void
 Hart<URV>::execVadd_vi(const DecodedInst* di)
 {
-  if (not isVecLegal() or not vecRegs_.legalConfig())
-    {
-      illegalInst(di);
-      return;
-    }
+  if (not checkMaskableInst(di))
+    return;
 
   bool masked = di->isMasked();
-  unsigned vd = di->op0();
-  unsigned vs1 = di->op1();
+  unsigned vd = di->op0(), vs1 = di->op1();
   int32_t imm = di->op2As<int32_t>();
-  if (masked and vd == 0)  // Dest register cannot overlap mask register v0
-    {
-      illegalInst(di);
-      return;
-    }
 
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
+  typedef ElementWidth EW;
   switch (sew)
     {
-    case ElementWidth::Byte:
-      vadd_vx<int8_t>(vd, vs1, imm, group, start, elems, masked);
-      break;
-
-    case ElementWidth::HalfWord:
-      vadd_vx<int16_t>(vd, vs1, imm, group, start, elems, masked);
-      break;
-
-    case ElementWidth::Word:
-      vadd_vx<int32_t>(vd, vs1, imm, group, start, elems, masked);
-      break;
-
-    case ElementWidth::DoubleWord:
-      vadd_vx<int64_t>(vd, vs1, imm, group, start, elems, masked);
-      break;
-
-    case ElementWidth::QuadWord:
-      vadd_vx<Int128>(vd, vs1, Int128(imm), group, start, elems, masked);
-      break;
-
-    case ElementWidth::OctWord:
-      vadd_vx<Int256>(vd, vs1, Int256(imm), group, start, elems, masked);
-      break;
-
-    case ElementWidth::HalfKbits:
-      vadd_vx<Int512>(vd, vs1, Int512(imm), group, start, elems, masked);
-      break;
-
-    case ElementWidth::Kbits:
-      vadd_vx<Int1024>(vd, vs1, Int1024(imm), group, start, elems, masked);
-      break;
+    case EW::Byte:   vadd_vx<int8_t> (vd, vs1, imm,          group, start, elems, masked); break;
+    case EW::Half:   vadd_vx<int16_t>(vd, vs1, imm,          group, start, elems, masked); break;
+    case EW::Word:   vadd_vx<int32_t>(vd, vs1, imm,          group, start, elems, masked); break;
+    case EW::Word2:  vadd_vx<int64_t>(vd, vs1, imm,          group, start, elems, masked); break;
+    case EW::Word4:  vadd_vx<Int128> (vd, vs1, Int128(imm),  group, start, elems, masked); break;
+    case EW::Word8:  vadd_vx<Int256> (vd, vs1, Int256(imm),  group, start, elems, masked); break;
+    case EW::Word16: vadd_vx<Int512> (vd, vs1, Int512(imm),  group, start, elems, masked); break;
+    case EW::Word32: vadd_vx<Int1024>(vd, vs1, Int1024(imm), group, start, elems, masked); break;
     }
 }
 
@@ -640,7 +565,7 @@ Hart<URV>::execVsub_vv(const DecodedInst* di)
       vsub_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vsub_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -648,23 +573,23 @@ Hart<URV>::execVsub_vv(const DecodedInst* di)
       vsub_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vsub_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vsub_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vsub_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vsub_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vsub_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked);
       break;
     }
@@ -730,7 +655,7 @@ Hart<URV>::execVsub_vx(const DecodedInst* di)
       vsub_vx<int8_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vsub_vx<int16_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
@@ -738,23 +663,23 @@ Hart<URV>::execVsub_vx(const DecodedInst* di)
       vsub_vx<int32_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vsub_vx<int64_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vsub_vx<Int128>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vsub_vx<Int256>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vsub_vx<Int512>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vsub_vx<Int1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
@@ -820,7 +745,7 @@ Hart<URV>::execVrsub_vx(const DecodedInst* di)
       vrsub_vx<int8_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vrsub_vx<int16_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
@@ -828,23 +753,23 @@ Hart<URV>::execVrsub_vx(const DecodedInst* di)
       vrsub_vx<int32_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vrsub_vx<int64_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vrsub_vx<Int128>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vrsub_vx<Int256>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vrsub_vx<Int512>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vrsub_vx<Int1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
@@ -910,7 +835,7 @@ Hart<URV>::execVrsub_vi(const DecodedInst* di)
       vrsub_vi<int8_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vrsub_vi<int16_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
@@ -918,23 +843,23 @@ Hart<URV>::execVrsub_vi(const DecodedInst* di)
       vrsub_vi<int32_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vrsub_vi<int64_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vrsub_vi<Int128>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vrsub_vi<Int256>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vrsub_vi<Int512>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vrsub_vi<Int1024>(vd, vs1, imm, group, start, elems, masked);
       break;
     }
@@ -1003,7 +928,7 @@ Hart<URV>::execVwaddu_vv(const DecodedInst* di)
       vwadd_vv<uint8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwadd_vv<uint16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -1011,23 +936,23 @@ Hart<URV>::execVwaddu_vv(const DecodedInst* di)
       vwadd_vv<uint32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwadd_vv<uint64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwadd_vv<Uint128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwadd_vv<Uint256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwadd_vv<Uint512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -1063,7 +988,7 @@ Hart<URV>::execVwadd_vv(const DecodedInst* di)
       vwadd_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwadd_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -1071,23 +996,23 @@ Hart<URV>::execVwadd_vv(const DecodedInst* di)
       vwadd_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwadd_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwadd_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwadd_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwadd_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -1157,7 +1082,7 @@ Hart<URV>::execVwaddu_vx(const DecodedInst* di)
       vwadd_vx<uint8_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwadd_vx<uint16_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
@@ -1165,23 +1090,23 @@ Hart<URV>::execVwaddu_vx(const DecodedInst* di)
       vwadd_vx<uint32_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwadd_vx<uint64_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwadd_vx<Uint128>(vd, vs1, Uint128(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwadd_vx<Uint256>(vd, vs1, Uint256(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwadd_vx<Uint512>(vd, vs1, Uint512(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -1219,7 +1144,7 @@ Hart<URV>::execVwadd_vx(const DecodedInst* di)
       vwadd_vx<int8_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwadd_vx<int16_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
@@ -1227,23 +1152,23 @@ Hart<URV>::execVwadd_vx(const DecodedInst* di)
       vwadd_vx<int32_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwadd_vx<int64_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwadd_vx<Int128>(vd, vs1, Int128(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwadd_vx<Int256>(vd, vs1, Int256(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwadd_vx<Int512>(vd, vs1, Int512(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -1281,7 +1206,7 @@ Hart<URV>::execVwsubu_vx(const DecodedInst* di)
       vwadd_vx<uint8_t>(vd, vs1, -uint8_t(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwadd_vx<uint16_t>(vd, vs1, -uint16_t(e2), group, start, elems, masked);
       break;
 
@@ -1289,23 +1214,23 @@ Hart<URV>::execVwsubu_vx(const DecodedInst* di)
       vwadd_vx<uint32_t>(vd, vs1, -uint32_t(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwadd_vx<uint64_t>(vd, vs1, -uint64_t(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwadd_vx<Uint128>(vd, vs1, -Uint128(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwadd_vx<Uint256>(vd, vs1, Uint256(0)-Uint256(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwadd_vx<Uint512>(vd, vs1, Uint512(0)-Uint512(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -1343,7 +1268,7 @@ Hart<URV>::execVwsub_vx(const DecodedInst* di)
       vwadd_vx<int8_t>(vd, vs1, -e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwadd_vx<int16_t>(vd, vs1, -e2, group, start, elems, masked);
       break;
 
@@ -1351,23 +1276,23 @@ Hart<URV>::execVwsub_vx(const DecodedInst* di)
       vwadd_vx<int32_t>(vd, vs1, -e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwadd_vx<int64_t>(vd, vs1, -e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwadd_vx<Int128>(vd, vs1, -Int128(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwadd_vx<Int256>(vd, vs1, -Int256(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwadd_vx<Int512>(vd, vs1, -Int512(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -1436,7 +1361,7 @@ Hart<URV>::execVwsubu_vv(const DecodedInst* di)
       vwsub_vv<uint8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwsub_vv<uint16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -1444,23 +1369,23 @@ Hart<URV>::execVwsubu_vv(const DecodedInst* di)
       vwsub_vv<uint32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwsub_vv<uint64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwsub_vv<Uint128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwsub_vv<Uint256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwsub_vv<Uint512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -1496,7 +1421,7 @@ Hart<URV>::execVwsub_vv(const DecodedInst* di)
       vwsub_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwsub_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -1504,23 +1429,23 @@ Hart<URV>::execVwsub_vv(const DecodedInst* di)
       vwsub_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwsub_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwsub_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwsub_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwsub_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -1589,7 +1514,7 @@ Hart<URV>::execVwaddu_wv(const DecodedInst* di)
       vwadd_wv<uint8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwadd_wv<uint16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -1597,23 +1522,23 @@ Hart<URV>::execVwaddu_wv(const DecodedInst* di)
       vwadd_wv<uint32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwadd_wv<uint64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwadd_wv<Uint128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwadd_wv<Uint256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwadd_wv<Uint512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -1649,7 +1574,7 @@ Hart<URV>::execVwadd_wv(const DecodedInst* di)
       vwadd_wv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwadd_wv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -1657,23 +1582,23 @@ Hart<URV>::execVwadd_wv(const DecodedInst* di)
       vwadd_wv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwadd_wv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwadd_wv<Int128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwadd_wv<Int256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwadd_wv<Int512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -1711,7 +1636,7 @@ Hart<URV>::execVwaddu_wx(const DecodedInst* di)
       vadd_vx<uint16_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vadd_vx<uint32_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
@@ -1719,23 +1644,23 @@ Hart<URV>::execVwaddu_wx(const DecodedInst* di)
       vadd_vx<uint64_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vadd_vx<Uint128>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vadd_vx<Uint256>(vd, vs1, Uint256(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vadd_vx<Uint512>(vd, vs1, Uint512(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vadd_vx<Uint1024>(vd, vs1, Uint1024(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -1773,7 +1698,7 @@ Hart<URV>::execVwadd_wx(const DecodedInst* di)
       vadd_vx<int16_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vadd_vx<int32_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
@@ -1781,23 +1706,23 @@ Hart<URV>::execVwadd_wx(const DecodedInst* di)
       vadd_vx<int64_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vadd_vx<Int128>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vadd_vx<Int256>(vd, vs1, Int256(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vadd_vx<Int512>(vd, vs1, Int512(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vadd_vx<Int1024>(vd, vs1, Int1024(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -1835,7 +1760,7 @@ Hart<URV>::execVwsubu_wx(const DecodedInst* di)
       vadd_vx<uint16_t>(vd, vs1, -e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vadd_vx<uint32_t>(vd, vs1, -e2, group, start, elems, masked);
       break;
 
@@ -1843,23 +1768,23 @@ Hart<URV>::execVwsubu_wx(const DecodedInst* di)
       vadd_vx<uint64_t>(vd, vs1, -e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vadd_vx<Uint128>(vd, vs1, -e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vadd_vx<Uint256>(vd, vs1, Uint256(0)-Uint256(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vadd_vx<Uint512>(vd, vs1, Uint512(0)-Uint512(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vadd_vx<Uint1024>(vd, vs1, Uint1024(0)-Uint1024(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -1897,7 +1822,7 @@ Hart<URV>::execVwsub_wx(const DecodedInst* di)
       vadd_vx<int16_t>(vd, vs1, -e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vadd_vx<int32_t>(vd, vs1, -e2, group, start, elems, masked);
       break;
 
@@ -1905,23 +1830,23 @@ Hart<URV>::execVwsub_wx(const DecodedInst* di)
       vadd_vx<int64_t>(vd, vs1, -e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vadd_vx<Int128>(vd, vs1, -e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vadd_vx<Int256>(vd, vs1, -Int256(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vadd_vx<Int512>(vd, vs1, -Int512(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vadd_vx<Int1024>(vd, vs1, -Int1024(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -1990,7 +1915,7 @@ Hart<URV>::execVwsubu_wv(const DecodedInst* di)
       vwsub_wv<uint8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwsub_wv<uint16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -1998,23 +1923,23 @@ Hart<URV>::execVwsubu_wv(const DecodedInst* di)
       vwsub_wv<uint32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwsub_wv<uint64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwsub_wv<Uint128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwsub_wv<Uint256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwsub_wv<Uint512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -2050,7 +1975,7 @@ Hart<URV>::execVwsub_wv(const DecodedInst* di)
       vwsub_wv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwsub_wv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -2058,23 +1983,23 @@ Hart<URV>::execVwsub_wv(const DecodedInst* di)
       vwsub_wv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwsub_wv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwsub_wv<Int128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwsub_wv<Int256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwsub_wv<Int512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -2139,7 +2064,7 @@ Hart<URV>::execVminu_vv(const DecodedInst* di)
       vminu_vv<uint8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vminu_vv<uint16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -2147,23 +2072,23 @@ Hart<URV>::execVminu_vv(const DecodedInst* di)
       vminu_vv<uint32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vminu_vv<uint64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vminu_vv<Uint128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vminu_vv<Uint256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vminu_vv<Uint512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vminu_vv<Uint1024>(vd, vs1, vs2, group, start, elems, masked);
       break;
     }
@@ -2233,7 +2158,7 @@ Hart<URV>::execVminu_vx(const DecodedInst* di)
       vminu_vx<uint8_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vminu_vx<uint16_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
@@ -2241,23 +2166,23 @@ Hart<URV>::execVminu_vx(const DecodedInst* di)
       vminu_vx<uint32_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vminu_vx<uint64_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vminu_vx<Uint128>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vminu_vx<Uint256>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vminu_vx<Uint512>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vminu_vx<Uint1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
@@ -2322,7 +2247,7 @@ Hart<URV>::execVmin_vv(const DecodedInst* di)
       vmin_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmin_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -2330,23 +2255,23 @@ Hart<URV>::execVmin_vv(const DecodedInst* di)
       vmin_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmin_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmin_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmin_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmin_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmin_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked);
       break;
     }
@@ -2412,7 +2337,7 @@ Hart<URV>::execVmin_vx(const DecodedInst* di)
       vmin_vx<int8_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmin_vx<int16_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
@@ -2420,23 +2345,23 @@ Hart<URV>::execVmin_vx(const DecodedInst* di)
       vmin_vx<int32_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmin_vx<int64_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmin_vx<Int128>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmin_vx<Int256>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmin_vx<Int512>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmin_vx<Int1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
@@ -2501,7 +2426,7 @@ Hart<URV>::execVmaxu_vv(const DecodedInst* di)
       vmaxu_vv<uint8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmaxu_vv<uint16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -2509,23 +2434,23 @@ Hart<URV>::execVmaxu_vv(const DecodedInst* di)
       vmaxu_vv<uint32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmaxu_vv<uint64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmaxu_vv<Uint128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmaxu_vv<Uint256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmaxu_vv<Uint512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmaxu_vv<Uint1024>(vd, vs1, vs2, group, start, elems, masked);
       break;
     }
@@ -2595,7 +2520,7 @@ Hart<URV>::execVmaxu_vx(const DecodedInst* di)
       vmaxu_vx<uint8_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmaxu_vx<uint16_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
@@ -2603,23 +2528,23 @@ Hart<URV>::execVmaxu_vx(const DecodedInst* di)
       vmaxu_vx<uint32_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmaxu_vx<uint64_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmaxu_vx<Uint128>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmaxu_vx<Uint256>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmaxu_vx<Uint512>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmaxu_vx<Uint1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
@@ -2684,7 +2609,7 @@ Hart<URV>::execVmax_vv(const DecodedInst* di)
       vmax_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmax_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -2692,23 +2617,23 @@ Hart<URV>::execVmax_vv(const DecodedInst* di)
       vmax_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmax_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmax_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmax_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmax_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmax_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked);
       break;
     }
@@ -2774,7 +2699,7 @@ Hart<URV>::execVmax_vx(const DecodedInst* di)
       vmax_vx<int8_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmax_vx<int16_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
@@ -2782,23 +2707,23 @@ Hart<URV>::execVmax_vx(const DecodedInst* di)
       vmax_vx<int32_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmax_vx<int64_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmax_vx<Int128>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmax_vx<Int256>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmax_vx<Int512>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmax_vx<Int1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
@@ -2863,7 +2788,7 @@ Hart<URV>::execVand_vv(const DecodedInst* di)
       vand_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vand_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -2871,23 +2796,23 @@ Hart<URV>::execVand_vv(const DecodedInst* di)
       vand_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vand_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vand_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vand_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vand_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vand_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked);
       break;
     }
@@ -2954,7 +2879,7 @@ Hart<URV>::execVand_vx(const DecodedInst* di)
       vand_vx<int8_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vand_vx<int16_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
@@ -2962,23 +2887,23 @@ Hart<URV>::execVand_vx(const DecodedInst* di)
       vand_vx<int32_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vand_vx<int64_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vand_vx<Int128>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vand_vx<Int256>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vand_vx<Int512>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vand_vx<Int1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
@@ -3045,7 +2970,7 @@ Hart<URV>::execVand_vi(const DecodedInst* di)
       vand_vi<int8_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vand_vi<int16_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
@@ -3053,23 +2978,23 @@ Hart<URV>::execVand_vi(const DecodedInst* di)
       vand_vi<int32_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vand_vi<int64_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vand_vi<Int128>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vand_vi<Int256>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vand_vi<Int512>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vand_vi<Int1024>(vd, vs1, imm, group, start, elems, masked);
       break;
     }
@@ -3134,7 +3059,7 @@ Hart<URV>::execVor_vv(const DecodedInst* di)
       vor_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vor_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -3142,23 +3067,23 @@ Hart<URV>::execVor_vv(const DecodedInst* di)
       vor_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vor_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vor_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vor_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vor_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vor_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked);
       break;
     }
@@ -3225,7 +3150,7 @@ Hart<URV>::execVor_vx(const DecodedInst* di)
       vor_vx<int8_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vor_vx<int16_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
@@ -3233,23 +3158,23 @@ Hart<URV>::execVor_vx(const DecodedInst* di)
       vor_vx<int32_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vor_vx<int64_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vor_vx<Int128>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vor_vx<Int256>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vor_vx<Int512>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vor_vx<Int1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
@@ -3317,7 +3242,7 @@ Hart<URV>::execVor_vi(const DecodedInst* di)
       vor_vi<int8_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vor_vi<int16_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
@@ -3325,23 +3250,23 @@ Hart<URV>::execVor_vi(const DecodedInst* di)
       vor_vi<int32_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vor_vi<int64_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vor_vi<Int128>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vor_vi<Int256>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vor_vi<Int512>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vor_vi<Int1024>(vd, vs1, imm, group, start, elems, masked);
       break;
     }
@@ -3406,7 +3331,7 @@ Hart<URV>::execVxor_vv(const DecodedInst* di)
       vxor_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vxor_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -3414,23 +3339,23 @@ Hart<URV>::execVxor_vv(const DecodedInst* di)
       vxor_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vxor_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vxor_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vxor_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vxor_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vxor_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked);
       break;
     }
@@ -3497,7 +3422,7 @@ Hart<URV>::execVxor_vx(const DecodedInst* di)
       vxor_vx<int8_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vxor_vx<int16_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
@@ -3505,23 +3430,23 @@ Hart<URV>::execVxor_vx(const DecodedInst* di)
       vxor_vx<int32_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vxor_vx<int64_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vxor_vx<Int128>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vxor_vx<Int256>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vxor_vx<Int512>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vxor_vx<Int1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
@@ -3589,7 +3514,7 @@ Hart<URV>::execVxor_vi(const DecodedInst* di)
       vxor_vi<int8_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vxor_vi<int16_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
@@ -3597,23 +3522,23 @@ Hart<URV>::execVxor_vi(const DecodedInst* di)
       vxor_vi<int32_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vxor_vi<int64_t>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vxor_vi<Int128>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vxor_vi<Int256>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vxor_vi<Int512>(vd, vs1, imm, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vxor_vi<Int1024>(vd, vs1, imm, group, start, elems, masked);
       break;
     }
@@ -3672,7 +3597,7 @@ Hart<URV>::execVrgather_vv(const DecodedInst* di)
       vrgather_vv<uint8_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vrgather_vv<uint16_t>(vd, vs1, vs2, group, start, elems);
       break;
 
@@ -3680,23 +3605,23 @@ Hart<URV>::execVrgather_vv(const DecodedInst* di)
       vrgather_vv<uint32_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vrgather_vv<uint64_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vrgather_vv<Uint128>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vrgather_vv<Uint256>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vrgather_vv<Uint512>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vrgather_vv<Uint1024>(vd, vs1, vs2, group, start, elems);
       break;
     }
@@ -3758,7 +3683,7 @@ Hart<URV>::execVrgather_vx(const DecodedInst* di)
       vrgather_vx<uint8_t>(vd, vs1, rs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vrgather_vx<uint16_t>(vd, vs1, rs2, group, start, elems);
       break;
 
@@ -3766,23 +3691,23 @@ Hart<URV>::execVrgather_vx(const DecodedInst* di)
       vrgather_vx<uint32_t>(vd, vs1, rs2, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vrgather_vx<uint64_t>(vd, vs1, rs2, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vrgather_vx<Uint128>(vd, vs1, rs2, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vrgather_vx<Uint256>(vd, vs1, rs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vrgather_vx<Uint512>(vd, vs1, rs2, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vrgather_vx<Uint1024>(vd, vs1, rs2, group, start, elems);
       break;
     }
@@ -3839,7 +3764,7 @@ Hart<URV>::execVrgather_vi(const DecodedInst* di)
       vrgather_vi<uint8_t>(vd, vs1, imm, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vrgather_vi<uint16_t>(vd, vs1, imm, group, start, elems);
       break;
 
@@ -3847,23 +3772,23 @@ Hart<URV>::execVrgather_vi(const DecodedInst* di)
       vrgather_vi<uint32_t>(vd, vs1, imm, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vrgather_vi<uint64_t>(vd, vs1, imm, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vrgather_vi<Uint128>(vd, vs1, imm, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vrgather_vi<Uint256>(vd, vs1, imm, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vrgather_vi<Uint512>(vd, vs1, imm, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vrgather_vi<Uint1024>(vd, vs1, imm, group, start, elems);
       break;
     }
@@ -3927,7 +3852,7 @@ Hart<URV>::execVrgatherei16_vv(const DecodedInst* di)
       vrgatherei16_vv<uint8_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vrgatherei16_vv<uint16_t>(vd, vs1, vs2, group, start, elems);
       break;
 
@@ -3935,23 +3860,23 @@ Hart<URV>::execVrgatherei16_vv(const DecodedInst* di)
       vrgatherei16_vv<uint32_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vrgatherei16_vv<uint64_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vrgatherei16_vv<Uint128>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vrgatherei16_vv<Uint256>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vrgatherei16_vv<Uint512>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vrgatherei16_vv<Uint1024>(vd, vs1, vs2, group, start, elems);
       break;
     }
@@ -4020,7 +3945,7 @@ Hart<URV>::execVcompress_vm(const DecodedInst* di)
       vcompress_vm<uint8_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vcompress_vm<uint16_t>(vd, vs1, vs2, group, start, elems);
       break;
 
@@ -4028,23 +3953,23 @@ Hart<URV>::execVcompress_vm(const DecodedInst* di)
       vcompress_vm<uint32_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vcompress_vm<uint64_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vcompress_vm<Uint128>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vcompress_vm<Uint256>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vcompress_vm<Uint512>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vcompress_vm<Uint1024>(vd, vs1, vs2, group, start, elems);
       break;
     }
@@ -4104,7 +4029,7 @@ Hart<URV>::execVredsum_vs(const DecodedInst* di)
       vredsum_vs<int8_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vredsum_vs<int16_t>(vd, vs1, vs2, group, start, elems);
       break;
 
@@ -4112,23 +4037,23 @@ Hart<URV>::execVredsum_vs(const DecodedInst* di)
       vredsum_vs<int32_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vredsum_vs<int64_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vredsum_vs<Int128>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vredsum_vs<Int256>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vredsum_vs<Int512>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vredsum_vs<Int1024>(vd, vs1, vs2, group, start, elems);
       break;
     }
@@ -4187,7 +4112,7 @@ Hart<URV>::execVredand_vs(const DecodedInst* di)
       vredand_vs<uint8_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vredand_vs<uint16_t>(vd, vs1, vs2, group, start, elems);
       break;
 
@@ -4195,23 +4120,23 @@ Hart<URV>::execVredand_vs(const DecodedInst* di)
       vredand_vs<uint32_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vredand_vs<uint64_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vredand_vs<Uint128>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vredand_vs<Uint256>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vredand_vs<Uint512>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vredand_vs<Uint1024>(vd, vs1, vs2, group, start, elems);
       break;
     }
@@ -4270,7 +4195,7 @@ Hart<URV>::execVredor_vs(const DecodedInst* di)
       vredor_vs<uint8_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vredor_vs<uint16_t>(vd, vs1, vs2, group, start, elems);
       break;
 
@@ -4278,23 +4203,23 @@ Hart<URV>::execVredor_vs(const DecodedInst* di)
       vredor_vs<uint32_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vredor_vs<uint64_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vredor_vs<Uint128>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vredor_vs<Uint256>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vredor_vs<Uint512>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vredor_vs<Uint1024>(vd, vs1, vs2, group, start, elems);
       break;
     }
@@ -4353,7 +4278,7 @@ Hart<URV>::execVredxor_vs(const DecodedInst* di)
       vredxor_vs<uint8_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vredxor_vs<uint16_t>(vd, vs1, vs2, group, start, elems);
       break;
 
@@ -4361,23 +4286,23 @@ Hart<URV>::execVredxor_vs(const DecodedInst* di)
       vredxor_vs<uint32_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vredxor_vs<uint64_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vredxor_vs<Uint128>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vredxor_vs<Uint256>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vredxor_vs<Uint512>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vredxor_vs<Uint1024>(vd, vs1, vs2, group, start, elems);
       break;
     }
@@ -4437,7 +4362,7 @@ Hart<URV>::execVredminu_vs(const DecodedInst* di)
       vredminu_vs<uint8_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vredminu_vs<uint16_t>(vd, vs1, vs2, group, start, elems);
       break;
 
@@ -4445,23 +4370,23 @@ Hart<URV>::execVredminu_vs(const DecodedInst* di)
       vredminu_vs<uint32_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vredminu_vs<uint64_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vredminu_vs<Uint128>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vredminu_vs<Uint256>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vredminu_vs<Uint512>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vredminu_vs<Uint1024>(vd, vs1, vs2, group, start, elems);
       break;
     }
@@ -4520,7 +4445,7 @@ Hart<URV>::execVredmin_vs(const DecodedInst* di)
       vredmin_vs<int8_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vredmin_vs<int16_t>(vd, vs1, vs2, group, start, elems);
       break;
 
@@ -4528,23 +4453,23 @@ Hart<URV>::execVredmin_vs(const DecodedInst* di)
       vredmin_vs<int32_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vredmin_vs<int64_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vredmin_vs<Int128>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vredmin_vs<Int256>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vredmin_vs<Int512>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vredmin_vs<Int1024>(vd, vs1, vs2, group, start, elems);
       break;
     }
@@ -4603,7 +4528,7 @@ Hart<URV>::execVredmaxu_vs(const DecodedInst* di)
       vredmaxu_vs<uint8_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vredmaxu_vs<uint16_t>(vd, vs1, vs2, group, start, elems);
       break;
 
@@ -4611,23 +4536,23 @@ Hart<URV>::execVredmaxu_vs(const DecodedInst* di)
       vredmaxu_vs<uint32_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vredmaxu_vs<uint64_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vredmaxu_vs<Uint128>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vredmaxu_vs<Uint256>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vredmaxu_vs<Uint512>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vredmaxu_vs<Uint1024>(vd, vs1, vs2, group, start, elems);
       break;
     }
@@ -4686,7 +4611,7 @@ Hart<URV>::execVredmax_vs(const DecodedInst* di)
       vredmax_vs<int8_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vredmax_vs<int16_t>(vd, vs1, vs2, group, start, elems);
       break;
 
@@ -4694,23 +4619,23 @@ Hart<URV>::execVredmax_vs(const DecodedInst* di)
       vredmax_vs<int32_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vredmax_vs<int64_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vredmax_vs<Int128>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vredmax_vs<Int256>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vredmax_vs<Int512>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vredmax_vs<Int1024>(vd, vs1, vs2, group, start, elems);
       break;
     }
@@ -5332,25 +5257,25 @@ Hart<URV>::execViota_m(const DecodedInst* di)
         case ElementWidth::Byte:
           vecRegs_.write(vd, ix, group, int8_t(sum)); break;
 
-        case ElementWidth::HalfWord:
+        case ElementWidth::Half:
           vecRegs_.write(vd, ix, group, int16_t(sum)); break;
 
         case ElementWidth::Word:
           vecRegs_.write(vd, ix, group, int32_t(sum)); break;
 
-        case ElementWidth::DoubleWord:
+        case ElementWidth::Word2:
           vecRegs_.write(vd, ix, group, int64_t(sum)); break;
 
-        case ElementWidth::QuadWord:
+        case ElementWidth::Word4:
           vecRegs_.write(vd, ix, group, Int128(sum)); break;
 
-        case ElementWidth::OctWord:
+        case ElementWidth::Word8:
           vecRegs_.write(vd, ix, group, Int256(sum)); break;
 
-        case ElementWidth::HalfKbits:
+        case ElementWidth::Word16:
           vecRegs_.write(vd, ix, group, Int512(sum)); break;
 
-        case ElementWidth::Kbits:
+        case ElementWidth::Word32:
           vecRegs_.write(vd, ix, group, Int1024(sum)); break;
         }
 
@@ -5400,25 +5325,25 @@ Hart<URV>::execVid_v(const DecodedInst* di)
         case ElementWidth::Byte:
           vecRegs_.write(vd, ix, group, int8_t(ix)); break;
 
-        case ElementWidth::HalfWord:
+        case ElementWidth::Half:
           vecRegs_.write(vd, ix, group, int16_t(ix)); break;
 
         case ElementWidth::Word:
           vecRegs_.write(vd, ix, group, int32_t(ix)); break;
 
-        case ElementWidth::DoubleWord:
+        case ElementWidth::Word2:
           vecRegs_.write(vd, ix, group, int64_t(ix)); break;
 
-        case ElementWidth::QuadWord:
+        case ElementWidth::Word4:
           vecRegs_.write(vd, ix, group, Int128(ix)); break;
 
-        case ElementWidth::OctWord:
+        case ElementWidth::Word8:
           vecRegs_.write(vd, ix, group, Int256(ix)); break;
 
-        case ElementWidth::HalfKbits:
+        case ElementWidth::Word16:
           vecRegs_.write(vd, ix, group, Int512(ix)); break;
 
-        case ElementWidth::Kbits:
+        case ElementWidth::Word32:
           vecRegs_.write(vd, ix, group, Int1024(ix)); break;
         }
     }
@@ -5496,7 +5421,7 @@ Hart<URV>::execVslideup_vx(const DecodedInst* di)
       vslideup<uint8_t>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vslideup<uint16_t>(vd, vs1, amount, group, start, elems, masked);
       break;
 
@@ -5504,23 +5429,23 @@ Hart<URV>::execVslideup_vx(const DecodedInst* di)
       vslideup<uint32_t>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vslideup<uint64_t>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vslideup<Uint128>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vslideup<Uint256>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vslideup<Uint512>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vslideup<Uint1024>(vd, vs1, amount, group, start, elems, masked);
       break;
     }
@@ -5564,7 +5489,7 @@ Hart<URV>::execVslideup_vi(const DecodedInst* di)
       vslideup<uint8_t>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vslideup<uint16_t>(vd, vs1, amount, group, start, elems, masked);
       break;
 
@@ -5572,23 +5497,23 @@ Hart<URV>::execVslideup_vi(const DecodedInst* di)
       vslideup<uint32_t>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vslideup<uint64_t>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vslideup<Uint128>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vslideup<Uint256>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vslideup<Uint512>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vslideup<Uint1024>(vd, vs1, amount, group, start, elems, masked);
       break;
     }
@@ -5636,7 +5561,7 @@ Hart<URV>::execVslide1up_vx(const DecodedInst* di)
       vecRegs_.write(vd, 0, group, int8_t(replacement));
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vslideup<uint16_t>(vd, vs1, amount, group, start, elems, masked);
       vecRegs_.write(vd, 0, group, int16_t(replacement));
       break;
@@ -5646,27 +5571,27 @@ Hart<URV>::execVslide1up_vx(const DecodedInst* di)
       vecRegs_.write(vd, 0, group, int32_t(replacement));
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vslideup<uint64_t>(vd, vs1, amount, group, start, elems, masked);
       vecRegs_.write(vd, 0, group, int64_t(replacement));
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vslideup<Uint128>(vd, vs1, amount, group, start, elems, masked);
       vecRegs_.write(vd, 0, group, Int128(replacement));
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vslideup<Uint256>(vd, vs1, amount, group, start, elems, masked);
       vecRegs_.write(vd, 0, group, Int256(replacement));
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vslideup<Uint512>(vd, vs1, amount, group, start, elems, masked);
       vecRegs_.write(vd, 0, group, Int512(replacement));
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vslideup<Uint1024>(vd, vs1, amount, group, start, elems, masked);
       vecRegs_.write(vd, 0, group, Int1024(replacement));
       break;
@@ -5738,7 +5663,7 @@ Hart<URV>::execVslidedown_vx(const DecodedInst* di)
       vslidedown<uint8_t>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vslidedown<uint16_t>(vd, vs1, amount, group, start, elems, masked);
       break;
 
@@ -5746,23 +5671,23 @@ Hart<URV>::execVslidedown_vx(const DecodedInst* di)
       vslidedown<uint32_t>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vslidedown<uint64_t>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vslidedown<Uint128>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vslidedown<Uint256>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vslidedown<Uint512>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vslidedown<Uint1024>(vd, vs1, amount, group, start, elems, masked);
       break;
     }
@@ -5806,7 +5731,7 @@ Hart<URV>::execVslidedown_vi(const DecodedInst* di)
       vslidedown<uint8_t>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vslidedown<uint16_t>(vd, vs1, amount, group, start, elems, masked);
       break;
 
@@ -5814,23 +5739,23 @@ Hart<URV>::execVslidedown_vi(const DecodedInst* di)
       vslidedown<uint32_t>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vslidedown<uint64_t>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vslidedown<Uint128>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vslidedown<Uint256>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vslidedown<Uint512>(vd, vs1, amount, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vslidedown<Uint1024>(vd, vs1, amount, group, start, elems, masked);
       break;
     }
@@ -5895,7 +5820,7 @@ Hart<URV>::execVmul_vv(const DecodedInst* di)
       vmul_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmul_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -5903,23 +5828,23 @@ Hart<URV>::execVmul_vv(const DecodedInst* di)
       vmul_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmul_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmul_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmul_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmul_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmul_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked);
       break;
     }
@@ -5983,7 +5908,7 @@ Hart<URV>::execVmul_vx(const DecodedInst* di)
       vmul_vx<int8_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmul_vx<int16_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
@@ -5991,23 +5916,23 @@ Hart<URV>::execVmul_vx(const DecodedInst* di)
       vmul_vx<int32_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmul_vx<int64_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmul_vx<Int128>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmul_vx<Int256>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmul_vx<Int512>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmul_vx<Int1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
@@ -6071,7 +5996,7 @@ Hart<URV>::execVmulh_vv(const DecodedInst* di)
       vmulh_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmulh_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -6079,23 +6004,23 @@ Hart<URV>::execVmulh_vv(const DecodedInst* di)
       vmulh_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmulh_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmulh_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmulh_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmulh_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmul_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked);
       assert(0);
       break;
@@ -6160,7 +6085,7 @@ Hart<URV>::execVmulh_vx(const DecodedInst* di)
       vmulh_vx<int8_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmulh_vx<int16_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
@@ -6168,23 +6093,23 @@ Hart<URV>::execVmulh_vx(const DecodedInst* di)
       vmulh_vx<int32_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmulh_vx<int64_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmulh_vx<Int128>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmulh_vx<Int256>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmulh_vx<Int512>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmulh_vx<Int1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
@@ -6219,7 +6144,7 @@ Hart<URV>::execVmulhu_vv(const DecodedInst* di)
       vmulh_vv<uint8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmulh_vv<uint16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -6227,23 +6152,23 @@ Hart<URV>::execVmulhu_vv(const DecodedInst* di)
       vmulh_vv<uint32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmulh_vv<uint64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmulh_vv<Uint128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmulh_vv<Uint256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmulh_vv<Uint512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmulh_vv<Uint1024>(vd, vs1, vs2, group, start, elems, masked);
       break;
     }
@@ -6307,7 +6232,7 @@ Hart<URV>::execVmulhu_vx(const DecodedInst* di)
       vmulhu_vx<uint8_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmulhu_vx<uint16_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
@@ -6315,23 +6240,23 @@ Hart<URV>::execVmulhu_vx(const DecodedInst* di)
       vmulhu_vx<uint32_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmulhu_vx<uint64_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmulhu_vx<Uint128>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmulhu_vx<Uint256>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmulhu_vx<Uint512>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmulhu_vx<Uint1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
@@ -6399,7 +6324,7 @@ Hart<URV>::execVmulhsu_vv(const DecodedInst* di)
       vmulhsu_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmulhsu_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -6407,23 +6332,23 @@ Hart<URV>::execVmulhsu_vv(const DecodedInst* di)
       vmulhsu_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmulhsu_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmulhsu_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmulhsu_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmulhsu_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmulhsu_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked);
       break;
     }
@@ -6490,7 +6415,7 @@ Hart<URV>::execVmulhsu_vx(const DecodedInst* di)
       vmulhsu_vx<int8_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmulhsu_vx<int16_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
@@ -6498,23 +6423,23 @@ Hart<URV>::execVmulhsu_vx(const DecodedInst* di)
       vmulhsu_vx<int32_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmulhsu_vx<int64_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmulhsu_vx<Int128>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmulhsu_vx<Int256>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmulhsu_vx<Int512>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmulhsu_vx<Int1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
@@ -6596,7 +6521,7 @@ Hart<URV>::execVwmulu_vv(const DecodedInst* di)
       vwmulu_vv<uint8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwmulu_vv<uint16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -6604,23 +6529,23 @@ Hart<URV>::execVwmulu_vv(const DecodedInst* di)
       vwmulu_vv<uint32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwmulu_vv<uint64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwmulu_vv<Uint128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwmulu_vv<Uint256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwmulu_vv<Uint512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -6703,7 +6628,7 @@ Hart<URV>::execVwmulu_vx(const DecodedInst* di)
       vwmulu_vx<uint8_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwmulu_vx<uint16_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
@@ -6711,23 +6636,23 @@ Hart<URV>::execVwmulu_vx(const DecodedInst* di)
       vwmulu_vx<uint32_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwmulu_vx<uint64_t>(vd, vs1, int64_t(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwmulu_vx<Uint128>(vd, vs1, Int128(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwmulu_vx<Uint256>(vd, vs1, Int256(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwmulu_vx<Uint512>(vd, vs1, Int512(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -6809,7 +6734,7 @@ Hart<URV>::execVwmul_vv(const DecodedInst* di)
       vwmul_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwmul_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -6817,23 +6742,23 @@ Hart<URV>::execVwmul_vv(const DecodedInst* di)
       vwmul_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwmul_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwmul_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwmul_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwmul_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -6917,7 +6842,7 @@ Hart<URV>::execVwmul_vx(const DecodedInst* di)
       vwmul_vx<int8_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwmul_vx<int16_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
@@ -6925,23 +6850,23 @@ Hart<URV>::execVwmul_vx(const DecodedInst* di)
       vwmul_vx<int32_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwmul_vx<int64_t>(vd, vs1, int64_t(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwmul_vx<Int128>(vd, vs1, Int128(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwmul_vx<Int256>(vd, vs1, Int256(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwmul_vx<Int512>(vd, vs1, Int512(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -7026,7 +6951,7 @@ Hart<URV>::execVwmulsu_vv(const DecodedInst* di)
       vwmulsu_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwmulsu_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -7034,23 +6959,23 @@ Hart<URV>::execVwmulsu_vv(const DecodedInst* di)
       vwmulsu_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwmulsu_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwmulsu_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwmulsu_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwmulsu_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -7135,7 +7060,7 @@ Hart<URV>::execVwmulsu_vx(const DecodedInst* di)
       vwmulsu_vx<int8_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vwmulsu_vx<int16_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
@@ -7143,23 +7068,23 @@ Hart<URV>::execVwmulsu_vx(const DecodedInst* di)
       vwmulsu_vx<int32_t>(vd, vs1, e2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vwmulsu_vx<int64_t>(vd, vs1, int64_t(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vwmulsu_vx<Int128>(vd, vs1, Int128(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vwmulsu_vx<Int256>(vd, vs1, Int256(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vwmulsu_vx<Int512>(vd, vs1, Int512(e2), group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       illegalInst(di);
       break;
     }
@@ -7226,7 +7151,7 @@ Hart<URV>::execVdivu_vv(const DecodedInst* di)
       vdivu_vv<uint8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vdivu_vv<uint16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -7234,23 +7159,23 @@ Hart<URV>::execVdivu_vv(const DecodedInst* di)
       vdivu_vv<uint32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vdivu_vv<uint64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vdivu_vv<Uint128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vdivu_vv<Uint256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vdivu_vv<Uint512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vdivu_vv<Uint1024>(vd, vs1, vs2, group, start, elems, masked);
       break;
     }
@@ -7318,7 +7243,7 @@ Hart<URV>::execVdivu_vx(const DecodedInst* di)
       vdivu_vv<uint8_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vdivu_vv<uint16_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
@@ -7326,23 +7251,23 @@ Hart<URV>::execVdivu_vx(const DecodedInst* di)
       vdivu_vv<uint32_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vdivu_vv<uint64_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vdivu_vv<Uint128>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vdivu_vv<Uint256>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vdivu_vv<Uint512>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vdivu_vv<Uint1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
@@ -7419,7 +7344,7 @@ Hart<URV>::execVdiv_vv(const DecodedInst* di)
       vdiv_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vdiv_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -7427,23 +7352,23 @@ Hart<URV>::execVdiv_vv(const DecodedInst* di)
       vdiv_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vdiv_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vdiv_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vdiv_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vdiv_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vdiv_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked);
       break;
     }
@@ -7519,7 +7444,7 @@ Hart<URV>::execVdiv_vx(const DecodedInst* di)
       vdiv_vx<int8_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vdiv_vx<int16_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
@@ -7527,23 +7452,23 @@ Hart<URV>::execVdiv_vx(const DecodedInst* di)
       vdiv_vx<int32_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vdiv_vx<int64_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vdiv_vx<Int128>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vdiv_vx<Int256>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vdiv_vx<Int512>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vdiv_vx<Int1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
@@ -7610,7 +7535,7 @@ Hart<URV>::execVremu_vv(const DecodedInst* di)
       vremu_vv<uint8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vremu_vv<uint16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -7618,23 +7543,23 @@ Hart<URV>::execVremu_vv(const DecodedInst* di)
       vremu_vv<uint32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vremu_vv<uint64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vremu_vv<Uint128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vremu_vv<Uint256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vremu_vv<Uint512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vremu_vv<Uint1024>(vd, vs1, vs2, group, start, elems, masked);
       break;
     }
@@ -7702,7 +7627,7 @@ Hart<URV>::execVremu_vx(const DecodedInst* di)
       vremu_vv<uint8_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vremu_vv<uint16_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
@@ -7710,23 +7635,23 @@ Hart<URV>::execVremu_vx(const DecodedInst* di)
       vremu_vv<uint32_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vremu_vv<uint64_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vremu_vv<Uint128>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vremu_vv<Uint256>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vremu_vv<Uint512>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vremu_vv<Uint1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
@@ -7803,7 +7728,7 @@ Hart<URV>::execVrem_vv(const DecodedInst* di)
       vrem_vv<int8_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vrem_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
@@ -7811,23 +7736,23 @@ Hart<URV>::execVrem_vv(const DecodedInst* di)
       vrem_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vrem_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vrem_vv<Int128>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vrem_vv<Int256>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vrem_vv<Int512>(vd, vs1, vs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vrem_vv<Int1024>(vd, vs1, vs2, group, start, elems, masked);
       break;
     }
@@ -7903,7 +7828,7 @@ Hart<URV>::execVrem_vx(const DecodedInst* di)
       vremu_vx<int8_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vremu_vx<int16_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
@@ -7911,23 +7836,23 @@ Hart<URV>::execVrem_vx(const DecodedInst* di)
       vremu_vx<int32_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vremu_vx<int64_t>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vremu_vx<Int128>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vremu_vx<Int256>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vremu_vx<Int512>(vd, vs1, rs2, group, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vremu_vx<Int1024>(vd, vs1, rs2, group, start, elems, masked);
       break;
     }
@@ -7993,13 +7918,13 @@ Hart<URV>::execVsext_vf2(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:       illegalInst(di);                return;
-    case ElementWidth::HalfWord:   eew = ElementWidth::Byte;       break;
-    case ElementWidth::Word:       eew = ElementWidth::HalfWord;   break;
-    case ElementWidth::DoubleWord: eew = ElementWidth::Word;       break;
-    case ElementWidth::QuadWord:   eew = ElementWidth::DoubleWord; break;
-    case ElementWidth::OctWord:    eew = ElementWidth::QuadWord;   break;
-    case ElementWidth::HalfKbits:  eew = ElementWidth::OctWord;    break;
-    case ElementWidth::Kbits:      eew = ElementWidth::HalfKbits;  break;
+    case ElementWidth::Half:   eew = ElementWidth::Byte;       break;
+    case ElementWidth::Word:       eew = ElementWidth::Half;   break;
+    case ElementWidth::Word2: eew = ElementWidth::Word;       break;
+    case ElementWidth::Word4:   eew = ElementWidth::Word2; break;
+    case ElementWidth::Word8:    eew = ElementWidth::Word4;   break;
+    case ElementWidth::Word16:  eew = ElementWidth::Word8;    break;
+    case ElementWidth::Word32:      eew = ElementWidth::Word16;  break;
     }
   if (not vecRegs_.legalConfig(eew, emul))
     {
@@ -8017,7 +7942,7 @@ Hart<URV>::execVsext_vf2(const DecodedInst* di)
       illegalInst(di);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vsext<int16_t,int8_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
@@ -8025,23 +7950,23 @@ Hart<URV>::execVsext_vf2(const DecodedInst* di)
       vsext<int32_t, int16_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vsext<int64_t, int32_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vsext<Int128, int64_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vsext<Int256, Int128>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vsext<Int512, Int256>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vsext<Int1024, Int512>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
     }
@@ -8077,13 +8002,13 @@ Hart<URV>::execVsext_vf4(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:       illegalInst(di);                return;
-    case ElementWidth::HalfWord:   illegalInst(di);                return;
+    case ElementWidth::Half:   illegalInst(di);                return;
     case ElementWidth::Word:       eew = ElementWidth::Byte;       break;
-    case ElementWidth::DoubleWord: eew = ElementWidth::HalfWord;   break;
-    case ElementWidth::QuadWord:   eew = ElementWidth::Word;       break;
-    case ElementWidth::OctWord:    eew = ElementWidth::DoubleWord; break;
-    case ElementWidth::HalfKbits:  eew = ElementWidth::QuadWord;   break;
-    case ElementWidth::Kbits:      eew = ElementWidth::OctWord;    break;
+    case ElementWidth::Word2: eew = ElementWidth::Half;   break;
+    case ElementWidth::Word4:   eew = ElementWidth::Word;       break;
+    case ElementWidth::Word8:    eew = ElementWidth::Word2; break;
+    case ElementWidth::Word16:  eew = ElementWidth::Word4;   break;
+    case ElementWidth::Word32:      eew = ElementWidth::Word8;    break;
     }
   if (not vecRegs_.legalConfig(eew, emul))
     {
@@ -8098,7 +8023,7 @@ Hart<URV>::execVsext_vf4(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       illegalInst(di);
       break;
 
@@ -8106,23 +8031,23 @@ Hart<URV>::execVsext_vf4(const DecodedInst* di)
       vsext<int32_t, int8_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vsext<int64_t, int16_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vsext<Int128, int32_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vsext<Int256, int64_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vsext<Int512, Int128>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vsext<Int1024, Int256>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
     }
@@ -8158,13 +8083,13 @@ Hart<URV>::execVsext_vf8(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:       illegalInst(di);                return;
-    case ElementWidth::HalfWord:   illegalInst(di);                return;
+    case ElementWidth::Half:   illegalInst(di);                return;
     case ElementWidth::Word:       illegalInst(di);                return;
-    case ElementWidth::DoubleWord: eew = ElementWidth::Byte;       break;
-    case ElementWidth::QuadWord:   eew = ElementWidth::HalfWord;   break;
-    case ElementWidth::OctWord:    eew = ElementWidth::Word;       break;
-    case ElementWidth::HalfKbits:  eew = ElementWidth::DoubleWord; break;
-    case ElementWidth::Kbits:      eew = ElementWidth::QuadWord;   break;
+    case ElementWidth::Word2: eew = ElementWidth::Byte;       break;
+    case ElementWidth::Word4:   eew = ElementWidth::Half;   break;
+    case ElementWidth::Word8:    eew = ElementWidth::Word;       break;
+    case ElementWidth::Word16:  eew = ElementWidth::Word2; break;
+    case ElementWidth::Word32:      eew = ElementWidth::Word4;   break;
     }
   if (not vecRegs_.legalConfig(eew, emul))
     {
@@ -8179,25 +8104,25 @@ Hart<URV>::execVsext_vf8(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
     case ElementWidth::Word:
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vsext<int64_t, int8_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vsext<Int128, int16_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vsext<Int256, int32_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vsext<Int512, int64_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vsext<Int1024, Int128>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
     }
@@ -8263,13 +8188,13 @@ Hart<URV>::execVzext_vf2(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:       illegalInst(di);                return;
-    case ElementWidth::HalfWord:   eew = ElementWidth::Byte;       break;
-    case ElementWidth::Word:       eew = ElementWidth::HalfWord;   break;
-    case ElementWidth::DoubleWord: eew = ElementWidth::Word;       break;
-    case ElementWidth::QuadWord:   eew = ElementWidth::DoubleWord; break;
-    case ElementWidth::OctWord:    eew = ElementWidth::QuadWord;   break;
-    case ElementWidth::HalfKbits:  eew = ElementWidth::OctWord;    break;
-    case ElementWidth::Kbits:      eew = ElementWidth::HalfKbits;  break;
+    case ElementWidth::Half:   eew = ElementWidth::Byte;       break;
+    case ElementWidth::Word:       eew = ElementWidth::Half;   break;
+    case ElementWidth::Word2: eew = ElementWidth::Word;       break;
+    case ElementWidth::Word4:   eew = ElementWidth::Word2; break;
+    case ElementWidth::Word8:    eew = ElementWidth::Word4;   break;
+    case ElementWidth::Word16:  eew = ElementWidth::Word8;    break;
+    case ElementWidth::Word32:      eew = ElementWidth::Word16;  break;
     }
   if (not vecRegs_.legalConfig(eew, emul))
     {
@@ -8287,7 +8212,7 @@ Hart<URV>::execVzext_vf2(const DecodedInst* di)
       illegalInst(di);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vzext<uint16_t,uint8_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
@@ -8295,23 +8220,23 @@ Hart<URV>::execVzext_vf2(const DecodedInst* di)
       vzext<uint32_t, uint16_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vzext<uint64_t, uint32_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vzext<Uint128, uint64_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vzext<Uint256, Uint128>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vzext<Uint512, Uint256>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vzext<Uint1024, Uint512>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
     }
@@ -8347,13 +8272,13 @@ Hart<URV>::execVzext_vf4(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:       illegalInst(di);                return;
-    case ElementWidth::HalfWord:   illegalInst(di);                return;
+    case ElementWidth::Half:   illegalInst(di);                return;
     case ElementWidth::Word:       eew = ElementWidth::Byte;       break;
-    case ElementWidth::DoubleWord: eew = ElementWidth::HalfWord;   break;
-    case ElementWidth::QuadWord:   eew = ElementWidth::Word;       break;
-    case ElementWidth::OctWord:    eew = ElementWidth::DoubleWord; break;
-    case ElementWidth::HalfKbits:  eew = ElementWidth::QuadWord;   break;
-    case ElementWidth::Kbits:      eew = ElementWidth::OctWord;    break;
+    case ElementWidth::Word2: eew = ElementWidth::Half;   break;
+    case ElementWidth::Word4:   eew = ElementWidth::Word;       break;
+    case ElementWidth::Word8:    eew = ElementWidth::Word2; break;
+    case ElementWidth::Word16:  eew = ElementWidth::Word4;   break;
+    case ElementWidth::Word32:      eew = ElementWidth::Word8;    break;
     }
   if (not vecRegs_.legalConfig(eew, emul))
     {
@@ -8368,7 +8293,7 @@ Hart<URV>::execVzext_vf4(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       illegalInst(di);
       break;
 
@@ -8376,23 +8301,23 @@ Hart<URV>::execVzext_vf4(const DecodedInst* di)
       vzext<uint32_t, uint8_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vzext<uint64_t, uint16_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vzext<Uint128, uint32_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vzext<Uint256, uint64_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vzext<Uint512, Uint128>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vzext<Uint1024, Uint256>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
     }
@@ -8428,13 +8353,13 @@ Hart<URV>::execVzext_vf8(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:       illegalInst(di);                return;
-    case ElementWidth::HalfWord:   illegalInst(di);                return;
+    case ElementWidth::Half:   illegalInst(di);                return;
     case ElementWidth::Word:       illegalInst(di);                return;
-    case ElementWidth::DoubleWord: eew = ElementWidth::Byte;       break;
-    case ElementWidth::QuadWord:   eew = ElementWidth::HalfWord;   break;
-    case ElementWidth::OctWord:    eew = ElementWidth::Word;       break;
-    case ElementWidth::HalfKbits:  eew = ElementWidth::DoubleWord; break;
-    case ElementWidth::Kbits:      eew = ElementWidth::QuadWord;   break;
+    case ElementWidth::Word2: eew = ElementWidth::Byte;       break;
+    case ElementWidth::Word4:   eew = ElementWidth::Half;   break;
+    case ElementWidth::Word8:    eew = ElementWidth::Word;       break;
+    case ElementWidth::Word16:  eew = ElementWidth::Word2; break;
+    case ElementWidth::Word32:      eew = ElementWidth::Word4;   break;
     }
   if (not vecRegs_.legalConfig(eew, emul))
     {
@@ -8449,25 +8374,25 @@ Hart<URV>::execVzext_vf8(const DecodedInst* di)
   switch (sew)
     {
     case ElementWidth::Byte:
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
     case ElementWidth::Word:
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vzext<uint64_t, uint8_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vzext<Uint128, uint16_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vzext<Uint256, uint32_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vzext<Uint512, uint64_t>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vzext<Uint1024, Uint128>(vd, vs1, group, fromGroup, start, elems, masked);
       break;
     }
@@ -8738,7 +8663,7 @@ Hart<URV>::execVadc_vvm(const DecodedInst* di)
       vadc_vvm<uint8_t>(vd, vs1, vs2, vcin, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vadc_vvm<uint16_t>(vd, vs1, vs2, vcin, group, start, elems);
       break;
 
@@ -8746,23 +8671,23 @@ Hart<URV>::execVadc_vvm(const DecodedInst* di)
       vadc_vvm<uint32_t>(vd, vs1, vs2, vcin, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vadc_vvm<uint64_t>(vd, vs1, vs2, vcin, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vadc_vvm<Uint128>(vd, vs1, vs2, vcin, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vadc_vvm<Uint256>(vd, vs1, vs2, vcin, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vadc_vvm<Uint512>(vd, vs1, vs2, vcin, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vadc_vvm<Uint1024>(vd, vs1, vs2, vcin, group, start, elems);
       break;
     }
@@ -8799,7 +8724,7 @@ Hart<URV>::execVadc_vxm(const DecodedInst* di)
       vadc_vxm<uint8_t>(vd, vs1, e2, vcin, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vadc_vxm<uint16_t>(vd, vs1, e2, vcin, group, start, elems);
       break;
 
@@ -8807,23 +8732,23 @@ Hart<URV>::execVadc_vxm(const DecodedInst* di)
       vadc_vxm<uint32_t>(vd, vs1, int32_t(e2), vcin, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vadc_vxm<uint64_t>(vd, vs1, int64_t(e2), vcin, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vadc_vxm<Uint128>(vd, vs1, Int128(e2), vcin, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vadc_vxm<Uint256>(vd, vs1, Int256(e2), vcin, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vadc_vxm<Uint512>(vd, vs1, Int512(e2), vcin, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vadc_vxm<Uint1024>(vd, vs1, Int1024(e2), vcin, group, start, elems);
       break;
     }
@@ -8860,7 +8785,7 @@ Hart<URV>::execVadc_vim(const DecodedInst* di)
       vadc_vxm<uint8_t>(vd, vs1, e2, vcin, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vadc_vxm<uint16_t>(vd, vs1, e2, vcin, group, start, elems);
       break;
 
@@ -8868,23 +8793,23 @@ Hart<URV>::execVadc_vim(const DecodedInst* di)
       vadc_vxm<uint32_t>(vd, vs1, int32_t(e2), vcin, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vadc_vxm<uint64_t>(vd, vs1, int64_t(e2), vcin, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vadc_vxm<Uint128>(vd, vs1, Int128(e2), vcin, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vadc_vxm<Uint256>(vd, vs1, Int256(e2), vcin, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vadc_vxm<Uint512>(vd, vs1, Int512(e2), vcin, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vadc_vxm<Uint1024>(vd, vs1, Int1024(e2), vcin, group, start, elems);
       break;
     }
@@ -8919,7 +8844,7 @@ Hart<URV>::execVsbc_vvm(const DecodedInst* di)
       vsbc_vvm<uint8_t>(vd, vs1, vs2, vbin, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vsbc_vvm<uint16_t>(vd, vs1, vs2, vbin, group, start, elems);
       break;
 
@@ -8927,23 +8852,23 @@ Hart<URV>::execVsbc_vvm(const DecodedInst* di)
       vsbc_vvm<uint32_t>(vd, vs1, vs2, vbin, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vsbc_vvm<uint64_t>(vd, vs1, vs2, vbin, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vsbc_vvm<Uint128>(vd, vs1, vs2, vbin, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vsbc_vvm<Uint256>(vd, vs1, vs2, vbin, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vsbc_vvm<Uint512>(vd, vs1, vs2, vbin, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vsbc_vvm<Uint1024>(vd, vs1, vs2, vbin, group, start, elems);
       break;
     }
@@ -8980,7 +8905,7 @@ Hart<URV>::execVsbc_vxm(const DecodedInst* di)
       vsbc_vxm<uint8_t>(vd, vs1, e2, vbin, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vsbc_vxm<uint16_t>(vd, vs1, e2, vbin, group, start, elems);
       break;
 
@@ -8988,23 +8913,23 @@ Hart<URV>::execVsbc_vxm(const DecodedInst* di)
       vsbc_vxm<uint32_t>(vd, vs1, int32_t(e2), vbin, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vsbc_vxm<uint64_t>(vd, vs1, int64_t(e2), vbin, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vsbc_vxm<Uint128>(vd, vs1, Int128(e2), vbin, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vsbc_vxm<Uint256>(vd, vs1, Int256(e2), vbin, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vsbc_vxm<Uint512>(vd, vs1, Int512(e2), vbin, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vsbc_vxm<Uint1024>(vd, vs1, Int1024(e2), vbin, group, start, elems);
       break;
     }
@@ -9039,7 +8964,7 @@ Hart<URV>::execVmadc_vvm(const DecodedInst* di)
       vmadc_vvm<uint8_t>(vcout, vs1, vs2, carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmadc_vvm<uint16_t>(vcout, vs1, vs2, carry, vcin, group, start, elems);
       break;
 
@@ -9047,23 +8972,23 @@ Hart<URV>::execVmadc_vvm(const DecodedInst* di)
       vmadc_vvm<uint32_t>(vcout, vs1, vs2, carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmadc_vvm<uint64_t>(vcout, vs1, vs2, carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmadc_vvm<Uint128>(vcout, vs1, vs2, carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmadc_vvm<Uint256>(vcout, vs1, vs2, carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmadc_vvm<Uint512>(vcout, vs1, vs2, carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmadc_vvm<Uint1024>(vcout, vs1, vs2, carry, vcin, group, start, elems);
       break;
     }
@@ -9100,7 +9025,7 @@ Hart<URV>::execVmadc_vxm(const DecodedInst* di)
       vmadc_vxm<uint8_t>(vcout, vs1, e2, carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmadc_vxm<uint16_t>(vcout, vs1, e2, carry, vcin, group, start, elems);
       break;
 
@@ -9108,23 +9033,23 @@ Hart<URV>::execVmadc_vxm(const DecodedInst* di)
       vmadc_vxm<uint32_t>(vcout, vs1, int32_t(e2), carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmadc_vxm<uint64_t>(vcout, vs1, int64_t(e2), carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmadc_vxm<Uint128>(vcout, vs1, Int128(e2), carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmadc_vxm<Uint256>(vcout, vs1, Int256(e2), carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmadc_vxm<Uint512>(vcout, vs1, Int512(e2), carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmadc_vxm<Uint1024>(vcout, vs1, Int1024(e2), carry, vcin, group, start, elems);
       break;
     }
@@ -9161,7 +9086,7 @@ Hart<URV>::execVmadc_vim(const DecodedInst* di)
       vmadc_vxm<uint8_t>(vcout, vs1, e2, carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmadc_vxm<uint16_t>(vcout, vs1, e2, carry, vcin, group, start, elems);
       break;
 
@@ -9169,23 +9094,23 @@ Hart<URV>::execVmadc_vim(const DecodedInst* di)
       vmadc_vxm<uint32_t>(vcout, vs1, int32_t(e2), carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmadc_vxm<uint64_t>(vcout, vs1, int64_t(e2), carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmadc_vxm<Uint128>(vcout, vs1, Int128(e2), carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmadc_vxm<Uint256>(vcout, vs1, Int256(e2), carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmadc_vxm<Uint512>(vcout, vs1, Int512(e2), carry, vcin, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmadc_vxm<Uint1024>(vcout, vs1, Int1024(e2), carry, vcin, group, start, elems);
       break;
     }
@@ -9220,7 +9145,7 @@ Hart<URV>::execVmsbc_vvm(const DecodedInst* di)
       vmsbc_vvm<uint8_t>(vbout, vs1, vs2, borrow, vbin, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmsbc_vvm<uint16_t>(vbout, vs1, vs2, borrow, vbin, group, start, elems);
       break;
 
@@ -9228,23 +9153,23 @@ Hart<URV>::execVmsbc_vvm(const DecodedInst* di)
       vmsbc_vvm<uint32_t>(vbout, vs1, vs2, borrow, vbin, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmsbc_vvm<uint64_t>(vbout, vs1, vs2, borrow, vbin, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmsbc_vvm<Uint128>(vbout, vs1, vs2, borrow, vbin, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmsbc_vvm<Uint256>(vbout, vs1, vs2, borrow, vbin, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmsbc_vvm<Uint512>(vbout, vs1, vs2, borrow, vbin, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmsbc_vvm<Uint1024>(vbout, vs1, vs2, borrow, vbin, group, start, elems);
       break;
     }
@@ -9281,7 +9206,7 @@ Hart<URV>::execVmsbc_vxm(const DecodedInst* di)
       vmsbc_vxm<uint8_t>(vbout, vs1, e2, borrow, vbin, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmsbc_vxm<uint16_t>(vbout, vs1, e2, borrow, vbin, group, start, elems);
       break;
 
@@ -9289,23 +9214,23 @@ Hart<URV>::execVmsbc_vxm(const DecodedInst* di)
       vmsbc_vxm<uint32_t>(vbout, vs1, int32_t(e2), borrow, vbin, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmsbc_vxm<uint64_t>(vbout, vs1, int64_t(e2), borrow, vbin, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmsbc_vxm<Uint128>(vbout, vs1, Int128(e2), borrow, vbin, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmsbc_vxm<Uint256>(vbout, vs1, Int256(e2), borrow, vbin, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmsbc_vxm<Uint512>(vbout, vs1, Int512(e2), borrow, vbin, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmsbc_vxm<Uint1024>(vbout, vs1, Int1024(e2), borrow, vbin, group, start, elems);
       break;
     }
@@ -9367,7 +9292,7 @@ Hart<URV>::execVmerge_vv(const DecodedInst* di)
       vmerge_vv<int8_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmerge_vv<int16_t>(vd, vs1, vs2, group, start, elems);
       break;
 
@@ -9375,23 +9300,23 @@ Hart<URV>::execVmerge_vv(const DecodedInst* di)
       vmerge_vv<int32_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmerge_vv<int64_t>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmerge_vv<Int128>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmerge_vv<Int256>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmerge_vv<Int512>(vd, vs1, vs2, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmerge_vv<Int1024>(vd, vs1, vs2, group, start, elems);
       break;
     }
@@ -9456,7 +9381,7 @@ Hart<URV>::execVmerge_vx(const DecodedInst* di)
       vmerge_vx<int8_t>(vd, vs1, e2, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmerge_vx<int16_t>(vd, vs1, e2, group, start, elems);
       break;
 
@@ -9464,23 +9389,23 @@ Hart<URV>::execVmerge_vx(const DecodedInst* di)
       vmerge_vx<int32_t>(vd, vs1, e2, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmerge_vx<int64_t>(vd, vs1, e2, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmerge_vx<Int128>(vd, vs1, Int128(e2), group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmerge_vx<Int256>(vd, vs1, Int256(e2), group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmerge_vx<Int512>(vd, vs1, Int512(e2), group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmerge_vx<Int1024>(vd, vs1, Int1024(e2), group, start, elems);
       break;
     }
@@ -9517,7 +9442,7 @@ Hart<URV>::execVmerge_vi(const DecodedInst* di)
       vmerge_vx<int8_t>(vd, vs1, imm, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmerge_vx<int16_t>(vd, vs1, imm, group, start, elems);
       break;
 
@@ -9525,23 +9450,23 @@ Hart<URV>::execVmerge_vi(const DecodedInst* di)
       vmerge_vx<int32_t>(vd, vs1, imm, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmerge_vx<int64_t>(vd, vs1, imm, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmerge_vx<Int128>(vd, vs1, Int128(imm), group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmerge_vx<Int256>(vd, vs1, Int256(imm), group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmerge_vx<Int512>(vd, vs1, Int512(imm), group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmerge_vx<Int1024>(vd, vs1, Int1024(imm), group, start, elems);
       break;
     }
@@ -9579,7 +9504,7 @@ Hart<URV>::execVmv_x_s(const DecodedInst* di)
       }
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       {
         int16_t val = 0;
         vecRegs_.read(vs1, 0, groupX8, val);
@@ -9595,7 +9520,7 @@ Hart<URV>::execVmv_x_s(const DecodedInst* di)
       }
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       {
         int64_t val = 0;
         vecRegs_.read(vs1, 0, groupX8, val);
@@ -9603,7 +9528,7 @@ Hart<URV>::execVmv_x_s(const DecodedInst* di)
       }
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       {
         Int128 val = 0;
         vecRegs_.read(vs1, 0, groupX8, val);
@@ -9611,7 +9536,7 @@ Hart<URV>::execVmv_x_s(const DecodedInst* di)
       }
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       {
         Int256 val = 0;
         vecRegs_.read(vs1, 0, groupX8, val);
@@ -9619,7 +9544,7 @@ Hart<URV>::execVmv_x_s(const DecodedInst* di)
       }
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       {
         Int512 val = 0;
         vecRegs_.read(vs1, 0, groupX8, val);
@@ -9627,7 +9552,7 @@ Hart<URV>::execVmv_x_s(const DecodedInst* di)
       }
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       {
         Int1024 val = 0;
         vecRegs_.read(vs1, 0, groupX8, val);
@@ -9667,7 +9592,7 @@ Hart<URV>::execVmv_s_x(const DecodedInst* di)
       vecRegs_.write(vd, 0, groupX8, int8_t(val));
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vecRegs_.write(vd, 0, groupX8, int16_t(val));
       break;
 
@@ -9675,23 +9600,23 @@ Hart<URV>::execVmv_s_x(const DecodedInst* di)
       vecRegs_.write(vd, 0, groupX8, int32_t(val));
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vecRegs_.write(vd, 0, groupX8, int64_t(val));
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vecRegs_.write(vd, 0, groupX8, Int128(val));
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vecRegs_.write(vd, 0, groupX8, Int256(val));
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vecRegs_.write(vd, 0, groupX8, Int512(val));
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vecRegs_.write(vd, 0, groupX8, Int1024(val));
       break;
     }
@@ -9748,7 +9673,7 @@ Hart<URV>::execVmv_v_v(const DecodedInst* di)
       vmv_v_v<int8_t>(vd, vs1, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmv_v_v<int16_t>(vd, vs1, group, start, elems);
       break;
 
@@ -9756,23 +9681,23 @@ Hart<URV>::execVmv_v_v(const DecodedInst* di)
       vmv_v_v<int32_t>(vd, vs1, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmv_v_v<int64_t>(vd, vs1, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmv_v_v<Int128>(vd, vs1, group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmv_v_v<Int256>(vd, vs1, group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmv_v_v<Int512>(vd, vs1, group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmv_v_v<Int1024>(vd, vs1, group, start, elems);
       break;
     }
@@ -9821,7 +9746,7 @@ Hart<URV>::execVmv_v_x(const DecodedInst* di)
       vmv_v_x<int8_t>(vd, e1, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmv_v_x<int16_t>(vd, e1, group, start, elems);
       break;
 
@@ -9829,23 +9754,23 @@ Hart<URV>::execVmv_v_x(const DecodedInst* di)
       vmv_v_x<int32_t>(vd, e1, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmv_v_x<int64_t>(vd, e1, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmv_v_x<Int128>(vd, Int128(e1), group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmv_v_x<Int256>(vd, Int256(e1), group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmv_v_x<Int512>(vd, Int512(e1), group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmv_v_x<Int1024>(vd, Int1024(e1), group, start, elems);
       break;
     }
@@ -9877,7 +9802,7 @@ Hart<URV>::execVmv_v_i(const DecodedInst* di)
       vmv_v_x<int8_t>(vd, e1, group, start, elems);
       break;
 
-    case ElementWidth::HalfWord:
+    case ElementWidth::Half:
       vmv_v_x<int16_t>(vd, e1, group, start, elems);
       break;
 
@@ -9885,23 +9810,23 @@ Hart<URV>::execVmv_v_i(const DecodedInst* di)
       vmv_v_x<int32_t>(vd, e1, group, start, elems);
       break;
 
-    case ElementWidth::DoubleWord:
+    case ElementWidth::Word2:
       vmv_v_x<int64_t>(vd, e1, group, start, elems);
       break;
 
-    case ElementWidth::QuadWord:
+    case ElementWidth::Word4:
       vmv_v_x<Int128>(vd, Int128(e1), group, start, elems);
       break;
 
-    case ElementWidth::OctWord:
+    case ElementWidth::Word8:
       vmv_v_x<Int256>(vd, Int256(e1), group, start, elems);
       break;
 
-    case ElementWidth::HalfKbits:
+    case ElementWidth::Word16:
       vmv_v_x<Int512>(vd, Int512(e1), group, start, elems);
       break;
 
-    case ElementWidth::Kbits:
+    case ElementWidth::Word32:
       vmv_v_x<Int1024>(vd, Int1024(e1), group, start, elems);
       break;
     }

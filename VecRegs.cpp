@@ -36,7 +36,7 @@ VecRegs::VecRegs()
     groupFlags.assign(groupFlags.size(), true);
 
   // Temporary, for testing. FIX.
-  sew_ = ElementWidth::DoubleWord;
+  sew_ = ElementWidth::Word2;
   sewInBits_ = 64;
 
   // Temporary, for testing. FIX.

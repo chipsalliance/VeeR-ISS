@@ -39,14 +39,14 @@ namespace WdRiscv
   /// Selected element width.
   enum class ElementWidth : uint32_t
     {
-     Byte         = 0,
-     HalfWord     = 1,
-     Word         = 2,
-     DoubleWord   = 3,
-     QuadWord     = 4,
-     OctWord      = 5,
-     HalfKbits    = 6,
-     Kbits        = 7
+     Byte      = 0,
+     Half      = 1,
+     Word      = 2,
+     Word2     = 3,
+     Word4     = 4,
+     Word8     = 5,
+     Word16    = 6,
+     Word32    = 7
     };
 
 
@@ -184,7 +184,7 @@ namespace WdRiscv
     /// Return the element width in bit given the symbolic element width.
     /// Rturn 0 if symbolic value is out of bounds.
     static uint32_t elementWidthInBits(ElementWidth ew)
-    { return ew > ElementWidth::Kbits ? 0 : uint32_t(8) << uint32_t(ew); }
+    { return ew > ElementWidth::Word32 ? 0 : uint32_t(8) << uint32_t(ew); }
 
     /// Return the currently configured group multiplier as a unsigned
     /// integer scaled by 8.  For example if group multiplier is One,
@@ -241,13 +241,13 @@ namespace WdRiscv
     bool doubleSew(ElementWidth sew, ElementWidth& dsew)
     {
       typedef ElementWidth EW;
-      if (sew == EW::Byte       ) { dsew = EW:: HalfWord;   return true; }
-      if (sew == EW::HalfWord   ) { dsew = EW:: Word;       return true; }
-      if (sew == EW::Word       ) { dsew = EW:: DoubleWord; return true; }
-      if (sew == EW::DoubleWord ) { dsew = EW:: QuadWord;   return true; }
-      if (sew == EW::QuadWord   ) { dsew = EW:: OctWord;    return true; }
-      if (sew == EW::OctWord    ) { dsew = EW:: HalfKbits;  return true; }
-      if (sew == EW::HalfKbits  ) { dsew = EW:: Kbits;      return true; }
+      if (sew == EW::Byte   ) { dsew = EW:: Half;   return true; }
+      if (sew == EW::Half   ) { dsew = EW:: Word;   return true; }
+      if (sew == EW::Word   ) { dsew = EW:: Word2;  return true; }
+      if (sew == EW::Word2  ) { dsew = EW:: Word4;  return true; }
+      if (sew == EW::Word4  ) { dsew = EW:: Word8;  return true; }
+      if (sew == EW::Word8  ) { dsew = EW:: Word16; return true; }
+      if (sew == EW::Word16 ) { dsew = EW:: Word32; return true; }
       return false;
     }
 
