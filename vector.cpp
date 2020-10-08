@@ -6534,6 +6534,8 @@ Hart<URV>::vwmulu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
   ELEM_TYPE e1 = 0, e2 = 0;
   ELEM_TYPE_X2 dest = 0;
 
+  unsigned wideGroup = group * 2;
+
   for (unsigned ix = start; ix < elems; ++ix)
     {
       if (masked and not vecRegs_.isActive(0, ix))
@@ -6544,7 +6546,7 @@ Hart<URV>::vwmulu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
         {
           dest = ELEM_TYPE_X2(e1);
           dest *= e2;
-          if (not vecRegs_.write(vd, ix, group, dest))
+          if (not vecRegs_.write(vd, ix, wideGroup, dest))
             errors++;
         }
       else
@@ -6638,6 +6640,8 @@ Hart<URV>::vwmulu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
   ELEM_TYPE e1 = 0;
   ELEM_TYPE_X2 dest = 0;
 
+  unsigned wideGroup = group * 2;
+
   for (unsigned ix = start; ix < elems; ++ix)
     {
       if (masked and not vecRegs_.isActive(0, ix))
@@ -6647,7 +6651,7 @@ Hart<URV>::vwmulu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
         {
           dest = ELEM_TYPE_X2(e1);
           dest *= e2;
-          if (not vecRegs_.write(vd, ix, group, dest))
+          if (not vecRegs_.write(vd, ix, wideGroup, dest))
             errors++;
         }
       else
@@ -6743,6 +6747,8 @@ Hart<URV>::vwmul_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
   ELEM_TYPE e1 = 0, e2 = 0;
   ELEM_TYPE_X2 dest = 0;
 
+  unsigned wideGroup = group * 2;
+
   for (unsigned ix = start; ix < elems; ++ix)
     {
       if (masked and not vecRegs_.isActive(0, ix))
@@ -6753,7 +6759,7 @@ Hart<URV>::vwmul_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
         {
           dest = ELEM_TYPE_X2(e1);
           dest *= ELEM_TYPE_X2(e2);
-          if (not vecRegs_.write(vd, ix, group, dest))
+          if (not vecRegs_.write(vd, ix, wideGroup, dest))
             errors++;
         }
       else
@@ -6848,6 +6854,8 @@ Hart<URV>::vwmul_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
   ELEM_TYPE_X2 dest = 0;
   ELEM_TYPE_X2 e2Wide(e2);
 
+  unsigned wideGroup = group * 2;
+
   for (unsigned ix = start; ix < elems; ++ix)
     {
       if (masked and not vecRegs_.isActive(0, ix))
@@ -6857,7 +6865,7 @@ Hart<URV>::vwmul_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
         {
           dest = ELEM_TYPE_X2(e1);
           dest *= e2Wide;
-          if (not vecRegs_.write(vd, ix, group, dest))
+          if (not vecRegs_.write(vd, ix, wideGroup, dest))
             errors++;
         }
       else
@@ -6955,6 +6963,8 @@ Hart<URV>::vwmulsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
   ELEM_TYPE_U e2u = 0;
   ELEM_TYPE_X2 dest = 0;
 
+  unsigned wideGroup = group * 2;
+
   for (unsigned ix = start; ix < elems; ++ix)
     {
       if (masked and not vecRegs_.isActive(0, ix))
@@ -6966,7 +6976,7 @@ Hart<URV>::vwmulsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
           dest = ELEM_TYPE_X2(e1);
           ELEM_TYPE_X2 tmp2(e2u);
           dest *= tmp2;
-          if (not vecRegs_.write(vd, ix, group, dest))
+          if (not vecRegs_.write(vd, ix, wideGroup, dest))
             errors++;
         }
       else
@@ -7062,6 +7072,8 @@ Hart<URV>::vwmulsu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
   ELEM_TYPE_U e2u = ELEM_TYPE_U(e2);
   ELEM_TYPE_X2 e2Wide(e2u);
 
+  unsigned wideGroup = group * 2;
+
   for (unsigned ix = start; ix < elems; ++ix)
     {
       if (masked and not vecRegs_.isActive(0, ix))
@@ -7071,7 +7083,7 @@ Hart<URV>::vwmulsu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
         {
           dest = ELEM_TYPE_X2(e1);
           dest *= e2Wide;
-          if (not vecRegs_.write(vd, ix, group, dest))
+          if (not vecRegs_.write(vd, ix, wideGroup, dest))
             errors++;
         }
       else
