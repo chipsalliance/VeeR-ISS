@@ -7624,6 +7624,19 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
   if (amoInDccmOnly_ and not isAddrInDccm(addr))
     fail = true;
 
+  // Temporary: Check if not cachable. FIX: this should be part of
+  // physical memory attributes.
+  if (not isAddrInDccm(addr))
+    {
+      unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
+      URV mracVal = 0;
+      if (csRegs_.read(CsrNumber::MRAC, PrivilegeMode::Machine, mracVal))
+        {
+          unsigned bit = (mracVal >> (region*2)) & 1;
+          fail = bit == 0;
+        }
+    }
+
   if (fail)
     {
       // AMO secondary cause has priority over ECC.
