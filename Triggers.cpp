@@ -166,10 +166,14 @@ Triggers<URV>::ldStAddrTriggerHit(URV address, TriggerTiming timing,
 				  bool isLoad, PrivilegeMode mode,
                                   bool interruptEnabled)
 {
+  // Check if we should skip tripping because we are running in
+  // machine mode and interrupts disabled.
+  bool skip = mode == PrivilegeMode::Machine and not interruptEnabled;
+
   bool hit = false;
   for (auto& trigger : triggers_)
     {
-      if (not trigger.isEnterDebugOnHit() and not interruptEnabled)
+      if (not trigger.isEnterDebugOnHit() and skip)
 	continue;
 
       if (not trigger.matchLdStAddr(address, timing, isLoad, mode))
@@ -189,10 +193,14 @@ bool
 Triggers<URV>::ldStDataTriggerHit(URV value, TriggerTiming timing, bool isLoad,
 				  PrivilegeMode mode, bool interruptEnabled)
 {
+  // Check if we should skip tripping because we are running in
+  // machine mode and interrupts disabled.
+  bool skip = mode == PrivilegeMode::Machine and not interruptEnabled;
+
   bool hit = false;
   for (auto& trigger : triggers_)
     {
-      if (not trigger.isEnterDebugOnHit() and not interruptEnabled)
+      if (not trigger.isEnterDebugOnHit() and skip)
 	continue;
 
       if (not trigger.matchLdStData(value, timing, isLoad, mode))
@@ -213,10 +221,14 @@ bool
 Triggers<URV>::instAddrTriggerHit(URV address, TriggerTiming timing,
                                   PrivilegeMode mode, bool interruptEnabled)
 {
+  // Check if we should skip tripping because we are running in
+  // machine mode and interrupts disabled.
+  bool skip = mode == PrivilegeMode::Machine and not interruptEnabled;
+
   bool hit = false;
   for (auto& trigger : triggers_)
     {
-      if (not trigger.isEnterDebugOnHit() and not interruptEnabled)
+      if (not trigger.isEnterDebugOnHit() and skip)
 	continue;
 
       if (not trigger.matchInstAddr(address, timing, mode))
@@ -237,10 +249,14 @@ Triggers<URV>::instOpcodeTriggerHit(URV opcode, TriggerTiming timing,
                                     PrivilegeMode mode,
 				    bool interruptEnabled)
 {
+  // Check if we should skip tripping because we are running in
+  // machine mode and interrupts disabled.
+  bool skip = mode == PrivilegeMode::Machine and not interruptEnabled;
+
   bool hit = false;
   for (auto& trigger : triggers_)
     {
-      if (not trigger.isEnterDebugOnHit() and not interruptEnabled)
+      if (not trigger.isEnterDebugOnHit() and skip)
 	continue;
 
       if (not trigger.matchInstOpcode(opcode, timing, mode))
@@ -260,11 +276,15 @@ template <typename URV>
 bool
 Triggers<URV>::icountTriggerHit(PrivilegeMode mode, bool interruptEnabled)
 {
+  // Check if we should skip tripping because we are running in
+  // machine mode and interrupts disabled.
+  bool skip = mode == PrivilegeMode::Machine and not interruptEnabled;
+
   bool hit = false;
 
   for (auto& trig : triggers_)
     {
-      if (not trig.isEnterDebugOnHit() and not interruptEnabled)
+      if (not trig.isEnterDebugOnHit() and skip)
 	continue;
 
       if (trig.isModified())
