@@ -3868,13 +3868,9 @@ Hart<URV>::execVid_v(const DecodedInst* di)
       return;
     }
 
-  // Spec does not explicitly state this.   FIX double check.
+  // Spec does not mention vstart > 0. Got a clarification saying it is ok not
+  // to ake an exception in that case.
   uint32_t start = vecRegs_.startIndex();
-  if (start > 0)
-    {
-      illegalInst(di);
-      return;
-    }
 
   unsigned group = vecRegs_.groupMultiplierX8();
   ElementWidth sew = vecRegs_.elemWidth();
