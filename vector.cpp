@@ -2744,25 +2744,22 @@ Hart<URV>::vcompress_vm(unsigned vd, unsigned vs1, unsigned vs2,
                         unsigned group, unsigned start, unsigned elems)
 {
   unsigned errors = 0;
-  ELEM_TYPE e1 = 0, e2 = 0, dest = 0;
+  ELEM_TYPE e1 = 0, dest = 0;
   unsigned destIx = 0;
 
   for (unsigned ix = start; ix < elems; ++ix)
     {
-      if (vecRegs_.read(vs2, ix, group, e2))
+      if (vecRegs_.isActive(vs2, ix))
         {
-          if (e2 & 1)
+          if (vecRegs_.read(vs1, ix, group, e1))
             {
-              if (vecRegs_.read(vs1, ix, group, e1))
-                {
-                  dest = e1;
-                  if (not vecRegs_.write(vd, destIx++, group, dest))
-                    errors++;
-                }
+              dest = e1;
+              if (not vecRegs_.write(vd, destIx++, group, dest))
+                errors++;
             }
+          else
+            errors++;
         }
-      else
-        errors++;
     }
 
   assert(errors == 0);

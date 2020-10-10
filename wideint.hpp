@@ -78,7 +78,7 @@ namespace WdRiscv
     explicit operator INT() const
     { return low_; }
 
-    SelfType& operator += (SelfType x)
+    SelfType& operator += (const SelfType& x)
     {
       HalfType prevLow = low_;
       low_ += x.low_;
@@ -88,7 +88,7 @@ namespace WdRiscv
       return *this;
     }
 
-    SelfType& operator -= (SelfType x)
+    SelfType& operator -= (const SelfType& x)
     {
       HalfType prevLow = low_;
       low_ -= x.low_;
@@ -98,13 +98,13 @@ namespace WdRiscv
       return *this;
     }
 
-    SelfType& operator |= (SelfType x)
+    SelfType& operator |= (const SelfType& x)
     { low_ |= x.low_; high_ |= x.high_; return *this; }
 
-    SelfType& operator &= (SelfType x)
+    SelfType& operator &= (const SelfType& x)
     { low_ &= x.low_; high_ &= x.high_; return *this; }
 
-    SelfType& operator ^= (SelfType x)
+    SelfType& operator ^= (const SelfType& x)
     { low_ ^= x.low_; high_ ^= x.high_; return *this; }
 
     SelfType& operator ++ ()
@@ -122,32 +122,32 @@ namespace WdRiscv
     SelfType operator ~ () const
     { SelfType temp( ~high_, ~low_); return temp; }
 
-    SelfType& operator *= (SelfType x);
+    SelfType& operator *= (const SelfType& x);
 
-    SelfType& operator /= (SelfType x);
+    SelfType& operator /= (const SelfType& x);
 
-    SelfType& operator %= (SelfType x);
+    SelfType& operator %= (const SelfType& x);
 
     SelfType& operator >>= (int n);
 
     SelfType& operator <<= (int n);
 
-    bool operator == (SelfType x) const
+    bool operator == (const SelfType& x) const
     { return high_ == x.high_ and low_ == x.low_; }
 
-    bool operator != (SelfType x) const
+    bool operator != (const SelfType& x) const
     { return not (*this == x); }
 
-    bool operator < (SelfType x) const
+    bool operator < (const SelfType& x) const
     { return high_ < x.high_ or (high_ == x.high_ and low_ < x.low_); }
 
-    bool operator > (SelfType x) const
+    bool operator > (const SelfType& x) const
     { return high_ > x.high_ or (high_ == x.high_ and low_ > x.low_); }
 
-    bool operator <= (SelfType x) const
+    bool operator <= (const SelfType& x) const
     { return high_ < x.high_ or (high_ == x.high_ and low_ <= x.low_); }
 
-    bool operator >= (SelfType x) const
+    bool operator >= (const SelfType& x) const
     { return high_ > x.high_ or (high_ == x.high_ and low_ >= x.low_); }
 
   protected:
@@ -204,7 +204,7 @@ namespace WdRiscv
     explicit operator INT() const
     { return low_; }
 
-    SelfType& operator += (SelfType x)
+    SelfType& operator += (const SelfType& x)
     {
       UnsignedType* a = (UnsignedType*) this;
       UnsignedType* b = (UnsignedType*) &x;
@@ -212,7 +212,7 @@ namespace WdRiscv
       return *this;
     }
 
-    SelfType& operator -= (SelfType x)
+    SelfType& operator -= (const SelfType& x)
     {
       UnsignedType* a = (UnsignedType*) this;
       UnsignedType* b = (UnsignedType*) &x;
@@ -220,13 +220,13 @@ namespace WdRiscv
       return *this;
     }
 
-    SelfType& operator |= (SelfType x)
+    SelfType& operator |= (const SelfType& x)
     { low_ |= x.low_; high_ |= x.high_; return *this; }
 
-    SelfType& operator &= (SelfType x)
+    SelfType& operator &= (const SelfType& x)
     { low_ &= x.low_; high_ &= x.high_; return *this; }
 
-    SelfType& operator ^= (SelfType x)
+    SelfType& operator ^= (const SelfType& x)
     { low_ ^= x.low_; high_ ^= x.high_; return *this; }
 
     SelfType& operator ++ ()
@@ -244,41 +244,41 @@ namespace WdRiscv
     SelfType operator ~ () const
     { SelfType temp( ~high_, ~low_); return temp; }
 
-    SelfType& operator *= (SelfType x);
+    SelfType& operator *= (const SelfType& x);
 
-    SelfType& operator /= (SelfType x);
+    SelfType& operator /= (const SelfType& x);
 
-    SelfType& operator %= (SelfType x);
+    SelfType& operator %= (const SelfType& x);
 
     SelfType& operator >>= (int n);
 
     SelfType& operator <<= (int n);
 
-    bool operator == (SelfType x) const
+    bool operator == (const SelfType& x) const
     { return high_ == x.high_ and low_ == x.low_; }
 
-    bool operator != (SelfType x) const
+    bool operator != (const SelfType& x) const
     { return not (*this == x); }
 
-    bool operator < (SelfType x) const
+    bool operator < (const SelfType& x) const
     {
       return (high_ < x.high_ or
               (high_ == x.high_ and HalfUnsigned(low_) < HalfUnsigned(x.low_)));
     }
 
-    bool operator > (SelfType x) const
+    bool operator > (const SelfType& x) const
     {
       return (high_ > x.high_ or
               (high_ == x.high_ and HalfUnsigned(low_) > HalfUnsigned(x.low_)));
     }
 
-    bool operator <= (SelfType x) const
+    bool operator <= (const SelfType& x) const
     {
       return (high_ < x.high_ or
               (high_ == x.high_ and HalfUnsigned(low_) <= HalfUnsigned(x.low_)));
     }
 
-    bool operator >= (SelfType x) const
+    bool operator >= (const SelfType& x) const
     {
       return (high_ > x.high_ or
               (high_ == x.high_ and HalfUnsigned(low_) >= HalfUnsigned(x.low_)));
@@ -351,7 +351,7 @@ namespace WdRiscv
     explicit operator INT() const
     { return INT(low_); }
 
-    SelfType& operator += (SelfType x)
+    SelfType& operator += (const SelfType& x)
     {
       HalfType prevLow = low_;
       low_ += x.low_;
@@ -361,7 +361,7 @@ namespace WdRiscv
       return *this;
     }
 
-    SelfType& operator -= (SelfType x)
+    SelfType& operator -= (const SelfType& x)
     {
       HalfType prevLow = low_;
       low_ -= x.low_;
@@ -371,13 +371,13 @@ namespace WdRiscv
       return *this;
     }
 
-    SelfType& operator |= (SelfType x)
+    SelfType& operator |= (const SelfType& x)
     { low_ |= x.low_; high_ |= x.high_; return *this; }
 
-    SelfType& operator &= (SelfType x)
+    SelfType& operator &= (const SelfType& x)
     { low_ &= x.low_; high_ &= x.high_; return *this; }
 
-    SelfType& operator ^= (SelfType x)
+    SelfType& operator ^= (const SelfType& x)
     { low_ ^= x.low_; high_ ^= x.high_; return *this; }
 
     SelfType& operator ++ ()
@@ -395,32 +395,32 @@ namespace WdRiscv
     SelfType operator ~ () const
     { SelfType temp( ~high_, ~low_); return temp; }
 
-    SelfType& operator *= (SelfType x);
+    SelfType& operator *= (const SelfType& x);
 
-    SelfType& operator /= (SelfType x);
+    SelfType& operator /= (const SelfType& x);
 
-    SelfType& operator %= (SelfType x);
+    SelfType& operator %= (const SelfType& x);
 
     SelfType& operator >>= (int n);
 
     SelfType& operator <<= (int n);
 
-    bool operator == (SelfType x) const
+    bool operator == (const SelfType& x) const
     { return high_ == x.high_ and low_ == x.low_; }
 
-    bool operator != (SelfType x) const
+    bool operator != (const SelfType& x) const
     { return not (*this == x); }
 
-    bool operator < (SelfType x) const
+    bool operator < (const SelfType& x) const
     { return high_ < x.high_ or (high_ == x.high_ and low_ < x.low_); }
 
-    bool operator > (SelfType x) const
+    bool operator > (const SelfType& x) const
     { return high_ > x.high_ or (high_ == x.high_ and low_ > x.low_); }
 
-    bool operator <= (SelfType x) const
+    bool operator <= (const SelfType& x) const
     { return high_ < x.high_ or (high_ == x.high_ and low_ <= x.low_); }
 
-    bool operator >= (SelfType x) const
+    bool operator >= (const SelfType& x) const
     { return high_ > x.high_ or (high_ == x.high_ and low_ >= x.low_); }
 
   protected:
@@ -495,7 +495,7 @@ namespace WdRiscv
     explicit operator INT() const
     { return INT(low_); }
 
-    SelfType& operator += (SelfType x)
+    SelfType& operator += (const SelfType& x)
     {
       UnsignedType* a = (UnsignedType*) this;
       UnsignedType* b = (UnsignedType*) &x;
@@ -503,7 +503,7 @@ namespace WdRiscv
       return *this;
     }
 
-    SelfType& operator -= (SelfType x)
+    SelfType& operator -= (const SelfType& x)
     {
       UnsignedType* a = (UnsignedType*) this;
       UnsignedType* b = (UnsignedType*) &x;
@@ -511,13 +511,13 @@ namespace WdRiscv
       return *this;
     }
 
-    SelfType& operator |= (SelfType x)
+    SelfType& operator |= (const SelfType& x)
     { low_ |= x.low_; high_ |= x.high_; return *this; }
 
-    SelfType& operator &= (SelfType x)
+    SelfType& operator &= (const SelfType& x)
     { low_ &= x.low_; high_ &= x.high_; return *this; }
 
-    SelfType& operator ^= (SelfType x)
+    SelfType& operator ^= (const SelfType& x)
     { low_ ^= x.low_; high_ ^= x.high_; return *this; }
 
     SelfType& operator ++ ()
@@ -535,41 +535,41 @@ namespace WdRiscv
     SelfType operator ~ () const
     { SelfType temp( ~high_, ~low_); return temp; }
 
-    SelfType& operator *= (SelfType x);
+    SelfType& operator *= (const SelfType& x);
 
-    SelfType& operator /= (SelfType x);
+    SelfType& operator /= (const SelfType& x);
 
-    SelfType& operator %= (SelfType x);
+    SelfType& operator %= (const SelfType& x);
 
     SelfType& operator >>= (int n);
 
     SelfType& operator <<= (int n);
 
-    bool operator == (SelfType x) const
+    bool operator == (const SelfType& x) const
     { return high_ == x.high_ and low_ == x.low_; }
 
-    bool operator != (SelfType x) const
+    bool operator != (const SelfType& x) const
     { return not (*this == x); }
 
-    bool operator < (SelfType x) const
+    bool operator < (const SelfType& x) const
     {
       return (high_ < x.high_ or
               (high_ == x.high_ and HalfUnsigned(low_) < HalfUnsigned(x.low_)));
     }
 
-    bool operator > (SelfType x) const
+    bool operator > (const SelfType& x) const
     {
       return (high_ > x.high_ or
               (high_ == x.high_ and HalfUnsigned(low_) > HalfUnsigned(x.low_)));
     }
 
-    bool operator <= (SelfType x) const
+    bool operator <= (const SelfType& x) const
     {
       return (high_ < x.high_ or
               (high_ == x.high_ and HalfUnsigned(low_) <= HalfUnsigned(x.low_)));
     }
 
-    bool operator >= (SelfType x) const
+    bool operator >= (const SelfType& x) const
     {
       return (high_ > x.high_ or
               (high_ == x.high_ and HalfUnsigned(low_) >= HalfUnsigned(x.low_)));
@@ -647,7 +647,7 @@ namespace WdRiscv
     explicit operator INT() const
     { return INT(low_); }
 
-    SelfType& operator += (SelfType x)
+    SelfType& operator += (const SelfType& x)
     {
       HalfType prevLow = low_;
       low_ += x.low_;
@@ -657,7 +657,7 @@ namespace WdRiscv
       return *this;
     }
 
-    SelfType& operator -= (SelfType x)
+    SelfType& operator -= (const SelfType& x)
     {
       HalfType prevLow = low_;
       low_ -= x.low_;
@@ -667,13 +667,13 @@ namespace WdRiscv
       return *this;
     }
 
-    SelfType& operator |= (SelfType x)
+    SelfType& operator |= (const SelfType& x)
     { low_ |= x.low_; high_ |= x.high_; return *this; }
 
-    SelfType& operator &= (SelfType x)
+    SelfType& operator &= (const SelfType& x)
     { low_ &= x.low_; high_ &= x.high_; return *this; }
 
-    SelfType& operator ^= (SelfType x)
+    SelfType& operator ^= (const SelfType& x)
     { low_ ^= x.low_; high_ ^= x.high_; return *this; }
 
     SelfType& operator ++ ()
@@ -691,32 +691,32 @@ namespace WdRiscv
     SelfType operator ~ () const
     { SelfType temp( ~high_, ~low_); return temp; }
 
-    SelfType& operator *= (SelfType x);
+    SelfType& operator *= (const SelfType& x);
 
-    SelfType& operator /= (SelfType x);
+    SelfType& operator /= (const SelfType& x);
 
-    SelfType& operator %= (SelfType x);
+    SelfType& operator %= (const SelfType& x);
 
     SelfType& operator >>= (int n);
 
     SelfType& operator <<= (int n);
 
-    bool operator == (SelfType x) const
+    bool operator == (const SelfType& x) const
     { return high_ == x.high_ and low_ == x.low_; }
 
-    bool operator != (SelfType x) const
+    bool operator != (const SelfType& x) const
     { return not (*this == x); }
 
-    bool operator < (SelfType x) const
+    bool operator < (const SelfType& x) const
     { return high_ < x.high_ or (high_ == x.high_ and low_ < x.low_); }
 
-    bool operator > (SelfType x) const
+    bool operator > (const SelfType& x) const
     { return high_ > x.high_ or (high_ == x.high_ and low_ > x.low_); }
 
-    bool operator <= (SelfType x) const
+    bool operator <= (const SelfType& x) const
     { return high_ < x.high_ or (high_ == x.high_ and low_ <= x.low_); }
 
-    bool operator >= (SelfType x) const
+    bool operator >= (const SelfType& x) const
     { return high_ > x.high_ or (high_ == x.high_ and low_ >= x.low_); }
 
   protected:
@@ -796,7 +796,7 @@ namespace WdRiscv
     explicit operator INT() const
     { return INT(low_); }
 
-    SelfType& operator += (SelfType x)
+    SelfType& operator += (const SelfType& x)
     {
       UnsignedType* a = (UnsignedType*) this;
       UnsignedType* b = (UnsignedType*) &x;
@@ -804,7 +804,7 @@ namespace WdRiscv
       return *this;
     }
 
-    SelfType& operator -= (SelfType x)
+    SelfType& operator -= (const SelfType& x)
     {
       UnsignedType* a = (UnsignedType*) this;
       UnsignedType* b = (UnsignedType*) &x;
@@ -812,13 +812,13 @@ namespace WdRiscv
       return *this;
     }
 
-    SelfType& operator |= (SelfType x)
+    SelfType& operator |= (const SelfType& x)
     { low_ |= x.low_; high_ |= x.high_; return *this; }
 
-    SelfType& operator &= (SelfType x)
+    SelfType& operator &= (const SelfType& x)
     { low_ &= x.low_; high_ &= x.high_; return *this; }
 
-    SelfType& operator ^= (SelfType x)
+    SelfType& operator ^= (const SelfType& x)
     { low_ ^= x.low_; high_ ^= x.high_; return *this; }
 
     SelfType& operator ++ ()
@@ -836,41 +836,41 @@ namespace WdRiscv
     SelfType operator ~ () const
     { SelfType temp( ~high_, ~low_); return temp; }
 
-    SelfType& operator *= (SelfType x);
+    SelfType& operator *= (const SelfType& x);
 
-    SelfType& operator /= (SelfType x);
+    SelfType& operator /= (const SelfType& x);
 
-    SelfType& operator %= (SelfType x);
+    SelfType& operator %= (const SelfType& x);
 
     SelfType& operator >>= (int n);
 
     SelfType& operator <<= (int n);
 
-    bool operator == (SelfType x) const
+    bool operator == (const SelfType& x) const
     { return high_ == x.high_ and low_ == x.low_; }
 
-    bool operator != (SelfType x) const
+    bool operator != (const SelfType& x) const
     { return not (*this == x); }
 
-    bool operator < (SelfType x) const
+    bool operator < (const SelfType& x) const
     {
       return (high_ < x.high_ or
               (high_ == x.high_ and HalfUnsigned(low_) < HalfUnsigned(x.low_)));
     }
 
-    bool operator > (SelfType x) const
+    bool operator > (const SelfType& x) const
     {
       return (high_ > x.high_ or
               (high_ == x.high_ and HalfUnsigned(low_) > HalfUnsigned(x.low_)));
     }
 
-    bool operator <= (SelfType x) const
+    bool operator <= (const SelfType& x) const
     {
       return (high_ < x.high_ or
               (high_ == x.high_ and HalfUnsigned(low_) <= HalfUnsigned(x.low_)));
     }
 
-    bool operator >= (SelfType x) const
+    bool operator >= (const SelfType& x) const
     {
       return (high_ > x.high_ or
               (high_ == x.high_ and HalfUnsigned(low_) >= HalfUnsigned(x.low_)));
@@ -953,7 +953,7 @@ namespace WdRiscv
     explicit operator INT() const
     { return INT(low_); }
 
-    SelfType& operator += (SelfType x)
+    SelfType& operator += (const SelfType& x)
     {
       HalfType prevLow = low_;
       low_ += x.low_;
@@ -963,7 +963,7 @@ namespace WdRiscv
       return *this;
     }
 
-    SelfType& operator -= (SelfType x)
+    SelfType& operator -= (const SelfType& x)
     {
       HalfType prevLow = low_;
       low_ -= x.low_;
@@ -973,13 +973,13 @@ namespace WdRiscv
       return *this;
     }
 
-    SelfType& operator |= (SelfType x)
+    SelfType& operator |= (const SelfType& x)
     { low_ |= x.low_; high_ |= x.high_; return *this; }
 
-    SelfType& operator &= (SelfType x)
+    SelfType& operator &= (const SelfType& x)
     { low_ &= x.low_; high_ &= x.high_; return *this; }
 
-    SelfType& operator ^= (SelfType x)
+    SelfType& operator ^= (const SelfType& x)
     { low_ ^= x.low_; high_ ^= x.high_; return *this; }
 
     SelfType& operator ++ ()
@@ -997,32 +997,32 @@ namespace WdRiscv
     SelfType operator ~ () const
     { SelfType temp( ~high_, ~low_); return temp; }
 
-    SelfType& operator *= (SelfType x);
+    SelfType& operator *= (const SelfType& x);
 
-    SelfType& operator /= (SelfType x);
+    SelfType& operator /= (const SelfType& x);
 
-    SelfType& operator %= (SelfType x);
+    SelfType& operator %= (const SelfType& x);
 
     SelfType& operator >>= (int n);
 
     SelfType& operator <<= (int n);
 
-    bool operator == (SelfType x) const
+    bool operator == (const SelfType& x) const
     { return high_ == x.high_ and low_ == x.low_; }
 
-    bool operator != (SelfType x) const
+    bool operator != (const SelfType& x) const
     { return not (*this == x); }
 
-    bool operator < (SelfType x) const
+    bool operator < (const SelfType& x) const
     { return high_ < x.high_ or (high_ == x.high_ and low_ < x.low_); }
 
-    bool operator > (SelfType x) const
+    bool operator > (const SelfType& x) const
     { return high_ > x.high_ or (high_ == x.high_ and low_ > x.low_); }
 
-    bool operator <= (SelfType x) const
+    bool operator <= (const SelfType& x) const
     { return high_ < x.high_ or (high_ == x.high_ and low_ <= x.low_); }
 
-    bool operator >= (SelfType x) const
+    bool operator >= (const SelfType& x) const
     { return high_ > x.high_ or (high_ == x.high_ and low_ >= x.low_); }
 
   protected:
@@ -1107,7 +1107,7 @@ namespace WdRiscv
     explicit operator INT() const
     { return INT(low_); }
 
-    SelfType& operator += (SelfType x)
+    SelfType& operator += (const SelfType& x)
     {
       UnsignedType* a = (UnsignedType*) this;
       UnsignedType* b = (UnsignedType*) &x;
@@ -1115,7 +1115,7 @@ namespace WdRiscv
       return *this;
     }
 
-    SelfType& operator -= (SelfType x)
+    SelfType& operator -= (const SelfType& x)
     {
       UnsignedType* a = (UnsignedType*) this;
       UnsignedType* b = (UnsignedType*) &x;
@@ -1123,13 +1123,13 @@ namespace WdRiscv
       return *this;
     }
 
-    SelfType& operator |= (SelfType x)
+    SelfType& operator |= (const SelfType& x)
     { low_ |= x.low_; high_ |= x.high_; return *this; }
 
-    SelfType& operator &= (SelfType x)
+    SelfType& operator &= (const SelfType& x)
     { low_ &= x.low_; high_ &= x.high_; return *this; }
 
-    SelfType& operator ^= (SelfType x)
+    SelfType& operator ^= (const SelfType& x)
     { low_ ^= x.low_; high_ ^= x.high_; return *this; }
 
     SelfType& operator ++ ()
@@ -1147,41 +1147,41 @@ namespace WdRiscv
     SelfType operator ~ () const
     { SelfType temp( ~high_, ~low_); return temp; }
 
-    SelfType& operator *= (SelfType x);
+    SelfType& operator *= (const SelfType& x);
 
-    SelfType& operator /= (SelfType x);
+    SelfType& operator /= (const SelfType& x);
 
-    SelfType& operator %= (SelfType x);
+    SelfType& operator %= (const SelfType& x);
 
     SelfType& operator >>= (int n);
 
     SelfType& operator <<= (int n);
 
-    bool operator == (SelfType x) const
+    bool operator == (const SelfType& x) const
     { return high_ == x.high_ and low_ == x.low_; }
 
-    bool operator != (SelfType x) const
+    bool operator != (const SelfType& x) const
     { return not (*this == x); }
 
-    bool operator < (SelfType x) const
+    bool operator < (const SelfType& x) const
     {
       return (high_ < x.high_ or
               (high_ == x.high_ and HalfUnsigned(low_) < HalfUnsigned(x.low_)));
     }
 
-    bool operator > (SelfType x) const
+    bool operator > (const SelfType& x) const
     {
       return (high_ > x.high_ or
               (high_ == x.high_ and HalfUnsigned(low_) > HalfUnsigned(x.low_)));
     }
 
-    bool operator <= (SelfType x) const
+    bool operator <= (const SelfType& x) const
     {
       return (high_ < x.high_ or
               (high_ == x.high_ and HalfUnsigned(low_) <= HalfUnsigned(x.low_)));
     }
 
-    bool operator >= (SelfType x) const
+    bool operator >= (const SelfType& x) const
     {
       return (high_ > x.high_ or
               (high_ == x.high_ and HalfUnsigned(low_) >= HalfUnsigned(x.low_)));
@@ -1224,7 +1224,7 @@ namespace WdRiscv
   { x <<= n; return x; }
 
   inline Uint128 operator | (Uint128 a, Uint128 b)
-  { Uint128 c = a; c &= b; return c; }
+  { Uint128 c = a; c |= b; return c; }
 
   inline Uint128 operator & (Uint128 a, Uint128 b)
   { Uint128 c = a; c &= b; return c; }
@@ -1258,7 +1258,7 @@ namespace WdRiscv
   { x <<= n; return x; }
 
   inline Int128 operator | (Int128 a, Int128 b)
-  { Int128 c = a; c &= b; return c; }
+  { Int128 c = a; c |= b; return c; }
 
   inline Int128 operator & (Int128 a, Int128 b)
   { Int128 c = a; c &= b; return c; }
@@ -1298,7 +1298,7 @@ namespace WdRiscv
   { x <<= n; return x; }
 
   inline Uint256 operator | (Uint256 a, Uint256 b)
-  { Uint256 c = a; c &= b; return c; }
+  { Uint256 c = a; c |= b; return c; }
 
   inline Uint256 operator & (Uint256 a, Uint256 b)
   { Uint256 c = a; c &= b; return c; }
@@ -1332,7 +1332,7 @@ namespace WdRiscv
   { x <<= n; return x; }
 
   inline Int256 operator | (Int256 a, Int256 b)
-  { Int256 c = a; c &= b; return c; }
+  { Int256 c = a; c |= b; return c; }
 
   inline Int256 operator & (Int256 a, Int256 b)
   { Int256 c = a; c &= b; return c; }
@@ -1372,7 +1372,7 @@ namespace WdRiscv
   { x <<= n; return x; }
 
   inline Uint512 operator | (Uint512 a, Uint512 b)
-  { Uint512 c = a; c &= b; return c; }
+  { Uint512 c = a; c |= b; return c; }
 
   inline Uint512 operator & (Uint512 a, Uint512 b)
   { Uint512 c = a; c &= b; return c; }
@@ -1406,7 +1406,7 @@ namespace WdRiscv
   { x <<= n; return x; }
 
   inline Int512 operator | (Int512 a, Int512 b)
-  { Int512 c = a; c &= b; return c; }
+  { Int512 c = a; c |= b; return c; }
 
   inline Int512 operator & (Int512 a, Int512 b)
   { Int512 c = a; c &= b; return c; }
@@ -1446,7 +1446,7 @@ namespace WdRiscv
   { x <<= n; return x; }
 
   inline Uint1024 operator | (Uint1024 a, Uint1024 b)
-  { Uint1024 c = a; c &= b; return c; }
+  { Uint1024 c = a; c |= b; return c; }
 
   inline Uint1024 operator & (Uint1024 a, Uint1024 b)
   { Uint1024 c = a; c &= b; return c; }
@@ -1480,7 +1480,7 @@ namespace WdRiscv
   { x <<= n; return x; }
 
   inline Int1024 operator | (Int1024 a, Int1024 b)
-  { Int1024 c = a; c &= b; return c; }
+  { Int1024 c = a; c |= b; return c; }
 
   inline Int1024 operator & (Int1024 a, Int1024 b)
   { Int1024 c = a; c &= b; return c; }

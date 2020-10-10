@@ -5,7 +5,7 @@ using namespace WdRiscv;
 
 
 Uint128&
-Uint128::operator *= (Uint128 x)
+Uint128::operator *= (const Uint128& x)
 {
   QuarterType* multiplicand = (QuarterType*) &low_;
   QuarterType* multiplier = (QuarterType*) &x.low_;
@@ -34,7 +34,7 @@ Uint128::operator *= (Uint128 x)
 
 
 Uint128&
-Uint128::operator /= (Uint128 x)
+Uint128::operator /= (const Uint128& x)
 {
   unsigned n = width();
   SelfType rem(0), result(0);
@@ -65,7 +65,7 @@ Uint128::operator /= (Uint128 x)
 
 
 Uint128&
-Uint128::operator %= (Uint128 x)
+Uint128::operator %= (const Uint128& x)
 {
   unsigned n = width();
   SelfType rem(0), result(0);
@@ -147,7 +147,7 @@ Uint128::operator <<= (int n)
 
 
 Int128&
-Int128::operator *= (Int128 xx)
+Int128::operator *= (const Int128& xx)
 {
   if (*this >= SelfType(0) and xx >= SelfType(0))
     {
@@ -168,6 +168,8 @@ Int128::operator *= (Int128 xx)
 
   bool neg = false;
 
+  SelfType b = xx;
+
   if (*this < SelfType(0) and xx >= SelfType(0))
     {
       neg = true;
@@ -176,15 +178,15 @@ Int128::operator *= (Int128 xx)
   else if (*this >= SelfType(0) and xx < SelfType(0))
     {
       neg = true;
-      xx = -xx;
+      b = -xx;
     }
   else
     {
       *this = - *this;
-      xx = -xx;
+      b = -xx;
     }
       
-  SelfType a = *this, b = xx;
+  SelfType a = *this;
   a *= b;
   if (neg)
     a = -a;
@@ -196,7 +198,7 @@ Int128::operator *= (Int128 xx)
 
 
 Int128&
-Int128::operator /= (Int128 xx)
+Int128::operator /= (const Int128& xx)
 {
   if (*this == xx)
     {
@@ -215,6 +217,8 @@ Int128::operator /= (Int128 xx)
 
   bool neg = false;
 
+  UnsignedType bb = xx;
+
   if (*this < 0 and xx >= 0)
     {
       neg = true;
@@ -223,15 +227,15 @@ Int128::operator /= (Int128 xx)
   else if (*this >= 0 and xx < 0)
     {
       neg = true;
-      xx = - xx;
+      bb = - xx;
     }
   else if (*this < 0 and xx < 0)
     {
       *this = - *this;
-      xx = - xx;
+      bb = - xx;
     }
 
-  UnsignedType aa = *this, bb = xx;
+  UnsignedType aa = *this;
   aa /= bb;
   *this = aa;
   if (neg)
@@ -242,7 +246,7 @@ Int128::operator /= (Int128 xx)
 
 
 Int128&
-Int128::operator %= (Int128 xx)
+Int128::operator %= (const Int128& xx)
 {
   if (*this == xx)
     {
@@ -257,6 +261,7 @@ Int128::operator %= (Int128 xx)
     return *this;
 
   bool neg = false;
+  UnsignedType bb = xx;
 
   if (*this < 0)
     {
@@ -264,9 +269,9 @@ Int128::operator %= (Int128 xx)
       *this = - *this;
     }
   if (xx < 0)
-    xx = - xx;
+    bb = - xx;
 
-  UnsignedType aa = *this, bb = xx;
+  UnsignedType aa = *this;
   aa %= bb;
   *this = aa;
   if (neg)
@@ -340,7 +345,7 @@ Int128::operator <<= (int n)
 
 
 Uint256&
-Uint256::operator *= (Uint256 x)
+Uint256::operator *= (const Uint256& x)
 {
   QuarterType* multiplicand = (QuarterType*) &low_;
   QuarterType* multiplier = (QuarterType*) &x.low_;
@@ -369,7 +374,7 @@ Uint256::operator *= (Uint256 x)
 
 
 Uint256&
-Uint256::operator /= (Uint256 x)
+Uint256::operator /= (const Uint256& x)
 {
   unsigned n = width();
   SelfType rem(0), result(0);
@@ -400,7 +405,7 @@ Uint256::operator /= (Uint256 x)
 
 
 Uint256&
-Uint256::operator %= (Uint256 x)
+Uint256::operator %= (const Uint256& x)
 {
   unsigned n = width();
   SelfType rem(0), result(0);
@@ -482,7 +487,7 @@ Uint256::operator <<= (int n)
 
 
 Int256&
-Int256::operator *= (Int256 xx)
+Int256::operator *= (const Int256& xx)
 {
   if (*this >= SelfType(0) and xx >= SelfType(0))
     {
@@ -503,6 +508,8 @@ Int256::operator *= (Int256 xx)
 
   bool neg = false;
 
+  SelfType b = xx;
+
   if (*this < SelfType(0) and xx >= SelfType(0))
     {
       neg = true;
@@ -511,15 +518,15 @@ Int256::operator *= (Int256 xx)
   else if (*this >= SelfType(0) and xx < SelfType(0))
     {
       neg = true;
-      xx = -xx;
+      b = -xx;
     }
   else
     {
       *this = - *this;
-      xx = -xx;
+      b = -xx;
     }
       
-  SelfType a = *this, b = xx;
+  SelfType a = *this;
   a *= b;
   if (neg)
     a = -a;
@@ -531,7 +538,7 @@ Int256::operator *= (Int256 xx)
 
 
 Int256&
-Int256::operator /= (Int256 xx)
+Int256::operator /= (const Int256& xx)
 {
   if (*this == xx)
     {
@@ -550,6 +557,8 @@ Int256::operator /= (Int256 xx)
 
   bool neg = false;
 
+  UnsignedType bb = xx;
+
   if (*this < 0 and xx >= 0)
     {
       neg = true;
@@ -558,15 +567,15 @@ Int256::operator /= (Int256 xx)
   else if (*this >= 0 and xx < 0)
     {
       neg = true;
-      xx = - xx;
+      bb = - xx;
     }
   else if (*this < 0 and xx < 0)
     {
       *this = - *this;
-      xx = - xx;
+      bb = - xx;
     }
 
-  UnsignedType aa = *this, bb = xx;
+  UnsignedType aa = *this;
   aa /= bb;
   *this = aa;
   if (neg)
@@ -577,7 +586,7 @@ Int256::operator /= (Int256 xx)
 
 
 Int256&
-Int256::operator %= (Int256 xx)
+Int256::operator %= (const Int256& xx)
 {
   if (*this == xx)
     {
@@ -592,6 +601,7 @@ Int256::operator %= (Int256 xx)
     return *this;
 
   bool neg = false;
+  UnsignedType bb = xx;
 
   if (*this < 0)
     {
@@ -599,9 +609,9 @@ Int256::operator %= (Int256 xx)
       *this = - *this;
     }
   if (xx < 0)
-    xx = - xx;
+    bb = - xx;
 
-  UnsignedType aa = *this, bb = xx;
+  UnsignedType aa = *this;
   aa %= bb;
   *this = aa;
   if (neg)
@@ -675,7 +685,7 @@ Int256::operator <<= (int n)
 
 
 Uint512&
-Uint512::operator *= (Uint512 x)
+Uint512::operator *= (const Uint512& x)
 {
   QuarterType* multiplicand = (QuarterType*) &low_;
   QuarterType* multiplier = (QuarterType*) &x.low_;
@@ -704,7 +714,7 @@ Uint512::operator *= (Uint512 x)
 
 
 Uint512&
-Uint512::operator /= (Uint512 x)
+Uint512::operator /= (const Uint512& x)
 {
   unsigned n = width();
   SelfType rem(0), result(0);
@@ -735,7 +745,7 @@ Uint512::operator /= (Uint512 x)
 
 
 Uint512&
-Uint512::operator %= (Uint512 x)
+Uint512::operator %= (const Uint512& x)
 {
   unsigned n = width();
   SelfType rem(0), result(0);
@@ -817,7 +827,7 @@ Uint512::operator <<= (int n)
 
 
 Int512&
-Int512::operator *= (Int512 xx)
+Int512::operator *= (const Int512& xx)
 {
   if (*this >= SelfType(0) and xx >= SelfType(0))
     {
@@ -838,6 +848,8 @@ Int512::operator *= (Int512 xx)
 
   bool neg = false;
 
+  SelfType b = xx;
+
   if (*this < SelfType(0) and xx >= SelfType(0))
     {
       neg = true;
@@ -846,15 +858,15 @@ Int512::operator *= (Int512 xx)
   else if (*this >= SelfType(0) and xx < SelfType(0))
     {
       neg = true;
-      xx = -xx;
+      b = -xx;
     }
   else
     {
       *this = - *this;
-      xx = -xx;
+      b = -xx;
     }
       
-  SelfType a = *this, b = xx;
+  SelfType a = *this;
   a *= b;
   if (neg)
     a = -a;
@@ -866,7 +878,7 @@ Int512::operator *= (Int512 xx)
 
 
 Int512&
-Int512::operator /= (Int512 xx)
+Int512::operator /= (const Int512& xx)
 {
   if (*this == xx)
     {
@@ -885,6 +897,8 @@ Int512::operator /= (Int512 xx)
 
   bool neg = false;
 
+  UnsignedType bb = xx;
+
   if (*this < 0 and xx >= 0)
     {
       neg = true;
@@ -893,15 +907,15 @@ Int512::operator /= (Int512 xx)
   else if (*this >= 0 and xx < 0)
     {
       neg = true;
-      xx = - xx;
+      bb = - xx;
     }
   else if (*this < 0 and xx < 0)
     {
       *this = - *this;
-      xx = - xx;
+      bb = - xx;
     }
 
-  UnsignedType aa = *this, bb = xx;
+  UnsignedType aa = *this;
   aa /= bb;
   *this = aa;
   if (neg)
@@ -912,7 +926,7 @@ Int512::operator /= (Int512 xx)
 
 
 Int512&
-Int512::operator %= (Int512 xx)
+Int512::operator %= (const Int512& xx)
 {
   if (*this == xx)
     {
@@ -927,6 +941,7 @@ Int512::operator %= (Int512 xx)
     return *this;
 
   bool neg = false;
+  UnsignedType bb = xx;
 
   if (*this < 0)
     {
@@ -934,9 +949,9 @@ Int512::operator %= (Int512 xx)
       *this = - *this;
     }
   if (xx < 0)
-    xx = - xx;
+    bb = - xx;
 
-  UnsignedType aa = *this, bb = xx;
+  UnsignedType aa = *this;
   aa %= bb;
   *this = aa;
   if (neg)
@@ -1010,7 +1025,7 @@ Int512::operator <<= (int n)
 
 
 Uint1024&
-Uint1024::operator *= (Uint1024 x)
+Uint1024::operator *= (const Uint1024& x)
 {
   QuarterType* multiplicand = (QuarterType*) &low_;
   QuarterType* multiplier = (QuarterType*) &x.low_;
@@ -1039,7 +1054,7 @@ Uint1024::operator *= (Uint1024 x)
 
 
 Uint1024&
-Uint1024::operator /= (Uint1024 x)
+Uint1024::operator /= (const Uint1024& x)
 {
   unsigned n = width();
   SelfType rem(0), result(0);
@@ -1070,7 +1085,7 @@ Uint1024::operator /= (Uint1024 x)
 
 
 Uint1024&
-Uint1024::operator %= (Uint1024 x)
+Uint1024::operator %= (const Uint1024& x)
 {
   unsigned n = width();
   SelfType rem(0), result(0);
@@ -1152,7 +1167,7 @@ Uint1024::operator <<= (int n)
 
 
 Int1024&
-Int1024::operator *= (Int1024 xx)
+Int1024::operator *= (const Int1024& xx)
 {
   if (*this >= SelfType(0) and xx >= SelfType(0))
     {
@@ -1173,6 +1188,8 @@ Int1024::operator *= (Int1024 xx)
 
   bool neg = false;
 
+  SelfType b = xx;
+
   if (*this < SelfType(0) and xx >= SelfType(0))
     {
       neg = true;
@@ -1181,15 +1198,15 @@ Int1024::operator *= (Int1024 xx)
   else if (*this >= SelfType(0) and xx < SelfType(0))
     {
       neg = true;
-      xx = -xx;
+      b = -xx;
     }
   else
     {
       *this = - *this;
-      xx = -xx;
+      b = -xx;
     }
       
-  SelfType a = *this, b = xx;
+  SelfType a = *this;
   a *= b;
   if (neg)
     a = -a;
@@ -1201,7 +1218,7 @@ Int1024::operator *= (Int1024 xx)
 
 
 Int1024&
-Int1024::operator /= (Int1024 xx)
+Int1024::operator /= (const Int1024& xx)
 {
   if (*this == xx)
     {
@@ -1220,6 +1237,8 @@ Int1024::operator /= (Int1024 xx)
 
   bool neg = false;
 
+  UnsignedType bb = xx;
+
   if (*this < 0 and xx >= 0)
     {
       neg = true;
@@ -1228,15 +1247,15 @@ Int1024::operator /= (Int1024 xx)
   else if (*this >= 0 and xx < 0)
     {
       neg = true;
-      xx = - xx;
+      bb = - xx;
     }
   else if (*this < 0 and xx < 0)
     {
       *this = - *this;
-      xx = - xx;
+      bb = - xx;
     }
 
-  UnsignedType aa = *this, bb = xx;
+  UnsignedType aa = *this;
   aa /= bb;
   *this = aa;
   if (neg)
@@ -1247,7 +1266,7 @@ Int1024::operator /= (Int1024 xx)
 
 
 Int1024&
-Int1024::operator %= (Int1024 xx)
+Int1024::operator %= (const Int1024& xx)
 {
   if (*this == xx)
     {
@@ -1262,6 +1281,7 @@ Int1024::operator %= (Int1024 xx)
     return *this;
 
   bool neg = false;
+  UnsignedType bb = xx;
 
   if (*this < 0)
     {
@@ -1269,9 +1289,9 @@ Int1024::operator %= (Int1024 xx)
       *this = - *this;
     }
   if (xx < 0)
-    xx = - xx;
+    bb = - xx;
 
-  UnsignedType aa = *this, bb = xx;
+  UnsignedType aa = *this;
   aa %= bb;
   *this = aa;
   if (neg)
