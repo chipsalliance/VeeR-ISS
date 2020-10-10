@@ -2286,9 +2286,11 @@ namespace WdRiscv
                    unsigned start, unsigned elems, bool masked);
     void execVwmulsu_vx(const DecodedInst*);
 
+    // This is used for vwmacc.vv and vwmaccu.vv.
     template<typename ELEM_TYPE>
-    void vwmaccu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                    unsigned start, unsigned elems, bool masked);
+    void vwmacc_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                   unsigned start, unsigned elems, bool masked);
+
     void execVwmaccu_vv(const DecodedInst*);
 
     template<typename ELEM_TYPE>
@@ -2296,9 +2298,6 @@ namespace WdRiscv
                     unsigned start, unsigned elems, bool masked);
     void execVwmaccu_vx(const DecodedInst*);
 
-    template<typename ELEM_TYPE>
-    void vwmacc_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                   unsigned start, unsigned elems, bool masked);
     void execVwmacc_vv(const DecodedInst*);
 
     template<typename ELEM_TYPE>
