@@ -286,6 +286,15 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         case 0x38: return instTable_.getEntry(InstId::vwmulu_vv);
         case 0x3a: return instTable_.getEntry(InstId::vwmulsu_vv);
         case 0x3b: return instTable_.getEntry(InstId::vwmul_vv);
+        case 0x3c:
+          std::swap(op1, op2);  // Spec is insane.
+          return instTable_.getEntry(InstId::vwmaccu_vv);
+        case 0x3d:
+          std::swap(op1, op2);  // Spec is insane.
+          return instTable_.getEntry(InstId::vwmacc_vv);
+        case 0x3f:
+          std::swap(op1, op2);  // Spec is insane.
+          return instTable_.getEntry(InstId::vwmaccsu_vv);
         }
       return instTable_.getEntry(InstId::illegal);  
     }
@@ -395,6 +404,18 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         case 0x38:  return instTable_.getEntry(InstId::vwmulu_vx);
         case 0x3a:  return instTable_.getEntry(InstId::vwmulsu_vx);
         case 0x3b:  return instTable_.getEntry(InstId::vwmul_vx);
+        case 0x3c:
+          std::swap(op1, op2);  // Spec is insane.
+          return instTable_.getEntry(InstId::vwmaccu_vx);
+        case 0x3d:
+          std::swap(op1, op2);  // Spec is insane.
+          return instTable_.getEntry(InstId::vwmacc_vx);
+        case 0x3e:
+          std::swap(op1, op2);  // Spec is insane.
+          return instTable_.getEntry(InstId::vwmaccus_vx);
+        case 0x3f:
+          std::swap(op1, op2);  // Spec is insane.
+          return instTable_.getEntry(InstId::vwmaccsu_vx);
         }
       return instTable_.getEntry(InstId::illegal);  
     }

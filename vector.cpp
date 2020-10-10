@@ -5067,6 +5067,118 @@ Hart<URV>::execVwmulsu_vx(const DecodedInst* di)
 template <typename URV>
 template <typename ELEM_TYPE>
 void
+Hart<URV>::vwmaccu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                      unsigned start, unsigned elems, bool masked)
+{
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVwmaccu_vv(const DecodedInst*)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vwmaccu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                      unsigned start, unsigned elems, bool masked)
+{
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVwmaccu_vx(const DecodedInst*)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vwmacc_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                     unsigned start, unsigned elems, bool masked)
+{
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVwmacc_vv(const DecodedInst*)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vwmacc_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                     unsigned start, unsigned elems, bool masked)
+{
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVwmacc_vx(const DecodedInst*)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vwmaccsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                       unsigned start, unsigned elems, bool masked)
+{
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVwmaccsu_vv(const DecodedInst*)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vwmaccsu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                       unsigned start, unsigned elems, bool masked)
+{
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVwmaccsu_vx(const DecodedInst*)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vwmaccus_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                     unsigned start, unsigned elems, bool masked)
+{
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVwmaccus_vx(const DecodedInst*)
+{
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
 Hart<URV>::vdivu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                     unsigned start, unsigned elems, bool masked)
 {

@@ -451,6 +451,14 @@ namespace WdRiscv
      vwmulsu_vv,
      vwmulsu_vx,
 
+     vwmaccu_vv,
+     vwmaccu_vx,
+     vwmacc_vv,
+     vwmacc_vx,
+     vwmaccsu_vv,
+     vwmaccsu_vx,
+     vwmaccus_vx,
+
      vdivu_vv,
      vdivu_vx,
      vdiv_vv,

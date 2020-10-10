@@ -2287,6 +2287,41 @@ namespace WdRiscv
     void execVwmulsu_vx(const DecodedInst*);
 
     template<typename ELEM_TYPE>
+    void vwmaccu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                    unsigned start, unsigned elems, bool masked);
+    void execVwmaccu_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vwmaccu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                    unsigned start, unsigned elems, bool masked);
+    void execVwmaccu_vx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vwmacc_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                   unsigned start, unsigned elems, bool masked);
+    void execVwmacc_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vwmacc_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                   unsigned start, unsigned elems, bool masked);
+    void execVwmacc_vx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vwmaccsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                     unsigned start, unsigned elems, bool masked);
+    void execVwmaccsu_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vwmaccsu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                     unsigned start, unsigned elems, bool masked);
+    void execVwmaccsu_vx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vwmaccus_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                     unsigned start, unsigned elems, bool masked);
+    void execVwmaccus_vx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
     void vdivu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                   unsigned start, unsigned elems, bool masked);
     void execVdivu_vv(const DecodedInst*);
