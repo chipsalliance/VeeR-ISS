@@ -64,6 +64,10 @@ namespace WdRiscv
       : low_(low), high_(high)
     { }
 
+    /// Assignment constructor.
+    SelfType& operator = (const SelfType& x)
+    { low_ = x.low_; high_ = x.high_; return *this; }
+
     /// Return least sig half.
     HalfType low() const
     { return low_; }
@@ -189,6 +193,10 @@ namespace WdRiscv
     Int128(HalfType high, HalfType low)
       : low_(low), high_(high)
     { }
+
+    /// Assignment constructor.
+    SelfType& operator = (const SelfType& x)
+    { low_ = x.low_; high_ = x.high_; return *this; }
 
     /// Return least sig half.
     HalfType low() const
@@ -333,6 +341,10 @@ namespace WdRiscv
       : low_(low), high_(high)
     { }
 
+    /// Assignment constructor.
+    SelfType& operator = (const SelfType& x)
+    { low_ = x.low_; high_ = x.high_; return *this; }
+
     /// Return least sig half.
     HalfType low() const
     { return low_; }
@@ -476,6 +488,10 @@ namespace WdRiscv
     Int256(HalfType high, HalfType low)
       : low_(low), high_(high)
     { }
+
+    /// Assignment constructor.
+    SelfType& operator = (const SelfType& x)
+    { low_ = x.low_; high_ = x.high_; return *this; }
 
     /// Return least sig half.
     HalfType low() const
@@ -629,6 +645,10 @@ namespace WdRiscv
       : low_(low), high_(high)
     { }
 
+    /// Assignment constructor.
+    SelfType& operator = (const SelfType& x)
+    { low_ = x.low_; high_ = x.high_; return *this; }
+
     /// Return least sig half.
     HalfType low() const
     { return low_; }
@@ -777,6 +797,10 @@ namespace WdRiscv
     Int512(HalfType high, HalfType low)
       : low_(low), high_(high)
     { }
+
+    /// Assignment constructor.
+    SelfType& operator = (const SelfType& x)
+    { low_ = x.low_; high_ = x.high_; return *this; }
 
     /// Return least sig half.
     HalfType low() const
@@ -935,6 +959,10 @@ namespace WdRiscv
       : low_(low), high_(high)
     { }
 
+    /// Assignment constructor.
+    SelfType& operator = (const SelfType& x)
+    { low_ = x.low_; high_ = x.high_; return *this; }
+
     /// Return least sig half.
     HalfType low() const
     { return low_; }
@@ -1088,6 +1116,10 @@ namespace WdRiscv
     Int1024(HalfType high, HalfType low)
       : low_(low), high_(high)
     { }
+
+    /// Assignment constructor.
+    SelfType& operator = (const SelfType& x)
+    { low_ = x.low_; high_ = x.high_; return *this; }
 
     /// Return least sig half.
     HalfType low() const

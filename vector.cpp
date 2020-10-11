@@ -7639,7 +7639,7 @@ Hart<URV>::execVle8_v(const DecodedInst* di)
 
   unsigned group = vecRegs_.groupMultiplierX8(), start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
-  ElementWidth sew = ElementWidth::Byte;
+  //ElementWidth sew = ElementWidth::Byte;
 
   // TODO check group/sew configuration.
 
@@ -7679,7 +7679,7 @@ Hart<URV>::execVse8_v(const DecodedInst* di)
 
   unsigned group = vecRegs_.groupMultiplierX8(), start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
-  ElementWidth sew = ElementWidth::Byte;
+  //ElementWidth sew = ElementWidth::Byte;
 
   // TODO check group/sew configuration.
 
