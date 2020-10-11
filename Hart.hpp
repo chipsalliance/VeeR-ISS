@@ -1579,6 +1579,14 @@ namespace WdRiscv
     const InstEntry& decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1,
                                uint32_t& op2, uint32_t& op3);
 
+    /// Helper to decode: Decode vector instructions associated with opcode
+    /// 0100111.
+    const InstEntry& decodeVecStore(uint32_t f3, uint32_t imm12);
+
+    /// Helper to decode: Decode vector instructions associated with opcode
+    /// 0000111.
+    const InstEntry& decodeVecLoad(uint32_t f3, uint32_t imm12);
+
     /// Helper to disassembleInst32: Disassemble instructions
     /// associated with opcode 1010011.
     void disassembleFp(uint32_t inst, std::ostream& stream);
@@ -2451,6 +2459,10 @@ namespace WdRiscv
     void execVmv2r_v(const DecodedInst*);
     void execVmv4r_v(const DecodedInst*);
     void execVmv8r_v(const DecodedInst*);
+
+    void execVle8_v(const DecodedInst*);
+
+    void execVse8_v(const DecodedInst*);
 
   private:
 

@@ -414,6 +414,16 @@ namespace WdRiscv
       unsigned rs2     : 5;
       int      imm11_5 : 7;
     } bits;
+
+    struct
+    {
+      unsigned opcode  : 7;
+      unsigned rd      : 5;
+      unsigned funct3  : 3;
+      unsigned rs1     : 5;
+      unsigned imm12   : 7;
+    } vbits;  // layout for vector store
+
   };
 
 

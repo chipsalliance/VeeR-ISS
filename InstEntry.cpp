@@ -2983,5 +2983,22 @@ InstTable::setupInstVec()
         OperandType::VecReg, OperandMode::Write, rdMask,
         OperandType::VecReg, OperandMode::Read, rs1Mask,
       },
+
+      { "vle8.v", InstId::vle8_v,
+        0b000000'0'00000'00000'000'00000'0000111,
+        0b000000'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::IntReg, OperandMode::Read, rs1Mask,
+      },
+
+      { "vse8.v", InstId::vse8_v,
+        0b000000'0'00000'00000'000'00000'0100111,
+        0b000000'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Read, rdMask,
+        OperandType::IntReg, OperandMode::Read, rs1Mask,
+      },
+
     };
 }

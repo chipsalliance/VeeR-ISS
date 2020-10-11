@@ -5547,6 +5547,8 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vmv2r_v,
      &&vmv4r_v,
      &&vmv8r_v,
+     &&vle8_v,
+     &&vse8_v,
     };
 
   const InstEntry* entry = di->instEntry();
@@ -7218,6 +7220,14 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vmv8r_v:
   execVmv8r_v(di);
+  return;
+
+ vle8_v:
+  execVle8_v(di);
+  return;
+
+ vse8_v:
+  execVse8_v(di);
   return;
 }
 

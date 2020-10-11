@@ -2339,6 +2339,16 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       out << "vmv8r.v v" << di.op0() << ", v" << di.op1();
       break;
 
+    case InstId::vle8_v:
+      out << "vle8.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vse8_v:
+      out << "vse8.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
     default:
       out << "illegal";
     }

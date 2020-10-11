@@ -7622,5 +7622,85 @@ Hart<URV>::execVmv8r_v(const DecodedInst* di)
 }
 
 
+template <typename URV>
+void
+Hart<URV>::execVle8_v(const DecodedInst* di)
+{
+  if ((not isVecLegal()) or (not vecRegs_.legalConfig()))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+
+  unsigned vd = di->op0(), rs1 = di->op1(), errors = 0;
+  URV addr = intRegs_.read(rs1);
+
+  unsigned group = vecRegs_.groupMultiplierX8(), start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = ElementWidth::Byte;
+
+  // TODO check group/sew configuration.
+
+  // TODO check permissions, translate, ....
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+      uint8_t item = 0;
+      memory_.read(addr, item);
+      if (not vecRegs_.write(vd, ix, group, item))
+        {
+          errors++;
+          break;
+        }
+      addr++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVse8_v(const DecodedInst* di)
+{
+  if ((not isVecLegal()) or (not vecRegs_.legalConfig()))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+
+  unsigned vd = di->op0(), rs1 = di->op1(), errors = 0;
+  URV addr = intRegs_.read(rs1);
+
+  unsigned group = vecRegs_.groupMultiplierX8(), start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = ElementWidth::Byte;
+
+  // TODO check group/sew configuration.
+
+  // TODO check permissions, translate, ....
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+      uint8_t item = 0;
+      if (not vecRegs_.read(vd, ix, group, item))
+        {
+          errors++;
+          break;
+        }
+      memory_.write(hartIx_, addr, item);
+      addr++;
+    }
+
+  assert(errors == 0);
+}
+
+
 template class WdRiscv::Hart<uint32_t>;
 template class WdRiscv::Hart<uint64_t>;
