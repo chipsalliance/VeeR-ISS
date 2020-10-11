@@ -385,6 +385,10 @@ namespace WdRiscv
     int32_t immed() const
     { return (bits.imm11_5 << 5) | bits.imm4_0; }
 
+    /// For vector indexed store instructions.
+    uint32_t rs2() const
+    { return vbits.imm12 & 0x1f; }
+
     /// Encode "sb rs2, imm(rs1)" into this object.
     bool encodeSb(unsigned rs1, unsigned rs2, int imm);
 
