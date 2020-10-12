@@ -2419,6 +2419,86 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       if (di.isMasked()) out << ", v0";
       break;
 
+    case InstId::vlre8_v:
+      out << "vl" << di.op3() << "re8.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vlre16_v:
+      out << "vl" << di.op3() << "re16.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vlre32_v:
+      out << "vl" << di.op3() << "re32.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vlre64_v:
+      out << "vl" << di.op3() << "re64.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vlre128_v:
+      out << "vl" << di.op3() << "re128.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vlre256_v:
+      out << "vl" << di.op3() << "re256.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vlre512_v:
+      out << "vl" << di.op3() << "re512.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vlre1024_v:
+      out << "vl" << di.op3() << "re1024.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsre8_v:
+      out << "vs" << di.op3() << "re8.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsre16_v:
+      out << "vs" << di.op3() << "re16.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsre32_v:
+      out << "vs" << di.op3() << "re32.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsre64_v:
+      out << "vs" << di.op3() << "re64.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsre128_v:
+      out << "vs" << di.op3() << "re128.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsre256_v:
+      out << "vs" << di.op3() << "re256.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsre512_v:
+      out << "vs" << di.op3() << "re512.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsre1024_v:
+      out << "vs" << di.op3() << "re1024.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
     default:
       out << "illegal";
     }

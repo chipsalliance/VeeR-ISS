@@ -440,7 +440,7 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 
 template <typename URV>
 const InstEntry&
-Hart<URV>::decodeVecLoad(uint32_t f3, uint32_t imm12)
+Hart<URV>::decodeVecLoad(uint32_t f3, uint32_t imm12, uint32_t& op3)
 {
   unsigned lumop = imm12 & 0x1f;       // Bits 0 to 4 of imm12
   // unsigned vm = (imm12 >> 5) & 1;      // Bit 5 of imm12
@@ -469,6 +469,22 @@ Hart<URV>::decodeVecLoad(uint32_t f3, uint32_t imm12)
         }
       else if (lumop == 0x8)
         {
+          op3 = nf;
+
+          if (mew == 0)
+            {
+              if (f3 == 0) return instTable_.getEntry(InstId::vlre8_v);
+              if (f3 == 5) return instTable_.getEntry(InstId::vlre16_v);
+              if (f3 == 6) return instTable_.getEntry(InstId::vlre32_v);
+              if (f3 == 7) return instTable_.getEntry(InstId::vlre64_v);
+            }
+          else
+            {
+              if (f3 == 0) return instTable_.getEntry(InstId::vlre128_v);
+              if (f3 == 5) return instTable_.getEntry(InstId::vlre256_v);
+              if (f3 == 6) return instTable_.getEntry(InstId::vlre512_v);
+              if (f3 == 7) return instTable_.getEntry(InstId::vlre1024_v);
+            }
         }
       else if (lumop == 0x10)
         {
@@ -517,7 +533,7 @@ Hart<URV>::decodeVecLoad(uint32_t f3, uint32_t imm12)
 
 template <typename URV>
 const InstEntry&
-Hart<URV>::decodeVecStore(uint32_t f3, uint32_t imm12)
+Hart<URV>::decodeVecStore(uint32_t f3, uint32_t imm12, uint32_t& op3)
 {
   unsigned lumop = imm12 & 0x1f;       // Bits 0 to 4 of imm12
   // unsigned vm = (imm12 >> 5) & 1;      // Bit 5 of imm12
@@ -546,6 +562,21 @@ Hart<URV>::decodeVecStore(uint32_t f3, uint32_t imm12)
         }
       else if (lumop == 8)
         {
+          op3 = nf;
+          if (mew == 0)
+            {
+              if (f3 == 0) return instTable_.getEntry(InstId::vsre8_v);
+              if (f3 == 5) return instTable_.getEntry(InstId::vsre16_v);
+              if (f3 == 6) return instTable_.getEntry(InstId::vsre32_v);
+              if (f3 == 7) return instTable_.getEntry(InstId::vsre64_v);
+            }
+          else
+            {
+              if (f3 == 0) return instTable_.getEntry(InstId::vsre128_v);
+              if (f3 == 5) return instTable_.getEntry(InstId::vsre256_v);
+              if (f3 == 6) return instTable_.getEntry(InstId::vsre512_v);
+              if (f3 == 7) return instTable_.getEntry(InstId::vsre1024_v);
+            }
         }
     }
 
@@ -1365,12 +1396,12 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         else
           op2 = iform.rs2();  // vector load
 
-        if (f3 == 0)  return decodeVecLoad(f3, iform.uimmed());
+        if (f3 == 0)  return decodeVecLoad(f3, iform.uimmed(), op3);
 	if (f3 == 2)  return instTable_.getEntry(InstId::flw);
 	if (f3 == 3)  return instTable_.getEntry(InstId::fld);
-        if (f3 == 5)  return decodeVecLoad(f3, iform.uimmed());
-        if (f3 == 6)  return decodeVecLoad(f3, iform.uimmed());
-        if (f3 == 7)  return decodeVecLoad(f3, iform.uimmed());
+        if (f3 == 5)  return decodeVecLoad(f3, iform.uimmed(), op3);
+        if (f3 == 6)  return decodeVecLoad(f3, iform.uimmed(), op3);
+        if (f3 == 7)  return decodeVecLoad(f3, iform.uimmed(), op3);
       }
       return instTable_.getEntry(InstId::illegal);
 
@@ -1393,12 +1424,12 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
             op2 = sform.rs2();
           }
 
-        if (f3 == 0)  return decodeVecStore(f3, sform.vbits.imm12);
+        if (f3 == 0)  return decodeVecStore(f3, sform.vbits.imm12, op3);
 	if (f3 == 2)  return instTable_.getEntry(InstId::fsw);
 	if (f3 == 3)  return instTable_.getEntry(InstId::fsd);
-        if (f3 == 5)  return decodeVecStore(f3, sform.vbits.imm12);
-        if (f3 == 6)  return decodeVecStore(f3, sform.vbits.imm12);
-        if (f3 == 7)  return decodeVecStore(f3, sform.vbits.imm12);
+        if (f3 == 5)  return decodeVecStore(f3, sform.vbits.imm12, op3);
+        if (f3 == 6)  return decodeVecStore(f3, sform.vbits.imm12, op3);
+        if (f3 == 7)  return decodeVecStore(f3, sform.vbits.imm12, op3);
       }
       return instTable_.getEntry(InstId::illegal);
 

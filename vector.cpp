@@ -7628,7 +7628,7 @@ void
 Hart<URV>::vectorLoad(const DecodedInst* di, ElementWidth eew)
 {
   bool badConfig = not vecRegs_.legalConfig(eew, vecRegs_.groupMultiplier());
-  if ((not isVecLegal()) or (not vecRegs_.legalConfig()) or badConfig)
+  if ((not isVecLegal()) or badConfig)
     {
       illegalInst(di);
       return;
@@ -7751,7 +7751,7 @@ void
 Hart<URV>::vectorStore(const DecodedInst* di, ElementWidth eew)
 {
   bool badConfig = not vecRegs_.legalConfig(eew, vecRegs_.groupMultiplier());
-  if ((not isVecLegal()) or (not vecRegs_.legalConfig()) or badConfig)
+  if ((not isVecLegal()) or badConfig)
     {
       illegalInst(di);
       return;
@@ -7864,6 +7864,259 @@ void
 Hart<URV>::execVse1024_v(const DecodedInst* di)
 {
   vectorStore<Uint1024>(di, ElementWidth::Word32);
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vectorLoadWholeReg(const DecodedInst* di, ElementWidth eew)
+{
+  unsigned groupCode = di->op3();
+  bool badConfig = groupCode > 3;
+  GroupMultiplier gm = GroupMultiplier(groupCode);
+
+  badConfig = badConfig or not vecRegs_.legalConfig(eew, gm);
+  if ((not isVecLegal()) or badConfig)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(), rs1 = di->op1(), errors = 0;
+  URV addr = intRegs_.read(rs1);
+
+  unsigned groupX8 = vecRegs_.groupMultiplierX8(gm), start = 0;
+  unsigned elemCount = (groupX8*vecRegs_.bytesPerRegister()) / 8;
+
+  // TODO check permissions, translate, ....
+  for (unsigned ix = start; ix < elemCount; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+      bool exception = false;
+      ELEM_TYPE elem = 0;
+      if constexpr (sizeof(elem) > 8)
+        {
+          for (unsigned n = 0; n < sizeof(elem) and not exception; n += 8)
+            {
+              uint64_t dword = 0;
+              memory_.read(addr, dword);
+              elem <<= 64;
+              elem |= dword;
+            }
+        }
+      else
+        memory_.read(addr, elem);
+
+      if (exception)
+        {
+          vecRegs_.setStartIndex(ix);
+          csRegs_.write(CsrNumber::VSTART, PrivilegeMode::Machine, ix);
+          break;
+        }
+
+      if (not vecRegs_.write(vd, ix, groupX8, elem))
+        {
+          errors++;
+          break;
+        }
+
+      addr += sizeof(ELEM_TYPE);
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlre8_v(const DecodedInst* di)
+{
+  vectorLoadWholeReg<uint8_t>(di, ElementWidth::Byte);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlre16_v(const DecodedInst* di)
+{
+  vectorLoadWholeReg<uint16_t>(di, ElementWidth::Half);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlre32_v(const DecodedInst* di)
+{
+  vectorLoadWholeReg<uint32_t>(di, ElementWidth::Word);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlre64_v(const DecodedInst* di)
+{
+  vectorLoadWholeReg<uint64_t>(di, ElementWidth::Word2);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlre128_v(const DecodedInst* di)
+{
+  vectorLoadWholeReg<Uint128>(di, ElementWidth::Word4);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlre256_v(const DecodedInst* di)
+{
+  vectorLoadWholeReg<Uint256>(di, ElementWidth::Word8);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlre512_v(const DecodedInst* di)
+{
+  vectorLoadWholeReg<Uint512>(di, ElementWidth::Word16);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlre1024_v(const DecodedInst* di)
+{
+  vectorLoadWholeReg<Uint1024>(di, ElementWidth::Word32);
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vectorStoreWholeReg(const DecodedInst* di, ElementWidth eew)
+{
+  unsigned groupCode = di->op3();
+  bool badConfig = groupCode > 3;
+  GroupMultiplier gm = GroupMultiplier(groupCode);
+
+  badConfig = badConfig or not vecRegs_.legalConfig(eew, gm);
+  if ((not isVecLegal()) or badConfig)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(), rs1 = di->op1(), errors = 0;
+  URV addr = intRegs_.read(rs1);
+
+  unsigned groupX8 = vecRegs_.groupMultiplierX8(gm), start = 0;
+  unsigned elemCount = (groupX8*vecRegs_.bytesPerRegister()) / 8;
+
+  // TODO check permissions, translate, ....
+  for (unsigned ix = start; ix < elemCount; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+      bool exception = false;
+      ELEM_TYPE elem = 0;
+      if (not vecRegs_.read(vd, ix, groupX8, elem))
+        {
+          errors++;
+          break;
+        }
+
+      if constexpr (sizeof(elem) > 8)
+        {
+          for (unsigned n = 0; n < sizeof(elem) and not exception; n += 8)
+            {
+              uint64_t dword = elem;
+              memory_.write(hartIx_, addr, dword);
+              elem >>= 64;
+            }
+        }
+      else
+        memory_.write(hartIx_, addr, elem);
+
+      if (exception)
+        {
+          vecRegs_.setStartIndex(ix);
+          csRegs_.write(CsrNumber::VSTART, PrivilegeMode::Machine, ix);
+          break;
+        }
+
+      addr += sizeof(ELEM_TYPE);
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsre8_v(const DecodedInst* di)
+{
+  vectorStoreWholeReg<uint8_t>(di, ElementWidth::Byte);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsre16_v(const DecodedInst* di)
+{
+  vectorStoreWholeReg<uint16_t>(di, ElementWidth::Half);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsre32_v(const DecodedInst* di)
+{
+  vectorStoreWholeReg<uint32_t>(di, ElementWidth::Word);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsre64_v(const DecodedInst* di)
+{
+  vectorStoreWholeReg<uint64_t>(di, ElementWidth::Word2);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsre128_v(const DecodedInst* di)
+{
+  vectorStoreWholeReg<Uint128>(di, ElementWidth::Word4);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsre256_v(const DecodedInst* di)
+{
+  vectorStoreWholeReg<Uint256>(di, ElementWidth::Word8);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsre512_v(const DecodedInst* di)
+{
+  vectorStoreWholeReg<Uint512>(di, ElementWidth::Word16);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsre1024_v(const DecodedInst* di)
+{
+  vectorStoreWholeReg<Uint1024>(di, ElementWidth::Word32);
 }
 
 

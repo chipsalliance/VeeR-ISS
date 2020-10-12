@@ -1579,13 +1579,15 @@ namespace WdRiscv
     const InstEntry& decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1,
                                uint32_t& op2, uint32_t& op3);
 
-    /// Helper to decode: Decode vector instructions associated with opcode
-    /// 0100111.
-    const InstEntry& decodeVecStore(uint32_t f3, uint32_t imm12);
+    /// Helper to decode: Decode vector instructions associated with
+    /// opcode 0100111. For whole register or segment load, op3 is set
+    /// to the code of the register count or segment field count.
+    const InstEntry& decodeVecStore(uint32_t f3, uint32_t imm12, uint32_t& op3);
 
-    /// Helper to decode: Decode vector instructions associated with opcode
-    /// 0000111.
-    const InstEntry& decodeVecLoad(uint32_t f3, uint32_t imm12);
+    /// Helper to decode: Decode vector instructions associated with
+    /// opcode 0000111. For whole register or segment store, op3 is
+    /// set to the code of the register count or segment field count.
+    const InstEntry& decodeVecLoad(uint32_t f3, uint32_t imm12, uint32_t& op3);
 
     /// Helper to disassembleInst32: Disassemble instructions
     /// associated with opcode 1010011.
@@ -2483,6 +2485,30 @@ namespace WdRiscv
     void execVse256_v(const DecodedInst*);
     void execVse512_v(const DecodedInst*);
     void execVse1024_v(const DecodedInst*);
+
+    template <typename ELEM_TYPE>
+    void vectorLoadWholeReg(const DecodedInst*, ElementWidth);
+
+    void execVlre8_v(const DecodedInst*);
+    void execVlre16_v(const DecodedInst*);
+    void execVlre32_v(const DecodedInst*);
+    void execVlre64_v(const DecodedInst*);
+    void execVlre128_v(const DecodedInst*);
+    void execVlre256_v(const DecodedInst*);
+    void execVlre512_v(const DecodedInst*);
+    void execVlre1024_v(const DecodedInst*);
+
+    template <typename ELEM_TYPE>
+    void vectorStoreWholeReg(const DecodedInst*, ElementWidth);
+
+    void execVsre8_v(const DecodedInst*);
+    void execVsre16_v(const DecodedInst*);
+    void execVsre32_v(const DecodedInst*);
+    void execVsre64_v(const DecodedInst*);
+    void execVsre128_v(const DecodedInst*);
+    void execVsre256_v(const DecodedInst*);
+    void execVsre512_v(const DecodedInst*);
+    void execVsre1024_v(const DecodedInst*);
 
   private:
 
