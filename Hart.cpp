@@ -7821,7 +7821,7 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
 
   // Temporary: Check if not cachable. FIX: this should be part of
   // physical memory attributes.
-  if (not isAddrInDccm(addr))
+  if (not fail and not isAddrInDccm(addr))
     {
       unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
       URV mracVal = 0;
@@ -11573,6 +11573,19 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
   if ((addr & (ldSize - 1)) != 0)
     fail = true;
 
+  // Temporary: Check if not cachable. FIX: this should be part of
+  // physical memory attributes.
+  if (not fail and not isAddrInDccm(addr))
+    {
+      unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
+      URV mracVal = 0;
+      if (csRegs_.read(CsrNumber::MRAC, PrivilegeMode::Machine, mracVal))
+        {
+          unsigned bit = (mracVal >> (region*2)) & 1;
+          fail = bit == 0;
+        }
+    }
+
   if (fail)
     {
       // AMO secondary cause has priority over ECC.
@@ -11657,6 +11670,20 @@ Hart<URV>::storeConditional(unsigned rs1, URV virtAddr, STORE_TYPE storeVal)
   auto cause = determineStoreException(rs1, virtAddr, addr, storeVal, secCause);
 
   bool fail = misal or (amoInDccmOnly_ and not isAddrInDccm(addr));
+
+  // Temporary: Check if not cachable. FIX: this should be part of
+  // physical memory attributes.
+  if (not fail and not isAddrInDccm(addr))
+    {
+      unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
+      URV mracVal = 0;
+      if (csRegs_.read(CsrNumber::MRAC, PrivilegeMode::Machine, mracVal))
+        {
+          unsigned bit = (mracVal >> (region*2)) & 1;
+          fail = bit == 0;
+        }
+    }
+
   if (fail)
     {
       // AMO secondary cause has priority over ECC.
