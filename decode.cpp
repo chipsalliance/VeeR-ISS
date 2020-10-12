@@ -455,20 +455,16 @@ Hart<URV>::decodeVecLoad(uint32_t f3, uint32_t imm12)
           if (mew == 0)
             {
               if (f3 == 0) return instTable_.getEntry(InstId::vle8_v);
-#if 0
               if (f3 == 5) return instTable_.getEntry(InstId::vle16_v);
               if (f3 == 6) return instTable_.getEntry(InstId::vle32_v);
               if (f3 == 7) return instTable_.getEntry(InstId::vle64_v);
-#endif
             }
           else
             {
-#if 0
               if (f3 == 0) return instTable_.getEntry(InstId::vle128_v);
               if (f3 == 5) return instTable_.getEntry(InstId::vle256_v);
               if (f3 == 6) return instTable_.getEntry(InstId::vle512_v);
               if (f3 == 7) return instTable_.getEntry(InstId::vle1024_v);
-#endif
             }
         }
       else if (lumop == 0x8)
@@ -536,20 +532,16 @@ Hart<URV>::decodeVecStore(uint32_t f3, uint32_t imm12)
           if (mew == 0)
             {
               if (f3 == 0) return instTable_.getEntry(InstId::vse8_v);
-#if 0
               if (f3 == 5) return instTable_.getEntry(InstId::vse16_v);
               if (f3 == 6) return instTable_.getEntry(InstId::vse32_v);
               if (f3 == 7) return instTable_.getEntry(InstId::vse64_v);
-#endif
             }
           else
             {
-#if 0
               if (f3 == 0) return instTable_.getEntry(InstId::vse128_v);
               if (f3 == 5) return instTable_.getEntry(InstId::vse256_v);
               if (f3 == 6) return instTable_.getEntry(InstId::vse512_v);
               if (f3 == 7) return instTable_.getEntry(InstId::vse1024_v);
-#endif
             }
         }
       else if (lumop == 8)

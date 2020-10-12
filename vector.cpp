@@ -7623,39 +7623,180 @@ Hart<URV>::execVmv8r_v(const DecodedInst* di)
 
 
 template <typename URV>
+template <typename ELEM_TYPE>
 void
-Hart<URV>::execVle8_v(const DecodedInst* di)
+Hart<URV>::vectorLoad(const DecodedInst* di, ElementWidth eew)
 {
-  if ((not isVecLegal()) or (not vecRegs_.legalConfig()))
+  bool badConfig = not vecRegs_.legalConfig(eew, vecRegs_.groupMultiplier());
+  if ((not isVecLegal()) or (not vecRegs_.legalConfig()) or badConfig)
     {
       illegalInst(di);
       return;
     }
 
   bool masked = di->isMasked();
-
   unsigned vd = di->op0(), rs1 = di->op1(), errors = 0;
   URV addr = intRegs_.read(rs1);
 
   unsigned group = vecRegs_.groupMultiplierX8(), start = vecRegs_.startIndex();
-  unsigned elems = vecRegs_.elemCount();
-  //ElementWidth sew = ElementWidth::Byte;
-
-  // TODO check group/sew configuration.
+  unsigned elemCount = vecRegs_.elemCount();
 
   // TODO check permissions, translate, ....
-  for (unsigned ix = start; ix < elems; ++ix)
+  for (unsigned ix = start; ix < elemCount; ++ix)
     {
       if (masked and not vecRegs_.isActive(0, ix))
         continue;
-      uint8_t item = 0;
-      memory_.read(addr, item);
-      if (not vecRegs_.write(vd, ix, group, item))
+      bool exception = false;
+      ELEM_TYPE elem = 0;
+      if constexpr (sizeof(elem) > 8)
+        {
+          for (unsigned n = 0; n < sizeof(elem) and not exception; n += 8)
+            {
+              uint64_t dword = 0;
+              memory_.read(addr, dword);
+              elem <<= 64;
+              elem |= dword;
+            }
+        }
+      else
+        memory_.read(addr, elem);
+
+      if (exception)
+        {
+          vecRegs_.setStartIndex(ix);
+          csRegs_.write(CsrNumber::VSTART, PrivilegeMode::Machine, ix);
+          break;
+        }
+
+      if (not vecRegs_.write(vd, ix, group, elem))
         {
           errors++;
           break;
         }
-      addr++;
+
+      addr += sizeof(ELEM_TYPE);
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVle8_v(const DecodedInst* di)
+{
+  vectorLoad<uint8_t>(di, ElementWidth::Byte);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVle16_v(const DecodedInst* di)
+{
+  vectorLoad<uint16_t>(di, ElementWidth::Half);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVle32_v(const DecodedInst* di)
+{
+  vectorLoad<uint32_t>(di, ElementWidth::Word);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVle64_v(const DecodedInst* di)
+{
+  vectorLoad<uint64_t>(di, ElementWidth::Word2);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVle128_v(const DecodedInst* di)
+{
+  vectorLoad<Uint128>(di, ElementWidth::Word4);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVle256_v(const DecodedInst* di)
+{
+  vectorLoad<Uint256>(di, ElementWidth::Word8);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVle512_v(const DecodedInst* di)
+{
+  vectorLoad<Uint512>(di, ElementWidth::Word16);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVle1024_v(const DecodedInst* di)
+{
+  vectorLoad<Uint1024>(di, ElementWidth::Word32);
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vectorStore(const DecodedInst* di, ElementWidth eew)
+{
+  bool badConfig = not vecRegs_.legalConfig(eew, vecRegs_.groupMultiplier());
+  if ((not isVecLegal()) or (not vecRegs_.legalConfig()) or badConfig)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(), rs1 = di->op1(), errors = 0;
+  URV addr = intRegs_.read(rs1);
+
+  unsigned group = vecRegs_.groupMultiplierX8(), start = vecRegs_.startIndex();
+  unsigned elemCount = vecRegs_.elemCount();
+
+  // TODO check permissions, translate, ....
+  for (unsigned ix = start; ix < elemCount; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+      bool exception = false;
+      ELEM_TYPE elem = 0;
+      if (not vecRegs_.read(vd, ix, group, elem))
+        {
+          errors++;
+          break;
+        }
+
+      if constexpr (sizeof(elem) > 8)
+        {
+          for (unsigned n = 0; n < sizeof(elem) and not exception; n += 8)
+            {
+              uint64_t dword = elem;
+              memory_.write(hartIx_, addr, dword);
+              elem >>= 64;
+            }
+        }
+      else
+        memory_.write(hartIx_, addr, elem);
+
+      if (exception)
+        {
+          vecRegs_.setStartIndex(ix);
+          csRegs_.write(CsrNumber::VSTART, PrivilegeMode::Machine, ix);
+          break;
+        }
+
+      addr += sizeof(ELEM_TYPE);
     }
 
   assert(errors == 0);
@@ -7666,39 +7807,63 @@ template <typename URV>
 void
 Hart<URV>::execVse8_v(const DecodedInst* di)
 {
-  if ((not isVecLegal()) or (not vecRegs_.legalConfig()))
-    {
-      illegalInst(di);
-      return;
-    }
+  vectorStore<uint8_t>(di, ElementWidth::Byte);
+}
 
-  bool masked = di->isMasked();
 
-  unsigned vd = di->op0(), rs1 = di->op1(), errors = 0;
-  URV addr = intRegs_.read(rs1);
+template <typename URV>
+void
+Hart<URV>::execVse16_v(const DecodedInst* di)
+{
+  vectorStore<uint16_t>(di, ElementWidth::Half);
+}
 
-  unsigned group = vecRegs_.groupMultiplierX8(), start = vecRegs_.startIndex();
-  unsigned elems = vecRegs_.elemCount();
-  //ElementWidth sew = ElementWidth::Byte;
 
-  // TODO check group/sew configuration.
+template <typename URV>
+void
+Hart<URV>::execVse32_v(const DecodedInst* di)
+{
+  vectorStore<uint32_t>(di, ElementWidth::Word);
+}
 
-  // TODO check permissions, translate, ....
-  for (unsigned ix = start; ix < elems; ++ix)
-    {
-      if (masked and not vecRegs_.isActive(0, ix))
-        continue;
-      uint8_t item = 0;
-      if (not vecRegs_.read(vd, ix, group, item))
-        {
-          errors++;
-          break;
-        }
-      memory_.write(hartIx_, addr, item);
-      addr++;
-    }
 
-  assert(errors == 0);
+template <typename URV>
+void
+Hart<URV>::execVse64_v(const DecodedInst* di)
+{
+  vectorStore<uint64_t>(di, ElementWidth::Word2);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVse128_v(const DecodedInst* di)
+{
+  vectorStore<Uint128>(di, ElementWidth::Word4);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVse256_v(const DecodedInst* di)
+{
+  vectorStore<Uint256>(di, ElementWidth::Word8);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVse512_v(const DecodedInst* di)
+{
+  vectorStore<Uint512>(di, ElementWidth::Word16);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVse1024_v(const DecodedInst* di)
+{
+  vectorStore<Uint1024>(di, ElementWidth::Word32);
 }
 
 

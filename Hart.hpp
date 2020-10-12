@@ -2460,9 +2460,29 @@ namespace WdRiscv
     void execVmv4r_v(const DecodedInst*);
     void execVmv8r_v(const DecodedInst*);
 
+    template <typename ELEM_TYPE>
+    void vectorLoad(const DecodedInst*, ElementWidth);
+
     void execVle8_v(const DecodedInst*);
+    void execVle16_v(const DecodedInst*);
+    void execVle32_v(const DecodedInst*);
+    void execVle64_v(const DecodedInst*);
+    void execVle128_v(const DecodedInst*);
+    void execVle256_v(const DecodedInst*);
+    void execVle512_v(const DecodedInst*);
+    void execVle1024_v(const DecodedInst*);
+
+    template <typename ELEM_TYPE>
+    void vectorStore(const DecodedInst*, ElementWidth);
 
     void execVse8_v(const DecodedInst*);
+    void execVse16_v(const DecodedInst*);
+    void execVse32_v(const DecodedInst*);
+    void execVse64_v(const DecodedInst*);
+    void execVse128_v(const DecodedInst*);
+    void execVse256_v(const DecodedInst*);
+    void execVse512_v(const DecodedInst*);
+    void execVse1024_v(const DecodedInst*);
 
   private:
 

@@ -2344,8 +2344,78 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       if (di.isMasked()) out << ", v0";
       break;
 
+    case InstId::vle16_v:
+      out << "vle16.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vle32_v:
+      out << "vle32.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vle64_v:
+      out << "vle64.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vle128_v:
+      out << "vle128.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vle256_v:
+      out << "vle256.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vle512_v:
+      out << "vle512.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vle1024_v:
+      out << "vle1024.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
     case InstId::vse8_v:
       out << "vse8.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vse16_v:
+      out << "vse16.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vse32_v:
+      out << "vse32.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vse64_v:
+      out << "vse64.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vse128_v:
+      out << "vse128.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vse256_v:
+      out << "vse256.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vse512_v:
+      out << "vse512.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vse1024_v:
+      out << "vse1024.v v" << di.op0() << ", (x" << di.op1() << ")";
       if (di.isMasked()) out << ", v0";
       break;
 

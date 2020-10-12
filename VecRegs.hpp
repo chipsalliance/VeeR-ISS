@@ -372,6 +372,9 @@ namespace WdRiscv
     uint32_t startIndex() const
     { return start_; }
 
+    void setStartIndex(uint32_t start)
+    { start_ = start; }
+
     /// Return currently configure element count (cached valye of VL).
     uint32_t elemCount() const
     { return elems_; }
