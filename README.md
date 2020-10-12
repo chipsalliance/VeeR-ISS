@@ -427,5 +427,3 @@ implemented.
 
 Only extensions A, C, D, F, I, M, S and U are supported.
 
-The code was originally written to support the Swerv
-micro-controller. That controller only supports machine mode.
