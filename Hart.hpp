@@ -1175,6 +1175,9 @@ namespace WdRiscv
     void enablePerModeCounterControl(bool flag)
     { csRegs_.enablePerModeCounterControl(flag); }
 
+    /// Invalidate whole cache.
+    void invalidateDecodeCache();
+
   protected:
 
     // Return true if FS field of mstatus is not off.
@@ -1646,9 +1649,6 @@ namespace WdRiscv
     /// Invalidate cache entries overlapping the bytes written by a
     /// store.
     void invalidateDecodeCache(URV addr, unsigned storeSize);
-
-    /// Invalidate whole cache.
-    void invalidateDecodeCache();
 
     /// Update stack checker parameters after a write/poke to a CSR.
     void updateStackChecker();
