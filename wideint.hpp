@@ -327,7 +327,7 @@ namespace WdRiscv
     Uint256(const Int256& x);
 
     /// Construct from a 128-bit unsigned int.
-    Uint256(HalfType x)
+    Uint256(const HalfType& x)
       : low_(x), high_(0)
     { }
 
@@ -1232,19 +1232,19 @@ namespace WdRiscv
   { }
 
   inline Uint128 operator + (Uint128 a, Uint128 b)
-  { Uint128 c = a; c += b; return c; }
+  { a += b; return a; }
 
   inline Uint128 operator - (Uint128 a, Uint128 b)
-  { Uint128 c = a; c -= b; return c; }
+  { a -= b; return a; }
 
   inline Uint128 operator * (Uint128 a, Uint128 b)
-  { Uint128 c = a; c *= b; return c; }
+  { a *= b; return a; }
 
   inline Uint128 operator / (Uint128 a, Uint128 b)
-  { Uint128 c = a; c /= b; return c; }
+  { a /= b; return a; }
 
   inline Uint128 operator % (Uint128 a, Uint128 b)
-  { Uint128 c = a; c %= b; return c; }
+  { a %= b; return a; }
 
   inline Uint128 operator - (Uint128 a)
   { Uint128 c = 0; c -= a; return c; }
@@ -1256,29 +1256,29 @@ namespace WdRiscv
   { x <<= n; return x; }
 
   inline Uint128 operator | (Uint128 a, Uint128 b)
-  { Uint128 c = a; c |= b; return c; }
+  { a |= b; return a; }
 
   inline Uint128 operator & (Uint128 a, Uint128 b)
-  { Uint128 c = a; c &= b; return c; }
+  { a &= b; return a; }
 
   inline Uint128 operator ^ (Uint128 a, Uint128 b)
-  { Uint128 c = a; c ^= b; return c; }
+  { a ^= b; return a; }
 
 
   inline Int128 operator + (Int128 a, Int128 b)
-  { Int128 c = a; c += b; return c; }
+  { a += b; return a; }
 
   inline Int128 operator - (Int128 a, Int128 b)
-  { Int128 c = a; c -= b; return c; }
+  { a -= b; return a; }
 
   inline Int128 operator * (Int128 a, Int128 b)
-  { Int128 c = a; c *= b; return c; }
+  { a *= b; return a; }
 
   inline Int128 operator / (Int128 a, Int128 b)
-  { Int128 c = a; c /= b; return c; }
+  { a /= b; return a; }
 
   inline Int128 operator % (Int128 a, Int128 b)
-  { Int128 c = a; c %= b; return c; }
+  { a %= b; return a; }
 
   inline Int128 operator - (Int128 a)
   { Int128 c = 0L; c -= a; return c; }
@@ -1290,13 +1290,13 @@ namespace WdRiscv
   { x <<= n; return x; }
 
   inline Int128 operator | (Int128 a, Int128 b)
-  { Int128 c = a; c |= b; return c; }
+  { a |= b; return a; }
 
   inline Int128 operator & (Int128 a, Int128 b)
-  { Int128 c = a; c &= b; return c; }
+  { a &= b; return a; }
 
   inline Int128 operator ^ (Int128 a, Int128 b)
-  { Int128 c = a; c ^= b; return c; }
+  { a ^= b; return a; }
 
 
 
@@ -1306,19 +1306,19 @@ namespace WdRiscv
   { }
 
   inline Uint256 operator + (Uint256 a, Uint256 b)
-  { Uint256 c = a; c += b; return c; }
+  { a += b; return a; }
 
   inline Uint256 operator - (Uint256 a, Uint256 b)
-  { Uint256 c = a; c -= b; return c; }
+  { a -= b; return a; }
 
   inline Uint256 operator * (Uint256 a, Uint256 b)
-  { Uint256 c = a; c *= b; return c; }
+  { a *= b; return a; }
 
   inline Uint256 operator / (Uint256 a, Uint256 b)
-  { Uint256 c = a; c /= b; return c; }
+  { a /= b; return a; }
 
   inline Uint256 operator % (Uint256 a, Uint256 b)
-  { Uint256 c = a; c %= b; return c; }
+  { a %= b; return a; }
 
   inline Uint256 operator - (Uint256 a)
   { Uint256 c = 0UL; c -= a; return c; }
@@ -1330,29 +1330,29 @@ namespace WdRiscv
   { x <<= n; return x; }
 
   inline Uint256 operator | (Uint256 a, Uint256 b)
-  { Uint256 c = a; c |= b; return c; }
+  { a |= b; return a; }
 
   inline Uint256 operator & (Uint256 a, Uint256 b)
-  { Uint256 c = a; c &= b; return c; }
+  { a &= b; return a; }
 
   inline Uint256 operator ^ (Uint256 a, Uint256 b)
-  { Uint256 c = a; c ^= b; return c; }
+  { a ^= b; return a; }
 
 
   inline Int256 operator + (Int256 a, Int256 b)
-  { Int256 c = a; c += b; return c; }
+  { a += b; return a; }
 
   inline Int256 operator - (Int256 a, Int256 b)
-  { Int256 c = a; c -= b; return c; }
+  { a -= b; return a; }
 
   inline Int256 operator * (Int256 a, Int256 b)
-  { Int256 c = a; c *= b; return c; }
+  { a *= b; return a; }
 
   inline Int256 operator / (Int256 a, Int256 b)
-  { Int256 c = a; c /= b; return c; }
+  { a /= b; return a; }
 
   inline Int256 operator % (Int256 a, Int256 b)
-  { Int256 c = a; c %= b; return c; }
+  { a %= b; return a; }
 
   inline Int256 operator - (Int256 a)
   { Int256 c = 0L; c -= a; return c; }
@@ -1364,13 +1364,13 @@ namespace WdRiscv
   { x <<= n; return x; }
 
   inline Int256 operator | (Int256 a, Int256 b)
-  { Int256 c = a; c |= b; return c; }
+  { a |= b; return a; }
 
   inline Int256 operator & (Int256 a, Int256 b)
-  { Int256 c = a; c &= b; return c; }
+  { a &= b; return a; }
 
   inline Int256 operator ^ (Int256 a, Int256 b)
-  { Int256 c = a; c ^= b; return c; }
+  { a ^= b; return a; }
 
 
 
@@ -1380,19 +1380,19 @@ namespace WdRiscv
   { }
 
   inline Uint512 operator + (Uint512 a, Uint512 b)
-  { Uint512 c = a; c += b; return c; }
+  { a += b; return a; }
 
   inline Uint512 operator - (Uint512 a, Uint512 b)
-  { Uint512 c = a; c -= b; return c; }
+  { a -= b; return a; }
 
   inline Uint512 operator * (Uint512 a, Uint512 b)
-  { Uint512 c = a; c *= b; return c; }
+  { a *= b; return a; }
 
   inline Uint512 operator / (Uint512 a, Uint512 b)
-  { Uint512 c = a; c /= b; return c; }
+  { a /= b; return a; }
 
   inline Uint512 operator % (Uint512 a, Uint512 b)
-  { Uint512 c = a; c %= b; return c; }
+  { a %= b; return a; }
 
   inline Uint512 operator - (Uint512 a)
   { Uint512 c = 0UL; c -= a; return c; }
@@ -1404,29 +1404,29 @@ namespace WdRiscv
   { x <<= n; return x; }
 
   inline Uint512 operator | (Uint512 a, Uint512 b)
-  { Uint512 c = a; c |= b; return c; }
+  { a |= b; return a; }
 
   inline Uint512 operator & (Uint512 a, Uint512 b)
-  { Uint512 c = a; c &= b; return c; }
+  { a &= b; return a; }
 
   inline Uint512 operator ^ (Uint512 a, Uint512 b)
-  { Uint512 c = a; c ^= b; return c; }
+  { a ^= b; return a; }
 
 
   inline Int512 operator + (Int512 a, Int512 b)
-  { Int512 c = a; c += b; return c; }
+  { a += b; return a; }
 
   inline Int512 operator - (Int512 a, Int512 b)
-  { Int512 c = a; c -= b; return c; }
+  { a -= b; return a; }
 
   inline Int512 operator * (Int512 a, Int512 b)
-  { Int512 c = a; c *= b; return c; }
+  { a *= b; return a; }
 
   inline Int512 operator / (Int512 a, Int512 b)
-  { Int512 c = a; c /= b; return c; }
+  { a /= b; return a; }
 
   inline Int512 operator % (Int512 a, Int512 b)
-  { Int512 c = a; c %= b; return c; }
+  { a %= b; return a; }
 
   inline Int512 operator - (Int512 a)
   { Int512 c = 0L; c -= a; return c; }
@@ -1438,13 +1438,13 @@ namespace WdRiscv
   { x <<= n; return x; }
 
   inline Int512 operator | (Int512 a, Int512 b)
-  { Int512 c = a; c |= b; return c; }
+  { a |= b; return a; }
 
   inline Int512 operator & (Int512 a, Int512 b)
-  { Int512 c = a; c &= b; return c; }
+  { a &= b; return a; }
 
   inline Int512 operator ^ (Int512 a, Int512 b)
-  { Int512 c = a; c ^= b; return c; }
+  { a ^= b; return a; }
 
 
 
@@ -1454,19 +1454,19 @@ namespace WdRiscv
   { }
 
   inline Uint1024 operator + (Uint1024 a, Uint1024 b)
-  { Uint1024 c = a; c += b; return c; }
+  { a += b; return a; }
 
   inline Uint1024 operator - (Uint1024 a, Uint1024 b)
-  { Uint1024 c = a; c -= b; return c; }
+  { a -= b; return a; }
 
   inline Uint1024 operator * (Uint1024 a, Uint1024 b)
-  { Uint1024 c = a; c *= b; return c; }
+  { a *= b; return a; }
 
   inline Uint1024 operator / (Uint1024 a, Uint1024 b)
-  { Uint1024 c = a; c /= b; return c; }
+  { a /= b; return a; }
 
   inline Uint1024 operator % (Uint1024 a, Uint1024 b)
-  { Uint1024 c = a; c %= b; return c; }
+  { a %= b; return a; }
 
   inline Uint1024 operator - (Uint1024 a)
   { Uint1024 c = 0UL; c -= a; return c; }
@@ -1478,29 +1478,29 @@ namespace WdRiscv
   { x <<= n; return x; }
 
   inline Uint1024 operator | (Uint1024 a, Uint1024 b)
-  { Uint1024 c = a; c |= b; return c; }
+  { a |= b; return a; }
 
   inline Uint1024 operator & (Uint1024 a, Uint1024 b)
-  { Uint1024 c = a; c &= b; return c; }
+  { a &= b; return a; }
 
   inline Uint1024 operator ^ (Uint1024 a, Uint1024 b)
-  { Uint1024 c = a; c ^= b; return c; }
+  { a ^= b; return a; }
 
 
   inline Int1024 operator + (Int1024 a, Int1024 b)
-  { Int1024 c = a; c += b; return c; }
+  { a += b; return a; }
 
   inline Int1024 operator - (Int1024 a, Int1024 b)
-  { Int1024 c = a; c -= b; return c; }
+  { a -= b; return a; }
 
   inline Int1024 operator * (Int1024 a, Int1024 b)
-  { Int1024 c = a; c *= b; return c; }
+  { a *= b; return a; }
 
   inline Int1024 operator / (Int1024 a, Int1024 b)
-  { Int1024 c = a; c /= b; return c; }
+  { a /= b; return a; }
 
   inline Int1024 operator % (Int1024 a, Int1024 b)
-  { Int1024 c = a; c %= b; return c; }
+  { a %= b; return a; }
 
   inline Int1024 operator - (Int1024 a)
   { Int1024 c = 0L; c -= a; return c; }
@@ -1512,12 +1512,12 @@ namespace WdRiscv
   { x <<= n; return x; }
 
   inline Int1024 operator | (Int1024 a, Int1024 b)
-  { Int1024 c = a; c |= b; return c; }
+  { a |= b; return a; }
 
   inline Int1024 operator & (Int1024 a, Int1024 b)
-  { Int1024 c = a; c &= b; return c; }
+  { a &= b; return a; }
 
   inline Int1024 operator ^ (Int1024 a, Int1024 b)
-  { Int1024 c = a; c ^= b; return c; }
+  { a ^= b; return a; }
 
 }

@@ -356,31 +356,36 @@ Int128::operator <<= (int n)
 Uint256&
 Uint256::operator *= (const Uint256& x)
 {
-  QuarterType* multiplicand = (QuarterType*) &low_;
-  QuarterType* multiplier = (QuarterType*) &x.low_;
+  unsigned qw = width() / 4;
 
-  SelfType prod[2];
-  QuarterType* acc = (QuarterType*) &prod[0];
+  QuarterType a0 = QuarterType((low_ << qw) >> qw), a1 = QuarterType(low_ >> qw);
+  QuarterType a2 = QuarterType((high_ << qw) >> qw), a3 = QuarterType(high_ >> qw);
+  QuarterType b0 = QuarterType((x.low_ << qw) >> qw), b1 = QuarterType(x.low_ >> qw);
+  QuarterType b2 = QuarterType((x.high_ << qw) >> qw), b3 = QuarterType(x.high_ >> qw);
 
-  for (unsigned i = 0; i < 4; ++i, ++acc)
-    {
-      QuarterType a = multiplier[i];
-      HalfType carry = 0;
-      QuarterType* row = acc;
-      for (unsigned j = 0; j < 4; ++j, ++row)
-        {
-          HalfType b = multiplicand[j];
-          b *= a;
-          HalfType* sum = (HalfType*) row;
-          HalfType prev = *sum;
-          *sum += b + HalfType(carry);
-          carry = (*sum < prev)? HalfType(1) : HalfType(0);
-          carry <<= sizeof(QuarterType)*8;
-        }
-      if (i == 3 and carry > 0)
-        (*row)++;
-    }
-  *this = prod[0];
+  *this = 0;
+  SelfType shifted = 0;
+
+  HalfType prod = a0; prod *= b0; *this += prod;
+  prod = a0; prod *= b1; shifted = prod; shifted <<= qw; *this += shifted;
+  prod = a0; prod *= b2; shifted = prod; shifted <<= 2*qw; *this += shifted;
+  prod = a0; prod *= b3; shifted = prod; shifted <<= 3*qw; *this += shifted;
+
+  prod = a1; prod *= b0; shifted = prod; shifted <<= qw; *this += shifted;
+  prod = a1; prod *= b1; shifted = prod; shifted <<= 2*qw; *this += shifted;
+  prod = a1; prod *= b2; shifted = prod; shifted <<= 3*qw; *this += shifted;
+  prod = a1; prod *= b3; shifted = prod; shifted <<= 4*qw; *this += shifted;
+
+  prod = a2; prod *= b0; shifted = prod; shifted <<= 2*qw; *this += shifted;
+  prod = a2; prod *= b1; shifted = prod; shifted <<= 3*qw; *this += shifted;
+  prod = a2; prod *= b2; shifted = prod; shifted <<= 4*qw; *this += shifted;
+  prod = a2; prod *= b3; shifted = prod; shifted <<= 5*qw; *this += shifted;
+
+  prod = a3; prod *= b0; shifted = prod; shifted <<= 3*qw; *this += shifted;
+  prod = a3; prod *= b1; shifted = prod; shifted <<= 4*qw; *this += shifted;
+  prod = a3; prod *= b2; shifted = prod; shifted <<= 5*qw; *this += shifted;
+  prod = a3; prod *= b3; shifted = prod; shifted <<= 6*qw; *this += shifted;
+
   return *this;
 }
 
@@ -699,31 +704,36 @@ Int256::operator <<= (int n)
 Uint512&
 Uint512::operator *= (const Uint512& x)
 {
-  QuarterType* multiplicand = (QuarterType*) &low_;
-  QuarterType* multiplier = (QuarterType*) &x.low_;
+  unsigned qw = width() / 4;
 
-  SelfType prod[2];
-  QuarterType* acc = (QuarterType*) &prod[0];
+  QuarterType a0 = (low_ << qw) >> qw, a1 = low_ >> qw;
+  QuarterType a2 = (high_ << qw) >> qw, a3 = high_ >> qw;
+  QuarterType b0 = (x.low_ << qw) >> qw, b1 = x.low_ >> qw;
+  QuarterType b2 = (x.high_ << qw) >> qw, b3 = x.high_ >> qw;
 
-  for (unsigned i = 0; i < 4; ++i, ++acc)
-    {
-      QuarterType a = multiplier[i];
-      HalfType carry = 0;
-      QuarterType* row = acc;
-      for (unsigned j = 0; j < 4; ++j, ++row)
-        {
-          HalfType b = multiplicand[j];
-          b *= a;
-          HalfType* sum = (HalfType*) row;
-          HalfType prev = *sum;
-          *sum += b + HalfType(carry);
-          carry = (*sum < prev)? HalfType(1) : HalfType(0);
-          carry <<= sizeof(QuarterType)*8;
-        }
-      if (i == 3 and carry > 0)
-        (*row)++;
-    }
-  *this = prod[0];
+  *this = 0;
+  SelfType shifted = 0;
+
+  HalfType prod = a0; prod *= b0; *this += prod;
+  prod = a0; prod *= b1; shifted = prod; shifted <<= qw; *this += shifted;
+  prod = a0; prod *= b2; shifted = prod; shifted <<= 2*qw; *this += shifted;
+  prod = a0; prod *= b3; shifted = prod; shifted <<= 3*qw; *this += shifted;
+
+  prod = a1; prod *= b0; shifted = prod; shifted <<= qw; *this += shifted;
+  prod = a1; prod *= b1; shifted = prod; shifted <<= 2*qw; *this += shifted;
+  prod = a1; prod *= b2; shifted = prod; shifted <<= 3*qw; *this += shifted;
+  prod = a1; prod *= b3; shifted = prod; shifted <<= 4*qw; *this += shifted;
+
+  prod = a2; prod *= b0; shifted = prod; shifted <<= 2*qw; *this += shifted;
+  prod = a2; prod *= b1; shifted = prod; shifted <<= 3*qw; *this += shifted;
+  prod = a2; prod *= b2; shifted = prod; shifted <<= 4*qw; *this += shifted;
+  prod = a2; prod *= b3; shifted = prod; shifted <<= 5*qw; *this += shifted;
+
+  prod = a3; prod *= b0; shifted = prod; shifted <<= 3*qw; *this += shifted;
+  prod = a3; prod *= b1; shifted = prod; shifted <<= 4*qw; *this += shifted;
+  prod = a3; prod *= b2; shifted = prod; shifted <<= 5*qw; *this += shifted;
+  prod = a3; prod *= b3; shifted = prod; shifted <<= 6*qw; *this += shifted;
+
   return *this;
 }
 
@@ -1042,31 +1052,36 @@ Int512::operator <<= (int n)
 Uint1024&
 Uint1024::operator *= (const Uint1024& x)
 {
-  QuarterType* multiplicand = (QuarterType*) &low_;
-  QuarterType* multiplier = (QuarterType*) &x.low_;
+  unsigned qw = width() / 4;
 
-  SelfType prod[2];
-  QuarterType* acc = (QuarterType*) &prod[0];
+  QuarterType a0 = (low_ << qw) >> qw, a1 = low_ >> qw;
+  QuarterType a2 = (high_ << qw) >> qw, a3 = high_ >> qw;
+  QuarterType b0 = (x.low_ << qw) >> qw, b1 = x.low_ >> qw;
+  QuarterType b2 = (x.high_ << qw) >> qw, b3 = x.high_ >> qw;
 
-  for (unsigned i = 0; i < 4; ++i, ++acc)
-    {
-      QuarterType a = multiplier[i];
-      HalfType carry = 0;
-      QuarterType* row = acc;
-      for (unsigned j = 0; j < 4; ++j, ++row)
-        {
-          HalfType b = multiplicand[j];
-          b *= a;
-          HalfType* sum = (HalfType*) row;
-          HalfType prev = *sum;
-          *sum += b + HalfType(carry);
-          carry = (*sum < prev)? HalfType(1) : HalfType(0);
-          carry <<= sizeof(QuarterType)*8;
-        }
-      if (i == 3 and carry > 0)
-        (*row)++;
-    }
-  *this = prod[0];
+  *this = 0;
+  SelfType shifted = 0;
+
+  HalfType prod = a0; prod *= b0; *this += prod;
+  prod = a0; prod *= b1; shifted = prod; shifted <<= qw; *this += shifted;
+  prod = a0; prod *= b2; shifted = prod; shifted <<= 2*qw; *this += shifted;
+  prod = a0; prod *= b3; shifted = prod; shifted <<= 3*qw; *this += shifted;
+
+  prod = a1; prod *= b0; shifted = prod; shifted <<= qw; *this += shifted;
+  prod = a1; prod *= b1; shifted = prod; shifted <<= 2*qw; *this += shifted;
+  prod = a1; prod *= b2; shifted = prod; shifted <<= 3*qw; *this += shifted;
+  prod = a1; prod *= b3; shifted = prod; shifted <<= 4*qw; *this += shifted;
+
+  prod = a2; prod *= b0; shifted = prod; shifted <<= 2*qw; *this += shifted;
+  prod = a2; prod *= b1; shifted = prod; shifted <<= 3*qw; *this += shifted;
+  prod = a2; prod *= b2; shifted = prod; shifted <<= 4*qw; *this += shifted;
+  prod = a2; prod *= b3; shifted = prod; shifted <<= 5*qw; *this += shifted;
+
+  prod = a3; prod *= b0; shifted = prod; shifted <<= 3*qw; *this += shifted;
+  prod = a3; prod *= b1; shifted = prod; shifted <<= 4*qw; *this += shifted;
+  prod = a3; prod *= b2; shifted = prod; shifted <<= 5*qw; *this += shifted;
+  prod = a3; prod *= b3; shifted = prod; shifted <<= 6*qw; *this += shifted;
+
   return *this;
 }
 
@@ -1408,6 +1423,9 @@ main(int argc, char* argv[])
 
   for (unsigned i = 0; i < 100000000; ++i)
     {
+      if ((i % 1000000) == 0)
+        std::cerr << std::dec << i << '\n';
+
       uint64_t low1 = distrib(gen), high1 = distrib(gen);
       __uint128_t x1 = high1;
       x1 = (x1 << 64) | low1;
@@ -1423,7 +1441,7 @@ main(int argc, char* argv[])
 
       if ((z2.high() != z1 >> 64) or (z2.low() != (z1 << 64) >> 64))
         {
-          std::cerr << std::dec << "Failed " << i << std::hex << " on 0x"
+          std::cerr << std::dec << "Failed mulu " << i << std::hex << " on 0x"
                     << high1 << " 0x" << low1
                     << " * 0x" << high2 << " 0x " << low2 << '\n';
           return 1;
@@ -1437,7 +1455,32 @@ main(int argc, char* argv[])
 
       if ((sz2.high() != sz1 >> 64 or z2.low() != (z1 << 64) >> 64))
         {
-          std::cerr << std::dec << "Failed signed " << i << std::hex << " on 0x"
+          std::cerr << std::dec << "Failed mul " << i << std::hex << " on 0x"
+                    << high1 << " 0x" << low1
+                    << " * 0x" << high2 << " 0x " << low2 << '\n';
+          return 1;
+        }
+
+      if (x2 == 0)
+        continue;
+
+      z1 = x1 / x2;
+      z2 = y1 / y2;
+
+      if ((z2.high() != z1 >> 64) or (z2.low() != (z1 << 64) >> 64))
+        {
+          std::cerr << std::dec << "Failed divu" << i << std::hex << " on 0x"
+                    << high1 << " 0x" << low1
+                    << " * 0x" << high2 << " 0x " << low2 << '\n';
+          return 1;
+        }
+
+      sz1 = sx1 / sx2;
+      sz2 = sy1 / sy2;
+
+      if ((sz2.high() != sz1 >> 64) or (sz2.low() != (sz1 << 64) >> 64))
+        {
+          std::cerr << std::dec << "Failed div" << i << std::hex << " on 0x"
                     << high1 << " 0x" << low1
                     << " * 0x" << high2 << " 0x " << low2 << '\n';
           return 1;
