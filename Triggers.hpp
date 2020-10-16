@@ -610,25 +610,28 @@ namespace WdRiscv
     /// triggers trips. A load/store trigger trips if it matches the
     /// given address and timing and if all the remaining triggers in
     /// its chain have tripped. Set the local-hit bit of any
-    /// load/store trigger that matches. If a matching load/store
-    /// trigger causes its chain to trip, then set the hit bit of all
-    /// the triggers in that chain. If the trigger action is
+    /// load/store trigger that matches. If the trigger action is
     /// contingent on interrupts being enabled (ie == true), then the
     /// trigger will not trip even if its condition is satisfied.
+    /// Set localHit to true if any of the local-hit bits is set.
     bool ldStAddrTriggerHit(URV address, TriggerTiming, bool isLoad,
-                            PrivilegeMode mode, bool ie);
+                            PrivilegeMode mode, bool ie,
+                            bool& localHit);
 
     /// Similar to ldStAddrTriggerHit but for data match.
     bool ldStDataTriggerHit(URV value, TriggerTiming, bool isLoad,
-                            PrivilegeMode mode, bool ie);
+                            PrivilegeMode mode, bool ie,
+                            bool& localHit);
 
     /// Similar to ldStAddrTriggerHit but for instruction address.
     bool instAddrTriggerHit(URV address, TriggerTiming timing,
-                            PrivilegeMode mode, bool ie);
+                            PrivilegeMode mode, bool ie,
+                            bool& localHit);
 
     /// Similar to instAddrTriggerHit but for instruction opcode.
     bool instOpcodeTriggerHit(URV opcode, TriggerTiming timing,
-                              PrivilegeMode mode, bool ie);
+                              PrivilegeMode mode, bool ie,
+                              bool& localHit);
 
     /// Make every active icount trigger count down unless it was
     /// written by the current instruction. If a count-down register

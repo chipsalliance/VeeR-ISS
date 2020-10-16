@@ -149,13 +149,13 @@ Triggers<URV>::updateChainHitBit(Trigger<URV>& trigger)
       auto& trig = triggers_.at(i);
       chainHit = chainHit and trig.getLocalHit();
       uniformTiming = uniformTiming and (timing == trig.getTiming());
+      if (chainHit)
+        trig.setHit(true);
     }
 
   if (not chainHit or not uniformTiming)
     return false;
 
-  for (size_t i = beginChain; i < endChain; ++i)
-    triggers_.at(i).setHit(true);
   return true;
 }
 
@@ -164,13 +164,16 @@ template <typename URV>
 bool
 Triggers<URV>::ldStAddrTriggerHit(URV address, TriggerTiming timing,
 				  bool isLoad, PrivilegeMode mode,
-                                  bool interruptEnabled)
+                                  bool interruptEnabled,
+                                  bool& localHit)
 {
+  localHit = false;
+
   // Check if we should skip tripping because we are running in
   // machine mode and interrupts disabled.
   bool skip = mode == PrivilegeMode::Machine and not interruptEnabled;
 
-  bool hit = false;
+  bool hit = false;  // Chain hit.
   for (auto& trigger : triggers_)
     {
       if (not trigger.isEnterDebugOnHit() and skip)
@@ -180,6 +183,7 @@ Triggers<URV>::ldStAddrTriggerHit(URV address, TriggerTiming timing,
 	continue;
 
       trigger.setLocalHit(true);
+      localHit = true;
 
       if (updateChainHitBit(trigger))
 	hit = true;
@@ -191,13 +195,16 @@ Triggers<URV>::ldStAddrTriggerHit(URV address, TriggerTiming timing,
 template <typename URV>
 bool
 Triggers<URV>::ldStDataTriggerHit(URV value, TriggerTiming timing, bool isLoad,
-				  PrivilegeMode mode, bool interruptEnabled)
+				  PrivilegeMode mode, bool interruptEnabled,
+                                  bool& localHit)
 {
+  localHit = false;
+
   // Check if we should skip tripping because we are running in
   // machine mode and interrupts disabled.
   bool skip = mode == PrivilegeMode::Machine and not interruptEnabled;
 
-  bool hit = false;
+  bool hit = false;  // Chain hit.
   for (auto& trigger : triggers_)
     {
       if (not trigger.isEnterDebugOnHit() and skip)
@@ -207,6 +214,7 @@ Triggers<URV>::ldStDataTriggerHit(URV value, TriggerTiming timing, bool isLoad,
 	continue;
 
       trigger.setLocalHit(true);
+      localHit = true;
 
       if (updateChainHitBit(trigger))
 	hit = true;
@@ -219,13 +227,16 @@ Triggers<URV>::ldStDataTriggerHit(URV value, TriggerTiming timing, bool isLoad,
 template <typename URV>
 bool
 Triggers<URV>::instAddrTriggerHit(URV address, TriggerTiming timing,
-                                  PrivilegeMode mode, bool interruptEnabled)
+                                  PrivilegeMode mode, bool interruptEnabled,
+                                  bool& localHit)
 {
+  localHit = false;
+
   // Check if we should skip tripping because we are running in
   // machine mode and interrupts disabled.
   bool skip = mode == PrivilegeMode::Machine and not interruptEnabled;
 
-  bool hit = false;
+  bool hit = false;  // Chain hit.
   for (auto& trigger : triggers_)
     {
       if (not trigger.isEnterDebugOnHit() and skip)
@@ -235,6 +246,7 @@ Triggers<URV>::instAddrTriggerHit(URV address, TriggerTiming timing,
 	continue;
 
       trigger.setLocalHit(true);
+      localHit = true;
 
       if (updateChainHitBit(trigger))
 	hit = true;
@@ -247,8 +259,11 @@ template <typename URV>
 bool
 Triggers<URV>::instOpcodeTriggerHit(URV opcode, TriggerTiming timing,
                                     PrivilegeMode mode,
-				    bool interruptEnabled)
+				    bool interruptEnabled,
+                                    bool& localHit)
 {
+  localHit = false;
+
   // Check if we should skip tripping because we are running in
   // machine mode and interrupts disabled.
   bool skip = mode == PrivilegeMode::Machine and not interruptEnabled;
@@ -263,6 +278,7 @@ Triggers<URV>::instOpcodeTriggerHit(URV opcode, TriggerTiming timing,
 	continue;
 
       trigger.setLocalHit(true);
+      localHit = true;
 
       if (updateChainHitBit(trigger))
 	hit = true;

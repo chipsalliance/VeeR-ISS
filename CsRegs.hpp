@@ -737,40 +737,44 @@ namespace WdRiscv
     bool ldStAddrTriggerHit(URV addr, TriggerTiming t, bool isLoad,
                             PrivilegeMode mode, bool ie)
     {
-      bool hit = triggers_.ldStAddrTriggerHit(addr, t, isLoad, mode, ie);
-      if (hit)
+      bool localHit = false;
+      bool chainHit = triggers_.ldStAddrTriggerHit(addr, t, isLoad, mode, ie, localHit);
+      if (localHit)
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
-      return hit;
+      return chainHit;
     }
 
     /// Similar to ldStAddrTriggerHit but for data match.
     bool ldStDataTriggerHit(URV data, TriggerTiming t, bool isLoad,
                             PrivilegeMode mode, bool ie)
     {
-      bool hit = triggers_.ldStDataTriggerHit(data, t, isLoad, mode, ie);
-      if (hit)
+      bool localHit = false;
+      bool chainHit = triggers_.ldStDataTriggerHit(data, t, isLoad, mode, ie, localHit);
+      if (localHit)
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
-      return hit;
+      return chainHit;
     }
 
     /// Similar to ldStAddrTriggerHit but for instruction address.
     bool instAddrTriggerHit(URV addr, TriggerTiming t, PrivilegeMode mode,
                             bool ie)
     {
-      bool hit = triggers_.instAddrTriggerHit(addr, t, mode, ie);
-      if (hit)
+      bool localHit = false;
+      bool chainHit = triggers_.instAddrTriggerHit(addr, t, mode, ie, localHit);
+      if (localHit)
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
-      return hit;
+      return chainHit;
     }
 
     /// Similar to instAddrTriggerHit but for instruction opcode.
     bool instOpcodeTriggerHit(URV opcode, TriggerTiming t, PrivilegeMode mode,
                               bool ie)
     {
-      bool hit = triggers_.instOpcodeTriggerHit(opcode, t, mode, ie);
-      if (hit)
+      bool localHit = false;
+      bool chainHit = triggers_.instOpcodeTriggerHit(opcode, t, mode, ie, localHit);
+      if (localHit)
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
-      return hit;
+      return chainHit;
     }
 
     /// Make every active icount trigger count down unless it was
