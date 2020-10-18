@@ -7636,7 +7636,7 @@ Hart<URV>::vectorLoad(const DecodedInst* di, ElementWidth eew)
 
   bool masked = di->isMasked();
   unsigned vd = di->op0(), rs1 = di->op1(), errors = 0;
-  URV addr = intRegs_.read(rs1);
+  uint64_t addr = intRegs_.read(rs1);
 
   unsigned group = vecRegs_.groupMultiplierX8(), start = vecRegs_.startIndex();
   unsigned elemCount = vecRegs_.elemCount();
@@ -7646,25 +7646,36 @@ Hart<URV>::vectorLoad(const DecodedInst* di, ElementWidth eew)
     {
       if (masked and not vecRegs_.isActive(0, ix))
         continue;
-      bool exception = false;
+
+      auto cause = ExceptionCause::NONE;
+      auto secCause = SecondaryCause::NONE;
+
       ELEM_TYPE elem = 0;
       if constexpr (sizeof(elem) > 8)
         {
-          for (unsigned n = 0; n < sizeof(elem) and not exception; n += 8)
+          for (unsigned n = 0; n < sizeof(elem); n += 8)
             {
               uint64_t dword = 0;
+              cause = determineLoadException(rs1, addr, addr, 8, secCause);
+              if (cause != ExceptionCause::NONE)
+                break;
               memory_.read(addr, dword);
               elem <<= 64;
               elem |= dword;
             }
         }
       else
-        memory_.read(addr, elem);
+        {
+          if (determineLoadException(rs1, addr, addr, sizeof(elem), secCause) !=
+              ExceptionCause::NONE)
+            memory_.read(addr, elem);
+        }
 
-      if (exception)
+      if (cause != ExceptionCause::NONE)
         {
           vecRegs_.setStartIndex(ix);
           csRegs_.write(CsrNumber::VSTART, PrivilegeMode::Machine, ix);
+          initiateLoadException(cause, addr, secCause);
           break;
         }
 
