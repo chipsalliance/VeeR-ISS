@@ -374,6 +374,24 @@ namespace WdRiscv
     /// one first).
     void getCacheLineAddresses(std::vector<uint64_t>& addresses);
 
+    /// Define read memory callback. This (along with
+    /// defineWriteMemoryCallback) allows the caller to bypass the
+    /// memory model with their own.
+    void defineReadMemoryCallback(
+         std::function<bool(uint64_t, unsigned, uint64_t&)> callback )
+    {
+      readCallback_ = callback;
+    }
+
+    /// Define write memory callback. This (along with
+    /// defineReadMemoryCallback) allows the caller to bypass the
+    /// memory model with their own.
+    void defineWriteMemoryCallback(
+         std::function<bool(uint64_t, unsigned, uint64_t)> callback )
+    {
+      writeCallback_ = callback;
+    }
+
   protected:
 
     /// Same as write but effects not recorded in last-write info.

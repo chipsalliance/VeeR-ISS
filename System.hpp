@@ -16,6 +16,7 @@
 #pragma once
 
 #include <memory>               // For shared_ptr
+#include <functional>
 #include <Memory.hpp>
 
 
@@ -84,6 +85,24 @@ namespace WdRiscv
     /// file refers to unmapped memory. With a false flag, ignore
     /// unmapped memory in the ELF file.
     void checkUnmappedElf(bool flag);
+
+    /// Define read memory callback. This (along with
+    /// defineWriteMemoryCallback) allows the caller to bypass the
+    /// memory model with their own.
+    void defineReadMemoryCallback(
+         std::function<bool(uint64_t, unsigned, uint64_t&)> callback )
+    {
+      memory_->defineReadMemoryCallback(callback);
+    }
+
+    /// Define write memory callback. This (along with
+    /// defineReadMemoryCallback) allows the caller to bypass the
+    /// memory model with their own.
+    void defineWriteMemoryCallback(
+         std::function<bool(uint64_t, unsigned, uint64_t)> callback )
+    {
+      memory_->defineWriteMemoryCallback(callback);
+    }
 
   private:
 
