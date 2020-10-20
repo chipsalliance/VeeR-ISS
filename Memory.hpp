@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <vector>
 #include <unordered_map>
+#include <functional>
 #include <mutex>
 #include <type_traits>
 #include <cassert>
@@ -108,7 +109,21 @@ namespace WdRiscv
             return false;
         }
 #endif
+
+#ifdef MEM_CALLBACKS
+      if (readCallback_)
+        {
+          uint64_t val = 0;
+          if (not readCallback_(addr, sizeof(T), val))
+            return false;
+          value = val;
+        }
+      else
+        value = *(reinterpret_cast<const T*>(data_ + address));
+#else
       value = *(reinterpret_cast<const T*>(data_ + address));
+#endif
+
       if (cache_)
         cache_->insert(address);
       return true;
@@ -118,7 +133,7 @@ namespace WdRiscv
     bool readByte(size_t address, uint8_t& value) const
     { return read(address, value); }
 
-    /// Read an unsigned inteer ot type T from memory for instruction
+    /// Read an unsigned integer ot type T from memory for instruction
     /// fetch. Return true on success and false if address is not
     /// executable or if an iccm boundary is corssed.
     template <typename T>
@@ -135,7 +150,20 @@ namespace WdRiscv
                 return false;  // Cannot cross an ICCM boundary.
 	    }
 
-	  value = *(reinterpret_cast<const T*>(data_ + address));
+#ifdef MEM_CALLBACKS
+          if (readCallback_)
+            {
+              uint64_t val = 0;
+              if (not readCallback_(addr, sizeof(T), val))
+                return false;
+              value = val;
+            }
+          else
+            value = *(reinterpret_cast<const T*>(data_ + address));
+#else
+          value = *(reinterpret_cast<const T*>(data_ + address));
+#endif
+
           if (cache_)
             cache_->insert(address);
 	  return true;
@@ -185,7 +213,10 @@ namespace WdRiscv
       if (address + sizeof(T) > size_)
         return false;
       sysHartIx = sysHartIx; // Avoid unused var warning.
-#else
+      *(reinterpret_cast<T*>(data_ + address)) = value;
+      return true;
+#endif
+
       Pma pma1 = pmaMgr_.getPma(address);
       if (not pma1.isWrite())
 	return false;
@@ -206,13 +237,33 @@ namespace WdRiscv
 	}
 
       auto& lwd = lastWriteData_.at(sysHartIx);
-      lwd.prevValue_ = *(reinterpret_cast<T*>(data_ + address));
       lwd.size_ = sizeof(T);
       lwd.addr_ = address;
       lwd.value_ = value;
+
+#ifdef MEM_CALLBACKS
+      if (writeCallback_)
+        {
+          uint64_t val = 0;
+          readCallback_(addr, sizeof(T), val);
+          lwd.prevValue_ = val;
+          val = value;
+          if (not writeCallback_(addr, sizeof(T), val))
+            {
+              lwd.size_ = 0;
+              return false;
+            }
+        }
+      else
+        {
+          lwd.prevValue_ = *(reinterpret_cast<T*>(data_ + address));
+          *(reinterpret_cast<T*>(data_ + address)) = value;
+        }
+#else
+      lwd.prevValue_ = *(reinterpret_cast<T*>(data_ + address));
+      *(reinterpret_cast<T*>(data_ + address)) = value;
 #endif
 
-      *(reinterpret_cast<T*>(data_ + address)) = value;
       return true;
     }
 
@@ -653,5 +704,11 @@ namespace WdRiscv
 
     PmaManager pmaMgr_;
     Cache* cache_ = nullptr;
+
+    /// Callback for read: bool func(uint64_t addr, unsigned size, uint64_t& val);
+    std::function<bool(uint64_t, unsigned, uint64_t&)> readCallback_ = nullptr;
+
+    /// Callback for write: bool func(uint64_t addr, unsigned size, uint64_t val);
+    std::function<bool(uint64_t, unsigned, uint64_t)> writeCallback_ = nullptr;
   };
 }
