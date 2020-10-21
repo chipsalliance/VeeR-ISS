@@ -208,7 +208,7 @@ namespace WdRiscv
 	    data1_.icount_.action_ = 0;
 	}
 
-      modified_ = true;
+      modifiedT1_ = true;
       return true;
     }
 
@@ -220,7 +220,7 @@ namespace WdRiscv
 	return false;
 
       data2_ = (value & data2WriteMask_) | (data2_ & ~data2WriteMask_);
-      modified_ = true;
+      modifiedT2_ = true;
 
       updateCompareMask();
       return true;
@@ -234,7 +234,7 @@ namespace WdRiscv
 	return false;
 
       data3_ = (value & data3WriteMask_) | (data3_ & ~data3WriteMask_);
-      modified_ = true;
+      modifiedT3_ = true;
       return true;
     }
 
@@ -383,12 +383,12 @@ namespace WdRiscv
       if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
 	{
 	  data1_.mcontrol_.hit_ = flag;
-	  modified_ = true;
+	  modifiedT1_ = true;
 	}
       if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
 	{
 	  data1_.icount_.hit_ = flag;
-	  modified_ = true;
+	  modifiedT1_ = true;
 	}
     }
 
@@ -465,10 +465,10 @@ namespace WdRiscv
     }
 
     bool isModified() const
-    { return modified_; }
+    { return modifiedT1_ or modifiedT2_ or modifiedT3_; }
 
-    void setModified(bool flag)
-    { modified_ = flag; }
+    void clearModified()
+    { modifiedT1_ = modifiedT2_ = modifiedT3_ = false; }
 
     bool getLocalHit() const
     { return localHit_; }
@@ -528,7 +528,9 @@ namespace WdRiscv
     URV data2CompareMask_ = ~URV(0);
     bool localHit_ = false;  // Trigger tripped in isolation.
     bool chainHit_ = false;   // All entries in chain tripped.
-    bool modified_ = false;
+    bool modifiedT1_ = false;
+    bool modifiedT2_ = false;
+    bool modifiedT3_ = false;
 
     size_t chainBegin_ = 0, chainEnd_ = 0;
     bool enableLoadData_ = false;
@@ -613,25 +615,20 @@ namespace WdRiscv
     /// load/store trigger that matches. If the trigger action is
     /// contingent on interrupts being enabled (ie == true), then the
     /// trigger will not trip even if its condition is satisfied.
-    /// Set localHit to true if any of the local-hit bits is set.
     bool ldStAddrTriggerHit(URV address, TriggerTiming, bool isLoad,
-                            PrivilegeMode mode, bool ie,
-                            bool& localHit);
+                            PrivilegeMode mode, bool ie);
 
     /// Similar to ldStAddrTriggerHit but for data match.
     bool ldStDataTriggerHit(URV value, TriggerTiming, bool isLoad,
-                            PrivilegeMode mode, bool ie,
-                            bool& localHit);
+                            PrivilegeMode mode, bool ie);
 
     /// Similar to ldStAddrTriggerHit but for instruction address.
     bool instAddrTriggerHit(URV address, TriggerTiming timing,
-                            PrivilegeMode mode, bool ie,
-                            bool& localHit);
+                            PrivilegeMode mode, bool ie);
 
     /// Similar to instAddrTriggerHit but for instruction opcode.
     bool instOpcodeTriggerHit(URV opcode, TriggerTiming timing,
-                              PrivilegeMode mode, bool ie,
-                              bool& localHit);
+                              PrivilegeMode mode, bool ie);
 
     /// Make every active icount trigger count down unless it was
     /// written by the current instruction. If a count-down register
@@ -684,7 +681,7 @@ namespace WdRiscv
 	{
 	  trig.setLocalHit(false);
 	  trig.setChainHit(false);
-	  trig.setModified(false);
+	  trig.clearModified();
 	}
     }
 
@@ -740,6 +737,24 @@ namespace WdRiscv
 
     /// Reset all triggers.
     void reset();
+
+    /// Return true if given trigger has a local hit.
+    bool getLocalHit(URV ix) const
+    { return ix < triggers_.size()? triggers_[ix].getLocalHit() : false; }
+
+    void getTriggerChange(URV ix, bool& t1, bool& t2, bool& t3) const
+    {
+      t1 = t2 = t3 = false;
+      if (ix >= triggers_.size())
+        return;
+      const auto& trig = triggers_.at(ix);
+      t1 = trig.modifiedT1_;
+      t2 = trig.modifiedT2_;
+      t3 = trig.modifiedT3_;
+    }
+
+    bool isTdata3Modified(URV ix) const
+    { return ix < triggers_.size()? triggers_[ix].modifiedT3_ : false; }
 
   protected:
 

@@ -496,17 +496,22 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
       URV data1(0), data2(0), data3(0);
       if (not hart.peekTrigger(trigger, data1, data2, data3))
 	continue;
-      if (tdataChanged.at(0))
+
+      // Components of trigger that changed.
+      bool t1 = false, t2 = false, t3 = false;
+      hart.getTriggerChange(trigger, t1, t2, t3);
+
+      if (t1)
 	{
 	  URV addr = (trigger << 16) | unsigned(CsrNumber::TDATA1);
 	  csrMap[addr] = data1;
 	}
-      if (tdataChanged.at(1))
+      if (t2)
 	{
 	  URV addr = (trigger << 16) | unsigned(CsrNumber::TDATA2);
 	  csrMap[addr] = data2;
 	}
-      if (tdataChanged.at(2))
+      if (t3)
 	{
 	  URV addr = (trigger << 16) | unsigned(CsrNumber::TDATA3);
 	  csrMap[addr] = data3;

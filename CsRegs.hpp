@@ -737,9 +737,10 @@ namespace WdRiscv
     bool ldStAddrTriggerHit(URV addr, TriggerTiming t, bool isLoad,
                             PrivilegeMode mode, bool ie)
     {
-      bool localHit = false;
-      bool chainHit = triggers_.ldStAddrTriggerHit(addr, t, isLoad, mode, ie, localHit);
-      if (localHit)
+      bool chainHit = triggers_.ldStAddrTriggerHit(addr, t, isLoad, mode, ie);
+      URV tselect = 0;
+      peek(CsrNumber::TSELECT, tselect);
+      if (triggers_.getLocalHit(tselect))
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
       return chainHit;
     }
@@ -748,9 +749,10 @@ namespace WdRiscv
     bool ldStDataTriggerHit(URV data, TriggerTiming t, bool isLoad,
                             PrivilegeMode mode, bool ie)
     {
-      bool localHit = false;
-      bool chainHit = triggers_.ldStDataTriggerHit(data, t, isLoad, mode, ie, localHit);
-      if (localHit)
+      bool chainHit = triggers_.ldStDataTriggerHit(data, t, isLoad, mode, ie);
+      URV tselect = 0;
+      peek(CsrNumber::TSELECT, tselect);
+      if (triggers_.getLocalHit(tselect))
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
       return chainHit;
     }
@@ -759,9 +761,10 @@ namespace WdRiscv
     bool instAddrTriggerHit(URV addr, TriggerTiming t, PrivilegeMode mode,
                             bool ie)
     {
-      bool localHit = false;
-      bool chainHit = triggers_.instAddrTriggerHit(addr, t, mode, ie, localHit);
-      if (localHit)
+      bool chainHit = triggers_.instAddrTriggerHit(addr, t, mode, ie);
+      URV tselect = 0;
+      peek(CsrNumber::TSELECT, tselect);
+      if (triggers_.getLocalHit(tselect))
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
       return chainHit;
     }
@@ -770,9 +773,10 @@ namespace WdRiscv
     bool instOpcodeTriggerHit(URV opcode, TriggerTiming t, PrivilegeMode mode,
                               bool ie)
     {
-      bool localHit = false;
-      bool chainHit = triggers_.instOpcodeTriggerHit(opcode, t, mode, ie, localHit);
-      if (localHit)
+      bool chainHit = triggers_.instOpcodeTriggerHit(opcode, t, mode, ie);
+      URV tselect = 0;
+      peek(CsrNumber::TSELECT, tselect);
+      if (triggers_.getLocalHit(tselect))
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
       return chainHit;
     }
@@ -785,8 +789,10 @@ namespace WdRiscv
     bool icountTriggerHit(PrivilegeMode mode, bool ie)
     {
       bool hit = triggers_.icountTriggerHit(mode, ie);
-      if (hit)
-	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDTA1 changed.
+      URV tselect = 0;
+      peek(CsrNumber::TSELECT, tselect);
+      if (triggers_.getLocalHit(tselect))
+	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
       return hit;
     }
 
@@ -794,6 +800,12 @@ namespace WdRiscv
     /// that tripped by the last executed instruction.
     void countTrippedTriggers(unsigned& pre, unsigned& post) const
     { triggers_.countTrippedTriggers(pre, post); }
+
+    /// Set t1, t2, and t3 to true if corresponding component (tdata1,
+    /// tdata2, an tdata3) of given trigger was changed by the current
+    /// instruction.
+    void getTriggerChange(URV trigger, bool& t1, bool& t2, bool& t3) const
+    { triggers_.getTriggerChange(trigger, t1, t2, t3); }
 
     /// Associate given event number with given counter.  Subsequent
     /// calls to updatePerofrmanceCounters(en) will cause given

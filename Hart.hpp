@@ -687,6 +687,12 @@ namespace WdRiscv
     void countTrippedTriggers(unsigned& pre, unsigned& post) const
     { csRegs_.countTrippedTriggers(pre, post); }
 
+    /// Set t1, t2, and t3 to true if corresponding component (tdata1,
+    /// tdata2, an tdata3) of given trigger was changed by the current
+    /// instruction.
+    void getTriggerChange(URV trigger, bool& t1, bool& t2, bool& t3) const
+    { csRegs_.getTriggerChange(trigger, t1, t2, t3); }
+
     /// Apply an imprecise store exception at given address. Return
     /// true if address is found exactly once in the store
     /// queue. Return false otherwise. Save the given address in

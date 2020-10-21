@@ -3296,17 +3296,24 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
       URV data1(0), data2(0), data3(0);
       if (not peekTrigger(trigger, data1, data2, data3))
 	continue;
-      if (tdataChanged.at(0))
+
+      // Components of trigger that changed.
+      bool t1 = false, t2 = false, t3 = false;
+      getTriggerChange(trigger, t1, t2, t3);
+
+      if (t1)
 	{
 	  URV ecsr = (trigger << 16) | URV(CsrNumber::TDATA1);
 	  csrMap[ecsr] = data1;
 	}
-      if (tdataChanged.at(1))
-	{
+
+      if (t2)
+        {
 	  URV ecsr = (trigger << 16) | URV(CsrNumber::TDATA2);
 	  csrMap[ecsr] = data2;
 	}
-      if (tdataChanged.at(2))
+
+      if (t3)
 	{
 	  URV ecsr = (trigger << 16) | URV(CsrNumber::TDATA3);
 	  csrMap[ecsr] = data3;
