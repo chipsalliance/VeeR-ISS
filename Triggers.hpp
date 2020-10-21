@@ -384,15 +384,11 @@ namespace WdRiscv
 	{
 	  data1_.mcontrol_.hit_ = flag;
 	  modified_ = true;
-	  if (flag)
-	    chainHit_ = true;
 	}
       if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
 	{
 	  data1_.icount_.hit_ = flag;
 	  modified_ = true;
-	  if (flag)
-	    chainHit_ = true;
 	}
     }
 
@@ -426,6 +422,10 @@ namespace WdRiscv
     /// Return true if the chain of this trigger has tripped.
     bool hasTripped() const
     { return chainHit_; }
+
+    /// Mark this trigger as tripped.
+    void setTripped(bool flag)
+    { chainHit_ = flag; }
 
     /// Return the action fields of the trigger.
     Action getAction() const
@@ -742,6 +742,18 @@ namespace WdRiscv
     void reset();
 
   protected:
+
+    /// Return pointer to preceeding trigger in chain or nullptr
+    /// if no such trigger.
+    Trigger<URV>* getPreceedingTrigger(const Trigger<URV>& trig)
+    {
+      size_t beginChain = 0, endChain = 0;
+      trig.getChainBounds(beginChain, endChain);
+      for (unsigned i = beginChain; i < endChain; ++i)
+        if (&triggers_.at(i) == &trig)
+          return i == beginChain? nullptr : &triggers_.at(i-1);
+      return nullptr;
+    }
 
     /// If all the triggers in the chain of the given trigger have
     /// tripped (in isolation using local-hit), then return true

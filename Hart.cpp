@@ -3982,14 +3982,14 @@ Hart<URV>::takeTriggerAction(FILE* traceFile, URV pc, URV info,
     }
   else
     {
-      bool doingWide = wideLdSt_;
+      // bool doingWide = wideLdSt_;
       auto secCause = SecondaryCause::TRIGGER_HIT;
       initiateException(ExceptionCause::BREAKP, pc, info, secCause);
       if (dcsrStep_)
 	{
 	  enterDebugMode(DebugModeCause::TRIGGER, pc_);
 	  enteredDebug = true;
-	  enableWideLdStMode(doingWide);
+	  // enableWideLdStMode(doingWide);
 	}
     }
 
