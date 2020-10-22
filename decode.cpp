@@ -488,7 +488,6 @@ Hart<URV>::decodeVecLoad(uint32_t f3, uint32_t imm12, uint32_t& op3)
         }
       else if (lumop == 0x10)
         {   // fault only on first
-#if 0
           if (mew == 0)
             {
               if (f3 == 0) return instTable_.getEntry(InstId::vle8ff_v);
@@ -503,7 +502,6 @@ Hart<URV>::decodeVecLoad(uint32_t f3, uint32_t imm12, uint32_t& op3)
               if (f3 == 6) return instTable_.getEntry(InstId::vle512ff_v);
               if (f3 == 7) return instTable_.getEntry(InstId::vle1024ff_v);
             }
-#endif
         }
     }
 

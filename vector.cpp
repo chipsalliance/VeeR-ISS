@@ -7625,7 +7625,7 @@ Hart<URV>::execVmv8r_v(const DecodedInst* di)
 template <typename URV>
 template <typename ELEM_TYPE>
 void
-Hart<URV>::vectorLoad(const DecodedInst* di, ElementWidth eew)
+Hart<URV>::vectorLoad(const DecodedInst* di, ElementWidth eew, bool faultFirst)
 {
   bool badConfig = not vecRegs_.legalConfig(eew, vecRegs_.groupMultiplier());
   if ((not isVecLegal()) or badConfig)
@@ -7675,7 +7675,8 @@ Hart<URV>::vectorLoad(const DecodedInst* di, ElementWidth eew)
         {
           vecRegs_.setStartIndex(ix);
           csRegs_.write(CsrNumber::VSTART, PrivilegeMode::Machine, ix);
-          initiateLoadException(cause, addr, secCause);
+          if (ix == 0 or not faultFirst)
+            initiateLoadException(cause, addr, secCause);
           break;
         }
 
@@ -7696,7 +7697,7 @@ template <typename URV>
 void
 Hart<URV>::execVle8_v(const DecodedInst* di)
 {
-  vectorLoad<uint8_t>(di, ElementWidth::Byte);
+  vectorLoad<uint8_t>(di, ElementWidth::Byte, false);
 }
 
 
@@ -7704,7 +7705,7 @@ template <typename URV>
 void
 Hart<URV>::execVle16_v(const DecodedInst* di)
 {
-  vectorLoad<uint16_t>(di, ElementWidth::Half);
+  vectorLoad<uint16_t>(di, ElementWidth::Half, false);
 }
 
 
@@ -7712,7 +7713,7 @@ template <typename URV>
 void
 Hart<URV>::execVle32_v(const DecodedInst* di)
 {
-  vectorLoad<uint32_t>(di, ElementWidth::Word);
+  vectorLoad<uint32_t>(di, ElementWidth::Word, false);
 }
 
 
@@ -7720,7 +7721,7 @@ template <typename URV>
 void
 Hart<URV>::execVle64_v(const DecodedInst* di)
 {
-  vectorLoad<uint64_t>(di, ElementWidth::Word2);
+  vectorLoad<uint64_t>(di, ElementWidth::Word2, false);
 }
 
 
@@ -7728,7 +7729,7 @@ template <typename URV>
 void
 Hart<URV>::execVle128_v(const DecodedInst* di)
 {
-  vectorLoad<Uint128>(di, ElementWidth::Word4);
+  vectorLoad<Uint128>(di, ElementWidth::Word4, false);
 }
 
 
@@ -7736,7 +7737,7 @@ template <typename URV>
 void
 Hart<URV>::execVle256_v(const DecodedInst* di)
 {
-  vectorLoad<Uint256>(di, ElementWidth::Word8);
+  vectorLoad<Uint256>(di, ElementWidth::Word8, false);
 }
 
 
@@ -7744,7 +7745,7 @@ template <typename URV>
 void
 Hart<URV>::execVle512_v(const DecodedInst* di)
 {
-  vectorLoad<Uint512>(di, ElementWidth::Word16);
+  vectorLoad<Uint512>(di, ElementWidth::Word16, false);
 }
 
 
@@ -7752,7 +7753,7 @@ template <typename URV>
 void
 Hart<URV>::execVle1024_v(const DecodedInst* di)
 {
-  vectorLoad<Uint1024>(di, ElementWidth::Word32);
+  vectorLoad<Uint1024>(di, ElementWidth::Word32, false);
 }
 
 
@@ -8128,6 +8129,70 @@ void
 Hart<URV>::execVsre1024_v(const DecodedInst* di)
 {
   vectorStoreWholeReg<Uint1024>(di, ElementWidth::Word32);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVle8ff_v(const DecodedInst* di)
+{
+  vectorLoad<uint8_t>(di, ElementWidth::Byte, true);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVle16ff_v(const DecodedInst* di)
+{
+  vectorLoad<uint16_t>(di, ElementWidth::Half, true);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVle32ff_v(const DecodedInst* di)
+{
+  vectorLoad<uint32_t>(di, ElementWidth::Word, true);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVle64ff_v(const DecodedInst* di)
+{
+  vectorLoad<uint64_t>(di, ElementWidth::Word2, true);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVle128ff_v(const DecodedInst* di)
+{
+  vectorLoad<Uint128>(di, ElementWidth::Word4, true);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVle256ff_v(const DecodedInst* di)
+{
+  vectorLoad<Uint256>(di, ElementWidth::Word8, true);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVle512ff_v(const DecodedInst* di)
+{
+  vectorLoad<Uint512>(di, ElementWidth::Word16, true);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVle1024ff_v(const DecodedInst* di)
+{
+  vectorLoad<Uint1024>(di, ElementWidth::Word32, true);
 }
 
 

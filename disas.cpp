@@ -2499,6 +2499,46 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       if (di.isMasked()) out << ", v0";
       break;
 
+    case InstId::vle8ff_v:
+      out << "vle8ff.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vle16ff_v:
+      out << "vle16ff.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vle32ff_v:
+      out << "vle32ff.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vle64ff_v:
+      out << "vle64ff.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vle128ff_v:
+      out << "vle128ff.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vle256ff_v:
+      out << "vle256ff.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vle512ff_v:
+      out << "vle512ff.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vle1024ff_v:
+      out << "vle1024ff.v v" << di.op0() << ", (x" << di.op1() << ")";
+      if (di.isMasked()) out << ", v0";
+      break;
+
     default:
       out << "illegal";
     }
