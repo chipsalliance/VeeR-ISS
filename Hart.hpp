@@ -1184,6 +1184,12 @@ namespace WdRiscv
     /// Invalidate whole cache.
     void invalidateDecodeCache();
 
+    /// Register a callback to be invoked before a CSR instruction is
+    /// executed. Callback is invoked with the hart-index (hart index
+    /// in sytstem) and csr number.
+    void registerPreCsrInst(std::function<void(unsigned, CsrNumber)> callback)
+    { preCsrInst_ = callback; }
+
   protected:
 
     // Return true if FS field of mstatus is not off.
@@ -1434,9 +1440,6 @@ namespace WdRiscv
     /// stack bottom and the stack top excluding the stack top and
     /// false otherwise.
     bool checkStackStore(URV base, URV addr, unsigned storeSize);
-
-    /// Helper to CSR instructions. Keep minstret and mcycle up to date.
-    void preCsrInstruction(CsrNumber csr);
 
     /// Helper to CSR instructions: return true if given CSR is
     /// writebale and false otherwise.
@@ -2776,6 +2779,8 @@ namespace WdRiscv
     PmpManager pmpManager_;
 
     VirtMem virtMem_;
+
+    std::function<void(unsigned, CsrNumber)> preCsrInst_ = nullptr;
   };
 }
 

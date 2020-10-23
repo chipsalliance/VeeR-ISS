@@ -8293,6 +8293,7 @@ Hart<URV>::doCsrRead(const DecodedInst* di, CsrNumber csr, URV& value)
         }
     }
 
+
   if (csRegs_.read(csr, privMode_, value))
     return true;
 
@@ -8352,8 +8353,10 @@ Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
 
   updatePerformanceCountersForCsr(*di);
 
-  // Update CSR and integer register.
+  // Update CSR.
   csRegs_.write(csr, privMode_, csrVal);
+
+  // Update integer register.
   intRegs_.write(intReg, intRegVal);
 
   // This makes sure that counters stop counting after corresponding
@@ -8408,6 +8411,9 @@ Hart<URV>::execCsrrw(const DecodedInst* di)
 
   CsrNumber csr = CsrNumber(di->op2());
 
+  if (preCsrInst_)
+    preCsrInst_(hartIx_, csr);
+
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
     return;
@@ -8426,6 +8432,9 @@ Hart<URV>::execCsrrs(const DecodedInst* di)
     return;
 
   CsrNumber csr = CsrNumber(di->op2());
+
+  if (preCsrInst_)
+    preCsrInst_(hartIx_, csr);
 
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
@@ -8452,6 +8461,9 @@ Hart<URV>::execCsrrc(const DecodedInst* di)
 
   CsrNumber csr = CsrNumber(di->op2());
 
+  if (preCsrInst_)
+    preCsrInst_(hartIx_, csr);
+
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
     return;
@@ -8477,6 +8489,9 @@ Hart<URV>::execCsrrwi(const DecodedInst* di)
 
   CsrNumber csr = CsrNumber(di->op2());
 
+  if (preCsrInst_)
+    preCsrInst_(hartIx_, csr);
+
   URV prev = 0;
   if (di->op0() != 0)
     if (not doCsrRead(di, csr, prev))
@@ -8494,6 +8509,10 @@ Hart<URV>::execCsrrsi(const DecodedInst* di)
     return;
 
   CsrNumber csr = CsrNumber(di->op2());
+
+  if (preCsrInst_)
+    preCsrInst_(hartIx_, csr);
+
   URV imm = di->op1();
 
   URV prev = 0;
@@ -8520,6 +8539,10 @@ Hart<URV>::execCsrrci(const DecodedInst* di)
     return;
 
   CsrNumber csr = CsrNumber(di->op2());
+
+  if (preCsrInst_)
+    preCsrInst_(hartIx_, csr);
+
   URV imm = di->op1();
 
   URV prev = 0;

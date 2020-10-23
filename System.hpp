@@ -64,7 +64,8 @@ namespace WdRiscv
     { return hartCount_; }
 
     /// Return pointer to the ith hart in the system or null if i is
-    /// out of bounds.
+    /// out of bounds. A hart index is valid if it is less than the
+    /// value returned by the hartCount method.
     std::shared_ptr<HartClass> ithHart(unsigned i)
     {
       if (i >= sysHarts_.size())
@@ -102,6 +103,19 @@ namespace WdRiscv
          std::function<bool(uint64_t, unsigned, uint64_t)> callback )
     {
       memory_->defineWriteMemoryCallback(callback);
+    }
+
+    /// Break a hart-index-in-system into a core-index and a
+    /// hart-index in core. Return true if successful and false if
+    /// igven hart-index-in-system is out of bounds.
+    bool unpackSystemHartIx(unsigned hartIxInSys, unsigned& coreIx,
+                            unsigned& hartIxInCore)
+    {
+      if (hartIxInSys >= sysHarts_.size())
+        return false;
+      coreIx = hartIxInSys / hartsPerCore_;
+      hartIxInCore = hartIxInSys % hartsPerCore_;
+      return true;
     }
 
   private:
