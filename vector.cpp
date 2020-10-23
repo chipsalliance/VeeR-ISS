@@ -7659,7 +7659,7 @@ Hart<URV>::vectorLoad(const DecodedInst* di, ElementWidth eew, bool faultFirst)
               cause = determineLoadException(rs1, addr, addr, 8, secCause);
               if (cause != ExceptionCause::NONE)
                 break;
-              memory_.read(addr, dword);
+              memory_.read(addr + n, dword);
               elem <<= 64;
               elem |= dword;
             }
@@ -7794,7 +7794,7 @@ Hart<URV>::vectorStore(const DecodedInst* di, ElementWidth eew)
           for (unsigned n = 0; n < sizeof(elem) and not exception; n += 8)
             {
               uint64_t dword = elem;
-              memory_.write(hartIx_, addr, dword);
+              memory_.write(hartIx_, addr + n, dword);
               elem >>= 64;
             }
         }
@@ -7914,7 +7914,7 @@ Hart<URV>::vectorLoadWholeReg(const DecodedInst* di, ElementWidth eew)
           for (unsigned n = 0; n < sizeof(elem) and not exception; n += 8)
             {
               uint64_t dword = 0;
-              memory_.read(addr, dword);
+              memory_.read(addr + n, dword);
               elem <<= 64;
               elem |= dword;
             }
@@ -8047,7 +8047,7 @@ Hart<URV>::vectorStoreWholeReg(const DecodedInst* di, ElementWidth eew)
           for (unsigned n = 0; n < sizeof(elem) and not exception; n += 8)
             {
               uint64_t dword = elem;
-              memory_.write(hartIx_, addr, dword);
+              memory_.write(hartIx_, addr + n, dword);
               elem >>= 64;
             }
         }
@@ -8193,6 +8193,141 @@ void
 Hart<URV>::execVle1024ff_v(const DecodedInst* di)
 {
   vectorLoad<Uint1024>(di, ElementWidth::Word32, true);
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vectorLoadStrided(const DecodedInst* di, ElementWidth eew)
+{
+  bool badConfig = not vecRegs_.legalConfig(eew, vecRegs_.groupMultiplier());
+  if ((not isVecLegal()) or badConfig)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(), rs1 = di->op1(), rs2 = di->op2(), errors = 0;
+  uint64_t addr = intRegs_.read(rs1);
+  uint64_t stride = intRegs_.read(rs2);
+
+  unsigned group = vecRegs_.groupMultiplierX8(), start = vecRegs_.startIndex();
+  unsigned elemCount = vecRegs_.elemCount();
+
+  // TODO check permissions, translate, ....
+  for (unsigned ix = start; ix < elemCount; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      auto cause = ExceptionCause::NONE;
+      auto secCause = SecondaryCause::NONE;
+
+      ELEM_TYPE elem = 0;
+      if constexpr (sizeof(elem) > 8)
+        {
+          for (unsigned n = 0; n < sizeof(elem); n += 8)
+            {
+              uint64_t dword = 0;
+              cause = determineLoadException(rs1, addr, addr, 8, secCause);
+              if (cause != ExceptionCause::NONE)
+                break;
+              memory_.read(addr + n, dword);
+              elem <<= 64;
+              elem |= dword;
+            }
+        }
+      else
+        {
+          if (determineLoadException(rs1, addr, addr, sizeof(elem), secCause) !=
+              ExceptionCause::NONE)
+            memory_.read(addr, elem);
+        }
+
+      if (cause != ExceptionCause::NONE)
+        {
+          vecRegs_.setStartIndex(ix);
+          csRegs_.write(CsrNumber::VSTART, PrivilegeMode::Machine, ix);
+          initiateLoadException(cause, addr, secCause);
+          break;
+        }
+
+      if (not vecRegs_.write(vd, ix, group, elem))
+        {
+          errors++;
+          break;
+        }
+
+      addr += stride;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlse8_v(const DecodedInst* di)
+{
+  vectorLoadStrided<uint8_t>(di, ElementWidth::Byte);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlse16_v(const DecodedInst* di)
+{
+  vectorLoadStrided<uint16_t>(di, ElementWidth::Half);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlse32_v(const DecodedInst* di)
+{
+  vectorLoadStrided<uint32_t>(di, ElementWidth::Word);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlse64_v(const DecodedInst* di)
+{
+  vectorLoadStrided<uint64_t>(di, ElementWidth::Word2);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlse128_v(const DecodedInst* di)
+{
+  vectorLoadStrided<Uint128>(di, ElementWidth::Word4);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlse256_v(const DecodedInst* di)
+{
+  vectorLoadStrided<Uint256>(di, ElementWidth::Word8);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlse512_v(const DecodedInst* di)
+{
+  vectorLoadStrided<Uint512>(di, ElementWidth::Word16);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlse1024_v(const DecodedInst* di)
+{
+  vectorLoadStrided<Uint1024>(di, ElementWidth::Word32);
 }
 
 

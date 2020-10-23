@@ -510,7 +510,6 @@ Hart<URV>::decodeVecLoad(uint32_t f3, uint32_t imm12, uint32_t& op3)
 
   if (mop == 2)
     {      // Strided
-#if 0
       if (mew == 0)
         {
           if (f3 == 0) return instTable_.getEntry(InstId::vlse8_v);
@@ -525,7 +524,6 @@ Hart<URV>::decodeVecLoad(uint32_t f3, uint32_t imm12, uint32_t& op3)
           if (f3 == 6) return instTable_.getEntry(InstId::vlse512_v);
           if (f3 == 7) return instTable_.getEntry(InstId::vlse1024_v);
         }
-#endif
     }
 
   if (mop == 3)
