@@ -5602,6 +5602,14 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vlse256_v,
      &&vlse512_v,
      &&vlse1024_v,
+     &&vsse8_v,
+     &&vsse16_v,
+     &&vsse32_v,
+     &&vsse64_v,
+     &&vsse128_v,
+     &&vsse256_v,
+     &&vsse512_v,
+     &&vsse1024_v,
     };
 
   const InstEntry* entry = di->instEntry();
@@ -7465,6 +7473,38 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vlse1024_v:
   execVlse1024_v(di);
+  return;
+
+ vsse8_v:
+  execVsse8_v(di);
+  return;
+
+ vsse16_v:
+  execVsse16_v(di);
+  return;
+
+ vsse32_v:
+  execVsse32_v(di);
+  return;
+
+ vsse64_v:
+  execVsse64_v(di);
+  return;
+
+ vsse128_v:
+  execVsse128_v(di);
+  return;
+
+ vsse256_v:
+  execVsse256_v(di);
+  return;
+
+ vsse512_v:
+  execVsse512_v(di);
+  return;
+
+ vsse1024_v:
+  execVsse1024_v(di);
   return;
 }
 

@@ -425,7 +425,7 @@ namespace WdRiscv
       unsigned rd      : 5;
       unsigned funct3  : 3;
       unsigned rs1     : 5;
-      unsigned imm12   : 7;
+      unsigned imm12   : 12;
     } vbits;  // layout for vector store
 
   };

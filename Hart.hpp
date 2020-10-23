@@ -2540,6 +2540,18 @@ namespace WdRiscv
     void execVlse512_v(const DecodedInst*);
     void execVlse1024_v(const DecodedInst*);
 
+    template <typename ELEM_TYPE>
+    void vectorStoreStrided(const DecodedInst*, ElementWidth);
+
+    void execVsse8_v(const DecodedInst*);
+    void execVsse16_v(const DecodedInst*);
+    void execVsse32_v(const DecodedInst*);
+    void execVsse64_v(const DecodedInst*);
+    void execVsse128_v(const DecodedInst*);
+    void execVsse256_v(const DecodedInst*);
+    void execVsse512_v(const DecodedInst*);
+    void execVsse1024_v(const DecodedInst*);
+
   private:
 
     // We model store buffer in order to undo store effects after an

@@ -2579,6 +2579,46 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       if (di.isMasked()) out << ", v0";
       break;
 
+    case InstId::vsse8_v:
+      out << "vsse8.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsse16_v:
+      out << "vsse16.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsse32_v:
+      out << "vsse32.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsse64_v:
+      out << "vsse64.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsse128_v:
+      out << "vsse128.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsse256_v:
+      out << "vsse256.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsse512_v:
+      out << "vsse512.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsse1024_v:
+      out << "vsse1024.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
     default:
       out << "illegal";
     }
