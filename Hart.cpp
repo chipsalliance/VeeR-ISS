@@ -4264,6 +4264,22 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
             }
         }
 
+      if (preInst_)
+        {
+          bool halt = false, reset = false;
+          while (true)
+            {
+              preInst_(*this, halt, reset);
+              if (reset)
+                {
+                  this->reset();
+                  return true;
+                }
+              if (not halt)
+                break;
+            }
+        }
+
       try
 	{
           uint32_t inst = 0;

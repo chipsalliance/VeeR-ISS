@@ -1190,6 +1190,9 @@ namespace WdRiscv
     void registerPreCsrInst(std::function<void(unsigned, CsrNumber)> callback)
     { preCsrInst_ = callback; }
 
+    void registerPreInst(std::function<void(Hart<URV>&, bool&, bool&)> callback)
+    { preInst_ = callback; }
+
   protected:
 
     // Return true if FS field of mstatus is not off.
@@ -2804,7 +2807,14 @@ namespace WdRiscv
 
     VirtMem virtMem_;
 
+    // Callback invoked before a CSR instruction accesses a CSR.
     std::function<void(unsigned, CsrNumber)> preCsrInst_ = nullptr;
+
+    // Callback invoked beofre execution of an instruction. Callback
+    // invoked as follows: preInst_(hart, halt, reset), and upon completion
+    // the hart will halt if halt is true and will reset if reset is true.
+    // If both halt and reset are true, reset takes precedence.
+    std::function<void(Hart<URV>&, bool&, bool&)> preInst_ = nullptr;
   };
 }
 
