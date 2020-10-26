@@ -8512,11 +8512,18 @@ Hart<URV>::execCsrrw(const DecodedInst* di)
 
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
-    return;
+    {
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
+      return;
+    }
 
   URV next = intRegs_.read(di->op1());
 
   doCsrWrite(di, csr, next, di->op0(), prev);
+
+  if (postCsrInst_)
+    postCsrInst_(hartIx_, csr);
 }
 
 
@@ -8534,17 +8541,26 @@ Hart<URV>::execCsrrs(const DecodedInst* di)
 
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
-    return;
+    {
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
+      return;
+    }
 
   URV next = prev | intRegs_.read(di->op1());
   if (di->op1() == 0)
     {
       updatePerformanceCountersForCsr(*di);
       intRegs_.write(di->op0(), prev);
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
       return;
     }
 
   doCsrWrite(di, csr, next, di->op0(), prev);
+
+  if (postCsrInst_)
+    postCsrInst_(hartIx_, csr);
 }
 
 
@@ -8562,17 +8578,26 @@ Hart<URV>::execCsrrc(const DecodedInst* di)
 
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
-    return;
+    {
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
+      return;
+    }
 
   URV next = prev & (~ intRegs_.read(di->op1()));
   if (di->op1() == 0)
     {
       updatePerformanceCountersForCsr(*di);
       intRegs_.write(di->op0(), prev);
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
       return;
     }
 
   doCsrWrite(di, csr, next, di->op0(), prev);
+
+  if (postCsrInst_)
+    postCsrInst_(hartIx_, csr);
 }
 
 
@@ -8591,9 +8616,16 @@ Hart<URV>::execCsrrwi(const DecodedInst* di)
   URV prev = 0;
   if (di->op0() != 0)
     if (not doCsrRead(di, csr, prev))
-      return;
+      {
+        if (postCsrInst_)
+          postCsrInst_(hartIx_, csr);
+        return;
+      }
 
   doCsrWrite(di, csr, di->op1(), di->op0(), prev);
+
+  if (postCsrInst_)
+    postCsrInst_(hartIx_, csr);
 }
 
 
@@ -8613,17 +8645,26 @@ Hart<URV>::execCsrrsi(const DecodedInst* di)
 
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
-    return;
+    {
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
+      return;
+    }
 
   URV next = prev | imm;
   if (imm == 0)
     {
       updatePerformanceCountersForCsr(*di);
       intRegs_.write(di->op0(), prev);
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
       return;
     }
 
   doCsrWrite(di, csr, next, di->op0(), prev);
+
+  if (postCsrInst_)
+    postCsrInst_(hartIx_, csr);
 }
 
 
@@ -8643,17 +8684,26 @@ Hart<URV>::execCsrrci(const DecodedInst* di)
 
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
-    return;
+    {
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
+      return;
+    }
 
   URV next = prev & (~ imm);
   if (imm == 0)
     {
       updatePerformanceCountersForCsr(*di);
       intRegs_.write(di->op0(), prev);
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
       return;
     }
 
   doCsrWrite(di, csr, next, di->op0(), prev);
+
+  if (postCsrInst_)
+    postCsrInst_(hartIx_, csr);
 }
 
 

@@ -1184,12 +1184,22 @@ namespace WdRiscv
     /// Invalidate whole cache.
     void invalidateDecodeCache();
 
-    /// Register a callback to be invoked before a CSR instruction is
-    /// executed. Callback is invoked with the hart-index (hart index
-    /// in sytstem) and csr number.
+    /// Register a callback to be invoked before a CSR instruction
+    /// acceses its target CSR. Callback is invoked with the
+    /// hart-index (hart index in sytstem) and csr number. This is for
+    /// the SOC (system on chip) model.
     void registerPreCsrInst(std::function<void(unsigned, CsrNumber)> callback)
     { preCsrInst_ = callback; }
 
+    /// Register a callback to be invoked after a CSR accesses its
+    /// target CSR, or in the case of an exception, after the CSR
+    /// instruction takes the exception.  Callback is invoked with the
+    /// hart-index (hart index in sytstem) and csr number. This is for
+    /// the SOC model.
+    void registerPostCsrInst(std::function<void(unsigned, CsrNumber)> callback)
+    { postCsrInst_ = callback; }
+
+    /// Callback to invoke before the execution of an instruction.
     void registerPreInst(std::function<void(Hart<URV>&, bool&, bool&)> callback)
     { preInst_ = callback; }
 
@@ -2809,6 +2819,11 @@ namespace WdRiscv
 
     // Callback invoked before a CSR instruction accesses a CSR.
     std::function<void(unsigned, CsrNumber)> preCsrInst_ = nullptr;
+
+    // Callback invoked after a CSR instruction accesses a CSR or, in
+    // the case of an exception, after the CSR intruction takes the
+    // exception.
+    std::function<void(unsigned, CsrNumber)> postCsrInst_ = nullptr;
 
     // Callback invoked beofre execution of an instruction. Callback
     // invoked as follows: preInst_(hart, halt, reset), and upon completion
