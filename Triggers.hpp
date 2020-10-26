@@ -158,7 +158,7 @@ namespace WdRiscv
     /// Read the data1 register of the trigger. This is typically the
     /// control register of the trigger.
     URV readData1() const
-    { return data1_.value_; }
+    { return modifiedT1_? prevData1_ : data1_.value_; }
 
     /// Read the data2 register of the trigger. This is typically the
     /// target value of the trigger.
@@ -178,7 +178,13 @@ namespace WdRiscv
       URV mask = data1WriteMask_;
       if (not debugMode)  // dmode bit writable only in debug mode
 	mask &= ~(URV(1) << (8*sizeof(URV) - 5));
+
+      if (not modifiedT1_)
+        prevData1_ = data1_.value_;
+
       data1_.value_ = (x & mask) | (data1_.value_ & ~mask);
+      modifiedT1_ = true;
+
       if (TriggerType(data1_.mcontrol_.type_) == TriggerType::AddrData)
 	{
 	  // If load-data is not enabled, then turn it off when
@@ -208,7 +214,6 @@ namespace WdRiscv
 	    data1_.icount_.action_ = 0;
 	}
 
-      modifiedT1_ = true;
       return true;
     }
 
@@ -382,11 +387,15 @@ namespace WdRiscv
     {
       if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
 	{
+          if (not modifiedT1_)
+            prevData1_ = data1_.value_;
 	  data1_.mcontrol_.hit_ = flag;
 	  modifiedT1_ = true;
 	}
       if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
 	{
+          if (not modifiedT1_)
+            prevData1_ = data1_.value_;
 	  data1_.icount_.hit_ = flag;
 	  modifiedT1_ = true;
 	}
@@ -493,7 +502,7 @@ namespace WdRiscv
 
     bool peek(URV& data1, URV& data2, URV& data3) const
     {
-      data1 = readData1(); data2 = readData2(); data3 = readData3();
+      data1 = data1_.value_; data2 = data2_; data3 = data3_;
       return true;
     }
 
@@ -526,6 +535,9 @@ namespace WdRiscv
     URV data3PokeMask_ = 0;              // Place holder.
 
     URV data2CompareMask_ = ~URV(0);
+
+    URV prevData1_ = 0;
+
     bool localHit_ = false;  // Trigger tripped in isolation.
     bool chainHit_ = false;   // All entries in chain tripped.
     bool modifiedT1_ = false;

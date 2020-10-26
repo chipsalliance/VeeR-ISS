@@ -30,7 +30,7 @@ RM := rm -rf
 OFLAGS := -O3 -g
 
 # Command to compile .cpp files.
-override CXXFLAGS += -MMD -MP -mfma -std=c++17 $(OFLAGS) -pedantic -Wall -Wextra
+override CXXFLAGS += -MMD -MP -mfma -std=c++17 $(OFLAGS) -fPIC -pedantic -Wall -Wextra
 
 # Pre-processor flags
 override CPPFLAGS += $(addprefix -isystem ,$(BOOST_INC)) -I$(VPATH)
