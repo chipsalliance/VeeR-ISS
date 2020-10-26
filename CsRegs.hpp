@@ -311,7 +311,6 @@ namespace WdRiscv
       MSPCTA   = 0x7f5, // Stack pointer checker top address
       MSPCC    = 0x7f6, // Stack pointer checker control
 
-      MDBAC   = 0xbc1,  // D-Bus 64-bit access control
       MDBHD   = 0xbc7,  // D-Bus 64-bit high data
 
       MSCAUSE  = 0x7ff, // Secondary exception cause

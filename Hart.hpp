@@ -1203,6 +1203,10 @@ namespace WdRiscv
     void registerPreInst(std::function<void(Hart<URV>&, bool&, bool&)> callback)
     { preInst_ = callback; }
 
+    /// Enable disable wide load/store mode (64-bit on 32-bit machine).
+    void enableWideLoadStore(bool flag)
+    { enableWideLdSt_ = flag; }
+
   protected:
 
     // Return true if FS field of mstatus is not off.
@@ -1675,10 +1679,6 @@ namespace WdRiscv
     /// Update stack checker parameters after a write/poke to a CSR.
     void updateStackChecker();
 
-    /// Enable disable wide load/store mode (64-bit on 32-bit machine).
-    void enableWideLdStMode(bool flag)
-    { wideLdSt_ = flag; }
-
     /// Helper to shift/bit execute instruction with immediate
     /// operands: Signal an illegal instruction if immediate value is
     /// greater than XLEN-1 returning false; otherwise return true.
@@ -1986,6 +1986,9 @@ namespace WdRiscv
     void execFsr(const DecodedInst*);
     void execFsri(const DecodedInst*);
 
+    // Custom insts
+    void execLoad64(const DecodedInst*);
+    void execStore64(const DecodedInst*);
 
     // Return true if maskable instruction is legal. Take an illegal instuction
     // exception and return false otherwise.
@@ -2825,7 +2828,8 @@ namespace WdRiscv
     URV stackMax_ = ~URV(0);
     URV stackMin_ = 0;
 
-    bool wideLdSt_ = false;
+    bool enableWideLdSt_ = false;   // True if wide (64-bit) ld/st enabled.
+    bool wideLdSt_ = false;         // True if executing wide ld/st instrution.
 
     // AMO instructions have additional operands: rl and aq.
     bool amoAq_ = false;

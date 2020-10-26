@@ -1746,6 +1746,14 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printRdRs1Rs3Imm(*this, out, "fsri", di);
       break;
 
+    case InstId::load64:
+      printLdSt(*this, out, "load64", di);
+      break;
+
+    case InstId::store64:
+      printLdSt(*this, out, "store64", di);
+      break;
+
     case InstId::vsetvli:
       {
         out << "vsetvli x" << di.op0() << ", x" << di.op1() << ", ";
