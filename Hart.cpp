@@ -1553,7 +1553,7 @@ Hart<URV>::checkStackStore(URV base, URV addr, unsigned storeSize)
 
 template <typename URV>
 bool
-Hart<URV>::wideLoad(uint32_t rd, URV addr, unsigned ldSize)
+Hart<URV>::wideLoad(uint32_t rd, URV addr)
 {
   auto secCause = SecondaryCause::LOAD_ACC_64BIT;
   auto cause = ExceptionCause::LOAD_ACC_FAULT;
@@ -1796,7 +1796,7 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
     }
 
   if (wideLdSt_ and not triggerTripped_)
-    return wideLoad(rd, addr, ldSize);
+    return wideLoad(rd, addr);
 
   // Loading from console-io does a standard input read.
   if (conIoValid_ and addr == conIo_ and enableConIn_ and not triggerTripped_)
@@ -1953,7 +1953,7 @@ Hart<URV>::store(uint32_t rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
 
   unsigned stSize = sizeof(STORE_TYPE);
   if (wideLdSt_)
-    return wideStore(addr, storeVal, stSize);
+    return wideStore(addr, storeVal);
 
   if (memory_.write(hartIx_, addr, storeVal))
     {
@@ -8864,7 +8864,7 @@ Hart<URV>::execLhu(const DecodedInst* di)
 
 template <typename URV>
 bool
-Hart<URV>::wideStore(URV addr, URV storeVal, unsigned storeSize)
+Hart<URV>::wideStore(URV addr, URV storeVal)
 {
   if ((addr & 7) or not isDataAddressExternal(addr))
     {

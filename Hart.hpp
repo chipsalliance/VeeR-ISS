@@ -1439,11 +1439,11 @@ namespace WdRiscv
 
     /// Do a 64-bit wide load in one transaction. This is swerv
     /// specfic.
-    bool wideLoad(unsigned rd, URV addr, unsigned ldSize);
+    bool wideLoad(unsigned rd, URV addr);
 
     /// Do a 64-bit wide store in one transaction. This is swerv
     /// specfic.
-    bool wideStore(URV addr, URV storeVal, unsigned storeSize);
+    bool wideStore(URV addr, URV storeVal);
 
     /// Helper to load methods. Check loads performed with stack
     /// pointer.  Return true if referenced bytes are all between the
