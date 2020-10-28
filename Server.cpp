@@ -429,6 +429,8 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
   strncpy(reply.buffer, text.c_str(), sizeof(reply.buffer) - 1);
   reply.buffer[sizeof(reply.buffer) -1] = 0;
 
+  // Order of changes: rfvmc (int reg, fp reg, vec reg, memory, csr)
+
   // Collect integer register change caused by execution of instruction.
   pendingChanges.clear();
   int regIx = hart.lastIntReg();
@@ -460,6 +462,21 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
 	  msg.value = val;
 	  pendingChanges.push_back(msg);
 	}
+    }
+
+  // Collect vector register change (format not yet definde).
+
+  // Collect memory change.
+  std::vector<size_t> addresses;
+  std::vector<uint32_t> words;
+
+  hart.lastMemory(addresses, words);
+  assert(addresses.size() == words.size());
+
+  for (size_t i = 0; i < addresses.size(); ++i)
+    {
+      WhisperMessage msg(0, Change, 'm', addresses.at(i), words.at(i));
+      pendingChanges.push_back(msg);
     }
 
   // Collect CSR and trigger changes.
@@ -521,18 +538,6 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
   for (const auto& [key, val] : csrMap)
     {
       WhisperMessage msg(0, Change, 'c', key, val);
-      pendingChanges.push_back(msg);
-    }
-
-  std::vector<size_t> addresses;
-  std::vector<uint32_t> words;
-
-  hart.lastMemory(addresses, words);
-  assert(addresses.size() == words.size());
-
-  for (size_t i = 0; i < addresses.size(); ++i)
-    {
-      WhisperMessage msg(0, Change, 'm', addresses.at(i), words.at(i));
       pendingChanges.push_back(msg);
     }
 

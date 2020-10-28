@@ -3245,6 +3245,8 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
 
   bool pending = false;  // True if a printed line need to be terminated.
 
+  // Order: rfvmc (int regs, fp regs, vec regs, memory, csr)
+
   // Process integer register diff.
   int reg = intRegs_.getLastWrittenReg();
   URV value = 0;
@@ -3264,6 +3266,33 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
       if (pending) fprintf(out, "  +\n");
       formatFpInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, fpReg,
 			     val, tmp.c_str());
+      pending = true;
+    }
+
+  // Process vector register diff.
+  unsigned elemWidth = 0, elemIx = 0;
+  int vecReg = vecRegs_.getLastWrittenReg(elemIx, elemWidth);
+  if (vecReg >= 0)
+    {
+      if (pending)
+        fprintf(out, " +\n");
+      uint32_t checksum = vecRegs_.checksum(vecReg, 0, elemIx, elemWidth);
+      formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'v',
+			   vecReg, checksum, tmp.c_str());
+      pending = true;
+    }
+
+  // Process memory diff.
+  size_t address = 0;
+  uint64_t memValue = 0;
+  unsigned writeSize = memory_.getLastWriteNewValue(hartIx_, address, memValue);
+  if (writeSize > 0)
+    {
+      if (pending)
+	fprintf(out, "  +\n");
+
+      formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'm',
+			   URV(address), URV(memValue), tmp.c_str());
       pending = true;
     }
 
@@ -3325,33 +3354,6 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
       if (pending) fprintf(out, "  +\n");
       formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'c',
 			   key, val, tmp.c_str());
-      pending = true;
-    }
-
-  // Process memory diff.
-  size_t address = 0;
-  uint64_t memValue = 0;
-  unsigned writeSize = memory_.getLastWriteNewValue(hartIx_, address, memValue);
-  if (writeSize > 0)
-    {
-      if (pending)
-	fprintf(out, "  +\n");
-
-      formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'm',
-			   URV(address), URV(memValue), tmp.c_str());
-      pending = true;
-    }
-
-  // Process vector register diff.
-  unsigned elemWidth = 0, elemIx = 0;
-  int vecReg = vecRegs_.getLastWrittenReg(elemIx, elemWidth);
-  if (vecReg >= 0)
-    {
-      if (pending)
-        fprintf(out, " +\n");
-      uint32_t checksum = vecRegs_.checksum(vecReg, 0, elemIx, elemWidth);
-      formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'v',
-			   vecReg, checksum, tmp.c_str());
       pending = true;
     }
 
