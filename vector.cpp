@@ -8454,5 +8454,170 @@ Hart<URV>::execVsse1024_v(const DecodedInst* di)
 }
 
 
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vectorLoadIndexed(const DecodedInst* di, ElementWidth offsetEew)
+{
+  if (not isVecLegal())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t elemWidth = vecRegs_.elementWidthInBits();
+  uint32_t offsetElemWidth = vecRegs_.elementWidthInBits(offsetEew);
+
+  uint32_t groupX8 = vecRegs_.groupMultiplierX8();
+  uint32_t offsetGroupX8 = (offsetElemWidth*groupX8)/elemWidth;
+
+  GroupMultiplier offsetGroup{GroupMultiplier::One};
+  bool badConfig = vecRegs_.groupNumberX8ToSymbol(offsetGroupX8, offsetGroup);
+  if (not badConfig)
+    badConfig = not vecRegs_.legalConfig(offsetEew, offsetGroup);
+  if (badConfig)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(), rs1 = di->op1(), vi = di->op2(), errors = 0;
+  uint64_t addr = intRegs_.read(rs1);
+
+  unsigned start = vecRegs_.startIndex();
+  unsigned elemCount = vecRegs_.elemCount();
+
+  // TODO check permissions, translate, ....
+  for (unsigned ix = start; ix < elemCount; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      auto cause = ExceptionCause::NONE;
+      auto secCause = SecondaryCause::NONE;
+
+      uint64_t offset = 0;
+
+      if (not vecRegs_.readIndex(vi, ix, offsetEew, offsetGroupX8, offset))
+        {
+          errors++;
+          break;
+        }
+
+      ELEM_TYPE elem = 0;
+      uint64_t eaddr = addr + offset;
+
+      if constexpr (sizeof(elem) > 8)
+        {
+          for (unsigned n = 0; n < sizeof(elem); n += 8)
+            {
+              uint64_t dword = 0;
+              cause = determineLoadException(rs1, eaddr, addr, 8, secCause);
+              if (cause != ExceptionCause::NONE)
+                break;
+              memory_.read(eaddr + n, dword);
+              elem <<= 64;
+              elem |= dword;
+            }
+        }
+      else
+        {
+          if (determineLoadException(rs1, eaddr, eaddr, sizeof(elem), secCause) !=
+              ExceptionCause::NONE)
+            memory_.read(eaddr, elem);
+        }
+
+      if (cause != ExceptionCause::NONE)
+        {
+          vecRegs_.setStartIndex(ix);
+          csRegs_.write(CsrNumber::VSTART, PrivilegeMode::Machine, ix);
+          initiateLoadException(cause, eaddr, secCause);
+          break;
+        }
+
+      if (not vecRegs_.write(vd, ix, groupX8, elem))
+        {
+          errors++;
+          break;
+        }
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlxei8_v(const DecodedInst* di)
+{
+  vectorLoadIndexed<uint8_t>(di, ElementWidth::Byte);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlxei16_v(const DecodedInst* di)
+{
+  vectorLoadIndexed<uint16_t>(di, ElementWidth::Half);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlxei32_v(const DecodedInst* di)
+{
+  vectorLoadIndexed<uint32_t>(di, ElementWidth::Word);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVlxei64_v(const DecodedInst* di)
+{
+  vectorLoadIndexed<uint64_t>(di, ElementWidth::Word2);
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vectorStoreIndexed(const DecodedInst* di, ElementWidth eew)
+{
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsxei8_v(const DecodedInst* di)
+{
+  vectorStoreIndexed<uint8_t>(di, ElementWidth::Byte);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsxei16_v(const DecodedInst* di)
+{
+  vectorStoreIndexed<uint16_t>(di, ElementWidth::Half);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsxei32_v(const DecodedInst* di)
+{
+  vectorStoreIndexed<uint32_t>(di, ElementWidth::Word);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVsxei64_v(const DecodedInst* di)
+{
+  vectorStoreIndexed<uint64_t>(di, ElementWidth::Word2);
+}
+
+
 template class WdRiscv::Hart<uint32_t>;
 template class WdRiscv::Hart<uint64_t>;

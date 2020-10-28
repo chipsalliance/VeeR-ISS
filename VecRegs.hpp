@@ -160,6 +160,50 @@ namespace WdRiscv
       return true;
     }
 
+    /// Read offset for a load-indexed/sore-indexed instruction.
+    bool readIndex(uint32_t regNum, uint32_t elemIx, ElementWidth eew,
+                   uint32_t groupX8, uint64_t& offset) const
+    {
+      switch(eew)
+        {
+        case ElementWidth::Byte:
+          {
+            uint8_t temp = 0;
+            if (not read(regNum, elemIx, groupX8, temp))
+              return false;
+            offset = temp;
+            return true;
+          }
+        case ElementWidth::Half:
+          {
+            uint16_t temp = 0;
+            if (not read(regNum, elemIx, groupX8, temp))
+              return false;
+            offset = temp;
+            return true;
+          }
+        case ElementWidth::Word:
+          {
+            uint32_t temp = 0;
+            if (not read(regNum, elemIx, groupX8, temp))
+              return false;
+            offset = temp;
+            return true;
+          }
+        case ElementWidth::Word2:
+          {
+            uint64_t temp = 0;
+            if (not read(regNum, elemIx, groupX8, temp))
+              return false;
+            offset = temp;
+            return true;
+          }
+        default:
+          return false;
+        }
+      return false;
+    }
+
     /// Return the count of registers in this register file.
     size_t size() const
     { return regCount_; }

@@ -2619,6 +2619,46 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       if (di.isMasked()) out << ", v0";
       break;
 
+    case InstId::vlxei8_v:
+      out << "vlxei8.v v" << di.op0() << ", (x" << di.op1() << "), v" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vlxei16_v:
+      out << "vlxei16.v v" << di.op0() << ", (x" << di.op1() << "), v" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vlxei32_v:
+      out << "vlxei32.v v" << di.op0() << ", (x" << di.op1() << "), v" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vlxei64_v:
+      out << "vlxei64.v v" << di.op0() << ", (x" << di.op1() << "), v" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsxei8_v:
+      out << "vsxei8.v v" << di.op0() << ", (x" << di.op1() << "), v" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsxei16_v:
+      out << "vsxei16.v v" << di.op0() << ", (x" << di.op1() << "), v" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsxei32_v:
+      out << "vsxei32.v v" << di.op0() << ", (x" << di.op1() << "), v" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
+    case InstId::vsxei64_v:
+      out << "vsxei64.v v" << di.op0() << ", (x" << di.op1() << "), v" << di.op2();
+      if (di.isMasked()) out << ", v0";
+      break;
+
     default:
       out << "illegal";
     }

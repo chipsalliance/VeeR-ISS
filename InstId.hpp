@@ -565,6 +565,16 @@ namespace WdRiscv
      vsse512_v,
      vsse1024_v,
 
-     maxId = vsse1024_v
+     vlxei8_v,
+     vlxei16_v,
+     vlxei32_v,
+     vlxei64_v,
+
+     vsxei8_v,
+     vsxei16_v,
+     vsxei32_v,
+     vsxei64_v,
+
+     maxId = vsxei64_v
     };
 }

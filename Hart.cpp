@@ -3353,7 +3353,7 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
       formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'v',
 			   vecReg, checksum, tmp.c_str());
       pending = true;
-    }      
+    }
 
   if (pending) 
     fprintf(out, "\n");
@@ -5626,6 +5626,14 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vsse256_v,
      &&vsse512_v,
      &&vsse1024_v,
+     &&vlxei8_v,
+     &&vlxei16_v,
+     &&vlxei32_v,
+     &&vlxei64_v,
+     &&vsxei8_v,
+     &&vsxei16_v,
+     &&vsxei32_v,
+     &&vsxei64_v,
     };
 
   const InstEntry* entry = di->instEntry();
@@ -7522,6 +7530,39 @@ Hart<URV>::execute(const DecodedInst* di)
  vsse1024_v:
   execVsse1024_v(di);
   return;
+
+ vlxei8_v:
+  execVlxei8_v(di);
+  return;
+
+ vlxei16_v:
+  execVlxei16_v(di);
+  return;
+
+ vlxei32_v:
+  execVlxei32_v(di);
+  return;
+
+ vlxei64_v:
+  execVlxei64_v(di);
+  return;
+
+ vsxei8_v:
+  execVsxei8_v(di);
+  return;
+
+ vsxei16_v:
+  execVsxei16_v(di);
+  return;
+
+ vsxei32_v:
+  execVsxei32_v(di);
+  return;
+
+ vsxei64_v:
+  execVsxei64_v(di);
+  return;
+
 }
 
 
