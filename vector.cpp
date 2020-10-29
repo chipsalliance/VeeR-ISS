@@ -8498,7 +8498,6 @@ Hart<URV>::vectorLoadIndexed(const DecodedInst* di, ElementWidth offsetEew)
       auto secCause = SecondaryCause::NONE;
 
       uint64_t offset = 0;
-
       if (not vecRegs_.readIndex(vi, ix, offsetEew, offsetGroupX8, offset))
         {
           errors++;
@@ -8582,8 +8581,81 @@ Hart<URV>::execVlxei64_v(const DecodedInst* di)
 template <typename URV>
 template <typename ELEM_TYPE>
 void
-Hart<URV>::vectorStoreIndexed(const DecodedInst* di, ElementWidth eew)
+Hart<URV>::vectorStoreIndexed(const DecodedInst* di, ElementWidth offsetEew)
 {
+  if (not isVecLegal())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t elemWidth = vecRegs_.elementWidthInBits();
+  uint32_t offsetElemWidth = vecRegs_.elementWidthInBits(offsetEew);
+
+  uint32_t groupX8 = vecRegs_.groupMultiplierX8();
+  uint32_t offsetGroupX8 = (offsetElemWidth*groupX8)/elemWidth;
+
+  GroupMultiplier offsetGroup{GroupMultiplier::One};
+  bool badConfig = vecRegs_.groupNumberX8ToSymbol(offsetGroupX8, offsetGroup);
+  if (not badConfig)
+    badConfig = not vecRegs_.legalConfig(offsetEew, offsetGroup);
+  if (badConfig)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(), rs1 = di->op1(), vi = di->op2(), errors = 0;
+  uint64_t addr = intRegs_.read(rs1);
+
+  unsigned start = vecRegs_.startIndex();
+  unsigned elemCount = vecRegs_.elemCount();
+
+  // TODO check permissions, translate, ....
+  for (unsigned ix = start; ix < elemCount; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      bool exception = false;
+      ELEM_TYPE elem = 0;
+      if (not vecRegs_.read(vd, ix, groupX8, elem))
+        {
+          errors++;
+          break;
+        }
+
+      uint64_t offset = 0;
+      if (not vecRegs_.readIndex(vi, ix, offsetEew, offsetGroupX8, offset))
+        {
+          errors++;
+          break;
+        }
+
+      uint64_t eaddr = addr + offset;
+
+      if constexpr (sizeof(elem) > 8)
+        {
+          for (unsigned n = 0; n < sizeof(elem) and not exception; n += 8)
+            {
+              uint64_t dword = elem;
+              memory_.write(hartIx_, eaddr + n, dword);
+              elem >>= 64;
+            }
+        }
+      else
+        memory_.write(hartIx_, eaddr, elem);
+
+      if (exception)
+        {
+          vecRegs_.setStartIndex(ix);
+          csRegs_.write(CsrNumber::VSTART, PrivilegeMode::Machine, ix);
+          break;
+        }
+    }
+
+  assert(errors == 0);
 }
 
 
