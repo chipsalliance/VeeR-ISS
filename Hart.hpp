@@ -1405,17 +1405,17 @@ namespace WdRiscv
     /// Return true if store is successful. Return false if an exception
     /// or a trigger is encountered.
     template<typename STORE_TYPE>
-    bool store(unsigned rs1, URV base, URV addr, STORE_TYPE value);
+    bool store(uint32_t rs1, URV base, URV addr, STORE_TYPE value);
 
     /// For use by performance model. 
     template<typename STORE_TYPE>
-    bool fastStore(unsigned rs1, URV base, URV addr, STORE_TYPE value);
+    bool fastStore(uint32_t rs1, URV base, URV addr, STORE_TYPE value);
 
     /// Helper to store method: Return possible exception (wihtout
     /// taking any exception). Update stored value by doing memory
     /// mapped register masking.
     template<typename STORE_TYPE>
-    ExceptionCause determineStoreException(unsigned rs1, URV base, uint64_t& addr,
+    ExceptionCause determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
 					   STORE_TYPE& storeVal,
 					   SecondaryCause& secCause);
 

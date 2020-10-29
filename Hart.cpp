@@ -1873,7 +1873,7 @@ template <typename URV>
 template <typename STORE_TYPE>
 inline
 bool
-Hart<URV>::fastStore(unsigned /*rs1*/, URV /*base*/, URV addr,
+Hart<URV>::fastStore(uint32_t /*rs1*/, URV /*base*/, URV addr,
                      STORE_TYPE storeVal)
 {
   if (memory_.write(hartIx_, addr, storeVal))
@@ -1896,7 +1896,7 @@ template <typename URV>
 template <typename STORE_TYPE>
 inline
 bool
-Hart<URV>::store(unsigned rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
+Hart<URV>::store(uint32_t rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
 {
 #ifdef FAST_SLOPPY
   return fastStore(rs1, base, virtAddr, storeVal);
@@ -8809,7 +8809,7 @@ Hart<URV>::wideStore(URV addr, URV storeVal, unsigned storeSize)
 template <typename URV>
 template <typename STORE_TYPE>
 ExceptionCause
-Hart<URV>::determineStoreException(unsigned rs1, URV base, uint64_t& addr,
+Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
 				   STORE_TYPE& storeVal,
 				   SecondaryCause& secCause)
 {
@@ -11902,7 +11902,7 @@ Hart<URV>::execLr_w(const DecodedInst* di)
 template <typename URV>
 template <typename STORE_TYPE>
 bool
-Hart<URV>::storeConditional(unsigned rs1, URV virtAddr, STORE_TYPE storeVal)
+Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
 {
   enableWideLdStMode(false);
 
@@ -14532,6 +14532,22 @@ Hart<URV>::execFsri(const DecodedInst* di)
   intRegs_.write(di->op0(), res);
 }
 
+
+template
+ExceptionCause
+WdRiscv::Hart<uint32_t>::determineStoreException<uint8_t>(uint32_t, uint32_t, uint64_t&, uint8_t&, WdRiscv::SecondaryCause&);
+
+template
+ExceptionCause
+WdRiscv::Hart<uint64_t>::determineStoreException<uint8_t>(uint32_t, uint64_t, uint64_t&, uint8_t&, WdRiscv::SecondaryCause&);
+
+template
+ExceptionCause
+WdRiscv::Hart<uint32_t>::determineStoreException<uint16_t>(uint32_t, uint32_t, uint64_t&, uint16_t&, WdRiscv::SecondaryCause&);
+
+template
+ExceptionCause
+WdRiscv::Hart<uint64_t>::determineStoreException<uint16_t>(uint32_t, uint64_t, uint64_t&, uint16_t&, WdRiscv::SecondaryCause&);
 
 template class WdRiscv::Hart<uint32_t>;
 template class WdRiscv::Hart<uint64_t>;

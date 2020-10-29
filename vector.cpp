@@ -7770,7 +7770,7 @@ Hart<URV>::vectorStore(const DecodedInst* di, ElementWidth eew)
     }
 
   bool masked = di->isMasked();
-  unsigned vd = di->op0(), rs1 = di->op1(), errors = 0;
+  uint32_t vd = di->op0(), rs1 = di->op1(), errors = 0;
   uint64_t addr = intRegs_.read(rs1);
 
   unsigned group = vecRegs_.groupMultiplierX8(), start = vecRegs_.startIndex();
@@ -7781,7 +7781,6 @@ Hart<URV>::vectorStore(const DecodedInst* di, ElementWidth eew)
     {
       if (masked and not vecRegs_.isActive(0, ix))
         continue;
-      bool exception = false;
       ELEM_TYPE elem = 0;
       if (not vecRegs_.read(vd, ix, group, elem))
         {
@@ -7789,22 +7788,34 @@ Hart<URV>::vectorStore(const DecodedInst* di, ElementWidth eew)
           break;
         }
 
+      auto cause = ExceptionCause::NONE;
+      auto secCause = SecondaryCause::NONE;
+
       if constexpr (sizeof(elem) > 8)
         {
-          for (unsigned n = 0; n < sizeof(elem) and not exception; n += 8)
+          for (unsigned n = 0; n < sizeof(elem); n += 8)
             {
               uint64_t dword = elem;
+              cause = determineStoreException(rs1, URV(addr), addr, dword, secCause);
+              if (cause != ExceptionCause::NONE)
+                break;
+
               memory_.write(hartIx_, addr + n, dword);
               elem >>= 64;
             }
         }
       else
-        memory_.write(hartIx_, addr, elem);
+        {
+          if (determineStoreException(rs1, URV(addr), addr, elem, secCause) !=
+              ExceptionCause::NONE)
+            memory_.write(hartIx_, addr, elem);
+        }
 
-      if (exception)
+      if (cause != ExceptionCause::NONE)
         {
           vecRegs_.setStartIndex(ix);
           csRegs_.write(CsrNumber::VSTART, PrivilegeMode::Machine, ix);
+          initiateStoreException(cause, addr, secCause);
           break;
         }
 
@@ -8606,7 +8617,7 @@ Hart<URV>::vectorStoreIndexed(const DecodedInst* di, ElementWidth offsetEew)
     }
 
   bool masked = di->isMasked();
-  unsigned vd = di->op0(), rs1 = di->op1(), vi = di->op2(), errors = 0;
+  uint32_t vd = di->op0(), rs1 = di->op1(), vi = di->op2(), errors = 0;
   uint64_t addr = intRegs_.read(rs1);
 
   unsigned start = vecRegs_.startIndex();
@@ -8617,8 +8628,6 @@ Hart<URV>::vectorStoreIndexed(const DecodedInst* di, ElementWidth offsetEew)
     {
       if (masked and not vecRegs_.isActive(0, ix))
         continue;
-
-      bool exception = false;
       ELEM_TYPE elem = 0;
       if (not vecRegs_.read(vd, ix, groupX8, elem))
         {
@@ -8634,23 +8643,34 @@ Hart<URV>::vectorStoreIndexed(const DecodedInst* di, ElementWidth offsetEew)
         }
 
       uint64_t eaddr = addr + offset;
+      auto cause = ExceptionCause::NONE;
+      auto secCause = SecondaryCause::NONE;
 
       if constexpr (sizeof(elem) > 8)
         {
-          for (unsigned n = 0; n < sizeof(elem) and not exception; n += 8)
+          for (unsigned n = 0; n < sizeof(elem); n += 8)
             {
               uint64_t dword = elem;
+              cause = determineStoreException(rs1, URV(eaddr), eaddr, dword, secCause);
+              if (cause != ExceptionCause::NONE)
+                break;
+
               memory_.write(hartIx_, eaddr + n, dword);
               elem >>= 64;
             }
         }
       else
-        memory_.write(hartIx_, eaddr, elem);
+        {
+          if (determineStoreException(rs1, URV(eaddr), eaddr, elem, secCause) !=
+              ExceptionCause::NONE)
+            memory_.write(hartIx_, eaddr, elem);
+        }
 
-      if (exception)
+      if (cause != ExceptionCause::NONE)
         {
           vecRegs_.setStartIndex(ix);
           csRegs_.write(CsrNumber::VSTART, PrivilegeMode::Machine, ix);
+          initiateStoreException(cause, eaddr, secCause);
           break;
         }
     }
