@@ -114,7 +114,7 @@ namespace WdRiscv
       if (readCallback_)
         {
           uint64_t val = 0;
-          if (not readCallback_(addr, sizeof(T), val))
+          if (not readCallback_(address, sizeof(T), val))
             return false;
           value = val;
         }
@@ -154,7 +154,7 @@ namespace WdRiscv
           if (readCallback_)
             {
               uint64_t val = 0;
-              if (not readCallback_(addr, sizeof(T), val))
+              if (not readCallback_(address, sizeof(T), val))
                 return false;
               value = val;
             }
@@ -245,10 +245,10 @@ namespace WdRiscv
       if (writeCallback_)
         {
           uint64_t val = 0;
-          readCallback_(addr, sizeof(T), val);
+          readCallback_(address, sizeof(T), val);
           lwd.prevValue_ = val;
           val = value;
-          if (not writeCallback_(addr, sizeof(T), val))
+          if (not writeCallback_(address, sizeof(T), val))
             {
               lwd.size_ = 0;
               return false;
