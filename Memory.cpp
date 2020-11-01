@@ -894,7 +894,10 @@ Memory::specialInitializeByte(size_t addr, uint8_t value)
 
   // We initialize both the memory-mapped-register and the external
   // memory to match/simplify the test-bench.
-  data_[addr] = value;
+  if (writeCallback_)
+    writeCallback_(addr, 1, value);
+  else
+    data_[addr] = value;
   return true;
 }
 
