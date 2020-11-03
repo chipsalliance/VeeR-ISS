@@ -3416,9 +3416,17 @@ Hart<URV>::undoForTrigger()
   unsigned regIx = 0;
   URV value = 0;
   if (intRegs_.getLastWrittenReg(regIx, value))
-    pokeIntReg(regIx, value);
+    {
+      pokeIntReg(regIx, value);
+      intRegs_.clearLastWrittenReg();
+    }
 
-  intRegs_.clearLastWrittenReg();
+  uint64_t fpVal = 0;
+  if (fpRegs_.getLastWrittenReg(regIx, fpVal))
+    {
+      pokeFpReg(regIx, fpVal);
+      fpRegs_.clearLastWrittenReg();
+    }
 
   pc_ = currPc_;
 }
