@@ -1924,8 +1924,10 @@ Hart<URV>::store(uint32_t rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
   ExceptionCause cause = determineStoreException(rs1, base, addr,
 						 maskedVal, secCause);
 
-  // Consider store-data  trigger
-  if (hasTrig)
+  // Consider store-data trigger if there is no trap or if the trap is
+  // due to an external cause.
+  if (hasTrig and (cause == ExceptionCause::NONE or
+                   (forceAccessFail_ and secCause == forcedCause_)))
     if (ldStDataTriggerHit(maskedVal, timing, isLd, privMode_,
                            isInterruptEnabled()))
       triggerTripped_ = true;
@@ -8938,6 +8940,8 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
       secCause = forcedCause_;
       return ExceptionCause::STORE_ACC_FAULT;
     }
+  else
+    forcedCause_ = SecondaryCause::NONE;
 
   return ExceptionCause::NONE;
 }
