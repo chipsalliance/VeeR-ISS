@@ -1925,7 +1925,7 @@ Hart<URV>::store(uint32_t rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
 						 maskedVal, secCause);
 
   // Consider store-data  trigger
-  if (hasTrig and cause == ExceptionCause::NONE)
+  if (hasTrig)
     if (ldStDataTriggerHit(maskedVal, timing, isLd, privMode_,
                            isInterruptEnabled()))
       triggerTripped_ = true;
@@ -1934,7 +1934,7 @@ Hart<URV>::store(uint32_t rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
 
   if (cause != ExceptionCause::NONE)
     {
-      // For the bench: A precise error does write externl memory.
+      // For the bench: A precise error does write external memory.
       if (forceAccessFail_ and memory_.isDataAddressExternal(addr))
         memory_.write(hartIx_, addr, storeVal);
       initiateStoreException(cause, virtAddr, secCause);
