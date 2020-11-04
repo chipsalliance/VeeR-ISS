@@ -246,7 +246,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 575;
+  unsigned subversion = 592;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -1626,12 +1626,12 @@ checkAndRepairMemoryParams(size_t& memSize, size_t& pageSize,
 }
 
 
-template <typename URV>
 static
 bool
-session(const Args& args, const HartConfig& config)
+getPrimaryConfigParameters(const Args& args, const HartConfig& config,
+                           unsigned& hartsPerCore, unsigned& coreCount,
+                           size_t& pageSize, size_t& memorySize)
 {
-  unsigned hartsPerCore = 1;
   config.getHartsPerCore(hartsPerCore);
   if (args.hasHarts)
     hartsPerCore = args.harts;
@@ -1642,7 +1642,6 @@ session(const Args& args, const HartConfig& config)
       return false;
     }
 
-  unsigned coreCount = 1;
   config.getCoreCount(coreCount);
   if (args.hasCores)
     coreCount = args.cores;
@@ -1655,31 +1654,40 @@ session(const Args& args, const HartConfig& config)
 
   // Determine simulated memory size. Default to 4 gigs.
   // If running a 32-bit machine (pointer size = 32 bits), try 2 gigs.
-  size_t memorySize = size_t(1) << 32;  // 4 gigs
   if (memorySize == 0)
     memorySize = size_t(1) << 31;  // 2 gigs
   config.getMemorySize(memorySize);
   if (args.memorySize)
     memorySize = *args.memorySize;
 
-  size_t pageSize = 4*1024;
   if (not config.getPageSize(pageSize))
     pageSize = args.pageSize;
 
+  return true;
+}
+
+
+template <typename URV>
+static
+bool
+session(const Args& args, const HartConfig& config)
+{
+  // Collect primary configuration paramters.
+  unsigned hartsPerCore = 1;
+  unsigned coreCount = 1;
+  size_t pageSize = 4*1024;
   size_t regionSize = 256*1024*1024;
-  //if (not config.getRegionSize(regionSize))
-  //regionSize = args.regionSize;
+  size_t memorySize = size_t(1) << 32;  // 4 gigs
+
+  if (not getPrimaryConfigParameters(args, config, hartsPerCore, coreCount,
+                                     pageSize, memorySize))
+    return false;
+
   checkAndRepairMemoryParams(memorySize, pageSize, regionSize);
 
-  unsigned hartCount = coreCount*hartsPerCore;
-
-  Memory memory(memorySize, pageSize);
-  memory.setHartCount(hartCount);
-  memory.checkUnmappedElf(not args.unmappedElfOk);
-
   // Create cores & harts.
-  System<URV> system(coreCount, hartsPerCore, memory);
-  assert(system.hartCount() == hartCount);
+  System<URV> system(coreCount, hartsPerCore, memorySize, pageSize);
+  assert(system.hartCount() == coreCount*hartsPerCore);
   assert(system.hartCount() > 0);
 
   // Configure harts. Define callbacks for non-standard CSRs.
@@ -1688,11 +1696,8 @@ session(const Args& args, const HartConfig& config)
       return false;
 
   // Configure memory.
-  auto& hart0 = *system.ithHart(0);
-  if (not config.applyMemoryConfig(hart0, args.iccmRw, args.verbose))
+  if (not config.configMemory(system, args.iccmRw, args.unmappedElfOk, args.verbose))
     return false;
-  for (unsigned i = 1; i < system.hartCount(); ++i)
-    system.ithHart(i)->copyMemRegionConfig(hart0);
 
   if (args.hexFiles.empty() and args.expandedTargets.empty()
       and not args.interactive)
@@ -1716,6 +1721,7 @@ session(const Args& args, const HartConfig& config)
 
   bool result = sessionRun(system, args, traceFile, commandLog);
 
+  auto& hart0 = *system.ithHart(0);
   if (not args.instFreqFile.empty())
     result = reportInstructionFrequency(hart0, args.instFreqFile) and result;
 

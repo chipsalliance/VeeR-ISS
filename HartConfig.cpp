@@ -1298,6 +1298,24 @@ HartConfig::configHarts(System<URV>& system, const std::string& isaString,
 }
 
 
+template<typename URV>
+bool
+HartConfig::configMemory(System<URV>& system, bool iccmRw, bool unmappedElfOk,
+                         bool verbose) const
+{
+  system.checkUnmappedElf(not unmappedElfOk);
+
+  auto& hart0 = *system.ithHart(0);
+  if (not applyMemoryConfig(hart0, iccmRw, verbose))
+    return false;
+
+  for (unsigned i = 1; i < system.hartCount(); ++i)
+    system.ithHart(i)->copyMemRegionConfig(hart0);
+
+  return true;
+}
+
+
 bool
 HartConfig::getXlen(unsigned& xlen) const
 {
@@ -1702,6 +1720,13 @@ HartConfig::configHarts<uint32_t>(System<uint32_t>&, const std::string&,
 template bool
 HartConfig::configHarts<uint64_t>(System<uint64_t>&, const std::string&,
                                   bool) const;
+
+template bool
+HartConfig::configMemory(System<uint32_t>&, bool, bool, bool) const;
+
+template bool
+HartConfig::configMemory(System<uint64_t>&, bool, bool, bool) const;
+
 
 template bool
 HartConfig::applyMemoryConfig<uint32_t>(Hart<uint32_t>&, bool, bool) const;

@@ -429,6 +429,8 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
   strncpy(reply.buffer, text.c_str(), sizeof(reply.buffer) - 1);
   reply.buffer[sizeof(reply.buffer) -1] = 0;
 
+  // Order of changes: rfcvm (int reg, fp reg, csr, vec reg, memory, csr)
+
   // Collect integer register change caused by execution of instruction.
   pendingChanges.clear();
   int regIx = hart.lastIntReg();
@@ -461,6 +463,8 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
 	  pendingChanges.push_back(msg);
 	}
     }
+
+  // Collect vector register change (format not yet definde).
 
   // Collect CSR and trigger changes.
   std::vector<CsrNumber> csrs;
@@ -496,17 +500,22 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
       URV data1(0), data2(0), data3(0);
       if (not hart.peekTrigger(trigger, data1, data2, data3))
 	continue;
-      if (tdataChanged.at(0))
+
+      // Components of trigger that changed.
+      bool t1 = false, t2 = false, t3 = false;
+      hart.getTriggerChange(trigger, t1, t2, t3);
+
+      if (t1)
 	{
 	  URV addr = (trigger << 16) | unsigned(CsrNumber::TDATA1);
 	  csrMap[addr] = data1;
 	}
-      if (tdataChanged.at(1))
+      if (t2)
 	{
 	  URV addr = (trigger << 16) | unsigned(CsrNumber::TDATA2);
 	  csrMap[addr] = data2;
 	}
-      if (tdataChanged.at(2))
+      if (t3)
 	{
 	  URV addr = (trigger << 16) | unsigned(CsrNumber::TDATA3);
 	  csrMap[addr] = data3;
@@ -519,6 +528,7 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
       pendingChanges.push_back(msg);
     }
 
+  // Collect memory change.
   std::vector<size_t> addresses;
   std::vector<uint32_t> words;
 

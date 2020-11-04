@@ -158,7 +158,7 @@ namespace WdRiscv
     /// Read the data1 register of the trigger. This is typically the
     /// control register of the trigger.
     URV readData1() const
-    { return data1_.value_; }
+    { return modifiedT1_? prevData1_ : data1_.value_; }
 
     /// Read the data2 register of the trigger. This is typically the
     /// target value of the trigger.
@@ -178,7 +178,13 @@ namespace WdRiscv
       URV mask = data1WriteMask_;
       if (not debugMode)  // dmode bit writable only in debug mode
 	mask &= ~(URV(1) << (8*sizeof(URV) - 5));
+
+      if (not modifiedT1_)
+        prevData1_ = data1_.value_;
+
       data1_.value_ = (x & mask) | (data1_.value_ & ~mask);
+      modifiedT1_ = true;
+
       if (TriggerType(data1_.mcontrol_.type_) == TriggerType::AddrData)
 	{
 	  // If load-data is not enabled, then turn it off when
@@ -208,7 +214,6 @@ namespace WdRiscv
 	    data1_.icount_.action_ = 0;
 	}
 
-      modified_ = true;
       return true;
     }
 
@@ -220,7 +225,7 @@ namespace WdRiscv
 	return false;
 
       data2_ = (value & data2WriteMask_) | (data2_ & ~data2WriteMask_);
-      modified_ = true;
+      modifiedT2_ = true;
 
       updateCompareMask();
       return true;
@@ -234,7 +239,7 @@ namespace WdRiscv
 	return false;
 
       data3_ = (value & data3WriteMask_) | (data3_ & ~data3WriteMask_);
-      modified_ = true;
+      modifiedT3_ = true;
       return true;
     }
 
@@ -382,17 +387,17 @@ namespace WdRiscv
     {
       if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
 	{
+          if (not modifiedT1_)
+            prevData1_ = data1_.value_;
 	  data1_.mcontrol_.hit_ = flag;
-	  modified_ = true;
-	  if (flag)
-	    chainHit_ = true;
+	  modifiedT1_ = true;
 	}
       if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
 	{
+          if (not modifiedT1_)
+            prevData1_ = data1_.value_;
 	  data1_.icount_.hit_ = flag;
-	  modified_ = true;
-	  if (flag)
-	    chainHit_ = true;
+	  modifiedT1_ = true;
 	}
     }
 
@@ -426,6 +431,10 @@ namespace WdRiscv
     /// Return true if the chain of this trigger has tripped.
     bool hasTripped() const
     { return chainHit_; }
+
+    /// Mark this trigger as tripped.
+    void setTripped(bool flag)
+    { chainHit_ = flag; }
 
     /// Return the action fields of the trigger.
     Action getAction() const
@@ -465,10 +474,10 @@ namespace WdRiscv
     }
 
     bool isModified() const
-    { return modified_; }
+    { return modifiedT1_ or modifiedT2_ or modifiedT3_; }
 
-    void setModified(bool flag)
-    { modified_ = flag; }
+    void clearModified()
+    { modifiedT1_ = modifiedT2_ = modifiedT3_ = false; }
 
     bool getLocalHit() const
     { return localHit_; }
@@ -493,7 +502,7 @@ namespace WdRiscv
 
     bool peek(URV& data1, URV& data2, URV& data3) const
     {
-      data1 = readData1(); data2 = readData2(); data3 = readData3();
+      data1 = data1_.value_; data2 = data2_; data3 = data3_;
       return true;
     }
 
@@ -526,9 +535,14 @@ namespace WdRiscv
     URV data3PokeMask_ = 0;              // Place holder.
 
     URV data2CompareMask_ = ~URV(0);
+
+    URV prevData1_ = 0;
+
     bool localHit_ = false;  // Trigger tripped in isolation.
     bool chainHit_ = false;   // All entries in chain tripped.
-    bool modified_ = false;
+    bool modifiedT1_ = false;
+    bool modifiedT2_ = false;
+    bool modifiedT3_ = false;
 
     size_t chainBegin_ = 0, chainEnd_ = 0;
     bool enableLoadData_ = false;
@@ -610,9 +624,7 @@ namespace WdRiscv
     /// triggers trips. A load/store trigger trips if it matches the
     /// given address and timing and if all the remaining triggers in
     /// its chain have tripped. Set the local-hit bit of any
-    /// load/store trigger that matches. If a matching load/store
-    /// trigger causes its chain to trip, then set the hit bit of all
-    /// the triggers in that chain. If the trigger action is
+    /// load/store trigger that matches. If the trigger action is
     /// contingent on interrupts being enabled (ie == true), then the
     /// trigger will not trip even if its condition is satisfied.
     bool ldStAddrTriggerHit(URV address, TriggerTiming, bool isLoad,
@@ -681,7 +693,7 @@ namespace WdRiscv
 	{
 	  trig.setLocalHit(false);
 	  trig.setChainHit(false);
-	  trig.setModified(false);
+	  trig.clearModified();
 	}
     }
 
@@ -709,9 +721,16 @@ namespace WdRiscv
     /// to "enter debug mode".
     bool hasEnterDebugModeTripped() const
     {
-      for (const auto& t : triggers_)
-	if (t.hasTripped() and t.getAction() == Trigger<URV>::Action::EnterDebug)
-	  return true;
+      for (const auto& trig : triggers_)
+	if (trig.hasTripped())
+          {
+            // If chained, use action of last trigger in chain.
+            size_t start = 0, end = 0;
+            trig.getChainBounds(start, end);
+            auto& last = triggers_.at(end - 1);
+            if (last.getAction() == Trigger<URV>::Action::EnterDebug)
+              return true;
+          }
       return false;
     }
 
@@ -731,7 +750,37 @@ namespace WdRiscv
     /// Reset all triggers.
     void reset();
 
+    /// Return true if given trigger has a local hit.
+    bool getLocalHit(URV ix) const
+    { return ix < triggers_.size()? triggers_[ix].getLocalHit() : false; }
+
+    void getTriggerChange(URV ix, bool& t1, bool& t2, bool& t3) const
+    {
+      t1 = t2 = t3 = false;
+      if (ix >= triggers_.size())
+        return;
+      const auto& trig = triggers_.at(ix);
+      t1 = trig.modifiedT1_;
+      t2 = trig.modifiedT2_;
+      t3 = trig.modifiedT3_;
+    }
+
+    bool isTdata3Modified(URV ix) const
+    { return ix < triggers_.size()? triggers_[ix].modifiedT3_ : false; }
+
   protected:
+
+    /// Return pointer to preceeding trigger in chain or nullptr
+    /// if no such trigger.
+    Trigger<URV>* getPreceedingTrigger(const Trigger<URV>& trig)
+    {
+      size_t beginChain = 0, endChain = 0;
+      trig.getChainBounds(beginChain, endChain);
+      for (unsigned i = beginChain; i < endChain; ++i)
+        if (&triggers_.at(i) == &trig)
+          return i == beginChain? nullptr : &triggers_.at(i-1);
+      return nullptr;
+    }
 
     /// If all the triggers in the chain of the given trigger have
     /// tripped (in isolation using local-hit), then return true

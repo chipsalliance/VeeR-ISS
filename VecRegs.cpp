@@ -23,6 +23,26 @@ using namespace WdRiscv;
 
 VecRegs::VecRegs()
 {
+  // Intialize structure (vector of vectors) defining legal
+  // element-width/group-multiplier combinations to all false: No
+  // combination is supported. Configuration code will later change
+  // this.
+  legalConfigs_.resize(size_t(VecEnums::WidthLimit));
+  for (auto& groupFlags : legalConfigs_)
+    groupFlags.resize(size_t(VecEnums::GroupLimit));
+
+  // Temporary, for testing, make all combinations legal. FIX.
+  for (auto& groupFlags : legalConfigs_)
+    groupFlags.assign(groupFlags.size(), true);
+
+  // Temporary, for testing. FIX.
+  sew_ = ElementWidth::Word2;
+  sewInBits_ = 64;
+
+  // Temporary, for testing. FIX.
+  elems_ = 2;
+
+  std::cerr << "VecRegs::VecRegs: Remove test code\n";
 }
 
 
@@ -96,8 +116,36 @@ VecRegs::config(unsigned bytesPerReg, unsigned bytesPerElem)
 }
 
 
+uint64_t
+VecRegs::checksum(unsigned regIx, unsigned elemIx0, unsigned elemIx1,
+                  unsigned elemWidth) const
+{
+  uint64_t sum = 0;
+
+  unsigned byteIx0 = (elemWidth*elemIx0) / 8;
+  unsigned byteIx1 = (elemWidth*elemIx1) / 8;
+
+  const uint8_t* regData = getVecData(regIx);
+  const uint8_t* end = data_ + bytesInRegFile_;
+
+  for (unsigned i = byteIx0; i <= byteIx1; ++i)
+    {
+      uint8_t byte = 0;
+      if (regData and regData + i < end)
+        byte = regData[i];
+      sum += byte;  // FIX BOGUS replace my md5sum
+    }      
+
+  return sum;
+}
+
+
 void
 VecRegs::reset()
 {
-  memset(data_, 0, bytesInRegFile_);
+  if (data_)
+    memset(data_, 0, bytesInRegFile_);
+  lastWrittenReg_ = -1;
+  lastElemIx_ = 0;
+  lastElemWidth_ = 0;
 }

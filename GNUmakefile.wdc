@@ -29,8 +29,11 @@ RM := rm -rf
 # Optimization flags.  Use -g for debug.
 OFLAGS := -O3 -g
 
+# Debug flags
+DFLAGS := -g
+
 # Command to compile .cpp files.
-override CXXFLAGS += -MMD -MP -mfma -std=c++17 $(OFLAGS) -pedantic -Wall -Wextra
+override CXXFLAGS += -MMD -MP -mfma -std=c++17 $(OFLAGS) -fPIC -pedantic -Wall -Wextra
 
 # Pre-processor flags
 override CPPFLAGS += $(addprefix -isystem ,$(BOOST_INC)) -I$(VPATH)
@@ -43,7 +46,7 @@ opt:
 # Compile debug code in dbg directory.
 dbg:
 	mkdir -p dbg
-	$(MAKE) -C dbg -f ../GNUmakefile.wdc OFLAGS='-g' VPATH=.. whisper
+	$(MAKE) -C dbg -f ../GNUmakefile.wdc OFLAGS="$(DFLAGS)" VPATH=.. whisper
 
 # Main target.
 whisper: whisper.o librvcore.a
@@ -55,7 +58,7 @@ RVCORE_SRCS += Hart.cpp InstEntry.cpp Triggers.cpp PerfRegs.cpp gdb.cpp
 RVCORE_SRCS += HartConfig.cpp Server.cpp Interactive.cpp decode.cpp disas.cpp
 RVCORE_SRCS += Syscall.cpp PmaManager.cpp DecodedInst.cpp snapshot.cpp
 RVCORE_SRCS += PmpManager.cpp VirtMem.cpp Core.cpp System.cpp Cache.cpp
-RVCORE_SRCS += Tlb.cpp VecRegs.cpp vector.cpp
+RVCORE_SRCS += Tlb.cpp VecRegs.cpp vector.cpp wideint.cpp
 
 # List of All CPP source files for the project
 SRCS += $(RVCORE_SRCS) whisper.cpp

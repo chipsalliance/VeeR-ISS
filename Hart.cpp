@@ -453,6 +453,7 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   csRegs_.updateCounterPrivilege();
 
   alarmLimit_ = alarmInterval_? alarmInterval_ + instCounter_ : ~uint64_t(0);
+  consecutiveIllegalCount_ = 0;
 }
 
 
@@ -707,7 +708,7 @@ Hart<URV>::clearToHostAddress()
 template <typename URV>
 void
 Hart<URV>::putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
-			  uint64_t data, bool isWide)
+			  uint64_t data, bool isWide, bool fp)
 {
   if (not loadQueueEnabled_)
     return;
@@ -716,7 +717,7 @@ Hart<URV>::putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
     {
       // Blocking load. Invalidate target register in load queue so
       // that it will not be reverted.
-      invalidateInLoadQueue(regIx, false);
+      invalidateInLoadQueue(regIx, false, fp);
       return;
     }
 
@@ -726,17 +727,17 @@ Hart<URV>::putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
       for (size_t i = 1; i < maxLoadQueueSize_; ++i)
 	loadQueue_[i-1] = loadQueue_[i];
       loadQueue_[maxLoadQueueSize_-1] = LoadInfo(size, addr, regIx, data,
-						 isWide, instCounter_);
+						 isWide, instCounter_, fp);
     }
   else
     loadQueue_.push_back(LoadInfo(size, addr, regIx, data, isWide,
-				  instCounter_));
+				  instCounter_, fp));
 }
 
 
 template <typename URV>
 void
-Hart<URV>::invalidateInLoadQueue(unsigned regIx, bool isDiv)
+Hart<URV>::invalidateInLoadQueue(unsigned regIx, bool isDiv, bool fp)
 {
   if (regIx == lastDivRd_ and not isDiv)
     hasLastDiv_ = false;
@@ -744,14 +745,14 @@ Hart<URV>::invalidateInLoadQueue(unsigned regIx, bool isDiv)
   // Replace entry containing target register with x0 so that load exception
   // matching entry will not revert target register.
   for (unsigned i = 0; i < loadQueue_.size(); ++i)
-    if (loadQueue_[i].regIx_ == regIx)
+    if (loadQueue_[i].regIx_ == regIx and loadQueue_[i].fp_ == fp)
       loadQueue_[i].makeInvalid();
 }
 
 
 template <typename URV>
 void
-Hart<URV>::removeFromLoadQueue(unsigned regIx, bool isDiv)
+Hart<URV>::removeFromLoadQueue(unsigned regIx, bool isDiv, bool fp)
 {
   if (regIx == 0)
     return;
@@ -768,7 +769,7 @@ Hart<URV>::removeFromLoadQueue(unsigned regIx, bool isDiv)
       auto& entry = loadQueue_.at(i-1);
       if (not entry.isValid())
 	continue;
-      if (entry.regIx_ == regIx)
+      if (entry.regIx_ == regIx and entry.fp_ == fp)
 	{
 	  if (last)
 	    {
@@ -874,7 +875,10 @@ Hart<URV>::applyStoreException(URV addr, unsigned& matches)
           setPendingNmi(NmiCause::STORE_EXCEPTION);
         }
     }
-  recordCsrWrite(CsrNumber::MDSEAC); // Always record change (per Ajay Nath)
+
+  // Always report mdseac (even when not updated) to simplify
+  // positive/negative post nmi mdseac checks in the bench.
+  recordCsrWrite(CsrNumber::MDSEAC);
 
   matches = 1;
   return true;
@@ -898,7 +902,10 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
           setPendingNmi(NmiCause::LOAD_EXCEPTION);
         }
     }
-  recordCsrWrite(CsrNumber::MDSEAC);  // Always record change (per Ajay Nath)
+
+  // Always report mdseac (even when not updated) to simplify
+  // positive/negative post nmi mdseac checks in the bench.
+  recordCsrWrite(CsrNumber::MDSEAC);
 
   if (not loadErrorRollback_)
     {
@@ -908,13 +915,13 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
 
   // Count matching records. Determine if there is an entry with the
   // same register as the first match but younger.
-  bool hasYounger = false;
+  bool hasYounger = false, fp = false;
   unsigned targetReg = 0;  // Register of 1st match.
   matches = 0;
   unsigned iMatches = 0;  // Invalid matching entries.
   for (const LoadInfo& li : loadQueue_)
     {
-      if (matches and li.isValid() and targetReg == li.regIx_)
+      if (matches and li.isValid() and targetReg == li.regIx_ and fp == li.fp_)
 	hasYounger = true;
 
       if (li.tag_ == tag)
@@ -922,6 +929,7 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
 	  if (li.isValid())
 	    {
 	      targetReg = li.regIx_;
+              fp = li.fp_;
 	      matches++;
 	    }
 	  else
@@ -951,7 +959,7 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
   for (size_t ix = 0; ix < loadQueue_.size(); ++ix)
     {
       auto& entry = loadQueue_.at(ix);
-      if (entry.tag_ == tag)
+      if (entry.tag_ == tag and entry.fp_ == fp)
 	{
 	  removeIx = ix;
 	  if (not entry.isValid())
@@ -962,14 +970,14 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
 
       removeIx = ix;
 
-      URV prev = entry.prevData_;
+      uint64_t prev = entry.prevData_;
 
       // Revert to oldest entry with same target reg. Invalidate older
       // entries with same target reg.
       for (size_t ix2 = removeIx; ix2 > 0; --ix2)
 	{
 	  auto& entry2 = loadQueue_.at(ix2-1);
-	  if (entry2.isValid() and entry2.regIx_ == entry.regIx_)
+	  if (entry2.isValid() and entry2.regIx_ == entry.regIx_ and entry2.fp_ == fp)
 	    {
 	      prev = entry2.prevData_;
 	      entry2.makeInvalid();
@@ -978,16 +986,21 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
 
       if (not hasYounger)
 	{
-	  pokeIntReg(entry.regIx_, prev);
-	  if (entry.wide_)
-            pokeCsr(CsrNumber::MDBHD, entry.prevData_ >> 32);
+          if (fp)
+            pokeFpReg(entry.regIx_, prev);
+          else
+            {
+              pokeIntReg(entry.regIx_, prev);
+              if (entry.wide_)
+                pokeCsr(CsrNumber::MDBHD, entry.prevData_ >> 32);
+            }
 	}
 
       // Update prev-data of 1st younger item with same target reg.
       for (size_t ix2 = removeIx + 1; ix2 < loadQueue_.size(); ++ix2)
 	{
 	  auto& entry2 = loadQueue_.at(ix2);
- 	  if (entry2.isValid() and entry2.regIx_ == entry.regIx_)
+ 	  if (entry2.isValid() and entry2.regIx_ == entry.regIx_ and entry.fp_ == fp)
  	    {
 	      entry2.prevData_ = prev;
 	      break;
@@ -1043,6 +1056,7 @@ Hart<URV>::applyLoadFinished(URV addr, unsigned tag, unsigned& matches)
     }
 
   LoadInfo& entry = loadQueue_.at(matchIx);
+  bool fp = entry.fp_;
 
   // Process entries in reverse order (start with oldest)
   // Mark all earlier entries with same target register as invalid.
@@ -1055,7 +1069,7 @@ Hart<URV>::applyLoadFinished(URV addr, unsigned tag, unsigned& matches)
       LoadInfo& li = loadQueue_.at(j);
       if (not li.isValid())
 	continue;
-      if (li.regIx_ != targetReg)
+      if (li.regIx_ != targetReg or li.fp_ != fp)
 	continue;
 
       li.makeInvalid();
@@ -1071,7 +1085,7 @@ Hart<URV>::applyLoadFinished(URV addr, unsigned tag, unsigned& matches)
     for (size_t j = matchIx + 1; j < size; ++j)
       {
 	LoadInfo& li = loadQueue_.at(j);
-	if (li.isValid() and li.regIx_ == targetReg)
+	if (li.isValid() and li.regIx_ == targetReg and li.fp_ == fp)
 	  {
 	    // Preserve upper 32 bits if wide (64-bit) load.
 	    if (li.wide_)
@@ -1867,7 +1881,7 @@ template <typename URV>
 template <typename STORE_TYPE>
 inline
 bool
-Hart<URV>::fastStore(unsigned /*rs1*/, URV /*base*/, URV addr,
+Hart<URV>::fastStore(uint32_t /*rs1*/, URV /*base*/, URV addr,
                      STORE_TYPE storeVal)
 {
   if (memory_.write(hartIx_, addr, storeVal))
@@ -1890,7 +1904,7 @@ template <typename URV>
 template <typename STORE_TYPE>
 inline
 bool
-Hart<URV>::store(unsigned rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
+Hart<URV>::store(uint32_t rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
 {
 #ifdef FAST_SLOPPY
   return fastStore(rs1, base, virtAddr, storeVal);
@@ -1917,8 +1931,10 @@ Hart<URV>::store(unsigned rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
   ExceptionCause cause = determineStoreException(rs1, base, addr,
 						 maskedVal, secCause);
 
-  // Consider store-data  trigger
-  if (hasTrig and cause == ExceptionCause::NONE)
+  // Consider store-data trigger if there is no trap or if the trap is
+  // due to an external cause.
+  if (hasTrig and (cause == ExceptionCause::NONE or
+                   (forceAccessFail_ and secCause == forcedCause_)))
     if (ldStDataTriggerHit(maskedVal, timing, isLd, privMode_,
                            isInterruptEnabled()))
       triggerTripped_ = true;
@@ -1927,7 +1943,7 @@ Hart<URV>::store(unsigned rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
 
   if (cause != ExceptionCause::NONE)
     {
-      // For the bench: A precise error does write externl memory.
+      // For the bench: A precise error does write external memory.
       if (forceAccessFail_ and memory_.isDataAddressExternal(addr))
         memory_.write(hartIx_, addr, storeVal);
       initiateStoreException(cause, virtAddr, secCause);
@@ -2548,6 +2564,7 @@ Hart<URV>::initiateInterrupt(InterruptCause cause, URV pc)
   auto secCause = SecondaryCause::NONE;
   initiateTrap(interrupt, URV(cause), pc, info, URV(secCause));
 
+  hasInterrupt_ = true;
   interruptCount_++;
 
   if (not enableCounters_)
@@ -2717,7 +2734,9 @@ Hart<URV>::undelegatedInterrupt(URV cause, URV pcToSave, URV nextPc)
 {
   enableWideLdStMode(false);  // Swerv specific feature.
 
+  hasInterrupt_ = true;
   interruptCount_++;
+
   memory_.invalidateLr(hartIx_);
 
   PrivilegeMode origMode = privMode_;
@@ -3236,6 +3255,8 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
 
   bool pending = false;  // True if a printed line need to be terminated.
 
+  // Order: rfvmc (int regs, fp regs, vec regs, memory, csr)
+
   // Process integer register diff.
   int reg = intRegs_.getLastWrittenReg();
   URV value = 0;
@@ -3255,6 +3276,33 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
       if (pending) fprintf(out, "  +\n");
       formatFpInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, fpReg,
 			     val, tmp.c_str());
+      pending = true;
+    }
+
+  // Process vector register diff.
+  unsigned elemWidth = 0, elemIx = 0;
+  int vecReg = vecRegs_.getLastWrittenReg(elemIx, elemWidth);
+  if (vecReg >= 0)
+    {
+      if (pending)
+        fprintf(out, " +\n");
+      uint32_t checksum = vecRegs_.checksum(vecReg, 0, elemIx, elemWidth);
+      formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'v',
+			   vecReg, checksum, tmp.c_str());
+      pending = true;
+    }
+
+  // Process memory diff.
+  size_t address = 0;
+  uint64_t memValue = 0;
+  unsigned writeSize = memory_.getLastWriteNewValue(hartIx_, address, memValue);
+  if (writeSize > 0)
+    {
+      if (pending)
+	fprintf(out, "  +\n");
+
+      formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'm',
+			   URV(address), URV(memValue), tmp.c_str());
       pending = true;
     }
 
@@ -3287,17 +3335,24 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
       URV data1(0), data2(0), data3(0);
       if (not peekTrigger(trigger, data1, data2, data3))
 	continue;
-      if (tdataChanged.at(0))
+
+      // Components of trigger that changed.
+      bool t1 = false, t2 = false, t3 = false;
+      getTriggerChange(trigger, t1, t2, t3);
+
+      if (t1)
 	{
 	  URV ecsr = (trigger << 16) | URV(CsrNumber::TDATA1);
 	  csrMap[ecsr] = data1;
 	}
-      if (tdataChanged.at(1))
-	{
+
+      if (t2)
+        {
 	  URV ecsr = (trigger << 16) | URV(CsrNumber::TDATA2);
 	  csrMap[ecsr] = data2;
 	}
-      if (tdataChanged.at(2))
+
+      if (t3)
 	{
 	  URV ecsr = (trigger << 16) | URV(CsrNumber::TDATA3);
 	  csrMap[ecsr] = data3;
@@ -3309,20 +3364,6 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
       if (pending) fprintf(out, "  +\n");
       formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'c',
 			   key, val, tmp.c_str());
-      pending = true;
-    }
-
-  // Process memory diff.
-  size_t address = 0;
-  uint64_t memValue = 0;
-  unsigned writeSize = memory_.getLastWriteNewValue(hartIx_, address, memValue);
-  if (writeSize > 0)
-    {
-      if (pending)
-	fprintf(out, "  +\n");
-
-      formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'm',
-			   URV(address), URV(memValue), tmp.c_str());
       pending = true;
     }
 
@@ -3384,9 +3425,17 @@ Hart<URV>::undoForTrigger()
   unsigned regIx = 0;
   URV value = 0;
   if (intRegs_.getLastWrittenReg(regIx, value))
-    pokeIntReg(regIx, value);
+    {
+      pokeIntReg(regIx, value);
+      intRegs_.clearLastWrittenReg();
+    }
 
-  intRegs_.clearLastWrittenReg();
+  uint64_t fpVal = 0;
+  if (fpRegs_.getLastWrittenReg(regIx, fpVal))
+    {
+      pokeFpReg(regIx, fpVal);
+      fpRegs_.clearLastWrittenReg();
+    }
 
   pc_ = currPc_;
 }
@@ -3463,6 +3512,9 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
   InstId id = info.instId();
 
   if (isDebugModeStopCount(*this))
+    return;
+
+  if (hasInterrupt_)
     return;
 
   // We do not update the performance counters if an instruction
@@ -3789,6 +3841,7 @@ Hart<URV>::clearTraceData()
   intRegs_.clearLastWrittenReg();
   fpRegs_.clearLastWrittenReg();
   csRegs_.clearLastWrittenRegs();
+  vecRegs_.clearLastWrittenReg();
   memory_.clearLastWriteInfo(hartIx_);
 }
 
@@ -3956,14 +4009,14 @@ Hart<URV>::takeTriggerAction(FILE* traceFile, URV pc, URV info,
     }
   else
     {
-      bool doingWide = wideLdSt_;
+      // bool doingWide = wideLdSt_;
       auto secCause = SecondaryCause::TRIGGER_HIT;
       initiateException(ExceptionCause::BREAKP, pc, info, secCause);
       if (dcsrStep_)
 	{
 	  enterDebugMode(DebugModeCause::TRIGGER, pc_);
 	  enteredDebug = true;
-	  enableWideLdStMode(doingWide);
+	  // enableWideLdStMode(doingWide);
 	}
     }
 
@@ -4231,6 +4284,22 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
             }
         }
 
+      if (preInst_)
+        {
+          bool halt = false, reset = false;
+          while (true)
+            {
+              preInst_(*this, halt, reset);
+              if (reset)
+                {
+                  this->reset();
+                  return true;
+                }
+              if (not halt)
+                break;
+            }
+        }
+
       try
 	{
           uint32_t inst = 0;
@@ -4238,7 +4307,7 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
 
 	  ldStAddrValid_ = false;
 	  triggerTripped_ = false;
-	  hasException_ = false;
+	  hasInterrupt_ = hasException_ = false;
           lastPriv_ = privMode_;
 
 	  ++instCounter_;
@@ -4266,7 +4335,7 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
 
 	  ++cycleCount_;
 
-	  if (hasException_)
+	  if (hasException_ or hasInterrupt_)
 	    {
               if (doStats)
                 accumulateInstructionStats(*di);
@@ -4686,6 +4755,49 @@ Hart<URV>::invalidateDecodeCache()
 
 template <typename URV>
 void
+Hart<URV>::loadQueueCommit(const DecodedInst& di)
+{
+  const InstEntry* entry = di.instEntry();
+  if (entry->isLoad())
+    return;   // Load instruction sources handled in the load methods.
+
+  if (entry->isIthOperandIntRegSource(0))
+    removeFromLoadQueue(di.op0(), entry->isDivide());
+
+  if (entry->isIthOperandIntRegSource(1))
+    removeFromLoadQueue(di.op1(), entry->isDivide());
+
+  if (entry->isIthOperandIntRegSource(2))
+    removeFromLoadQueue(di.op2(), entry->isDivide());
+
+  if (entry->isIthOperandFpRegSource(0))
+    removeFromLoadQueue(di.op0(), entry->isDivide(), true);
+
+  if (entry->isIthOperandFpRegSource(1))
+    removeFromLoadQueue(di.op1(), entry->isDivide(), true);
+
+  if (entry->isIthOperandFpRegSource(2))
+    removeFromLoadQueue(di.op2(), entry->isDivide(), true);
+
+  if (entry->isIthOperandFpRegSource(3))
+    removeFromLoadQueue(di.op2(), entry->isDivide(), true);
+
+  // If a register is written by a non-load instruction, then its
+  // entry is invalidated in the load queue.
+  int regIx = intRegs_.getLastWrittenReg();
+  if (regIx > 0)
+    invalidateInLoadQueue(regIx, entry->isDivide());
+  else
+    {
+      regIx = fpRegs_.getLastWrittenReg();
+      if (regIx > 0)
+        invalidateInLoadQueue(regIx, entry->isDivide(), true /*fp*/);
+    }
+}
+
+
+template <typename URV>
+void
 Hart<URV>::singleStep(FILE* traceFile)
 {
   std::string instStr;
@@ -4701,7 +4813,7 @@ Hart<URV>::singleStep(FILE* traceFile)
 
       ldStAddrValid_ = false;
       triggerTripped_ = false;
-      hasException_ = false;
+      hasException_ = hasInterrupt_ = false;
       ebreakInstDebug_ = false;
       lastPriv_ = privMode_;
 
@@ -4731,7 +4843,7 @@ Hart<URV>::singleStep(FILE* traceFile)
 	  forceAccessFail_ = false;
 	}
 
-      if (hasException_)
+      if (hasException_ or hasInterrupt_)
 	{
 	  if (doStats)
 	    accumulateInstructionStats(di);
@@ -4766,22 +4878,8 @@ Hart<URV>::singleStep(FILE* traceFile)
       // load queue (because in such a case the hardware will stall
       // till load is completed). Source operands of load instructions
       // are handled in the load and loadRserve methods.
-      const InstEntry* entry = di.instEntry();
-      if (not entry->isLoad())
-	{
-	  if (entry->isIthOperandIntRegSource(0))
-	    removeFromLoadQueue(di.op0(), entry->isDivide());
-	  if (entry->isIthOperandIntRegSource(1))
-	    removeFromLoadQueue(di.op1(), entry->isDivide());
-	  if (entry->isIthOperandIntRegSource(2))
-	    removeFromLoadQueue(di.op2(), entry->isDivide());
-
-	  // If a register is written by a non-load instruction, then
-	  // its entry is invalidated in the load queue.
-	  int regIx = intRegs_.getLastWrittenReg();
-	  if (regIx > 0)
-	    invalidateInLoadQueue(regIx, entry->isDivide());
-	}
+      if (loadQueueEnabled_)
+        loadQueueCommit(di);
 
       bool icountHit = (enableTriggers_ and 
 			icountTriggerHit(privMode_, isInterruptEnabled()));
@@ -5389,6 +5487,8 @@ Hart<URV>::execute(const DecodedInst* di)
      &&fsri,
 
      // vevtor
+     &&vsetvli,
+     &&vsetvl,
      &&vadd_vv,
      &&vadd_vx,
      &&vadd_vi,
@@ -5396,6 +5496,22 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vsub_vx,
      &&vrsub_vx,
      &&vrsub_vi,
+     &&vwaddu_vv,
+     &&vwaddu_vx,
+     &&vwsubu_vv,
+     &&vwsubu_vx,
+     &&vwadd_vv,
+     &&vwadd_vx,
+     &&vwsub_vv,
+     &&vwsub_vx,
+     &&vwaddu_wv,
+     &&vwaddu_wx,
+     &&vwsubu_wv,
+     &&vwsubu_wx,
+     &&vwadd_wv,
+     &&vwadd_wx,
+     &&vwsub_wv,
+     &&vwsub_wx,
      &&vminu_vv,
      &&vminu_vx,
      &&vmin_vv,
@@ -5433,7 +5549,140 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vmor_mm,
      &&vmnor_mm,
      &&vmornot_mm,
-     &&vmxnor_mm
+     &&vmxnor_mm,
+     &&vpopc_m,
+     &&vfirst_m,
+     &&vmsbf_m,
+     &&vmsif_m,
+     &&vmsof_m,
+     &&viota_m,
+     &&vid_v,
+     &&vslideup_vx,
+     &&vslideup_vi,
+     &&vslide1up_vx,
+     &&vslidedown_vx,
+     &&vslidedown_vi,
+     &&vmul_vv,
+     &&vmul_vx,
+     &&vmulh_vv,
+     &&vmulh_vx,
+     &&vmulhu_vv,
+     &&vmulhu_vx,
+     &&vmulhsu_vv,
+     &&vmulhsu_vx,
+     &&vwmulu_vv,
+     &&vwmulu_vx,
+     &&vwmul_vv,
+     &&vwmul_vx,
+     &&vwmulsu_vv,
+     &&vwmulsu_vx,
+     &&vwmaccu_vv,
+     &&vwmaccu_vx,
+     &&vwmacc_vv,
+     &&vwmacc_vx,
+     &&vwmaccsu_vv,
+     &&vwmaccsu_vx,
+     &&vwmaccus_vx,
+     &&vdivu_vv,
+     &&vdivu_vx,
+     &&vdiv_vv,
+     &&vdiv_vx,
+     &&vremu_vv,
+     &&vremu_vx,
+     &&vrem_vv,
+     &&vrem_vx,
+     &&vsext_vf2,
+     &&vsext_vf4,
+     &&vsext_vf8,
+     &&vzext_vf2,
+     &&vzext_vf4,
+     &&vzext_vf8,
+     &&vadc_vvm,
+     &&vadc_vxm,
+     &&vadc_vim,
+     &&vsbc_vvm,
+     &&vsbc_vxm,
+     &&vmadc_vvm,
+     &&vmadc_vxm,
+     &&vmadc_vim,
+     &&vmsbc_vvm,
+     &&vmsbc_vxm,
+     &&vmerge_vv,
+     &&vmerge_vx,
+     &&vmerge_vi,
+     &&vmv_x_s,
+     &&vmv_s_x,
+     &&vmv_v_v,
+     &&vmv_v_x,
+     &&vmv_v_i,
+     &&vmv1r_v,
+     &&vmv2r_v,
+     &&vmv4r_v,
+     &&vmv8r_v,
+     &&vle8_v,
+     &&vle16_v,
+     &&vle32_v,
+     &&vle64_v,
+     &&vle128_v,
+     &&vle256_v,
+     &&vle512_v,
+     &&vle1024_v,
+     &&vse8_v,
+     &&vse16_v,
+     &&vse32_v,
+     &&vse64_v,
+     &&vse128_v,
+     &&vse256_v,
+     &&vse512_v,
+     &&vse1024_v,
+     &&vlre8_v,
+     &&vlre16_v,
+     &&vlre32_v,
+     &&vlre64_v,
+     &&vlre128_v,
+     &&vlre256_v,
+     &&vlre512_v,
+     &&vlre1024_v,
+     &&vsre8_v,
+     &&vsre16_v,
+     &&vsre32_v,
+     &&vsre64_v,
+     &&vsre128_v,
+     &&vsre256_v,
+     &&vsre512_v,
+     &&vsre1024_v,
+     &&vle8ff_v,
+     &&vle16ff_v,
+     &&vle32ff_v,
+     &&vle64ff_v,
+     &&vle128ff_v,
+     &&vle256ff_v,
+     &&vle512ff_v,
+     &&vle1024ff_v,
+     &&vlse8_v,
+     &&vlse16_v,
+     &&vlse32_v,
+     &&vlse64_v,
+     &&vlse128_v,
+     &&vlse256_v,
+     &&vlse512_v,
+     &&vlse1024_v,
+     &&vsse8_v,
+     &&vsse16_v,
+     &&vsse32_v,
+     &&vsse64_v,
+     &&vsse128_v,
+     &&vsse256_v,
+     &&vsse512_v,
+     &&vsse1024_v,
+     &&vlxei8_v,
+     &&vlxei16_v,
+     &&vlxei32_v,
+     &&vlxei64_v,
+     &&vsxei8_v,
+     &&vsxei16_v,
+     &&vsxei32_v,
+     &&vsxei64_v,
     };
 
   const InstEntry* entry = di->instEntry();
@@ -6579,6 +6828,14 @@ Hart<URV>::execute(const DecodedInst* di)
   execFsri(di);
   return;
 
+ vsetvli:
+  execVsetvli(di);
+  return;
+
+ vsetvl:
+  execVsetvl(di);
+  return;
+
  vadd_vv:
   execVadd_vv(di);
   return;
@@ -6605,6 +6862,70 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vrsub_vi:
   execVrsub_vi(di);
+  return;
+
+ vwaddu_vv:
+  execVwaddu_vv(di);
+  return;
+
+ vwaddu_vx:
+  execVwaddu_vx(di);
+  return;
+
+ vwsubu_vv:
+  execVwsubu_vv(di);
+  return;
+
+ vwsubu_vx:
+  execVwsubu_vx(di);
+  return;
+
+ vwadd_vv:
+  execVwadd_vv(di);
+  return;
+
+ vwadd_vx:
+  execVwadd_vx(di);
+  return;
+
+ vwsub_vv:
+  execVwsub_vv(di);
+  return;
+
+ vwsub_vx:
+  execVwsub_vx(di);
+  return;
+
+ vwaddu_wv:
+  execVwaddu_wv(di);
+  return;
+
+ vwaddu_wx:
+  execVwaddu_wx(di);
+  return;
+
+ vwsubu_wv:
+  execVwsubu_wv(di);
+  return;
+
+ vwsubu_wx:
+  execVwsubu_wx(di);
+  return;
+
+ vwadd_wv:
+  execVwadd_wv(di);
+  return;
+
+ vwadd_wx:
+  execVwadd_wx(di);
+  return;
+
+ vwsub_wv:
+  execVwsub_wv(di);
+  return;
+
+ vwsub_wx:
+  execVwsub_wx(di);
   return;
 
  vminu_vv:
@@ -6758,6 +7079,539 @@ Hart<URV>::execute(const DecodedInst* di)
  vmxnor_mm:
   execVmxnor_mm(di);
   return;
+
+ vpopc_m:
+  execVpopc_m(di);
+  return;
+
+ vfirst_m:
+  execVfirst_m(di);
+  return;
+
+ vmsbf_m:
+  execVmsbf_m(di);
+  return;
+
+ vmsif_m:
+  execVmsif_m(di);
+  return;
+
+ vmsof_m:
+  execVmsof_m(di);
+  return;
+
+ viota_m:
+  execViota_m(di);
+  return;
+
+ vid_v:
+  execVid_v(di);
+  return;
+
+ vslideup_vx:
+  execVslideup_vx(di);
+  return;
+
+ vslideup_vi:
+  execVslideup_vi(di);
+  return;
+
+ vslide1up_vx:
+  execVslide1up_vx(di);
+  return;
+
+ vslidedown_vx:
+  execVslidedown_vx(di);
+  return;
+
+ vslidedown_vi:
+  execVslidedown_vi(di);
+  return;
+
+ vmul_vv:
+  execVmul_vv(di);
+  return;
+
+ vmul_vx:
+  execVmul_vx(di);
+  return;
+
+ vmulh_vv:
+  execVmulh_vv(di);
+  return;
+
+ vmulh_vx:
+  execVmulh_vx(di);
+  return;
+
+ vmulhu_vv:
+  execVmulhu_vv(di);
+  return;
+
+ vmulhu_vx:
+  execVmulhu_vx(di);
+  return;
+
+ vmulhsu_vv:
+  execVmulhsu_vv(di);
+  return;
+
+ vmulhsu_vx:
+  execVmulhsu_vx(di);
+  return;
+
+ vwmulu_vv:
+  execVwmulu_vv(di);
+  return;
+
+ vwmulu_vx:
+  execVwmulu_vx(di);
+  return;
+
+ vwmul_vv:
+  execVwmul_vv(di);
+  return;
+
+ vwmul_vx:
+  execVwmul_vx(di);
+  return;
+
+ vwmulsu_vv:
+  execVwmulsu_vv(di);
+  return;
+
+ vwmulsu_vx:
+  execVwmulsu_vx(di);
+  return;
+
+ vwmaccu_vv:
+  execVwmaccu_vv(di);
+  return;
+
+ vwmaccu_vx:
+  execVwmaccu_vx(di);
+  return;
+
+ vwmacc_vv:
+  execVwmacc_vv(di);
+  return;
+
+ vwmacc_vx:
+  execVwmacc_vx(di);
+  return;
+
+ vwmaccsu_vv:
+  execVwmaccsu_vv(di);
+  return;
+
+ vwmaccsu_vx:
+  execVwmaccsu_vx(di);
+  return;
+
+ vwmaccus_vx:
+  execVwmaccus_vx(di);
+  return;
+
+ vdivu_vv:
+  execVdivu_vv(di);
+  return;
+
+ vdivu_vx:
+  execVdivu_vx(di);
+  return;
+
+ vdiv_vv:
+  execVdiv_vv(di);
+  return;
+
+ vdiv_vx:
+  execVdiv_vx(di);
+  return;
+
+ vremu_vv:
+  execVremu_vv(di);
+  return;
+
+ vremu_vx:
+  execVremu_vx(di);
+  return;
+
+ vrem_vv:
+  execVrem_vv(di);
+  return;
+
+ vrem_vx:
+  execVrem_vx(di);
+  return;
+
+ vsext_vf2:
+  execVsext_vf2(di);
+  return;
+
+ vsext_vf4:
+  execVsext_vf4(di);
+  return;
+
+ vsext_vf8:
+  execVsext_vf8(di);
+  return;
+
+ vzext_vf2:
+  execVzext_vf2(di);
+  return;
+
+ vzext_vf4:
+  execVzext_vf4(di);
+  return;
+
+ vzext_vf8:
+  execVzext_vf8(di);
+  return;
+
+ vadc_vvm:
+  execVadc_vvm(di);
+  return;
+
+ vadc_vxm:
+  execVadc_vxm(di);
+  return;
+
+ vadc_vim:
+  execVadc_vim(di);
+  return;
+
+ vsbc_vvm:
+  execVsbc_vvm(di);
+  return;
+
+ vsbc_vxm:
+  execVsbc_vxm(di);
+  return;
+
+ vmadc_vvm:
+  execVmadc_vvm(di);
+  return;
+
+ vmadc_vxm:
+  execVmadc_vxm(di);
+  return;
+
+ vmadc_vim:
+  execVmadc_vim(di);
+  return;
+
+ vmsbc_vvm:
+  execVmsbc_vvm(di);
+  return;
+
+ vmsbc_vxm:
+  execVmsbc_vxm(di);
+  return;
+
+ vmerge_vv:
+  execVmerge_vv(di);
+  return;
+
+ vmerge_vx:
+  execVmerge_vx(di);
+  return;
+
+ vmerge_vi:
+  execVmerge_vi(di);
+  return;
+
+ vmv_x_s:
+  execVmv_x_s(di);
+  return;
+
+ vmv_s_x:
+  execVmv_s_x(di);
+  return;
+
+ vmv_v_v:
+  execVmv_v_v(di);
+  return;
+
+ vmv_v_x:
+  execVmv_v_x(di);
+  return;
+
+ vmv_v_i:
+  execVmv_v_i(di);
+  return;
+
+ vmv1r_v:
+  execVmv1r_v(di);
+  return;
+
+ vmv2r_v:
+  execVmv2r_v(di);
+  return;
+
+ vmv4r_v:
+  execVmv4r_v(di);
+  return;
+
+ vmv8r_v:
+  execVmv8r_v(di);
+  return;
+
+ vle8_v:
+  execVle8_v(di);
+  return;
+
+ vle16_v:
+  execVle16_v(di);
+  return;
+
+ vle32_v:
+  execVle32_v(di);
+  return;
+
+ vle64_v:
+  execVle64_v(di);
+  return;
+
+ vle128_v:
+  execVle128_v(di);
+  return;
+
+ vle256_v:
+  execVle256_v(di);
+  return;
+
+ vle512_v:
+  execVle512_v(di);
+  return;
+
+ vle1024_v:
+  execVle1024_v(di);
+  return;
+
+ vse8_v:
+  execVse8_v(di);
+  return;
+
+ vse16_v:
+  execVse16_v(di);
+  return;
+
+ vse32_v:
+  execVse32_v(di);
+  return;
+
+ vse64_v:
+  execVse64_v(di);
+  return;
+
+ vse128_v:
+  execVse128_v(di);
+  return;
+
+ vse256_v:
+  execVse256_v(di);
+  return;
+
+ vse512_v:
+  execVse512_v(di);
+  return;
+
+ vse1024_v:
+  execVse1024_v(di);
+  return;
+
+ vlre8_v:
+  execVlre8_v(di);
+  return;
+
+ vlre16_v:
+  execVlre16_v(di);
+  return;
+
+ vlre32_v:
+  execVlre32_v(di);
+  return;
+
+ vlre64_v:
+  execVlre64_v(di);
+  return;
+
+ vlre128_v:
+  execVlre128_v(di);
+  return;
+
+ vlre256_v:
+  execVlre256_v(di);
+  return;
+
+ vlre512_v:
+  execVlre512_v(di);
+  return;
+
+ vlre1024_v:
+  execVlre1024_v(di);
+  return;
+
+ vsre8_v:
+  execVsre8_v(di);
+  return;
+
+ vsre16_v:
+  execVsre16_v(di);
+  return;
+
+ vsre32_v:
+  execVsre32_v(di);
+  return;
+
+ vsre64_v:
+  execVsre64_v(di);
+  return;
+
+ vsre128_v:
+  execVsre128_v(di);
+  return;
+
+ vsre256_v:
+  execVsre256_v(di);
+  return;
+
+ vsre512_v:
+  execVsre512_v(di);
+  return;
+
+ vsre1024_v:
+  execVsre1024_v(di);
+  return;
+
+ vle8ff_v:
+  execVle8ff_v(di);
+  return;
+
+ vle16ff_v:
+  execVle16ff_v(di);
+  return;
+
+ vle32ff_v:
+  execVle32ff_v(di);
+  return;
+
+ vle64ff_v:
+  execVle64ff_v(di);
+  return;
+
+ vle128ff_v:
+  execVle128ff_v(di);
+  return;
+
+ vle256ff_v:
+  execVle256ff_v(di);
+  return;
+
+ vle512ff_v:
+  execVle512ff_v(di);
+  return;
+
+ vle1024ff_v:
+  execVle1024ff_v(di);
+  return;
+
+ vlse8_v:
+  execVlse8_v(di);
+  return;
+
+ vlse16_v:
+  execVlse16_v(di);
+  return;
+
+ vlse32_v:
+  execVlse32_v(di);
+  return;
+
+ vlse64_v:
+  execVlse64_v(di);
+  return;
+
+ vlse128_v:
+  execVlse128_v(di);
+  return;
+
+ vlse256_v:
+  execVlse256_v(di);
+  return;
+
+ vlse512_v:
+  execVlse512_v(di);
+  return;
+
+ vlse1024_v:
+  execVlse1024_v(di);
+  return;
+
+ vsse8_v:
+  execVsse8_v(di);
+  return;
+
+ vsse16_v:
+  execVsse16_v(di);
+  return;
+
+ vsse32_v:
+  execVsse32_v(di);
+  return;
+
+ vsse64_v:
+  execVsse64_v(di);
+  return;
+
+ vsse128_v:
+  execVsse128_v(di);
+  return;
+
+ vsse256_v:
+  execVsse256_v(di);
+  return;
+
+ vsse512_v:
+  execVsse512_v(di);
+  return;
+
+ vsse1024_v:
+  execVsse1024_v(di);
+  return;
+
+ vlxei8_v:
+  execVlxei8_v(di);
+  return;
+
+ vlxei16_v:
+  execVlxei16_v(di);
+  return;
+
+ vlxei32_v:
+  execVlxei32_v(di);
+  return;
+
+ vlxei64_v:
+  execVlxei64_v(di);
+  return;
+
+ vsxei8_v:
+  execVsxei8_v(di);
+  return;
+
+ vsxei16_v:
+  execVsxei16_v(di);
+  return;
+
+ vsxei32_v:
+  execVsxei32_v(di);
+  return;
+
+ vsxei64_v:
+  execVsxei64_v(di);
+  return;
+
 }
 
 
@@ -7198,6 +8052,19 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
   if (amoInDccmOnly_ and not isAddrInDccm(addr))
     fail = true;
 
+  // Temporary: Check if not cachable. FIX: this should be part of
+  // physical memory attributes.
+  if (not fail and not isAddrInDccm(addr))
+    {
+      unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
+      URV mracVal = 0;
+      if (csRegs_.read(CsrNumber::MRAC, PrivilegeMode::Machine, mracVal))
+        {
+          unsigned bit = (mracVal >> (region*2)) & 1;
+          fail = bit == 0;
+        }
+    }
+
   if (fail)
     {
       // AMO secondary cause has priority over ECC.
@@ -7612,6 +8479,7 @@ Hart<URV>::doCsrRead(const DecodedInst* di, CsrNumber csr, URV& value)
         }
     }
 
+
   if (csRegs_.read(csr, privMode_, value))
     return true;
 
@@ -7669,8 +8537,12 @@ Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
   if (csr == CsrNumber::MCYCLE or csr == CsrNumber::MCYCLEH)
     cycleCount_++;
 
-  // Update CSR and integer register.
+  updatePerformanceCountersForCsr(*di);
+
+  // Update CSR.
   csRegs_.write(csr, privMode_, csrVal);
+
+  // Update integer register.
   intRegs_.write(intReg, intRegVal);
 
   // This makes sure that counters stop counting after corresponding
@@ -7725,16 +8597,23 @@ Hart<URV>::execCsrrw(const DecodedInst* di)
 
   CsrNumber csr = CsrNumber(di->op2());
 
+  if (preCsrInst_)
+    preCsrInst_(hartIx_, csr);
+
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
-    return;
-
-  if (isCsrWriteable(csr))
-    updatePerformanceCountersForCsr(*di);
+    {
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
+      return;
+    }
 
   URV next = intRegs_.read(di->op1());
 
   doCsrWrite(di, csr, next, di->op0(), prev);
+
+  if (postCsrInst_)
+    postCsrInst_(hartIx_, csr);
 }
 
 
@@ -7747,21 +8626,31 @@ Hart<URV>::execCsrrs(const DecodedInst* di)
 
   CsrNumber csr = CsrNumber(di->op2());
 
+  if (preCsrInst_)
+    preCsrInst_(hartIx_, csr);
+
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
-    return;
-
-  if (isCsrWriteable(csr))
-    updatePerformanceCountersForCsr(*di);
+    {
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
+      return;
+    }
 
   URV next = prev | intRegs_.read(di->op1());
   if (di->op1() == 0)
     {
+      updatePerformanceCountersForCsr(*di);
       intRegs_.write(di->op0(), prev);
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
       return;
     }
 
   doCsrWrite(di, csr, next, di->op0(), prev);
+
+  if (postCsrInst_)
+    postCsrInst_(hartIx_, csr);
 }
 
 
@@ -7774,21 +8663,31 @@ Hart<URV>::execCsrrc(const DecodedInst* di)
 
   CsrNumber csr = CsrNumber(di->op2());
 
+  if (preCsrInst_)
+    preCsrInst_(hartIx_, csr);
+
   URV prev = 0;
   if (not doCsrRead(di, csr, prev))
-    return;
-
-  if (isCsrWriteable(csr))
-    updatePerformanceCountersForCsr(*di);
+    {
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
+      return;
+    }
 
   URV next = prev & (~ intRegs_.read(di->op1()));
   if (di->op1() == 0)
     {
+      updatePerformanceCountersForCsr(*di);
       intRegs_.write(di->op0(), prev);
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
       return;
     }
 
   doCsrWrite(di, csr, next, di->op0(), prev);
+
+  if (postCsrInst_)
+    postCsrInst_(hartIx_, csr);
 }
 
 
@@ -7801,15 +8700,22 @@ Hart<URV>::execCsrrwi(const DecodedInst* di)
 
   CsrNumber csr = CsrNumber(di->op2());
 
+  if (preCsrInst_)
+    preCsrInst_(hartIx_, csr);
+
   URV prev = 0;
   if (di->op0() != 0)
     if (not doCsrRead(di, csr, prev))
-      return;
-
-  if (isCsrWriteable(csr))
-    updatePerformanceCountersForCsr(*di);
+      {
+        if (postCsrInst_)
+          postCsrInst_(hartIx_, csr);
+        return;
+      }
 
   doCsrWrite(di, csr, di->op1(), di->op0(), prev);
+
+  if (postCsrInst_)
+    postCsrInst_(hartIx_, csr);
 }
 
 
@@ -7822,23 +8728,33 @@ Hart<URV>::execCsrrsi(const DecodedInst* di)
 
   CsrNumber csr = CsrNumber(di->op2());
 
-  URV prev = 0;
-  if (not doCsrRead(di, csr, prev))
-    return;
-
-  if (isCsrWriteable(csr))
-    updatePerformanceCountersForCsr(*di);
+  if (preCsrInst_)
+    preCsrInst_(hartIx_, csr);
 
   URV imm = di->op1();
+
+  URV prev = 0;
+  if (not doCsrRead(di, csr, prev))
+    {
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
+      return;
+    }
 
   URV next = prev | imm;
   if (imm == 0)
     {
+      updatePerformanceCountersForCsr(*di);
       intRegs_.write(di->op0(), prev);
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
       return;
     }
 
   doCsrWrite(di, csr, next, di->op0(), prev);
+
+  if (postCsrInst_)
+    postCsrInst_(hartIx_, csr);
 }
 
 
@@ -7851,23 +8767,33 @@ Hart<URV>::execCsrrci(const DecodedInst* di)
 
   CsrNumber csr = CsrNumber(di->op2());
 
-  URV prev = 0;
-  if (not doCsrRead(di, csr, prev))
-    return;
-
-  if (isCsrWriteable(csr))
-    updatePerformanceCountersForCsr(*di);
+  if (preCsrInst_)
+    preCsrInst_(hartIx_, csr);
 
   URV imm = di->op1();
+
+  URV prev = 0;
+  if (not doCsrRead(di, csr, prev))
+    {
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
+      return;
+    }
 
   URV next = prev & (~ imm);
   if (imm == 0)
     {
+      updatePerformanceCountersForCsr(*di);
       intRegs_.write(di->op0(), prev);
+      if (postCsrInst_)
+        postCsrInst_(hartIx_, csr);
       return;
     }
 
   doCsrWrite(di, csr, next, di->op0(), prev);
+
+  if (postCsrInst_)
+    postCsrInst_(hartIx_, csr);
 }
 
 
@@ -7930,7 +8856,7 @@ Hart<URV>::wideStore(URV addr, URV storeVal, unsigned storeSize)
 template <typename URV>
 template <typename STORE_TYPE>
 ExceptionCause
-Hart<URV>::determineStoreException(unsigned rs1, URV base, uint64_t& addr,
+Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
 				   STORE_TYPE& storeVal,
 				   SecondaryCause& secCause)
 {
@@ -8050,6 +8976,8 @@ Hart<URV>::determineStoreException(unsigned rs1, URV base, uint64_t& addr,
       secCause = forcedCause_;
       return ExceptionCause::STORE_ACC_FAULT;
     }
+  else
+    forcedCause_ = SecondaryCause::NONE;
 
   return ExceptionCause::NONE;
 }
@@ -8842,7 +9770,7 @@ template <typename URV>
 void
 Hart<URV>::execFlw(const DecodedInst* di)
 {
-if (not isFpLegal())
+  if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -8861,6 +9789,9 @@ if (not isFpLegal())
   auto cause = ExceptionCause::NONE;
 
 #ifndef FAST_SLOPPY
+  if (loadQueueEnabled_)
+    removeFromLoadQueue(rs1, false);
+
   if (hasActiveTrigger())
     {
       if (ldStAddrTriggerHit(virtAddr, TriggerTiming::Before, true /*isLoad*/,
@@ -8870,13 +9801,14 @@ if (not isFpLegal())
 	return;
     }
 
-  unsigned ldSize = 8;
+  unsigned ldSize = 4;
 
   uint64_t addr = virtAddr;
   cause = determineLoadException(rs1, base, addr, ldSize, secCause);
   if (cause != ExceptionCause::NONE)
     {
-      initiateLoadException(cause, virtAddr, secCause);
+      if (not triggerTripped_)
+        initiateLoadException(cause, virtAddr, secCause);
       return;
     }
 #endif
@@ -8884,6 +9816,12 @@ if (not isFpLegal())
   uint32_t word = 0;
   if (memory_.read(addr, word))
     {
+      if (loadQueueEnabled_)
+        {
+          uint64_t prevRdVal = 0;
+          peekFpReg(rd, prevRdVal);
+          putInLoadQueue(ldSize, addr, rd, prevRdVal, false /*wide*/, true /*fp*/);
+        }
       Uint32FloatUnion ufu(word);
       fpRegs_.writeSingle(rd, ufu.f);
       markFsDirty();
@@ -9902,7 +10840,7 @@ Hart<URV>::execFld(const DecodedInst* di)
       return;
     }
 
-  unsigned rs1 = di->op1();
+  uint32_t rd = di->op0(), rs1 = di->op1();
   SRV imm = di->op2As<SRV>();
 
   URV base = intRegs_.read(rs1);
@@ -9915,6 +10853,9 @@ Hart<URV>::execFld(const DecodedInst* di)
   auto cause = ExceptionCause::NONE;
 
 #ifndef FAST_SLOPPY
+  if (loadQueueEnabled_)
+    removeFromLoadQueue(rs1, false);
+
   if (hasActiveTrigger())
     {
       if (ldStAddrTriggerHit(virtAddr, TriggerTiming::Before, true /*isLoad*/,
@@ -9930,7 +10871,8 @@ Hart<URV>::execFld(const DecodedInst* di)
   cause = determineLoadException(rs1, base, addr, ldSize, secCause);
   if (cause != ExceptionCause::NONE)
     {
-      initiateLoadException(cause, virtAddr, secCause);
+      if (not triggerTripped_)
+        initiateLoadException(cause, virtAddr, secCause);
       return;
     }
 #endif
@@ -9944,6 +10886,13 @@ Hart<URV>::execFld(const DecodedInst* di)
   uint64_t val64 = 0;
   if (memory_.read(addr, val64))
     {
+      if (loadQueueEnabled_)
+        {
+          uint64_t prevRdVal = 0;
+          peekFpReg(rd, prevRdVal);
+          putInLoadQueue(ldSize, addr, rd, prevRdVal, false /*wide*/, true /*fp*/);
+        }
+
       UDU udu;
       udu.u = val64;
       fpRegs_.write(di->op0(), udu.d);
@@ -10953,6 +11902,19 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
   if ((addr & (ldSize - 1)) != 0)
     fail = true;
 
+  // Temporary: Check if not cachable. FIX: this should be part of
+  // physical memory attributes.
+  if (not fail and not isAddrInDccm(addr))
+    {
+      unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
+      URV mracVal = 0;
+      if (csRegs_.read(CsrNumber::MRAC, PrivilegeMode::Machine, mracVal))
+        {
+          unsigned bit = (mracVal >> (region*2)) & 1;
+          fail = bit == 0;
+        }
+    }
+
   if (fail)
     {
       // AMO secondary cause has priority over ECC.
@@ -11010,7 +11972,7 @@ Hart<URV>::execLr_w(const DecodedInst* di)
 template <typename URV>
 template <typename STORE_TYPE>
 bool
-Hart<URV>::storeConditional(unsigned rs1, URV virtAddr, STORE_TYPE storeVal)
+Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
 {
   enableWideLdStMode(false);
 
@@ -11037,6 +11999,20 @@ Hart<URV>::storeConditional(unsigned rs1, URV virtAddr, STORE_TYPE storeVal)
   auto cause = determineStoreException(rs1, virtAddr, addr, storeVal, secCause);
 
   bool fail = misal or (amoInDccmOnly_ and not isAddrInDccm(addr));
+
+  // Temporary: Check if not cachable. FIX: this should be part of
+  // physical memory attributes.
+  if (not fail and not isAddrInDccm(addr))
+    {
+      unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
+      URV mracVal = 0;
+      if (csRegs_.read(CsrNumber::MRAC, PrivilegeMode::Machine, mracVal))
+        {
+          unsigned bit = (mracVal >> (region*2)) & 1;
+          fail = bit == 0;
+        }
+    }
+
   if (fail)
     {
       // AMO secondary cause has priority over ECC.
@@ -13626,6 +14602,22 @@ Hart<URV>::execFsri(const DecodedInst* di)
   intRegs_.write(di->op0(), res);
 }
 
+
+template
+ExceptionCause
+WdRiscv::Hart<uint32_t>::determineStoreException<uint8_t>(uint32_t, uint32_t, uint64_t&, uint8_t&, WdRiscv::SecondaryCause&);
+
+template
+ExceptionCause
+WdRiscv::Hart<uint64_t>::determineStoreException<uint8_t>(uint32_t, uint64_t, uint64_t&, uint8_t&, WdRiscv::SecondaryCause&);
+
+template
+ExceptionCause
+WdRiscv::Hart<uint32_t>::determineStoreException<uint16_t>(uint32_t, uint32_t, uint64_t&, uint16_t&, WdRiscv::SecondaryCause&);
+
+template
+ExceptionCause
+WdRiscv::Hart<uint64_t>::determineStoreException<uint16_t>(uint32_t, uint64_t, uint64_t&, uint16_t&, WdRiscv::SecondaryCause&);
 
 template class WdRiscv::Hart<uint32_t>;
 template class WdRiscv::Hart<uint64_t>;

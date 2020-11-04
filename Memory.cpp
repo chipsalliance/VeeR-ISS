@@ -112,7 +112,7 @@ Memory::loadHexFile(const std::string& fileName)
       return false;
     }
 
-  size_t address = 0, errors = 0, overwrites = 0;
+  size_t addr = 0, errors = 0, overwrites = 0, unmappedCount = 0;
 
   std::string line;
 
@@ -132,7 +132,7 @@ Memory::loadHexFile(const std::string& fileName)
 	      continue;
 	    }
 	  char* end = nullptr;
-	  address = std::strtoull(line.c_str() + 1, &end, 16);
+	  addr = std::strtoull(line.c_str() + 1, &end, 16);
 	  if (end and *end and not isspace(*end))
 	    {
 	      std::cerr << "File " << fileName << ", Line " << lineNum << ": "
@@ -161,19 +161,29 @@ Memory::loadHexFile(const std::string& fileName)
 			<< std::dec;
 	      errors++;
 	    }
-	  if (address < size_)
+	  if (addr < size_)
 	    {
 	      if (not errors)
 		{
-		  if (data_[address] != 0)
+		  if (data_[addr] != 0)
 		    overwrites++;
-		  data_[address++] = value & 0xff;
+                  if (not specialInitializeByte(addr, value & 0xff))
+                    {
+                      if (unmappedCount == 0)
+                        std::cerr << "Failed to copy HEX file byte at address 0x"
+                                  << std::hex << addr << std::dec
+                                  << ": corresponding location is not mapped\n";
+                      unmappedCount++;
+                      if (checkUnmappedElf_)
+                        return false;
+                    }
+                  addr++;
 		}
 	    }
 	  else
 	    {
 	      std::cerr << "File " << fileName << ", Line " << lineNum << ": "
-			<< "Address out of bounds: " << std::hex << address
+			<< "Address out of bounds: " << std::hex << addr
 			<< '\n' << std::dec;
 	      errors++;
 	      break;
@@ -189,6 +199,11 @@ Memory::loadHexFile(const std::string& fileName)
 	  errors++;
 	}
     }
+
+  // In case writing ELF data modified last-written-data associated
+  // with each hart.
+  for (unsigned hartId = 0; hartId < reservations_.size(); ++hartId)
+    clearLastWriteInfo(hartId);
 
   if (overwrites)
     std::cerr << "File " << fileName << ": Overwrote previously loaded data "
@@ -221,9 +236,10 @@ Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end,
 
   size_t unmappedCount = 0;
 
-#if 1
+#if 0
 
-  // Load sections of segment.
+  // Load sections of segment. This is not ideal since it fails to load
+  // orhaned data (data not belonging to any section).
   auto segSecCount = seg->get_sections_num();
   for (int secOrder = 0; secOrder < segSecCount; ++secOrder)
     {
@@ -878,7 +894,10 @@ Memory::specialInitializeByte(size_t addr, uint8_t value)
 
   // We initialize both the memory-mapped-register and the external
   // memory to match/simplify the test-bench.
-  data_[addr] = value;
+  if (writeCallback_)
+    writeCallback_(addr, 1, value);
+  else
+    data_[addr] = value;
   return true;
 }
 

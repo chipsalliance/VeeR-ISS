@@ -182,6 +182,8 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 
   RFormInst rform(inst);
   unsigned f3 = rform.bits.funct3, f6 = rform.top6();
+  unsigned vm = (inst >> 25) & 1;
+
 
   op3 = 0;
 
@@ -191,17 +193,32 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       op1 = rform.bits.rs2; // operand order reversed
       op2 = rform.bits.rs1;
 
-      if (f6 == 0)    return instTable_.getEntry(InstId::vadd_vv);
-      if (f6 == 2)    return instTable_.getEntry(InstId::vsub_vv);
-      if (f6 == 4)    return instTable_.getEntry(InstId::vminu_vv);
-      if (f6 == 5)    return instTable_.getEntry(InstId::vmin_vv);
-      if (f6 == 6)    return instTable_.getEntry(InstId::vmaxu_vv);
-      if (f6 == 7)    return instTable_.getEntry(InstId::vmax_vv);
-      if (f6 == 9)    return instTable_.getEntry(InstId::vand_vv);
-      if (f6 == 10)   return instTable_.getEntry(InstId::vor_vv);
-      if (f6 == 11)   return instTable_.getEntry(InstId::vxor_vv);
-      if (f6 == 12)   return instTable_.getEntry(InstId::vrgather_vv);
-      if (f6 == 14)   return instTable_.getEntry(InstId::vrgatherei16_vv);
+      switch (f6)
+        {
+        case 0:    return instTable_.getEntry(InstId::vadd_vv);
+        case 2:    return instTable_.getEntry(InstId::vsub_vv);
+        case 4:    return instTable_.getEntry(InstId::vminu_vv);
+        case 5:    return instTable_.getEntry(InstId::vmin_vv);
+        case 6:    return instTable_.getEntry(InstId::vmaxu_vv);
+        case 7:    return instTable_.getEntry(InstId::vmax_vv);
+        case 9:    return instTable_.getEntry(InstId::vand_vv);
+        case 0xa:  return instTable_.getEntry(InstId::vor_vv);
+        case 0xb:  return instTable_.getEntry(InstId::vxor_vv);
+        case 0xc:  return instTable_.getEntry(InstId::vrgather_vv);
+        case 0xe:  return instTable_.getEntry(InstId::vrgatherei16_vv);
+        case 0x10: return instTable_.getEntry(InstId::vadc_vvm);
+        case 0x11: return instTable_.getEntry(InstId::vmadc_vvm);
+        case 0x12: return instTable_.getEntry(InstId::vsbc_vvm);
+        case 0x13: return instTable_.getEntry(InstId::vmsbc_vvm);
+        case 0x17:
+          if (vm == 0) return instTable_.getEntry(InstId::vmerge_vv);
+          if (vm == 1)
+            {
+              std::swap(op1, op2);  // Per spec !
+              if (op2 == 0) return instTable_.getEntry(InstId::vmv_v_v);
+            }
+          break;
+        }
       return instTable_.getEntry(InstId::illegal);  
     }
 
@@ -211,23 +228,74 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       op1 = rform.bits.rs2; // operand order reversed
       op2 = rform.bits.rs1;
 
-      if (f6 == 0)    return instTable_.getEntry(InstId::vredsum_vs);
-      if (f6 == 1)    return instTable_.getEntry(InstId::vredand_vs);
-      if (f6 == 2)    return instTable_.getEntry(InstId::vredor_vs);
-      if (f6 == 3)    return instTable_.getEntry(InstId::vredxor_vs);
-      if (f6 == 4)    return instTable_.getEntry(InstId::vredminu_vs);
-      if (f6 == 5)    return instTable_.getEntry(InstId::vredmin_vs);
-      if (f6 == 6)    return instTable_.getEntry(InstId::vredmaxu_vs);
-      if (f6 == 7)    return instTable_.getEntry(InstId::vredmax_vs);
-      if (f6 == 0x17) return instTable_.getEntry(InstId::vcompress_vm);
-      if (f6 == 0x19) return instTable_.getEntry(InstId::vmand_mm);
-      if (f6 == 0x1d) return instTable_.getEntry(InstId::vmnand_mm);
-      if (f6 == 0x18) return instTable_.getEntry(InstId::vmandnot_mm);
-      if (f6 == 0x1b) return instTable_.getEntry(InstId::vmxor_mm);
-      if (f6 == 0x1a) return instTable_.getEntry(InstId::vmor_mm);
-      if (f6 == 0x1e) return instTable_.getEntry(InstId::vmnor_mm);
-      if (f6 == 0x1c) return instTable_.getEntry(InstId::vmornot_mm);
-      if (f6 == 0x1f) return instTable_.getEntry(InstId::vmxnor_mm);
+      switch(f6)
+        {
+        case 0:    return instTable_.getEntry(InstId::vredsum_vs);
+        case 1:    return instTable_.getEntry(InstId::vredand_vs);
+        case 2:    return instTable_.getEntry(InstId::vredor_vs);
+        case 3:    return instTable_.getEntry(InstId::vredxor_vs);
+        case 4:    return instTable_.getEntry(InstId::vredminu_vs);
+        case 5:    return instTable_.getEntry(InstId::vredmin_vs);
+        case 6:    return instTable_.getEntry(InstId::vredmaxu_vs);
+        case 7:    return instTable_.getEntry(InstId::vredmax_vs);
+        case 0x10:
+          if (op2 == 0)    return instTable_.getEntry(InstId::vmv_x_s);
+          if (op2 == 0x10) return instTable_.getEntry(InstId::vpopc_m);
+          if (op2 == 0x11) return instTable_.getEntry(InstId::vfirst_m);
+          return instTable_.getEntry(InstId::illegal);
+        case 0x12:
+          if (op2 == 2)  return instTable_.getEntry(InstId::vzext_vf8);
+          if (op2 == 4)  return instTable_.getEntry(InstId::vzext_vf4);
+          if (op2 == 6)  return instTable_.getEntry(InstId::vzext_vf2);
+          if (op2 == 3)  return instTable_.getEntry(InstId::vsext_vf8);
+          if (op2 == 5)  return instTable_.getEntry(InstId::vsext_vf4);
+          if (op2 == 7)  return instTable_.getEntry(InstId::vsext_vf2);
+          return instTable_.getEntry(InstId::illegal);
+        case 0x14:
+          if (op2 == 1)    return instTable_.getEntry(InstId::vmsbf_m);
+          if (op2 == 2)    return instTable_.getEntry(InstId::vmsof_m);
+          if (op2 == 3)    return instTable_.getEntry(InstId::vmsif_m);
+          if (op2 == 0x10) return instTable_.getEntry(InstId::viota_m);
+          if (op2 == 0x11) return instTable_.getEntry(InstId::vid_v);
+          return instTable_.getEntry(InstId::illegal);
+        case 0x17: return instTable_.getEntry(InstId::vcompress_vm);
+        case 0x19: return instTable_.getEntry(InstId::vmand_mm);
+        case 0x1d: return instTable_.getEntry(InstId::vmnand_mm);
+        case 0x18: return instTable_.getEntry(InstId::vmandnot_mm);
+        case 0x1b: return instTable_.getEntry(InstId::vmxor_mm);
+        case 0x1a: return instTable_.getEntry(InstId::vmor_mm);
+        case 0x1e: return instTable_.getEntry(InstId::vmnor_mm);
+        case 0x1c: return instTable_.getEntry(InstId::vmornot_mm);
+        case 0x1f: return instTable_.getEntry(InstId::vmxnor_mm);
+        case 0x20: return instTable_.getEntry(InstId::vdivu_vv);
+        case 0x21: return instTable_.getEntry(InstId::vdiv_vv);
+        case 0x22: return instTable_.getEntry(InstId::vremu_vv);
+        case 0x23: return instTable_.getEntry(InstId::vrem_vv);
+        case 0x24: return instTable_.getEntry(InstId::vmulhu_vv);
+        case 0x25: return instTable_.getEntry(InstId::vmul_vv);
+        case 0x26: return instTable_.getEntry(InstId::vmulhsu_vv);
+        case 0x27: return instTable_.getEntry(InstId::vmulh_vv);
+        case 0x30: return instTable_.getEntry(InstId::vwaddu_vv);
+        case 0x31: return instTable_.getEntry(InstId::vwadd_vv);
+        case 0x32: return instTable_.getEntry(InstId::vwsubu_vv);
+        case 0x33: return instTable_.getEntry(InstId::vwsub_vv);
+        case 0x34: return instTable_.getEntry(InstId::vwaddu_wv);
+        case 0x35: return instTable_.getEntry(InstId::vwadd_wv);
+        case 0x36: return instTable_.getEntry(InstId::vwsubu_wv);
+        case 0x37: return instTable_.getEntry(InstId::vwsub_wv);
+        case 0x38: return instTable_.getEntry(InstId::vwmulu_vv);
+        case 0x3a: return instTable_.getEntry(InstId::vwmulsu_vv);
+        case 0x3b: return instTable_.getEntry(InstId::vwmul_vv);
+        case 0x3c:
+          std::swap(op1, op2);  // Spec is insane.
+          return instTable_.getEntry(InstId::vwmaccu_vv);
+        case 0x3d:
+          std::swap(op1, op2);  // Spec is insane.
+          return instTable_.getEntry(InstId::vwmacc_vv);
+        case 0x3f:
+          std::swap(op1, op2);  // Spec is insane.
+          return instTable_.getEntry(InstId::vwmaccsu_vv);
+        }
       return instTable_.getEntry(InstId::illegal);  
     }
 
@@ -238,12 +306,34 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       int32_t imm = (int32_t(rform.bits.rs1) << 27) >> 27;
       op2 = imm;
 
-      if (f6 == 0)    return instTable_.getEntry(InstId::vadd_vi);
-      if (f6 == 3)    return instTable_.getEntry(InstId::vrsub_vi);
-      if (f6 == 9)    return instTable_.getEntry(InstId::vand_vi);
-      if (f6 == 10)   return instTable_.getEntry(InstId::vor_vi);
-      if (f6 == 11)   return instTable_.getEntry(InstId::vxor_vi);
-      if (f6 == 12)   return instTable_.getEntry(InstId::vrgather_vi);
+      switch (f6)
+        {
+        case 0:    return instTable_.getEntry(InstId::vadd_vi);
+        case 3:    return instTable_.getEntry(InstId::vrsub_vi);
+        case 9:    return instTable_.getEntry(InstId::vand_vi);
+        case 0xa:  return instTable_.getEntry(InstId::vor_vi);
+        case 0xb:  return instTable_.getEntry(InstId::vxor_vi);
+        case 0xc:  return instTable_.getEntry(InstId::vrgather_vi);
+        case 0xe:  return instTable_.getEntry(InstId::vslideup_vi);
+        case 0xf:  return instTable_.getEntry(InstId::vslidedown_vi);
+        case 0x10: return instTable_.getEntry(InstId::vadc_vim);
+        case 0x11: return instTable_.getEntry(InstId::vmadc_vim);
+        case 0x17:
+          if (vm == 0) return instTable_.getEntry(InstId::vmerge_vi);
+          if (vm == 1)
+            {
+              op1 = (int32_t(rform.bits.rs1) << 27) >> 27;
+              op2 = rform.bits.rs2;
+              if (op2 == 0) return instTable_.getEntry(InstId::vmv_v_i);
+            }
+          break;
+        case 0x27:
+          if (imm == 0) return instTable_.getEntry(InstId::vmv1r_v);
+          if (imm == 1) return instTable_.getEntry(InstId::vmv2r_v);
+          if (imm == 3) return instTable_.getEntry(InstId::vmv4r_v);
+          if (imm == 7) return instTable_.getEntry(InstId::vmv8r_v);
+          break;
+        }
       return instTable_.getEntry(InstId::illegal);  
     }
 
@@ -253,21 +343,286 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       op1 = rform.bits.rs2; // operand order reversed
       op2 = rform.bits.rs1;
 
-      if (f6 == 0)    return instTable_.getEntry(InstId::vadd_vx);
-      if (f6 == 2)    return instTable_.getEntry(InstId::vsub_vx);
-      if (f6 == 3)    return instTable_.getEntry(InstId::vrsub_vx);
-      if (f6 == 4)    return instTable_.getEntry(InstId::vminu_vx);
-      if (f6 == 5)    return instTable_.getEntry(InstId::vmin_vx);
-      if (f6 == 6)    return instTable_.getEntry(InstId::vmaxu_vx);
-      if (f6 == 7)    return instTable_.getEntry(InstId::vmax_vx);
-      if (f6 == 9)    return instTable_.getEntry(InstId::vand_vx);
-      if (f6 == 10)   return instTable_.getEntry(InstId::vor_vx);
-      if (f6 == 11)   return instTable_.getEntry(InstId::vxor_vx);
-      if (f6 == 12)   return instTable_.getEntry(InstId::vrgather_vx);
+      switch (f6)
+        {
+        case 0:    return instTable_.getEntry(InstId::vadd_vx);
+        case 2:    return instTable_.getEntry(InstId::vsub_vx);
+        case 3:    return instTable_.getEntry(InstId::vrsub_vx);
+        case 4:    return instTable_.getEntry(InstId::vminu_vx);
+        case 5:    return instTable_.getEntry(InstId::vmin_vx);
+        case 6:    return instTable_.getEntry(InstId::vmaxu_vx);
+        case 7:    return instTable_.getEntry(InstId::vmax_vx);
+        case 9:    return instTable_.getEntry(InstId::vand_vx);
+        case 0xa:  return instTable_.getEntry(InstId::vor_vx);
+        case 0xb:  return instTable_.getEntry(InstId::vxor_vx);
+        case 0xc:  return instTable_.getEntry(InstId::vrgather_vx);
+        case 0xe:  return instTable_.getEntry(InstId::vslideup_vx);
+        case 0xf:  return instTable_.getEntry(InstId::vslidedown_vx);
+        case 0x10: return instTable_.getEntry(InstId::vadc_vxm);
+        case 0x11: return instTable_.getEntry(InstId::vmadc_vxm);
+        case 0x12: return instTable_.getEntry(InstId::vsbc_vxm);
+        case 0x13: return instTable_.getEntry(InstId::vmsbc_vxm);
+        case 0x17:
+          if (vm == 0) return instTable_.getEntry(InstId::vmerge_vx);
+          if (vm == 1)
+            {
+              std::swap(op1, op2);  // Per spec!
+              if (op2 == 0) return instTable_.getEntry(InstId::vmv_v_x);
+            }
+          break;
+        }
       return instTable_.getEntry(InstId::illegal);  
     }
 
+  if (f3 == 6)
+    {
+      op0 = rform.bits.rd;
+      op1 = rform.bits.rs2; // operand order reversed
+      op2 = rform.bits.rs1;
+
+      switch (f6)
+        {
+        case 0xe:   return instTable_.getEntry(InstId::vslide1up_vx);
+        case 0x10:  std::swap(op1, op2); // per spec !
+                    return instTable_.getEntry(InstId::vmv_s_x);
+        case 0x20:  return instTable_.getEntry(InstId::vdivu_vx);
+        case 0x21:  return instTable_.getEntry(InstId::vdiv_vx);
+        case 0x22:  return instTable_.getEntry(InstId::vremu_vx);
+        case 0x23:  return instTable_.getEntry(InstId::vrem_vx);
+        case 0x24:  return instTable_.getEntry(InstId::vmulhu_vx);
+        case 0x25:  return instTable_.getEntry(InstId::vmul_vx);
+        case 0x26:  return instTable_.getEntry(InstId::vmulhsu_vx);
+        case 0x27:  return instTable_.getEntry(InstId::vmulh_vx);
+        case 0x30:  return instTable_.getEntry(InstId::vwaddu_vx);
+        case 0x31:  return instTable_.getEntry(InstId::vwadd_vx);
+        case 0x32:  return instTable_.getEntry(InstId::vwsubu_vx);
+        case 0x33:  return instTable_.getEntry(InstId::vwsub_vx);
+        case 0x34:  return instTable_.getEntry(InstId::vwaddu_wx);
+        case 0x35:  return instTable_.getEntry(InstId::vwadd_wx);
+        case 0x36:  return instTable_.getEntry(InstId::vwsubu_wx);
+        case 0x37:  return instTable_.getEntry(InstId::vwsub_wx);
+        case 0x38:  return instTable_.getEntry(InstId::vwmulu_vx);
+        case 0x3a:  return instTable_.getEntry(InstId::vwmulsu_vx);
+        case 0x3b:  return instTable_.getEntry(InstId::vwmul_vx);
+        case 0x3c:
+          std::swap(op1, op2);  // Spec is insane.
+          return instTable_.getEntry(InstId::vwmaccu_vx);
+        case 0x3d:
+          std::swap(op1, op2);  // Spec is insane.
+          return instTable_.getEntry(InstId::vwmacc_vx);
+        case 0x3e:
+          std::swap(op1, op2);  // Spec is insane.
+          return instTable_.getEntry(InstId::vwmaccus_vx);
+        case 0x3f:
+          std::swap(op1, op2);  // Spec is insane.
+          return instTable_.getEntry(InstId::vwmaccsu_vx);
+        }
+      return instTable_.getEntry(InstId::illegal);  
+    }
+
+  if (f3 == 7)
+    {
+      op0 = rform.bits.rd;
+      op1 = rform.bits.rs1;
+      op2 = rform.bits.rs2;
+
+      if ((f6 >> 5) == 0)
+        {
+          op2 = ((rform.bits.funct7 & 0x3f) << 5 | op2);
+          return instTable_.getEntry(InstId::vsetvli);
+        }
+      if (f6 == 0x20)  return instTable_.getEntry(InstId::vsetvl);
+    }
+
   return instTable_.getEntry(InstId::illegal);  
+}
+
+
+template <typename URV>
+const InstEntry&
+Hart<URV>::decodeVecLoad(uint32_t f3, uint32_t imm12, uint32_t& op3)
+{
+  unsigned lumop = imm12 & 0x1f;       // Bits 0 to 4 of imm12
+  // unsigned vm = (imm12 >> 5) & 1;      // Bit 5 of imm12
+  unsigned mop = (imm12 >> 6) & 3;     // Bits 6 & 7 of imm12
+  unsigned mew = (imm12 >> 8) & 1;     // Bit 8 of imm12
+  unsigned nf = (imm12 >> 9) & 7;      // Bit 9, 10, and 11 of imm12
+
+  if (mop == 0)
+    {      // Unit stride
+      if (lumop == 0)
+        {
+          if (mew == 0)
+            {
+              if (f3 == 0) return instTable_.getEntry(InstId::vle8_v);
+              if (f3 == 5) return instTable_.getEntry(InstId::vle16_v);
+              if (f3 == 6) return instTable_.getEntry(InstId::vle32_v);
+              if (f3 == 7) return instTable_.getEntry(InstId::vle64_v);
+            }
+          else
+            {
+              if (f3 == 0) return instTable_.getEntry(InstId::vle128_v);
+              if (f3 == 5) return instTable_.getEntry(InstId::vle256_v);
+              if (f3 == 6) return instTable_.getEntry(InstId::vle512_v);
+              if (f3 == 7) return instTable_.getEntry(InstId::vle1024_v);
+            }
+        }
+      else if (lumop == 0x8)
+        {   // whole registers
+          op3 = nf;
+
+          if (mew == 0)
+            {
+              if (f3 == 0) return instTable_.getEntry(InstId::vlre8_v);
+              if (f3 == 5) return instTable_.getEntry(InstId::vlre16_v);
+              if (f3 == 6) return instTable_.getEntry(InstId::vlre32_v);
+              if (f3 == 7) return instTable_.getEntry(InstId::vlre64_v);
+            }
+          else
+            {
+              if (f3 == 0) return instTable_.getEntry(InstId::vlre128_v);
+              if (f3 == 5) return instTable_.getEntry(InstId::vlre256_v);
+              if (f3 == 6) return instTable_.getEntry(InstId::vlre512_v);
+              if (f3 == 7) return instTable_.getEntry(InstId::vlre1024_v);
+            }
+        }
+      else if (lumop == 0x10)
+        {   // fault only on first
+          if (mew == 0)
+            {
+              if (f3 == 0) return instTable_.getEntry(InstId::vle8ff_v);
+              if (f3 == 5) return instTable_.getEntry(InstId::vle16ff_v);
+              if (f3 == 6) return instTable_.getEntry(InstId::vle32ff_v);
+              if (f3 == 7) return instTable_.getEntry(InstId::vle64ff_v);
+            }
+          else
+            {
+              if (f3 == 0) return instTable_.getEntry(InstId::vle128ff_v);
+              if (f3 == 5) return instTable_.getEntry(InstId::vle256ff_v);
+              if (f3 == 6) return instTable_.getEntry(InstId::vle512ff_v);
+              if (f3 == 7) return instTable_.getEntry(InstId::vle1024ff_v);
+            }
+        }
+    }
+
+  if (mop == 1)
+    return instTable_.getEntry(InstId::illegal);
+
+  if (mop == 2)
+    {      // Strided
+      if (mew == 0)
+        {
+          if (f3 == 0) return instTable_.getEntry(InstId::vlse8_v);
+          if (f3 == 5) return instTable_.getEntry(InstId::vlse16_v);
+          if (f3 == 6) return instTable_.getEntry(InstId::vlse32_v);
+          if (f3 == 7) return instTable_.getEntry(InstId::vlse64_v);
+        }
+      else
+        {
+          if (f3 == 0) return instTable_.getEntry(InstId::vlse128_v);
+          if (f3 == 5) return instTable_.getEntry(InstId::vlse256_v);
+          if (f3 == 6) return instTable_.getEntry(InstId::vlse512_v);
+          if (f3 == 7) return instTable_.getEntry(InstId::vlse1024_v);
+        }
+    }
+
+  if (mop == 3)
+    {      // Indexed
+      if (mew == 0)
+        {
+          if (f3 == 0) return instTable_.getEntry(InstId::vlxei8_v);
+          if (f3 == 5) return instTable_.getEntry(InstId::vlxei16_v);
+          if (f3 == 6) return instTable_.getEntry(InstId::vlxei32_v);
+          if (f3 == 7) return instTable_.getEntry(InstId::vlxei64_v);
+        }
+    }
+
+  return instTable_.getEntry(InstId::illegal);
+}
+
+
+template <typename URV>
+const InstEntry&
+Hart<URV>::decodeVecStore(uint32_t f3, uint32_t imm12, uint32_t& op3)
+{
+  unsigned lumop = imm12 & 0x1f;       // Bits 0 to 4 of imm12
+  // unsigned vm = (imm12 >> 5) & 1;      // Bit 5 of imm12
+  unsigned mop = (imm12 >> 6) & 3;     // Bits 6 & 7 of imm12
+  unsigned mew = (imm12 >> 8) & 1;     // Bit 8 of imm12
+  unsigned nf = (imm12 >> 9) & 7;      // Bit 9, 10, and 11 of imm12
+
+  if (mop == 0)
+    {      // Unit stride
+      if (lumop == 0)
+        {
+          if (mew == 0)
+            {
+              if (f3 == 0) return instTable_.getEntry(InstId::vse8_v);
+              if (f3 == 5) return instTable_.getEntry(InstId::vse16_v);
+              if (f3 == 6) return instTable_.getEntry(InstId::vse32_v);
+              if (f3 == 7) return instTable_.getEntry(InstId::vse64_v);
+            }
+          else
+            {
+              if (f3 == 0) return instTable_.getEntry(InstId::vse128_v);
+              if (f3 == 5) return instTable_.getEntry(InstId::vse256_v);
+              if (f3 == 6) return instTable_.getEntry(InstId::vse512_v);
+              if (f3 == 7) return instTable_.getEntry(InstId::vse1024_v);
+            }
+        }
+      else if (lumop == 8)
+        {
+          op3 = nf;
+          if (mew == 0)
+            {
+              if (f3 == 0) return instTable_.getEntry(InstId::vsre8_v);
+              if (f3 == 5) return instTable_.getEntry(InstId::vsre16_v);
+              if (f3 == 6) return instTable_.getEntry(InstId::vsre32_v);
+              if (f3 == 7) return instTable_.getEntry(InstId::vsre64_v);
+            }
+          else
+            {
+              if (f3 == 0) return instTable_.getEntry(InstId::vsre128_v);
+              if (f3 == 5) return instTable_.getEntry(InstId::vsre256_v);
+              if (f3 == 6) return instTable_.getEntry(InstId::vsre512_v);
+              if (f3 == 7) return instTable_.getEntry(InstId::vsre1024_v);
+            }
+        }
+    }
+
+  if (mop == 1)
+    {      // indexed ordered
+    }
+
+  if (mop == 2)
+    {      // Strided
+      if (mew == 0)
+        {
+          if (f3 == 0) return instTable_.getEntry(InstId::vsse8_v);
+          if (f3 == 5) return instTable_.getEntry(InstId::vsse16_v);
+          if (f3 == 6) return instTable_.getEntry(InstId::vsse32_v);
+          if (f3 == 7) return instTable_.getEntry(InstId::vsse64_v);
+        }
+      else
+        {
+          if (f3 == 0) return instTable_.getEntry(InstId::vsse128_v);
+          if (f3 == 5) return instTable_.getEntry(InstId::vsse256_v);
+          if (f3 == 6) return instTable_.getEntry(InstId::vsse512_v);
+          if (f3 == 7) return instTable_.getEntry(InstId::vsse1024_v);
+        }
+    }
+
+  if (mop == 3)
+    {      // Indexed
+      if (mew == 0)
+        {
+          if (f3 == 0) return instTable_.getEntry(InstId::vsxei8_v);
+          if (f3 == 5) return instTable_.getEntry(InstId::vsxei16_v);
+          if (f3 == 6) return instTable_.getEntry(InstId::vsxei32_v);
+          if (f3 == 7) return instTable_.getEntry(InstId::vsxei64_v);
+        }
+    }
+  return instTable_.getEntry(InstId::illegal);
 }
 
 
@@ -1036,15 +1391,23 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       }
       return instTable_.getEntry(InstId::illegal);
 
-    l1:
+    l1:        // 00001
       {
 	IFormInst iform(inst);
 	op0 = iform.fields.rd;
 	op1 = iform.fields.rs1;
-	op2 = iform.immed();
 	uint32_t f3 = iform.fields.funct3;
-	if      (f3 == 2)  return instTable_.getEntry(InstId::flw);
-	else if (f3 == 3)  return instTable_.getEntry(InstId::fld);
+        if (f3 == 2 or f3 == 3)
+          op2 = iform.immed();  // flw or fld
+        else
+          op2 = iform.rs2();  // vector load
+
+        if (f3 == 0)  return decodeVecLoad(f3, iform.uimmed(), op3);
+	if (f3 == 2)  return instTable_.getEntry(InstId::flw);
+	if (f3 == 3)  return instTable_.getEntry(InstId::fld);
+        if (f3 == 5)  return decodeVecLoad(f3, iform.uimmed(), op3);
+        if (f3 == 6)  return decodeVecLoad(f3, iform.uimmed(), op3);
+        if (f3 == 7)  return decodeVecLoad(f3, iform.uimmed(), op3);
       }
       return instTable_.getEntry(InstId::illegal);
 
@@ -1052,16 +1415,27 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
     l7:
       return instTable_.getEntry(InstId::illegal);
 
-    l9:
+    l9:       // 01001
       {
 	// For store instructions: op0 is the stored register.
 	SFormInst sform(inst);
 	op0 = sform.bits.rs2;
 	op1 = sform.bits.rs1;
 	op2 = sform.immed();
-	unsigned funct3 = sform.bits.funct3;
-	if      (funct3 == 2)  return instTable_.getEntry(InstId::fsw);
-	else if (funct3 == 3)  return instTable_.getEntry(InstId::fsd);
+	unsigned f3 = sform.bits.funct3;
+        if (f3 != 2 and f3 != 3)
+          {     // vector instructions.
+            op0 = sform.vbits.rd;
+            op1 = sform.vbits.rs1;
+            op2 = sform.rs2();
+          }
+
+        if (f3 == 0)  return decodeVecStore(f3, sform.vbits.imm12, op3);
+	if (f3 == 2)  return instTable_.getEntry(InstId::fsw);
+	if (f3 == 3)  return instTable_.getEntry(InstId::fsd);
+        if (f3 == 5)  return decodeVecStore(f3, sform.vbits.imm12, op3);
+        if (f3 == 6)  return decodeVecStore(f3, sform.vbits.imm12, op3);
+        if (f3 == 7)  return decodeVecStore(f3, sform.vbits.imm12, op3);
       }
       return instTable_.getEntry(InstId::illegal);
 
