@@ -2604,17 +2604,17 @@ namespace WdRiscv
     {
       LoadInfo()
 	: size_(0), addr_(0), regIx_(0), prevData_(0), valid_(false),
-	  wide_(false)
+	  wide_(false), fp_(false)
       { }
 
       LoadInfo(unsigned size, size_t addr, unsigned regIx, uint64_t prev,
-	       bool isWide, unsigned tag)
+	       bool isWide, unsigned tag, bool fp)
 	: size_(size), addr_(addr), regIx_(regIx), tag_(tag), prevData_(prev),
-	  valid_(true), wide_(isWide)
+	  valid_(true), wide_(isWide), fp_(fp)
       { }
 
       bool isValid() const  { return valid_; }
-      void makeInvalid() { valid_ = false; }
+      void makeInvalid() { valid_ = false; fp_ = false; }
 
       unsigned size_ = 0;
       size_t addr_ = 0;
@@ -2623,14 +2623,18 @@ namespace WdRiscv
       uint64_t prevData_ = 0;
       bool valid_ = false;
       bool wide_ = false;
+      bool fp_ = false;
     };
 
     void putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
-			uint64_t prevData, bool isWide = false);
+			uint64_t prevData, bool isWide = false,
+                        bool fp = false);
 
-    void removeFromLoadQueue(unsigned regIx, bool isDiv);
+    void removeFromLoadQueue(unsigned regIx, bool isDiv, bool fp = false);
 
-    void invalidateInLoadQueue(unsigned regIx, bool isDiv);
+    void invalidateInLoadQueue(unsigned regIx, bool isDiv, bool fp = false);
+
+    void loadQueueCommit(const DecodedInst&);
 
     /// Save snapshot of registers (PC, integer, floating point, CSR) into file
     bool saveSnapshotRegs(const std::string& path);

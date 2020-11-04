@@ -708,7 +708,7 @@ Hart<URV>::clearToHostAddress()
 template <typename URV>
 void
 Hart<URV>::putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
-			  uint64_t data, bool isWide)
+			  uint64_t data, bool isWide, bool fp)
 {
   if (not loadQueueEnabled_)
     return;
@@ -717,7 +717,7 @@ Hart<URV>::putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
     {
       // Blocking load. Invalidate target register in load queue so
       // that it will not be reverted.
-      invalidateInLoadQueue(regIx, false);
+      invalidateInLoadQueue(regIx, false, fp);
       return;
     }
 
@@ -727,17 +727,17 @@ Hart<URV>::putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
       for (size_t i = 1; i < maxLoadQueueSize_; ++i)
 	loadQueue_[i-1] = loadQueue_[i];
       loadQueue_[maxLoadQueueSize_-1] = LoadInfo(size, addr, regIx, data,
-						 isWide, instCounter_);
+						 isWide, instCounter_, fp);
     }
   else
     loadQueue_.push_back(LoadInfo(size, addr, regIx, data, isWide,
-				  instCounter_));
+				  instCounter_, fp));
 }
 
 
 template <typename URV>
 void
-Hart<URV>::invalidateInLoadQueue(unsigned regIx, bool isDiv)
+Hart<URV>::invalidateInLoadQueue(unsigned regIx, bool isDiv, bool fp)
 {
   if (regIx == lastDivRd_ and not isDiv)
     hasLastDiv_ = false;
@@ -745,14 +745,14 @@ Hart<URV>::invalidateInLoadQueue(unsigned regIx, bool isDiv)
   // Replace entry containing target register with x0 so that load exception
   // matching entry will not revert target register.
   for (unsigned i = 0; i < loadQueue_.size(); ++i)
-    if (loadQueue_[i].regIx_ == regIx)
+    if (loadQueue_[i].regIx_ == regIx and loadQueue_[i].fp_ == fp)
       loadQueue_[i].makeInvalid();
 }
 
 
 template <typename URV>
 void
-Hart<URV>::removeFromLoadQueue(unsigned regIx, bool isDiv)
+Hart<URV>::removeFromLoadQueue(unsigned regIx, bool isDiv, bool fp)
 {
   if (regIx == 0)
     return;
@@ -769,7 +769,7 @@ Hart<URV>::removeFromLoadQueue(unsigned regIx, bool isDiv)
       auto& entry = loadQueue_.at(i-1);
       if (not entry.isValid())
 	continue;
-      if (entry.regIx_ == regIx)
+      if (entry.regIx_ == regIx and entry.fp_ == fp)
 	{
 	  if (last)
 	    {
@@ -915,13 +915,13 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
 
   // Count matching records. Determine if there is an entry with the
   // same register as the first match but younger.
-  bool hasYounger = false;
+  bool hasYounger = false, fp = false;
   unsigned targetReg = 0;  // Register of 1st match.
   matches = 0;
   unsigned iMatches = 0;  // Invalid matching entries.
   for (const LoadInfo& li : loadQueue_)
     {
-      if (matches and li.isValid() and targetReg == li.regIx_)
+      if (matches and li.isValid() and targetReg == li.regIx_ and fp == li.fp_)
 	hasYounger = true;
 
       if (li.tag_ == tag)
@@ -929,6 +929,7 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
 	  if (li.isValid())
 	    {
 	      targetReg = li.regIx_;
+              fp = li.fp_;
 	      matches++;
 	    }
 	  else
@@ -958,7 +959,7 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
   for (size_t ix = 0; ix < loadQueue_.size(); ++ix)
     {
       auto& entry = loadQueue_.at(ix);
-      if (entry.tag_ == tag)
+      if (entry.tag_ == tag and entry.fp_ == fp)
 	{
 	  removeIx = ix;
 	  if (not entry.isValid())
@@ -969,14 +970,14 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
 
       removeIx = ix;
 
-      URV prev = entry.prevData_;
+      uint64_t prev = entry.prevData_;
 
       // Revert to oldest entry with same target reg. Invalidate older
       // entries with same target reg.
       for (size_t ix2 = removeIx; ix2 > 0; --ix2)
 	{
 	  auto& entry2 = loadQueue_.at(ix2-1);
-	  if (entry2.isValid() and entry2.regIx_ == entry.regIx_)
+	  if (entry2.isValid() and entry2.regIx_ == entry.regIx_ and entry2.fp_ == fp)
 	    {
 	      prev = entry2.prevData_;
 	      entry2.makeInvalid();
@@ -985,16 +986,21 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
 
       if (not hasYounger)
 	{
-	  pokeIntReg(entry.regIx_, prev);
-	  if (entry.wide_)
-            pokeCsr(CsrNumber::MDBHD, entry.prevData_ >> 32);
+          if (fp)
+            pokeFpReg(entry.regIx_, prev);
+          else
+            {
+              pokeIntReg(entry.regIx_, prev);
+              if (entry.wide_)
+                pokeCsr(CsrNumber::MDBHD, entry.prevData_ >> 32);
+            }
 	}
 
       // Update prev-data of 1st younger item with same target reg.
       for (size_t ix2 = removeIx + 1; ix2 < loadQueue_.size(); ++ix2)
 	{
 	  auto& entry2 = loadQueue_.at(ix2);
- 	  if (entry2.isValid() and entry2.regIx_ == entry.regIx_)
+ 	  if (entry2.isValid() and entry2.regIx_ == entry.regIx_ and entry.fp_ == fp)
  	    {
 	      entry2.prevData_ = prev;
 	      break;
@@ -1050,6 +1056,7 @@ Hart<URV>::applyLoadFinished(URV addr, unsigned tag, unsigned& matches)
     }
 
   LoadInfo& entry = loadQueue_.at(matchIx);
+  bool fp = entry.fp_;
 
   // Process entries in reverse order (start with oldest)
   // Mark all earlier entries with same target register as invalid.
@@ -1062,7 +1069,7 @@ Hart<URV>::applyLoadFinished(URV addr, unsigned tag, unsigned& matches)
       LoadInfo& li = loadQueue_.at(j);
       if (not li.isValid())
 	continue;
-      if (li.regIx_ != targetReg)
+      if (li.regIx_ != targetReg or li.fp_ != fp)
 	continue;
 
       li.makeInvalid();
@@ -1078,7 +1085,7 @@ Hart<URV>::applyLoadFinished(URV addr, unsigned tag, unsigned& matches)
     for (size_t j = matchIx + 1; j < size; ++j)
       {
 	LoadInfo& li = loadQueue_.at(j);
-	if (li.isValid() and li.regIx_ == targetReg)
+	if (li.isValid() and li.regIx_ == targetReg and li.fp_ == fp)
 	  {
 	    // Preserve upper 32 bits if wide (64-bit) load.
 	    if (li.wide_)
@@ -4748,6 +4755,49 @@ Hart<URV>::invalidateDecodeCache()
 
 template <typename URV>
 void
+Hart<URV>::loadQueueCommit(const DecodedInst& di)
+{
+  const InstEntry* entry = di.instEntry();
+  if (entry->isLoad())
+    return;   // Load instruction sources handled in the load methods.
+
+  if (entry->isIthOperandIntRegSource(0))
+    removeFromLoadQueue(di.op0(), entry->isDivide());
+
+  if (entry->isIthOperandIntRegSource(1))
+    removeFromLoadQueue(di.op1(), entry->isDivide());
+
+  if (entry->isIthOperandIntRegSource(2))
+    removeFromLoadQueue(di.op2(), entry->isDivide());
+
+  if (entry->isIthOperandFpRegSource(0))
+    removeFromLoadQueue(di.op0(), entry->isDivide(), true);
+
+  if (entry->isIthOperandFpRegSource(1))
+    removeFromLoadQueue(di.op1(), entry->isDivide(), true);
+
+  if (entry->isIthOperandFpRegSource(2))
+    removeFromLoadQueue(di.op2(), entry->isDivide(), true);
+
+  if (entry->isIthOperandFpRegSource(3))
+    removeFromLoadQueue(di.op2(), entry->isDivide(), true);
+
+  // If a register is written by a non-load instruction, then its
+  // entry is invalidated in the load queue.
+  int regIx = intRegs_.getLastWrittenReg();
+  if (regIx > 0)
+    invalidateInLoadQueue(regIx, entry->isDivide());
+  else
+    {
+      regIx = fpRegs_.getLastWrittenReg();
+      if (regIx > 0)
+        invalidateInLoadQueue(regIx, entry->isDivide(), true /*fp*/);
+    }
+}
+
+
+template <typename URV>
+void
 Hart<URV>::singleStep(FILE* traceFile)
 {
   std::string instStr;
@@ -4828,22 +4878,8 @@ Hart<URV>::singleStep(FILE* traceFile)
       // load queue (because in such a case the hardware will stall
       // till load is completed). Source operands of load instructions
       // are handled in the load and loadRserve methods.
-      const InstEntry* entry = di.instEntry();
-      if (not entry->isLoad())
-	{
-	  if (entry->isIthOperandIntRegSource(0))
-	    removeFromLoadQueue(di.op0(), entry->isDivide());
-	  if (entry->isIthOperandIntRegSource(1))
-	    removeFromLoadQueue(di.op1(), entry->isDivide());
-	  if (entry->isIthOperandIntRegSource(2))
-	    removeFromLoadQueue(di.op2(), entry->isDivide());
-
-	  // If a register is written by a non-load instruction, then
-	  // its entry is invalidated in the load queue.
-	  int regIx = intRegs_.getLastWrittenReg();
-	  if (regIx > 0)
-	    invalidateInLoadQueue(regIx, entry->isDivide());
-	}
+      if (loadQueueEnabled_)
+        loadQueueCommit(di);
 
       bool icountHit = (enableTriggers_ and 
 			icountTriggerHit(privMode_, isInterruptEnabled()));
@@ -9734,7 +9770,7 @@ template <typename URV>
 void
 Hart<URV>::execFlw(const DecodedInst* di)
 {
-if (not isFpLegal())
+  if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -9753,6 +9789,9 @@ if (not isFpLegal())
   auto cause = ExceptionCause::NONE;
 
 #ifndef FAST_SLOPPY
+  if (loadQueueEnabled_)
+    removeFromLoadQueue(rs1, false);
+
   if (hasActiveTrigger())
     {
       if (ldStAddrTriggerHit(virtAddr, TriggerTiming::Before, true /*isLoad*/,
@@ -9762,13 +9801,14 @@ if (not isFpLegal())
 	return;
     }
 
-  unsigned ldSize = 8;
+  unsigned ldSize = 4;
 
   uint64_t addr = virtAddr;
   cause = determineLoadException(rs1, base, addr, ldSize, secCause);
   if (cause != ExceptionCause::NONE)
     {
-      initiateLoadException(cause, virtAddr, secCause);
+      if (not triggerTripped_)
+        initiateLoadException(cause, virtAddr, secCause);
       return;
     }
 #endif
@@ -9776,6 +9816,12 @@ if (not isFpLegal())
   uint32_t word = 0;
   if (memory_.read(addr, word))
     {
+      if (loadQueueEnabled_)
+        {
+          uint64_t prevRdVal = 0;
+          peekFpReg(rd, prevRdVal);
+          putInLoadQueue(ldSize, addr, rd, prevRdVal, false /*wide*/, true /*fp*/);
+        }
       Uint32FloatUnion ufu(word);
       fpRegs_.writeSingle(rd, ufu.f);
       markFsDirty();
@@ -10794,7 +10840,7 @@ Hart<URV>::execFld(const DecodedInst* di)
       return;
     }
 
-  unsigned rs1 = di->op1();
+  uint32_t rd = di->op0(), rs1 = di->op1();
   SRV imm = di->op2As<SRV>();
 
   URV base = intRegs_.read(rs1);
@@ -10807,6 +10853,9 @@ Hart<URV>::execFld(const DecodedInst* di)
   auto cause = ExceptionCause::NONE;
 
 #ifndef FAST_SLOPPY
+  if (loadQueueEnabled_)
+    removeFromLoadQueue(rs1, false);
+
   if (hasActiveTrigger())
     {
       if (ldStAddrTriggerHit(virtAddr, TriggerTiming::Before, true /*isLoad*/,
@@ -10822,7 +10871,8 @@ Hart<URV>::execFld(const DecodedInst* di)
   cause = determineLoadException(rs1, base, addr, ldSize, secCause);
   if (cause != ExceptionCause::NONE)
     {
-      initiateLoadException(cause, virtAddr, secCause);
+      if (not triggerTripped_)
+        initiateLoadException(cause, virtAddr, secCause);
       return;
     }
 #endif
@@ -10836,6 +10886,13 @@ Hart<URV>::execFld(const DecodedInst* di)
   uint64_t val64 = 0;
   if (memory_.read(addr, val64))
     {
+      if (loadQueueEnabled_)
+        {
+          uint64_t prevRdVal = 0;
+          peekFpReg(rd, prevRdVal);
+          putInLoadQueue(ldSize, addr, rd, prevRdVal, false /*wide*/, true /*fp*/);
+        }
+
       UDU udu;
       udu.u = val64;
       fpRegs_.write(di->op0(), udu.d);

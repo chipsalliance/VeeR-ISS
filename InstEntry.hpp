@@ -170,6 +170,15 @@ namespace WdRiscv
       return ithOperandMode(i) == OperandMode::Read;
     }
 
+    /// Return true if ith operand is a floating point register and is
+    /// a source.
+    bool isIthOperandFpRegSource(unsigned i) const
+    {
+      if (ithOperandType(i) != OperandType::FpReg)
+	return false;
+      return ithOperandMode(i) == OperandMode::Read;
+    }
+
     /// Return the instruction type.
     InstType type() const
     { return type_; }
