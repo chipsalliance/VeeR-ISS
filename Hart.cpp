@@ -2506,7 +2506,7 @@ Hart<URV>::initiateFastInterrupt(InterruptCause cause, URV pcToSave)
 
   // Check that the entry address is in a DCCM region.
   size_t ix = memory_.getRegionIndex(addr);
-  if (not regionHasLocalDataMem_.at(ix))
+  if (not regionHasDccm_.at(ix))
     {
       initiateNmi(URV(NmiCause::NON_DCCM_ACCESS_ERROR), pcToSave);
       return;
