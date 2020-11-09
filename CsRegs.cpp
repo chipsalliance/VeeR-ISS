@@ -19,6 +19,7 @@
 #include <array>
 #include "CsRegs.hpp"
 #include "FpRegs.hpp"
+#include "VecRegs.hpp"
 
 using namespace WdRiscv;
 
@@ -276,6 +277,16 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
       csr->write(value);
       recordWrite(number);
       updateFcsrGroupForWrite(number, value);
+      return true;
+    }
+
+  // fflags and frm are part of fcsr
+  if (number == CsrNumber::VXSAT or number == CsrNumber::VXRM or
+      number == CsrNumber::VCSR)
+    {
+      csr->write(value);
+      recordWrite(number);
+      updateVcsrGroupForWrite(number, value);
       return true;
     }
 
@@ -697,6 +708,106 @@ CsRegs<URV>::updateFcsrGroupForPoke(CsrNumber number, URV value)
       if (frm and frm->read() != newVal)
         frm->poke(newVal);
       setSimulatorRoundingMode(RoundingMode(newVal));
+    }
+}
+
+
+template <typename URV>
+void
+CsRegs<URV>::updateVcsrGroupForWrite(CsrNumber number, URV value)
+{
+  if (number == CsrNumber::VXSAT)
+    {
+      auto vcsr = getImplementedCsr(CsrNumber::VCSR);
+      if (vcsr)
+	{
+          URV mask = 1;
+	  URV vcsrVal = vcsr->read();
+          vcsrVal = (vcsrVal & ~mask) | (value & mask);
+	  vcsr->write(vcsrVal);
+	  // recordWrite(CsrNumber::VCSR);
+	}
+      return;
+    }
+
+  if (number == CsrNumber::VXRM)
+    {
+      auto vcsr = getImplementedCsr(CsrNumber::VCSR);
+      if (vcsr)
+	{
+	  URV vcsrVal = vcsr->read();
+          URV mask = URV(VecRoundingMode::VcsrMask);
+          URV shift = URV(VecRoundingMode::VcsrShift);
+          vcsrVal = (vcsrVal & ~mask) | ((value << shift) & mask);
+	  vcsr->write(vcsrVal);
+	  // recordWrite(CsrNumber::VCSR);
+	}
+      return;
+    }
+
+  if (number == CsrNumber::VCSR)
+    {
+      URV newVal = value & 1;
+      auto vxsat = getImplementedCsr(CsrNumber::VXSAT);
+      if (vxsat and vxsat->read() != newVal)
+	{
+	  vxsat->write(newVal);
+	  // recordWrite(CsrNumber::VXSAT);
+	}
+
+      newVal = (value & URV(VecRoundingMode::VcsrMask)) >> URV(VecRoundingMode::VcsrShift);
+      auto vxrm = getImplementedCsr(CsrNumber::VXRM);
+      if (vxrm and vxrm->read() != newVal)
+	{
+	  vxrm->write(newVal);
+	  // recordWrite(CsrNumber::VXRM);
+	}
+    }
+}
+
+
+template <typename URV>
+void
+CsRegs<URV>::updateVcsrGroupForPoke(CsrNumber number, URV value)
+{
+  if (number == CsrNumber::VXSAT)
+    {
+      auto vcsr = getImplementedCsr(CsrNumber::VCSR);
+      if (vcsr)
+	{
+          URV mask = 1;
+	  URV vcsrVal = vcsr->read();
+          vcsrVal = (vcsrVal & ~mask) | (value & mask);
+	  vcsr->poke(vcsrVal);
+	}
+      return;
+    }
+
+  if (number == CsrNumber::VXRM)
+    {
+      auto vcsr = getImplementedCsr(CsrNumber::VCSR);
+      if (vcsr)
+	{
+	  URV vcsrVal = vcsr->read();
+          URV mask = URV(VecRoundingMode::VcsrMask);
+          URV shift = URV(VecRoundingMode::VcsrShift);
+          vcsrVal = (vcsrVal & ~mask) | ((value << shift) & mask);
+	  vcsr->poke(vcsrVal);
+	}
+      return;
+    }
+
+  if (number == CsrNumber::VCSR)
+    {
+      URV newVal = value & 1;
+      auto vxsat = getImplementedCsr(CsrNumber::VXSAT);
+      if (vxsat and vxsat->read() != newVal)
+        vxsat->poke(newVal);
+
+      newVal = (value & URV(VecRoundingMode::VcsrMask)) >> URV(VecRoundingMode::VcsrShift);
+      auto vxrm = getImplementedCsr(CsrNumber::VXRM);
+      if (vxrm and vxrm->read() != newVal)
+        vxrm->poke(newVal);
     }
 }
 
@@ -1254,6 +1365,15 @@ CsRegs<URV>::poke(CsrNumber number, URV value)
     {
       csr->poke(value);
       updateFcsrGroupForPoke(number, value);
+      return true;
+    }
+
+  // fflags and frm are parts of fcsr
+  if (number == CsrNumber::VXSAT or number == CsrNumber::VXRM or
+      number == CsrNumber::VCSR)
+    {
+      csr->poke(value);
+      updateVcsrGroupForPoke(number, value);
       return true;
     }
 

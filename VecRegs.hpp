@@ -50,11 +50,23 @@ namespace WdRiscv
     };
 
 
+  enum class VecRoundingMode
+    {
+     NearestUp   = 0,
+     NearestEven = 1,
+     Down        = 2,
+     Odd         = 3,
+     VcsrMask    = 6,  // Mask of rounding mode bits in VCSR
+     VcsrShift   = 1   // Index of least-sig rounding mode bit in VCSR
+    };
+
+
   enum class VecEnums : uint32_t
     {
      GroupLimit = 8, // One past largest VecGroupMultiplier value
      WidthLimit = 8  // One past largest ElementWidth value
     };
+
 
   /// Symbolic names of the integer registers.
   enum VecRegNumber

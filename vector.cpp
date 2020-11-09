@@ -7644,7 +7644,7 @@ Hart<URV>::vsaddu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
           if (dest < e1)
             {
               dest = maxVal;
-              // TODO FIX update vxsat
+              csRegs_.write(CsrNumber::VXSAT, PrivilegeMode::Machine, 1);
             }
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
@@ -7707,7 +7707,7 @@ Hart<URV>::vsaddu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
           if (dest < e1)
             {
               dest = maxVal;
-              // TODO FIX update vxsat
+              csRegs_.write(CsrNumber::VXSAT, PrivilegeMode::Machine, 1);
             }
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
@@ -7807,7 +7807,7 @@ Hart<URV>::vsadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                 dest = minVal;
               else
                 dest = maxVal;
-              // TODO FIX update vxsat
+              csRegs_.write(CsrNumber::VXSAT, PrivilegeMode::Machine, 1);
             }
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
@@ -7876,7 +7876,7 @@ Hart<URV>::vsadd_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
                 dest = minVal;
               else
                 dest = maxVal;
-              // TODO FIX update vxsat
+              csRegs_.write(CsrNumber::VXSAT, PrivilegeMode::Machine, 1);
             }
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
@@ -7970,7 +7970,7 @@ Hart<URV>::vssubu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
           if (dest > e1)
             {
               dest = minVal;
-              // TODO FIX update vxsat
+              csRegs_.write(CsrNumber::VXSAT, PrivilegeMode::Machine, 1);
             }
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
@@ -8033,7 +8033,7 @@ Hart<URV>::vssubu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
           if (dest > e1)
             {
               dest = minVal;
-              // TODO FIX update vxsat
+              csRegs_.write(CsrNumber::VXSAT, PrivilegeMode::Machine, 1);
             }
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
@@ -8104,7 +8104,7 @@ Hart<URV>::vssub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                 dest = minVal;
               else
                 dest = maxVal;
-              // TODO FIX update vxsat
+              csRegs_.write(CsrNumber::VXSAT, PrivilegeMode::Machine, 1);
             }
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
@@ -8173,7 +8173,7 @@ Hart<URV>::vssub_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
                 dest = minVal;
               else
                 dest = maxVal;
-              // TODO FIX update vxsat
+              csRegs_.write(CsrNumber::VXSAT, PrivilegeMode::Machine, 1);
             }
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;

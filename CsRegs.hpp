@@ -872,6 +872,14 @@ namespace WdRiscv
     /// Update fcsr after frm/fflags is poked.
     void updateFcsrGroupForPoke(CsrNumber number, URV value);
 
+    /// Helper to write method. Update vxrm/vxsat after vscr is written.
+    /// Update vcsr after vxrm/vxsat is written.
+    void updateVcsrGroupForWrite(CsrNumber number, URV value);
+
+    /// Helper to poke method. Update vxrm/vxsat after vscr is poked.
+    /// Update vcsr after vxrm/vxsat is poked.
+    void updateVcsrGroupForPoke(CsrNumber number, URV value);
+
     /// Helper to construtor. Define machine-mode CSRs
     void defineMachineRegs();
 
