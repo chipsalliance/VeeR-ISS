@@ -8390,7 +8390,8 @@ Hart<URV>::vectorStore(const DecodedInst* di, ElementWidth eew)
           for (unsigned n = 0; n < sizeof(elem); n += 8)
             {
               uint64_t dword = elem;
-              cause = determineStoreException(rs1, URV(addr), addr, dword, secCause);
+              bool forced = false;
+              cause = determineStoreException(rs1, URV(addr), addr, dword, secCause, forced);
               if (cause != ExceptionCause::NONE)
                 break;
 
@@ -8400,7 +8401,8 @@ Hart<URV>::vectorStore(const DecodedInst* di, ElementWidth eew)
         }
       else
         {
-          if (determineStoreException(rs1, URV(addr), addr, elem, secCause) !=
+          bool forced = false;
+          if (determineStoreException(rs1, URV(addr), addr, elem, secCause, forced) !=
               ExceptionCause::NONE)
             memory_.write(hartIx_, addr, elem);
         }
@@ -9245,7 +9247,9 @@ Hart<URV>::vectorStoreIndexed(const DecodedInst* di, ElementWidth offsetEew)
           for (unsigned n = 0; n < sizeof(elem); n += 8)
             {
               uint64_t dword = elem;
-              cause = determineStoreException(rs1, URV(eaddr), eaddr, dword, secCause);
+              bool forced = false;
+              cause = determineStoreException(rs1, URV(eaddr), eaddr, dword, secCause,
+                                              forced);
               if (cause != ExceptionCause::NONE)
                 break;
 
@@ -9255,7 +9259,8 @@ Hart<URV>::vectorStoreIndexed(const DecodedInst* di, ElementWidth offsetEew)
         }
       else
         {
-          if (determineStoreException(rs1, URV(eaddr), eaddr, elem, secCause) !=
+          bool forced = false;
+          if (determineStoreException(rs1, URV(eaddr), eaddr, elem, secCause, forced) !=
               ExceptionCause::NONE)
             memory_.write(hartIx_, eaddr, elem);
         }

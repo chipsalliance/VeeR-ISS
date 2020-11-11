@@ -1417,7 +1417,7 @@ namespace WdRiscv
     template<typename STORE_TYPE>
     ExceptionCause determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
 					   STORE_TYPE& storeVal,
-					   SecondaryCause& secCause);
+                                           SecondaryCause& secCause, bool& forced);
 
     /// Helper to execLr. Load type should be int32_t, or int64_t.
     /// Return true if instruction is successful. Return false if an

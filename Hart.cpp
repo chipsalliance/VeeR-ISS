@@ -1928,13 +1928,14 @@ Hart<URV>::store(uint32_t rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
   STORE_TYPE maskedVal = storeVal;  // Masked store value.
   auto secCause = SecondaryCause::NONE;
   uint64_t addr = virtAddr;
-  ExceptionCause cause = determineStoreException(rs1, base, addr,
-						 maskedVal, secCause);
+  bool forcedFail = false;
+  ExceptionCause cause = determineStoreException(rs1, base, addr, maskedVal,
+                                                 secCause, forcedFail);
 
   // Consider store-data trigger if there is no trap or if the trap is
   // due to an external cause.
   if (hasTrig and (cause == ExceptionCause::NONE or
-                   (forceAccessFail_ and secCause == forcedCause_)))
+                   (forcedFail and secCause != SecondaryCause::STORE_ACC_DOUBLE_ECC)))
     if (ldStDataTriggerHit(maskedVal, timing, isLd, privMode_,
                            isInterruptEnabled()))
       triggerTripped_ = true;
@@ -8083,15 +8084,16 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
   URV mask = URV(accessSize) - 1;
 
   auto cause = ExceptionCause::NONE;
+  bool forcedFail = false;
   if (accessSize == 4)
     {
       uint32_t dummy = 0;
-      cause = determineStoreException(rs1, addr, addr, dummy, secCause);
+      cause = determineStoreException(rs1, addr, addr, dummy, secCause, forcedFail);
     }
   else
     {
       uint64_t dummy = 0;
-      cause = determineStoreException(rs1, addr, addr, dummy, secCause);
+      cause = determineStoreException(rs1, addr, addr, dummy, secCause, forcedFail);
     }
 
   // Address must be word aligned for word access and double-word
@@ -8907,9 +8909,10 @@ template <typename URV>
 template <typename STORE_TYPE>
 ExceptionCause
 Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
-				   STORE_TYPE& storeVal,
-				   SecondaryCause& secCause)
+				   STORE_TYPE& storeVal, SecondaryCause& secCause,
+                                   bool& forcedFail)
 {
+  forcedFail = false;
   unsigned stSize = sizeof(STORE_TYPE);
 
   // Misaligned store to io section causes an exception. Crossing
@@ -9023,6 +9026,7 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
   // Fault dictated by test-bench
   if (forceAccessFail_)
     {
+      forcedFail = true;
       secCause = forcedCause_;
       return ExceptionCause::STORE_ACC_FAULT;
     }
@@ -12046,7 +12050,9 @@ Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
 
   auto secCause = SecondaryCause::NONE;
   uint64_t addr = virtAddr;
-  auto cause = determineStoreException(rs1, virtAddr, addr, storeVal, secCause);
+  bool forcedFail = false;
+  auto cause = determineStoreException(rs1, virtAddr, addr, storeVal, secCause,
+                                       forcedFail);
 
   bool fail = misal or (amoInDccmOnly_ and not isAddrInDccm(addr));
 
@@ -14655,19 +14661,19 @@ Hart<URV>::execFsri(const DecodedInst* di)
 
 template
 ExceptionCause
-WdRiscv::Hart<uint32_t>::determineStoreException<uint8_t>(uint32_t, uint32_t, uint64_t&, uint8_t&, WdRiscv::SecondaryCause&);
+WdRiscv::Hart<uint32_t>::determineStoreException<uint8_t>(uint32_t, uint32_t, uint64_t&, uint8_t&, WdRiscv::SecondaryCause&, bool&);
 
 template
 ExceptionCause
-WdRiscv::Hart<uint64_t>::determineStoreException<uint8_t>(uint32_t, uint64_t, uint64_t&, uint8_t&, WdRiscv::SecondaryCause&);
+WdRiscv::Hart<uint64_t>::determineStoreException<uint8_t>(uint32_t, uint64_t, uint64_t&, uint8_t&, WdRiscv::SecondaryCause&, bool&);
 
 template
 ExceptionCause
-WdRiscv::Hart<uint32_t>::determineStoreException<uint16_t>(uint32_t, uint32_t, uint64_t&, uint16_t&, WdRiscv::SecondaryCause&);
+WdRiscv::Hart<uint32_t>::determineStoreException<uint16_t>(uint32_t, uint32_t, uint64_t&, uint16_t&, WdRiscv::SecondaryCause&, bool&);
 
 template
 ExceptionCause
-WdRiscv::Hart<uint64_t>::determineStoreException<uint16_t>(uint32_t, uint64_t, uint64_t&, uint16_t&, WdRiscv::SecondaryCause&);
+WdRiscv::Hart<uint64_t>::determineStoreException<uint16_t>(uint32_t, uint64_t, uint64_t&, uint16_t&, WdRiscv::SecondaryCause&, bool&);
 
 template class WdRiscv::Hart<uint32_t>;
 template class WdRiscv::Hart<uint64_t>;
