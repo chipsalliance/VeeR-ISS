@@ -2339,6 +2339,56 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       out << "vmv8r.v v" << di.op0() << ", v" << di.op1();
       break;
 
+    case InstId::vsaddu_vv:
+      out << "vsaddu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vsaddu_vx:
+      out << "vsaddu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vsaddu_vi:
+      out << "vsaddu.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vsadd_vv:
+      out << "vsadd.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vsadd_vx:
+      out << "vsadd.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vsadd_vi:
+      out << "vsadd.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vssubu_vv:
+      out << "vssubu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vssubu_vx:
+      out << "vssubu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vssub_vv:
+      out << "vssub.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vssub_vx:
+      out << "vssub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
     case InstId::vle8_v:
       out << "vle8.v v" << di.op0() << ", (x" << di.op1() << ")";
       if (di.isMasked()) out << ", v0";

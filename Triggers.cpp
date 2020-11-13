@@ -91,12 +91,13 @@ Triggers<URV>::writeData1(URV trigIx, bool debugMode, URV value)
   // Write is ignored if it would set dmode and previous trigger has
   // both dmode=0 and chain=1. Otherwise, we would have a chain with
   // different dmodes.
-  if (d1bits.mcontrol_.dmode_ == 1 and trigIx > 0)
-    {
-      auto& prevTrig = triggers_.at(trigIx - 1);
-      if (prevTrig.getChain() and not prevTrig.isDebugModeOnly())
-        return false;
-    }
+  if (not allowMixedDmode_)
+    if (d1bits.mcontrol_.dmode_ == 1 and trigIx > 0)
+      {
+        auto& prevTrig = triggers_.at(trigIx - 1);
+        if (prevTrig.getChain() and not prevTrig.isDebugModeOnly())
+          return false;
+      }
 
   bool oldChain = trig.getChain();
 

@@ -1417,7 +1417,7 @@ namespace WdRiscv
     template<typename STORE_TYPE>
     ExceptionCause determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
 					   STORE_TYPE& storeVal,
-					   SecondaryCause& secCause);
+                                           SecondaryCause& secCause, bool& forced);
 
     /// Helper to execLr. Load type should be int32_t, or int64_t.
     /// Return true if instruction is successful. Return false if an
@@ -2483,6 +2483,48 @@ namespace WdRiscv
     void execVmv2r_v(const DecodedInst*);
     void execVmv4r_v(const DecodedInst*);
     void execVmv8r_v(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vsaddu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                   unsigned start, unsigned elems, bool masked);
+    void execVsaddu_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vsaddu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                   unsigned start, unsigned elems, bool masked);
+    void execVsaddu_vx(const DecodedInst*);
+    void execVsaddu_vi(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vsadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVsadd_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vsadd_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVsadd_vx(const DecodedInst*);
+    void execVsadd_vi(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vssubu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                   unsigned start, unsigned elems, bool masked);
+    void execVssubu_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vssubu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                   unsigned start, unsigned elems, bool masked);
+    void execVssubu_vx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vssub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVssub_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vssub_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVssub_vx(const DecodedInst*);
 
     template <typename ELEM_TYPE>
     void vectorLoad(const DecodedInst*, ElementWidth, bool faultOnFirstOnly);
