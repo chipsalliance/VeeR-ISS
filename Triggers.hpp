@@ -795,6 +795,5 @@ namespace WdRiscv
 
     std::vector< Trigger<URV> > triggers_;
     bool chainPairs_ = false;
-    bool allowMixedDmodeChain_ = true;
   };
 }
