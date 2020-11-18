@@ -1420,6 +1420,12 @@ ExceptionCause
 Hart<URV>::determineMisalLoadException(URV addr, unsigned accessSize,
                                        SecondaryCause& secCause) const
 {
+  if (wideLdSt_)
+    {
+      secCause = SecondaryCause::LOAD_ACC_64BIT;
+      return ExceptionCause::LOAD_ACC_FAULT;
+    }
+
   if (not misalDataOk_)
     {
       secCause = SecondaryCause::NONE;
@@ -1459,6 +1465,12 @@ ExceptionCause
 Hart<URV>::determineMisalStoreException(URV addr, unsigned accessSize,
                                         SecondaryCause& secCause) const
 {
+  if (wideLdSt_)
+    {
+      secCause = SecondaryCause::STORE_ACC_64BIT;
+      return ExceptionCause::STORE_ACC_FAULT;
+    }
+
   if (not misalDataOk_)
     {
       secCause = SecondaryCause::NONE;
