@@ -466,7 +466,7 @@ printFp4Rm(const Hart<URV>& hart, std::ostream& stream, const char* inst,
   stream << std::left << std::setw(8) << inst << ' ';
 
   stream << hart.fpRegName(di.op0()) << ", " << hart.fpRegName(di.op1())
-	 << ", " << hart.fpRegName(di.op2()) << hart.fpRegName(di.op3())
+	 << ", " << hart.fpRegName(di.op2()) << ", " << hart.fpRegName(di.op3())
 	 << ", " << roundingModeString(di.roundingMode());
 }
 
