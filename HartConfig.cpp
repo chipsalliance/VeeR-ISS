@@ -1402,6 +1402,40 @@ HartConfig::clear()
 }
 
 
+/// Associate callbacks with write/poke of the maco0-maco4 CSRs.
+template <typename URV>
+void
+defineMacoSideEffects(System<URV>& system)
+{
+  for (unsigned i = 0; i < system.hartCount(); ++i)
+    {
+      auto hart = system.ithHart(i);
+
+      // Maco registers, if present, start at maco0 and are defined
+      // sequentially.  We allow up to 32.
+      for (unsigned macoIx = 0; macoIx < 32; ++macoIx)
+        {
+          auto name = std::string("maco") + std::to_string(macoIx);
+          auto csrPtr = hart->findCsr(name);
+          if (not csrPtr)
+            break;
+
+          // If lock bit is set, then preserve CSR value
+          auto pre = [hart] (Csr<URV>& csr, URV& val) -> void {
+                       URV previous = 0;
+                       hart->peekCsr(csr.getNumber(), previous);
+                       URV lockMask = 2;
+                       if (previous & lockMask)
+                         val = previous;  // Locked: keep previous value
+                      };
+
+          csrPtr->registerPrePoke(pre);
+          csrPtr->registerPreWrite(pre);
+        }
+    }
+}
+
+
 /// Associate callbacks with write/poke of the mpicbaddr (pic base
 /// address csr).
 template <typename URV>
@@ -1656,6 +1690,7 @@ HartConfig::finalizeCsrConfig(System<URV>& system) const
   defineMpicbaddrSideEffects(system);
   defineMpmcSideEffects(system);
   defineMgpmcSideEffects(system);
+  defineMacoSideEffects(system);
 
   // Define callback to react to write/poke to mcountinhibit CSR.
   defineMcountinhibitSideEffects(system);
