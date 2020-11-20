@@ -8449,6 +8449,196 @@ Hart<URV>::execVaaddu_vx(const DecodedInst* di)
 template <typename URV>
 template <typename ELEM_TYPE>
 void
+Hart<URV>::vasub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                    unsigned start, unsigned elems, bool masked)
+{
+  unsigned errors = 0;
+  ELEM_TYPE e1 = 0, e2 = 0;
+
+  typedef typename makeDoubleWide<ELEM_TYPE>::type ELEM_TYPE2; // Double wide
+
+  URV rmVal = 0;
+  peekCsr(CsrNumber::VXRM, rmVal);
+  VecRoundingMode rm = VecRoundingMode(rmVal);
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, group, e1) and vecRegs_.read(vs2, ix, group, e2))
+        {
+          ELEM_TYPE2 temp = e1;
+          temp -= e2;
+          roundoff(rm, temp, 1);
+          ELEM_TYPE dest = temp;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVasub_vv(const DecodedInst* di)
+{
+  if (not checkMaskableInst(di))
+    return;
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  typedef ElementWidth EW;
+  switch (sew)
+    {
+    case EW::Byte:   vasub_vv<int8_t> (vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Half:   vasub_vv<int16_t>(vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word:   vasub_vv<int32_t>(vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word2:  vasub_vv<int64_t>(vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word4:  vasub_vv<Int128> (vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word8:  vasub_vv<Int256> (vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word16: vasub_vv<Int512> (vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word32: assert(0 && "1024-bit fixed point not yet implemented"); break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVasubu_vv(const DecodedInst* di)
+{
+  if (not checkMaskableInst(di))
+    return;
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  typedef ElementWidth EW;
+  switch (sew)
+    {
+    case EW::Byte:   vasub_vv<uint8_t> (vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Half:   vasub_vv<uint16_t>(vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word:   vasub_vv<uint32_t>(vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word2:  vasub_vv<uint64_t>(vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word4:  vasub_vv<Uint128> (vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word8:  vasub_vv<Uint256> (vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word16: vasub_vv<Uint512> (vd, vs1, vs2, group, start, elems, masked); break;
+    case EW::Word32: assert(0 && "1024-bit fixed point not yet implemented"); break;
+    }
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
+Hart<URV>::vasub_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                   unsigned start, unsigned elems, bool masked)
+{
+  unsigned errors = 0;
+  ELEM_TYPE e1 = 0;
+
+  typedef typename makeDoubleWide<ELEM_TYPE>::type ELEM_TYPE2; // Double wide
+
+  URV rmVal = 0;
+  peekCsr(CsrNumber::VXRM, rmVal);
+  VecRoundingMode rm = VecRoundingMode(rmVal);
+
+  for (unsigned ix = start; ix < elems; ++ix)
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+        continue;
+
+      if (vecRegs_.read(vs1, ix, group, e1))
+        {
+          ELEM_TYPE2 temp = e1;
+          temp -= e2;
+          roundoff(rm, temp, 1);
+          ELEM_TYPE dest = temp;
+          if (not vecRegs_.write(vd, ix, group, dest))
+            errors++;
+        }
+      else
+        errors++;
+    }
+
+  assert(errors == 0);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVasub_vx(const DecodedInst* di)
+{
+  if (not checkMaskableInst(di))
+    return;
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  SRV e2 = SRV(intRegs_.read(rs2));
+
+  typedef ElementWidth EW;
+  switch (sew)
+    {
+    case EW::Byte:   vasub_vx<int8_t> (vd, vs1, e2,          group, start, elems, masked); break;
+    case EW::Half:   vasub_vx<int16_t>(vd, vs1, e2,          group, start, elems, masked); break;
+    case EW::Word:   vasub_vx<int32_t>(vd, vs1, e2,          group, start, elems, masked); break;
+    case EW::Word2:  vasub_vx<int64_t>(vd, vs1, e2,          group, start, elems, masked); break;
+    case EW::Word4:  vasub_vx<Int128> (vd, vs1, Int128(e2),  group, start, elems, masked); break;
+    case EW::Word8:  vasub_vx<Int256> (vd, vs1, Int256(e2),  group, start, elems, masked); break;
+    case EW::Word16: vasub_vx<Int512> (vd, vs1, Int512(e2),  group, start, elems, masked); break;
+    case EW::Word32: assert(0 && "1024-bit fixed point not yet implemented"); break;
+    }
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execVasubu_vx(const DecodedInst* di)
+{
+  if (not checkMaskableInst(di))
+    return;
+
+  bool masked = di->isMasked();
+  unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
+  unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
+  unsigned elems = vecRegs_.elemCount();
+  ElementWidth sew = vecRegs_.elemWidth();
+
+  SRV e2 = SRV(intRegs_.read(rs2));
+
+  typedef ElementWidth EW;
+  switch (sew)
+    {
+    case EW::Byte:   vasub_vx<uint8_t> (vd, vs1, e2,          group, start, elems, masked); break;
+    case EW::Half:   vasub_vx<uint16_t>(vd, vs1, e2,          group, start, elems, masked); break;
+    case EW::Word:   vasub_vx<uint32_t>(vd, vs1, e2,          group, start, elems, masked); break;
+    case EW::Word2:  vasub_vx<uint64_t>(vd, vs1, e2,          group, start, elems, masked); break;
+    case EW::Word4:  vasub_vx<Uint128> (vd, vs1, Int128(e2),  group, start, elems, masked); break;
+    case EW::Word8:  vasub_vx<Uint256> (vd, vs1, Int256(e2),  group, start, elems, masked); break;
+    case EW::Word16: vasub_vx<Uint512> (vd, vs1, Int512(e2),  group, start, elems, masked); break;
+    case EW::Word32: assert(0 && "1024-bit fixed point not yet implemented"); break;
+    }
+}
+
+
+template <typename URV>
+template <typename ELEM_TYPE>
+void
 Hart<URV>::vectorLoad(const DecodedInst* di, ElementWidth eew, bool faultFirst)
 {
   bool badConfig = not vecRegs_.legalConfig(eew, vecRegs_.groupMultiplier());

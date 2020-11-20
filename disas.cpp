@@ -2409,6 +2409,26 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       if (di.isMasked()) out << ", v0.t";
       break;
 
+    case InstId::vasubu_vv:
+      out << "vasubu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vasubu_vx:
+      out << "vasubu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vasub_vv:
+      out << "vasub.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vasub_vx:
+      out << "vasub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
     case InstId::vle8_v:
       out << "vle8.v v" << di.op0() << ", (x" << di.op1() << ")";
       if (di.isMasked()) out << ", v0";
