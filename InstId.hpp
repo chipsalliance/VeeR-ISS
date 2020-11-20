@@ -512,6 +512,10 @@ namespace WdRiscv
      vssubu_vx,
      vssub_vv,
      vssub_vx,
+     vaaddu_vv,
+     vaaddu_vx,
+     vaadd_vv,
+     vaadd_vx,
 
      vle8_v,
      vle16_v,

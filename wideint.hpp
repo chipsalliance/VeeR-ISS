@@ -189,6 +189,21 @@ namespace WdRiscv
       : low_(x), high_(x < 0? ~int64_t(0) : 0)
     { }
 
+    /// Construct from a 64-bit unsigned.
+    Int128(uint64_t x)
+      : low_(x), high_(0)
+    { }
+
+    /// Construct from a 32-bit int.
+    Int128(int32_t x)
+      : low_(int64_t(x)), high_(0)
+    { }
+
+    /// Construct from a 64-bit unsigned.
+    Int128(uint32_t x)
+      : low_(x), high_(0)
+    { }
+
     /// Construct from a pair of half-type ints.
     Int128(HalfType high, HalfType low)
       : low_(low), high_(high)

@@ -2526,6 +2526,18 @@ namespace WdRiscv
                   unsigned start, unsigned elems, bool masked);
     void execVssub_vx(const DecodedInst*);
 
+    template<typename ELEM_TYPE>
+    void vaadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVaadd_vv(const DecodedInst*);
+    void execVaaddu_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vaadd_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVaadd_vx(const DecodedInst*);
+    void execVaaddu_vx(const DecodedInst*);
+
     template <typename ELEM_TYPE>
     void vectorLoad(const DecodedInst*, ElementWidth, bool faultOnFirstOnly);
 

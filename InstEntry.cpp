@@ -3074,6 +3074,42 @@ InstTable::setupInstVec()
         OperandType::IntReg, OperandMode::Read, rs2Mask,
       },
 
+      { "vaaddu.vv", InstId::vaaddu_vv,
+        0b001000'1'00000'00000'010'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vaaddu.vx", InstId::vaaddu_vx,
+        0b001000'1'00000'00000'110'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::IntReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vaadd.vv", InstId::vaadd_vv,
+        0b001001'1'00000'00000'010'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vaadd.vx", InstId::vaadd_vx,
+        0b001001'1'00000'00000'110'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::IntReg, OperandMode::Read, rs2Mask,
+      },
+
       { "vle8.v", InstId::vle8_v,
         0b000000'0'00000'00000'000'00000'0000111,
         0b000111'0'11111'00000'111'00000'1111111, // Mask of opcode bits
