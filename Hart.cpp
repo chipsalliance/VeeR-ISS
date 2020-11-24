@@ -5638,6 +5638,8 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vasubu_vx,
      &&vasub_vv,
      &&vasub_vx,
+     &&vsmul_vv,
+     &&vsmul_vx,
      &&vle8_v,
      &&vle16_v,
      &&vle32_v,
@@ -7445,6 +7447,14 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vasub_vx:
   execVasub_vx(di);
+  return;
+
+ vsmul_vv:
+  execVsmul_vv(di);
+  return;
+
+ vsmul_vx:
+  execVsmul_vx(di);
   return;
 
  vle8_v:
