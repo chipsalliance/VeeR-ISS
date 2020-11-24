@@ -948,23 +948,23 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::fadd_s:
-      printFp2Rm(*this, out, "fadd.s", di);
+      printFp3Rm(*this, out, "fadd.s", di);
       break;
 
     case InstId::fsub_s:
-      printFp2Rm(*this, out, "fsub.s", di);
+      printFp3Rm(*this, out, "fsub.s", di);
       break;
 
     case InstId::fmul_s:
-      printFp2Rm(*this, out, "fmul.s", di);
+      printFp3Rm(*this, out, "fmul.s", di);
       break;
 
     case InstId::fdiv_s:
-      printFp2Rm(*this, out, "fdiv.s", di);
+      printFp3Rm(*this, out, "fdiv.s", di);
       break;
 
     case InstId::fsqrt_s:
-      printFp2(*this, out, "fsqrt.s", di);
+      printFp2Rm(*this, out, "fsqrt.s", di);
       break;
 
     case InstId::fsgnj_s:
