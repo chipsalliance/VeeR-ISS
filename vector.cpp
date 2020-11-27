@@ -8226,8 +8226,8 @@ roundoff(VecRoundingMode mode, T& value, unsigned d)
 
   unsigned bit = 0;
 
-  unsigned vd = (value >> d) & 1;
-  unsigned vd_1 = (value >> (d-1)) & 1;
+  unsigned vd = unsigned((value >> d) & 1);
+  unsigned vd_1 = unsigned((value >> (d-1)) & 1);
 
   switch(mode)
     {
@@ -8281,7 +8281,7 @@ Hart<URV>::vaadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
           ELEM_TYPE2 temp = e1;
           temp += e2;
           roundoff(rm, temp, 1);
-          ELEM_TYPE dest = temp;
+          ELEM_TYPE dest = ELEM_TYPE(temp);
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -8374,7 +8374,7 @@ Hart<URV>::vaadd_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
           ELEM_TYPE2 temp = e1;
           temp += e2;
           roundoff(rm, temp, 1);
-          ELEM_TYPE dest = temp;
+          ELEM_TYPE dest = ELEM_TYPE(temp);
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -8471,7 +8471,7 @@ Hart<URV>::vasub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
           ELEM_TYPE2 temp = e1;
           temp -= e2;
           roundoff(rm, temp, 1);
-          ELEM_TYPE dest = temp;
+          ELEM_TYPE dest = ELEM_TYPE(temp);
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }
@@ -8564,7 +8564,7 @@ Hart<URV>::vasub_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
           ELEM_TYPE2 temp = e1;
           temp -= e2;
           roundoff(rm, temp, 1);
-          ELEM_TYPE dest = temp;
+          ELEM_TYPE dest = ELEM_TYPE(temp);
           if (not vecRegs_.write(vd, ix, group, dest))
             errors++;
         }

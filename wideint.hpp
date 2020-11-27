@@ -1296,7 +1296,7 @@ namespace WdRiscv
   { a %= b; return a; }
 
   inline Int128 operator - (Int128 a)
-  { Int128 c = 0L; c -= a; return c; }
+  { Int128 c = 0; c -= a; return c; }
 
   inline Int128 operator >> (Int128 x, int n)
   { x >>= n; return x; }
