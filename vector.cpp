@@ -2510,7 +2510,7 @@ Hart<URV>::vrgather_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
     {
       if (vecRegs_.read(vs2, ix, group, e2))
         {
-          unsigned vs1Ix = e2;
+          unsigned vs1Ix = unsigned(e2);
           dest = 0;
           if (vecRegs_.read(vs1, vs1Ix, group, e1))
             dest = e1;
@@ -8969,7 +8969,7 @@ Hart<URV>::vectorStore(const DecodedInst* di, ElementWidth eew)
         {
           for (unsigned n = 0; n < sizeof(elem); n += 8)
             {
-              uint64_t dword = elem;
+              uint64_t dword = uint64_t(elem);
               bool forced = false;
               cause = determineStoreException(rs1, URV(addr), addr, dword, secCause, forced);
               if (cause != ExceptionCause::NONE)
@@ -9233,7 +9233,7 @@ Hart<URV>::vectorStoreWholeReg(const DecodedInst* di, ElementWidth eew)
         {
           for (unsigned n = 0; n < sizeof(elem) and not exception; n += 8)
             {
-              uint64_t dword = elem;
+              uint64_t dword = uint64_t(elem);
               memory_.write(hartIx_, addr + n, dword);
               elem >>= 64;
             }
@@ -9555,7 +9555,7 @@ Hart<URV>::vectorStoreStrided(const DecodedInst* di, ElementWidth eew)
         {
           for (unsigned n = 0; n < sizeof(elem) and not exception; n += 8)
             {
-              uint64_t dword = elem;
+              uint64_t dword = uint64_t(elem);
               memory_.write(hartIx_, addr + n, dword);
               elem >>= 64;
             }

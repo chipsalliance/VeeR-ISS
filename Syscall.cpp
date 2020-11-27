@@ -15,7 +15,15 @@
 #include <iomanip>
 #include <iostream>
 #include <fstream>
-#include <experimental/filesystem>
+#include <sstream>
+
+#if defined(__cpp_lib_filesystem)
+  #include <filesystem>
+  namespace FileSystem = std::filesystem;
+#else
+  #include <experimental/filesystem>
+  namespace FileSystem = std::experimental::filesystem;
+#endif
 
 #include <cstring>
 #include <ctime>
@@ -38,6 +46,12 @@
 
 
 using namespace WdRiscv;
+
+
+#ifdef __APPLE__
+  #define off64_t off_t
+  #define MREMAP_MAYMOVE 0
+#endif
 
 
 // Copy x86 stat buffer to riscv kernel_stat buffer.
@@ -161,7 +175,7 @@ Syscall<URV>::redirectOutputDescriptor(int fd, const std::string& path)
   fdIsRead_[fd] = false;
   fdPath_[fd] = path;
 
-  auto absPath = std::experimental::filesystem::absolute(path);
+  auto absPath = FileSystem::absolute(path);
   writePaths_.insert(absPath.string());
 
   return true;
@@ -214,7 +228,7 @@ Syscall<URV>::registerLinuxFd(int linuxFd, const std::string& path, bool isRead)
   fdIsRead_[riscvFd] = isRead;
   fdPath_[riscvFd] = path;
 
-  auto absPath = std::experimental::filesystem::absolute(path);
+  auto absPath = FileSystem::absolute(path);
   if (isRead)
     readPaths_.insert(absPath.string());
   else
@@ -713,6 +727,9 @@ Syscall<URV>::emulate()
 
     case 61:       // getdents64  -- get directory entries
       {
+#ifdef __APPLE__
+	return SRV(-1);
+#else
 	// TBD: double check that struct linux_dirent is same
 	// in x86 and RISCV 32/64.
 	int fd = effectiveFd(SRV(a0));
@@ -725,6 +742,7 @@ Syscall<URV>::emulate()
 	errno = 0;
 	int rc = getdirentries64(fd, (char*) buffAddr, count, &base);
 	return rc < 0 ? SRV(-errno) : rc;
+#endif
       }
 
     case 62:       // lseek
@@ -1239,7 +1257,7 @@ Syscall<URV>::loadFileDescriptors(const std::string& path)
       else
         {
           int newFd = -1;
-          if (std::experimental::filesystem::is_regular_file(fdPath))
+          if (FileSystem::is_regular_file(fdPath))
             {
               newFd = open(fdPath.c_str(), O_RDWR);
               if (lseek(newFd, position, SEEK_SET) == off_t(-1))

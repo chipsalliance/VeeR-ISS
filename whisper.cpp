@@ -16,11 +16,18 @@
 #include <fstream>
 #include <sstream>
 #include <thread>
-#include <experimental/filesystem>
+
+#if defined(__cpp_lib_filesystem)
+  #include <filesystem>
+  namespace FileSystem = std::filesystem;
+#else
+  #include <experimental/filesystem>
+  namespace FileSystem = std::experimental::filesystem;
+#endif
+
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
-
 
 #ifdef __MINGW64__
 #include <winsock2.h>
@@ -861,24 +868,23 @@ bool
 loadSnapshot(Hart<URV>& hart, const std::string& snapDir)
 {
   using std::cerr;
-  using namespace std::experimental;
 
-  if (not filesystem::is_directory(snapDir))
+  if (not FileSystem::is_directory(snapDir))
     {
       cerr << "Error: Path is not a snapshot directory: " << snapDir << '\n';
       return false;
     }
 
-  filesystem::path path(snapDir);
-  filesystem::path regPath = path / "registers";
-  if (not filesystem::is_regular_file(regPath))
+  FileSystem::path path(snapDir);
+  FileSystem::path regPath = path / "registers";
+  if (not FileSystem::is_regular_file(regPath))
     {
       cerr << "Error: Snapshot file does not exists: " << regPath << '\n';
       return false;
     }
 
-  filesystem::path memPath = path / "memory";
-  if (not filesystem::is_regular_file(regPath))
+  FileSystem::path memPath = path / "memory";
+  if (not FileSystem::is_regular_file(regPath))
     {
       cerr << "Error: Snapshot file does not exists: " << memPath << '\n';
       return false;
@@ -1419,8 +1425,6 @@ bool
 snapshotRun(System<URV>& system, FILE* traceFile,
             const std::string& snapDir, uint64_t snapPeriod)
 {
-  using namespace std::experimental;
-
   if (not snapPeriod)
     {
       std::cerr << "Warning: Zero snap period ignored.\n";
@@ -1446,9 +1450,9 @@ snapshotRun(System<URV>& system, FILE* traceFile,
       if (not done)
         {
           unsigned index = hart.snapshotIndex();
-          filesystem::path path(snapDir + std::to_string(index));
-          if (not filesystem::is_directory(path))
-            if (not filesystem::create_directories(path))
+          FileSystem::path path(snapDir + std::to_string(index));
+          if (not FileSystem::is_directory(path))
+            if (not FileSystem::create_directories(path))
               {
                 std::cerr << "Error: Failed to create snapshot directory " << path << '\n';
                 return false;
