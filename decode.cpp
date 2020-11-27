@@ -222,6 +222,7 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         case 0x21: return instTable_.getEntry(InstId::vsadd_vv);
         case 0x22: return instTable_.getEntry(InstId::vssubu_vv);
         case 0x23: return instTable_.getEntry(InstId::vssub_vv);
+        case 0x27: return instTable_.getEntry(InstId::vsmul_vv);
         }
       return instTable_.getEntry(InstId::illegal);  
     }
@@ -242,6 +243,10 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         case 5:    return instTable_.getEntry(InstId::vredmin_vs);
         case 6:    return instTable_.getEntry(InstId::vredmaxu_vs);
         case 7:    return instTable_.getEntry(InstId::vredmax_vs);
+        case 8:    return instTable_.getEntry(InstId::vaaddu_vv);
+        case 9:    return instTable_.getEntry(InstId::vaadd_vv);
+        case 0xa:  return instTable_.getEntry(InstId::vasubu_vv);
+        case 0xb:  return instTable_.getEntry(InstId::vasub_vv);
         case 0x10:
           if (op2 == 0)    return instTable_.getEntry(InstId::vmv_x_s);
           if (op2 == 0x10) return instTable_.getEntry(InstId::vpopc_m);
@@ -380,6 +385,7 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         case 0x21: return instTable_.getEntry(InstId::vsaddu_vx);
         case 0x22: return instTable_.getEntry(InstId::vssubu_vx);
         case 0x23: return instTable_.getEntry(InstId::vssub_vx);
+        case 0x27: return instTable_.getEntry(InstId::vsmul_vx);
         }
       return instTable_.getEntry(InstId::illegal);  
     }
@@ -392,6 +398,10 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 
       switch (f6)
         {
+        case 8:    return instTable_.getEntry(InstId::vaaddu_vx);
+        case 9:    return instTable_.getEntry(InstId::vaadd_vx);
+        case 0xa:  return instTable_.getEntry(InstId::vasubu_vx);
+        case 0xb:  return instTable_.getEntry(InstId::vasub_vx);
         case 0xe:   return instTable_.getEntry(InstId::vslide1up_vx);
         case 0x10:  std::swap(op1, op2); // per spec !
                     return instTable_.getEntry(InstId::vmv_s_x);

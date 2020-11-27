@@ -1399,6 +1399,17 @@ Int1024::operator <<= (int n)
 int
 main(int argc, char* argv[])
 {
+  int64_t i64 = uint32_t(0xffffffff);
+  Int128 i128 = uint64_t(0xffffffffffffffffLL);
+  Uint128 u128 = 0; u128 = ~u128;
+  unsigned bit = unsigned((u128 >> 127) & 1);
+  u128 = u128 >> 127;
+  Int256 i256 = u128;
+  i256 = -1;
+  Int512 i512{i256};
+  bool d = i512 != 0;
+  d = u128 != 0;
+  
   uint64_t a = ~uint64_t(0);
   __uint128_t c = ~ __uint128_t(0);
   c *= a;

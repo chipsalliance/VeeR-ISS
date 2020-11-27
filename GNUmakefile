@@ -30,10 +30,14 @@ BOOST_INC := $(wildcard $(BOOST_DIR) $(BOOST_DIR)/include)
 BOOST_LIB_DIR := $(wildcard $(BOOST_DIR)/stage/lib $(BOOST_DIR)/lib)
 
 # Specify only the basename of the Boost libraries
-BOOST_LIBS := boost_program_options 
+BOOST_LIBS := boost_program_options
 
 # Add extra dependency libraries here
-EXTRA_LIBS := -lpthread -lz -static-libstdc++ -lstdc++fs
+EXTRA_LIBS := -lpthread -lz -static-libstdc++ 
+ifeq (Linux,$(shell uname -s))
+EXTRA_LIBS += -lstdc++fs
+endif
+
 ifeq (mingw,$(findstring mingw,$(shell $(CXX) -v 2>&1 | grep Target | cut -d' ' -f2)))
 EXTRA_LIBS += -lws2_32
 endif
@@ -43,7 +47,7 @@ LINK_DIRS := $(addprefix -L,$(BOOST_LIB_DIR))
 
 # Generating the Linker options for dependent libraries
 ifeq ($(STATIC_LINK), 1)
-  LINK_LIBS := $(addprefix -l:lib, $(addsuffix .a, $(BOOST_LIBS))) $(EXTRA_LIBS)
+  LINK_LIBS := $(addprefix $(BOOST_LIB_DIR)/lib, $(addsuffix .a, $(BOOST_LIBS))) $(EXTRA_LIBS)
 else
   COMMA := ,
   LINK_DIRS += $(addprefix -Wl$(COMMA)-rpath=, $(BOOST_LIB_DIR))

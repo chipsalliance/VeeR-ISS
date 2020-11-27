@@ -1264,11 +1264,11 @@ Hart<URV>::reportInstructionFrequency(FILE* file) const
 	}
 
       if (prof.user_)
-        fprintf(file, "  +user %ld\n", prof.user_);
+        fprintf(file, "  +user %" PRIu64 "\n", prof.user_);
       if (prof.supervisor_)
-        fprintf(file, "  +supervisor %ld\n", prof.supervisor_);
+        fprintf(file, "  +supervisor %" PRIu64 "\n", prof.supervisor_);
       if (prof.machine_)
-        fprintf(file, "  +machine %ld\n", prof.machine_);
+        fprintf(file, "  +machine %" PRIu64 "\n", prof.machine_);
     }
 }
 
@@ -1278,7 +1278,7 @@ void
 Hart<URV>::reportTrapStat(FILE* file) const
 {
   fprintf(file, "\n");
-  fprintf(file, "Interrupts (incuding NMI): %ld\n", interruptCount_);
+  fprintf(file, "Interrupts (incuding NMI): %" PRIu64 "\n", interruptCount_);
   for (unsigned i = 0; i < interruptStat_.size(); ++i)
     {
       InterruptCause cause = InterruptCause(i);
@@ -1288,51 +1288,51 @@ Hart<URV>::reportTrapStat(FILE* file) const
       switch(cause)
         {
         case InterruptCause::U_SOFTWARE:
-          fprintf(file, "  + U_SOFTWARE  : %ld\n", count);
+          fprintf(file, "  + U_SOFTWARE  : %" PRIu64 "\n", count);
           break;
         case InterruptCause::S_SOFTWARE:
-          fprintf(file, "  + S_SOFTWARE  : %ld\n", count);
+          fprintf(file, "  + S_SOFTWARE  : %" PRIu64 "\n", count);
           break;
         case InterruptCause::M_SOFTWARE:
-          fprintf(file, "  + M_SOFTWARE  : %ld\n", count);
+          fprintf(file, "  + M_SOFTWARE  : %" PRIu64 "\n", count);
           break;
         case InterruptCause::U_TIMER   :
-          fprintf(file, "  + U_TIMER     : %ld\n", count);
+          fprintf(file, "  + U_TIMER     : %" PRIu64 "\n", count);
           break;
         case InterruptCause::S_TIMER   :
-          fprintf(file, "  + S_TIMER     : %ld\n", count);
+          fprintf(file, "  + S_TIMER     : %" PRIu64 "\n", count);
           break;
         case InterruptCause::M_TIMER   :
-          fprintf(file, "  + M_TIMER     : %ld\n", count);
+          fprintf(file, "  + M_TIMER     : %" PRIu64 "\n", count);
           break;
         case InterruptCause::U_EXTERNAL:
-          fprintf(file, "  + U_EXTERNAL  : %ld\n", count);
+          fprintf(file, "  + U_EXTERNAL  : %" PRIu64 "\n", count);
           break;
         case InterruptCause::S_EXTERNAL:
-          fprintf(file, "  + S_EXTERNAL  : %ld\n", count);
+          fprintf(file, "  + S_EXTERNAL  : %" PRIu64 "\n", count);
           break;
         case InterruptCause::M_EXTERNAL:
-          fprintf(file, "  + M_EXTERNAL  : %ld\n", count);
+          fprintf(file, "  + M_EXTERNAL  : %" PRIu64 "\n", count);
           break;
         case InterruptCause::M_INT_TIMER1:
-          fprintf(file, "  + M_INT_TIMER1: %ld\n", count);
+          fprintf(file, "  + M_INT_TIMER1: %" PRIu64 "\n", count);
           break;
         case InterruptCause::M_INT_TIMER0:
-          fprintf(file, "  + M_INT_TIMER0: %ld\n", count);
+          fprintf(file, "  + M_INT_TIMER0: %" PRIu64 "\n", count);
           break;
         case InterruptCause::M_LOCAL :
-          fprintf(file, "  + M_LOCAL     : %ld\n", count);
+          fprintf(file, "  + M_LOCAL     : %" PRIu64 "\n", count);
           break;
         default:
-          fprintf(file, "  + ????        : %ld\n", count);
+          fprintf(file, "  + ????        : %" PRIu64 "\n", count);
         }
     }
 
   fprintf(file, "\n");
-  fprintf(file, "Non maskable interrupts: %ld\n", nmiCount_);
+  fprintf(file, "Non maskable interrupts: %" PRIu64 "\n", nmiCount_);
 
   fprintf(file, "\n");
-  fprintf(file, "Exceptions: %ld\n", exceptionCount_);
+  fprintf(file, "Exceptions: %" PRIu64 "\n", exceptionCount_);
   for (unsigned i = 0; i < exceptionStat_.size(); ++i)
     {
       ExceptionCause cause = ExceptionCause(i);
@@ -1347,59 +1347,59 @@ Hart<URV>::reportTrapStat(FILE* file) const
       switch(cause)
         {
         case ExceptionCause::INST_ADDR_MISAL :
-          fprintf(file, "  + INST_ADDR_MISAL : %ld\n", count);
+          fprintf(file, "  + INST_ADDR_MISAL : %" PRIu64 "\n", count);
           break;
         case ExceptionCause::INST_ACC_FAULT  :
-          fprintf(file, "  + INST_ACC_FAULT  : %ld\n", count);
+          fprintf(file, "  + INST_ACC_FAULT  : %" PRIu64 "\n", count);
           break;
         case ExceptionCause::ILLEGAL_INST    :
-          fprintf(file, "  + ILLEGAL_INST    : %ld\n", count);
+          fprintf(file, "  + ILLEGAL_INST    : %" PRIu64 "\n", count);
           break;
         case ExceptionCause::BREAKP          :
-          fprintf(file, "  + BREAKP          : %ld\n", count);
+          fprintf(file, "  + BREAKP          : %" PRIu64 "\n", count);
           break;
         case ExceptionCause::LOAD_ADDR_MISAL :
-          fprintf(file, "  + LOAD_ADDR_MISAL : %ld\n", count);
+          fprintf(file, "  + LOAD_ADDR_MISAL : %" PRIu64 "\n", count);
           break;
         case ExceptionCause::LOAD_ACC_FAULT  :
-          fprintf(file, "  + LOAD_ACC_FAULT  : %ld\n", count);
+          fprintf(file, "  + LOAD_ACC_FAULT  : %" PRIu64 "\n", count);
           break;
         case ExceptionCause::STORE_ADDR_MISAL:
-          fprintf(file, "  + STORE_ADDR_MISAL: %ld\n", count);
+          fprintf(file, "  + STORE_ADDR_MISAL: %" PRIu64 "\n", count);
           break;
         case ExceptionCause::STORE_ACC_FAULT :
-          fprintf(file, "  + STORE_ACC_FAULT : %ld\n", count);
+          fprintf(file, "  + STORE_ACC_FAULT : %" PRIu64 "\n", count);
           break;
         case ExceptionCause::U_ENV_CALL      :
-          fprintf(file, "  + U_ENV_CALL      : %ld\n", count);
+          fprintf(file, "  + U_ENV_CALL      : %" PRIu64 "\n", count);
           break;
         case ExceptionCause::S_ENV_CALL      :
-          fprintf(file, "  + S_ENV_CALL      : %ld\n", count);
+          fprintf(file, "  + S_ENV_CALL      : %" PRIu64 "\n", count);
           break;
         case ExceptionCause::M_ENV_CALL      :
-          fprintf(file, "  + M_ENV_CALL      : %ld\n", count);
+          fprintf(file, "  + M_ENV_CALL      : %" PRIu64 "\n", count);
           break;
         case ExceptionCause::INST_PAGE_FAULT :
-          fprintf(file, "  + INST_PAGE_FAULT : %ld\n", count);
+          fprintf(file, "  + INST_PAGE_FAULT : %" PRIu64 "\n", count);
           break;
         case ExceptionCause::LOAD_PAGE_FAULT :
-          fprintf(file, "  + LOAD_PAGE_FAULT : %ld\n", count);
+          fprintf(file, "  + LOAD_PAGE_FAULT : %" PRIu64 "\n", count);
           break;
         case ExceptionCause::STORE_PAGE_FAULT:
-          fprintf(file, "  + STORE_PAGE_FAULT: %ld\n", count);
+          fprintf(file, "  + STORE_PAGE_FAULT: %" PRIu64 "\n", count);
           break;
         case ExceptionCause::NONE            :
-          fprintf(file, "  + NONE            : %ld\n", count);
+          fprintf(file, "  + NONE            : %" PRIu64 "\n", count);
           break;
         default:
-          fprintf(file, "  + ????            : %ld\n", count);
+          fprintf(file, "  + ????            : %" PRIu64 "\n", count);
           break;
         }
       for (unsigned j = 0; j < secCauseVec.size(); ++j)
         {
           uint64_t secCount = secCauseVec.at(j);
           if (secCount)
-            fprintf(file, "    + %d: %ld\n", j, secCount);
+            fprintf(file, "    + %d: %" PRIu64 "\n", j, secCount);
         }
     }
 }
@@ -4400,7 +4400,7 @@ Hart<URV>::runUntilAddress(size_t address, FILE* traceFile)
   uint64_t counter0 = instCounter_;
 
   // Setup signal handlers. Restore on destruction.
-  SignalHandlers handlers();
+  SignalHandlers handlers;
 
   bool success = untilAddress(address, traceFile);
       
@@ -4579,7 +4579,7 @@ Hart<URV>::run(FILE* file)
   gettimeofday(&t0, nullptr);
 
   // Setup signal handlers. Restore on destruction.
-  SignalHandlers handlers();
+  SignalHandlers handlers;
 
   bool success = simpleRun();
 
@@ -5630,6 +5630,16 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vssubu_vx,
      &&vssub_vv,
      &&vssub_vx,
+     &&vaaddu_vv,
+     &&vaaddu_vx,
+     &&vaadd_vv,
+     &&vaadd_vx,
+     &&vasubu_vv,
+     &&vasubu_vx,
+     &&vasub_vv,
+     &&vasub_vx,
+     &&vsmul_vv,
+     &&vsmul_vx,
      &&vle8_v,
      &&vle16_v,
      &&vle32_v,
@@ -7405,6 +7415,46 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vssub_vx:
   execVssub_vx(di);
+  return;
+
+ vaaddu_vv:
+  execVaaddu_vv(di);
+  return;
+
+ vaaddu_vx:
+  execVaaddu_vx(di);
+  return;
+
+ vaadd_vv:
+  execVaadd_vv(di);
+  return;
+
+ vaadd_vx:
+  execVaadd_vx(di);
+  return;
+
+ vasubu_vv:
+  execVasubu_vv(di);
+  return;
+
+ vasubu_vx:
+  execVasubu_vx(di);
+  return;
+
+ vasub_vv:
+  execVasub_vv(di);
+  return;
+
+ vasub_vx:
+  execVasub_vx(di);
+  return;
+
+ vsmul_vv:
+  execVsmul_vv(di);
+  return;
+
+ vsmul_vx:
+  execVsmul_vx(di);
   return;
 
  vle8_v:
@@ -9838,6 +9888,8 @@ Hart<URV>::execFlw(const DecodedInst* di)
 
   ldStAddr_ = virtAddr;   // For reporting load addr in trace-mode.
   ldStAddrValid_ = true;  // For reporting load addr in trace-mode.
+  uint64_t addr = virtAddr;
+  unsigned ldSize = 4;
 
   auto secCause = SecondaryCause::NONE;
   auto cause = ExceptionCause::NONE;
@@ -9855,9 +9907,6 @@ Hart<URV>::execFlw(const DecodedInst* di)
 	return;
     }
 
-  unsigned ldSize = 4;
-
-  uint64_t addr = virtAddr;
   cause = determineLoadException(rs1, base, addr, ldSize, secCause);
   if (cause != ExceptionCause::NONE)
     {
@@ -10902,6 +10951,8 @@ Hart<URV>::execFld(const DecodedInst* di)
 
   ldStAddr_ = virtAddr;   // For reporting load addr in trace-mode.
   ldStAddrValid_ = true;  // For reporting load addr in trace-mode.
+  unsigned ldSize = 8;
+  uint64_t addr = virtAddr;
 
   auto secCause = SecondaryCause::NONE;
   auto cause = ExceptionCause::NONE;
@@ -10919,9 +10970,6 @@ Hart<URV>::execFld(const DecodedInst* di)
 	return;
     }
 
-  unsigned ldSize = 8;
-
-  uint64_t addr = virtAddr;
   cause = determineLoadException(rs1, base, addr, ldSize, secCause);
   if (cause != ExceptionCause::NONE)
     {

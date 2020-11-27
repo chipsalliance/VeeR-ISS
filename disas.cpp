@@ -466,7 +466,7 @@ printFp4Rm(const Hart<URV>& hart, std::ostream& stream, const char* inst,
   stream << std::left << std::setw(8) << inst << ' ';
 
   stream << hart.fpRegName(di.op0()) << ", " << hart.fpRegName(di.op1())
-	 << ", " << hart.fpRegName(di.op2()) << hart.fpRegName(di.op3())
+	 << ", " << hart.fpRegName(di.op2()) << ", " << hart.fpRegName(di.op3())
 	 << ", " << roundingModeString(di.roundingMode());
 }
 
@@ -948,23 +948,23 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::fadd_s:
-      printFp2Rm(*this, out, "fadd.s", di);
+      printFp3Rm(*this, out, "fadd.s", di);
       break;
 
     case InstId::fsub_s:
-      printFp2Rm(*this, out, "fsub.s", di);
+      printFp3Rm(*this, out, "fsub.s", di);
       break;
 
     case InstId::fmul_s:
-      printFp2Rm(*this, out, "fmul.s", di);
+      printFp3Rm(*this, out, "fmul.s", di);
       break;
 
     case InstId::fdiv_s:
-      printFp2Rm(*this, out, "fdiv.s", di);
+      printFp3Rm(*this, out, "fdiv.s", di);
       break;
 
     case InstId::fsqrt_s:
-      printFp2(*this, out, "fsqrt.s", di);
+      printFp2Rm(*this, out, "fsqrt.s", di);
       break;
 
     case InstId::fsgnj_s:
@@ -2386,6 +2386,56 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
 
     case InstId::vssub_vx:
       out << "vssub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vaaddu_vv:
+      out << "vaaddu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vaaddu_vx:
+      out << "vaaddu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vaadd_vv:
+      out << "vaadd.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vaadd_vx:
+      out << "vaadd.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vasubu_vv:
+      out << "vasubu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vasubu_vx:
+      out << "vasubu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vasub_vv:
+      out << "vasub.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vasub_vx:
+      out << "vasub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vsmul_vv:
+      out << "vsmul.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vsmul_vx:
+      out << "vsmul.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
       if (di.isMasked()) out << ", v0.t";
       break;
 

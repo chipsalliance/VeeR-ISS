@@ -2526,6 +2526,40 @@ namespace WdRiscv
                   unsigned start, unsigned elems, bool masked);
     void execVssub_vx(const DecodedInst*);
 
+    template<typename ELEM_TYPE>
+    void vaadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVaadd_vv(const DecodedInst*);
+    void execVaaddu_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vaadd_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVaadd_vx(const DecodedInst*);
+    void execVaaddu_vx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vasub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVasub_vv(const DecodedInst*);
+    void execVasubu_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vasub_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVasub_vx(const DecodedInst*);
+    void execVasubu_vx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vsmul_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVsmul_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vsmul_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVsmul_vx(const DecodedInst*);
+
     template <typename ELEM_TYPE>
     void vectorLoad(const DecodedInst*, ElementWidth, bool faultOnFirstOnly);
 
