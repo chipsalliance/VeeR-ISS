@@ -1203,6 +1203,29 @@ namespace WdRiscv
     void registerPreInst(std::function<void(Hart<URV>&, bool&, bool&)> callback)
     { preInst_ = callback; }
 
+    /// Define idempotency override regions. If region count is greater than
+    /// zero then the defined regions override the MRAC CSR.
+    void defineIdempotentOverrideRegions(unsigned regionCount)
+    {
+      idempotentOverrideVec_.resize(regionCount);
+      idempotentOverride_ = regionCount > 0;
+    }
+
+    /// Define and idempotency override region with given index. An
+    /// address greater than or equal to start and less than or equal
+    /// end is assigned given idempotency.  An address matching
+    /// multiple regions get the idempotency of the first region it
+    /// matches. Return true on success and false if regionIx is out
+    /// of bounds.
+    bool defineIdempotentOverride(unsigned regionIx, uint64_t start,
+                                  uint64_t end, bool idempotent)
+    {
+      if (regionIx >= idempotentOverrideVec_.size())
+        return false;
+      idempotentOverrideVec_.at(regionIx) = IdempotentOverride(start, end, idempotent);
+      return true;
+    }
+
   protected:
 
     // Return true if FS field of mstatus is not off.
@@ -2702,6 +2725,18 @@ namespace WdRiscv
       bool fp_ = false;
     };
 
+    struct IdempotentOverride
+    {
+      IdempotentOverride(uint64_t start = 0, uint64_t end = 0,
+                         bool idempotent = false)
+        : start_(start), end_(end), idempotent_(idempotent)
+      { }
+
+      uint64_t start_;
+      uint64_t end_;
+      bool idempotent_;
+    };
+
     void putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
 			uint64_t prevData, bool isWide = false,
                         bool fp = false);
@@ -2910,6 +2945,9 @@ namespace WdRiscv
     // Physical memory protection.
     bool pmpEnabled_ = false; // True if one or more pmp register defined.
     PmpManager pmpManager_;
+
+    bool idempotentOverride_ = false;
+    std::vector<IdempotentOverride> idempotentOverrideVec_;
 
     VirtMem virtMem_;
 

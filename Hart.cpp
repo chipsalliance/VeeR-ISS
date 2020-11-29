@@ -454,6 +454,10 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
 
   alarmLimit_ = alarmInterval_? alarmInterval_ + instCounter_ : ~uint64_t(0);
   consecutiveIllegalCount_ = 0;
+
+  // Make all idempotent override entries invalid.
+  for (auto& entry : idempotentOverrideVec_)
+    entry.start_ = entry.end_ = 0;
 }
 
 
@@ -850,6 +854,13 @@ template <typename URV>
 bool
 Hart<URV>::isIdempotentRegion(size_t addr) const
 {
+  if (idempotentOverride_)
+    {
+      for (const auto& entry : idempotentOverrideVec_)
+        if (entry.start_ <= addr and addr <= entry.end_)
+          return entry.idempotent_;
+    }
+
   unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
   URV mracVal = 0;
   if (csRegs_.read(CsrNumber::MRAC, PrivilegeMode::Machine, mracVal))
