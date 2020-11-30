@@ -457,7 +457,7 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
 
   // Make all idempotent override entries invalid.
   for (auto& entry : idempotentOverrideVec_)
-    entry.start_ = entry.end_ = 0;
+    entry.reset();
 }
 
 
@@ -857,7 +857,7 @@ Hart<URV>::isIdempotentRegion(size_t addr) const
   if (idempotentOverride_)
     {
       for (const auto& entry : idempotentOverrideVec_)
-        if (entry.start_ <= addr and addr <= entry.end_)
+        if (entry.matches(addr))
           return entry.idempotent_;
     }
 

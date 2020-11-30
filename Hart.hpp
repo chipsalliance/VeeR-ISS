@@ -2732,6 +2732,12 @@ namespace WdRiscv
         : start_(start), end_(end), idempotent_(idempotent)
       { }
 
+      bool matches(uint64_t addr) const
+      { return end_ > start_ and start_ <= addr and addr <= end_; }
+
+      void reset ()
+      { start_ = end_ = 0; idempotent_ = false; }
+
       uint64_t start_;
       uint64_t end_;
       bool idempotent_;
