@@ -223,6 +223,8 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         case 0x22: return instTable_.getEntry(InstId::vssubu_vv);
         case 0x23: return instTable_.getEntry(InstId::vssub_vv);
         case 0x27: return instTable_.getEntry(InstId::vsmul_vv);
+        case 0x2a: return instTable_.getEntry(InstId::vssrl_vv);
+        case 0x2b: return instTable_.getEntry(InstId::vssra_vv);
         }
       return instTable_.getEntry(InstId::illegal);  
     }
@@ -344,6 +346,8 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
           if (imm == 3) return instTable_.getEntry(InstId::vmv4r_v);
           if (imm == 7) return instTable_.getEntry(InstId::vmv8r_v);
           break;
+        case 0x2a: return instTable_.getEntry(InstId::vssrl_vi);
+        case 0x2b: return instTable_.getEntry(InstId::vssra_vi);
         }
       return instTable_.getEntry(InstId::illegal);  
     }
@@ -386,6 +390,8 @@ Hart<URV>::decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         case 0x22: return instTable_.getEntry(InstId::vssubu_vx);
         case 0x23: return instTable_.getEntry(InstId::vssub_vx);
         case 0x27: return instTable_.getEntry(InstId::vsmul_vx);
+        case 0x2a: return instTable_.getEntry(InstId::vssrl_vx);
+        case 0x2b: return instTable_.getEntry(InstId::vssra_vx);
         }
       return instTable_.getEntry(InstId::illegal);  
     }
