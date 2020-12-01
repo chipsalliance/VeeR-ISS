@@ -2598,6 +2598,21 @@ namespace WdRiscv
     void execVssra_vx(const DecodedInst*);
     void execVssra_vi(const DecodedInst*);
 
+    template<typename ELEM_TYPE>
+    void vnclip_wv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                   unsigned start, unsigned elems, bool masked);
+    void execVnclipu_wv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vnclip_wx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                   unsigned start, unsigned elems, bool masked);
+    void execVnclipu_wx(const DecodedInst*);
+    void execVnclipu_wi(const DecodedInst*);
+
+    void execVnclip_wv(const DecodedInst*);
+    void execVnclip_wx(const DecodedInst*);
+    void execVnclip_wi(const DecodedInst*);
+
     template <typename ELEM_TYPE>
     void vectorLoad(const DecodedInst*, ElementWidth, bool faultOnFirstOnly);
 

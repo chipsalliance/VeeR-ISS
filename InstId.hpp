@@ -528,6 +528,12 @@ namespace WdRiscv
      vssra_vv,
      vssra_vx,
      vssra_vi,
+     vnclipu_wv,
+     vnclipu_wx,
+     vnclipu_wi,
+     vnclip_wv,
+     vnclip_wx,
+     vnclip_wi,
 
      vle8_v,
      vle16_v,

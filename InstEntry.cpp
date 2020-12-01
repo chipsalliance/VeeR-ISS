@@ -3218,6 +3218,60 @@ InstTable::setupInstVec()
         OperandType::IntReg, OperandMode::Read, rs2Mask,
       },
 
+      { "vnclipu.wv", InstId::vnclipu_wv,
+        0b101110'1'00000'00000'000'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vnclipu.wx", InstId::vnclipu_wx,
+        0b101110'1'00000'00000'100'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::IntReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vnclipu.wi", InstId::vnclipu_wi,
+        0b101110'1'00000'00000'011'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::IntReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vnclip.wv", InstId::vnclip_wv,
+        0b101111'1'00000'00000'000'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::VecReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vnclip.wx", InstId::vnclip_wx,
+        0b101111'1'00000'00000'100'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::IntReg, OperandMode::Read, rs2Mask,
+      },
+
+      { "vnclip.wi", InstId::vnclip_wi,
+        0b101111'1'00000'00000'011'00000'1010111,
+        0b111111'0'00000'00000'111'00000'1111111, // Mask of opcode bits
+        InstType::Vector,
+        OperandType::VecReg, OperandMode::Write, rdMask,
+        OperandType::VecReg, OperandMode::Read, rs1Mask,
+        OperandType::IntReg, OperandMode::Read, rs2Mask,
+      },
+
       { "vle8.v", InstId::vle8_v,
         0b000000'0'00000'00000'000'00000'0000111,
         0b000111'0'11111'00000'111'00000'1111111, // Mask of opcode bits

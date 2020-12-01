@@ -3167,7 +3167,7 @@ formatInstTrace<uint32_t>(FILE* out, uint64_t tag, unsigned hartId, uint32_t cur
 		const char* opcode, char resource, uint32_t addr,
 		uint32_t value, const char* assembly)
 {
-  if (resource == 'r')
+  if (resource == 'r' or resource == 'v')
     {
       fprintf(out, "#%" PRId64 " %d %08x %8s r %02x         %08x  %s",
               tag, hartId, currPc, opcode, addr, value, assembly);
@@ -5657,6 +5657,12 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vssra_vv,
      &&vssra_vx,
      &&vssra_vi,
+     &&vnclipu_wv,
+     &&vnclipu_wx,
+     &&vnclipu_wi,
+     &&vnclip_wv,
+     &&vnclip_wx,
+     &&vnclip_wi,
      &&vle8_v,
      &&vle16_v,
      &&vle32_v,
@@ -7496,6 +7502,30 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vssra_vi:
   execVssra_vi(di);
+  return;
+
+ vnclipu_wv:
+  execVnclipu_wv(di);
+  return;
+
+ vnclipu_wx:
+  execVnclipu_wx(di);
+  return;
+
+ vnclipu_wi:
+  execVnclipu_wi(di);
+  return;
+
+ vnclip_wv:
+  execVnclip_wv(di);
+  return;
+
+ vnclip_wx:
+  execVnclip_wx(di);
+  return;
+
+ vnclip_wi:
+  execVnclip_wi(di);
   return;
 
  vle8_v:
