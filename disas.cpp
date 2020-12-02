@@ -2439,6 +2439,66 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       if (di.isMasked()) out << ", v0.t";
       break;
 
+    case InstId::vssrl_vv:
+      out << "vssrl.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vssrl_vx:
+      out << "vssrl.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vssrl_vi:
+      out << "vssra.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vssra_vv:
+      out << "vssra.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vssra_vx:
+      out << "vssra.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vssra_vi:
+      out << "vssra.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vnclipu_wv:
+      out << "vnclipu.wv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vnclipu_wx:
+      out << "vnclipu.wx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vnclipu_wi:
+      out << "vnclipu.wi v" << di.op0() << ", v" << di.op1() << ", " << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vnclip_wv:
+      out << "vnclip.wv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vnclip_wx:
+      out << "vnclip.wx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
+    case InstId::vnclip_wi:
+      out << "vnclip.wi v" << di.op0() << ", v" << di.op1() << ", " << di.op2();
+      if (di.isMasked()) out << ", v0.t";
+      break;
+
     case InstId::vle8_v:
       out << "vle8.v v" << di.op0() << ", (x" << di.op1() << ")";
       if (di.isMasked()) out << ", v0";

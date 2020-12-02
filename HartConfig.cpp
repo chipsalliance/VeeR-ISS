@@ -1402,6 +1402,31 @@ HartConfig::clear()
 }
 
 
+template <typename URV>
+void
+unpackMacoValue(URV value, uint64_t& start, uint64_t& end, bool& idempotent)
+{
+  start = end = 0;
+  idempotent = (value & 4) == 0;   // Idempotent if bit 2 is 0.
+  bool enable = value & 1;
+  if (not enable)
+    return;  // Disabled: start same as end
+
+  // We want first zero starting from bit 7 and going towards most sig bit.
+  value |= 0x7f;  // Set least sig 7 bits to 1
+  if (value == ~URV(0))
+    {
+      start = end = 0;   // Illegal setup: Does not match anything.
+      return;
+    }
+
+  unsigned rzi = __builtin_ctzl(~value);  // Rightmost-zero-bit-index.
+  start = (value >> rzi) << rzi; // Clear bits below rightmost zero bit.
+  uint64_t sizeM1 = (uint64_t(1) << (rzi + 1)) - 1;  // Size minus 1.
+  end = start + sizeM1;
+}
+
+
 /// Associate callbacks with write/poke of the maco0-maco4 CSRs.
 template <typename URV>
 void
@@ -1413,14 +1438,16 @@ defineMacoSideEffects(System<URV>& system)
 
       // Maco registers, if present, start at maco0 and are defined
       // sequentially.  We allow up to 32.
-      for (unsigned macoIx = 0; macoIx < 32; ++macoIx)
+      unsigned macoIx = 0;
+      for ( ; macoIx < 32; ++macoIx)
         {
           auto name = std::string("maco") + std::to_string(macoIx);
           auto csrPtr = hart->findCsr(name);
           if (not csrPtr)
             break;
 
-          // If lock bit is set, then preserve CSR value
+          // Define pre-write/pre-poke callback: If lock bit is set,
+          // then preserve CSR value
           auto pre = [hart] (Csr<URV>& csr, URV& val) -> void {
                        URV previous = 0;
                        hart->peekCsr(csr.getNumber(), previous);
@@ -1429,9 +1456,23 @@ defineMacoSideEffects(System<URV>& system)
                          val = previous;  // Locked: keep previous value
                       };
 
+          // Define post-write/post-poke callback. Upddate the idempotent
+          // regions of the hart.
+          auto post = [hart, macoIx] (Csr<URV>& /*csr*/, URV val) -> void {
+                        uint64_t start = 0, end = 0;
+                        bool idempotent = false;
+                        unpackMacoValue(val, start, end, idempotent);
+                        hart->defineIdempotentOverride(macoIx, start, end, idempotent);
+                      };
+
           csrPtr->registerPrePoke(pre);
           csrPtr->registerPreWrite(pre);
+
+          csrPtr->registerPostPoke(post);
+          csrPtr->registerPostWrite(post);
         }
+
+      hart->defineIdempotentOverrideRegions(macoIx);
     }
 }
 

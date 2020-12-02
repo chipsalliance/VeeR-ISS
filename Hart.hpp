@@ -1203,6 +1203,29 @@ namespace WdRiscv
     void registerPreInst(std::function<void(Hart<URV>&, bool&, bool&)> callback)
     { preInst_ = callback; }
 
+    /// Define idempotency override regions. If region count is greater than
+    /// zero then the defined regions override the MRAC CSR.
+    void defineIdempotentOverrideRegions(unsigned regionCount)
+    {
+      idempotentOverrideVec_.resize(regionCount);
+      idempotentOverride_ = regionCount > 0;
+    }
+
+    /// Define and idempotency override region with given index. An
+    /// address greater than or equal to start and less than or equal
+    /// end is assigned given idempotency.  An address matching
+    /// multiple regions get the idempotency of the first region it
+    /// matches. Return true on success and false if regionIx is out
+    /// of bounds.
+    bool defineIdempotentOverride(unsigned regionIx, uint64_t start,
+                                  uint64_t end, bool idempotent)
+    {
+      if (regionIx >= idempotentOverrideVec_.size())
+        return false;
+      idempotentOverrideVec_.at(regionIx) = IdempotentOverride(start, end, idempotent);
+      return true;
+    }
+
   protected:
 
     // Return true if FS field of mstatus is not off.
@@ -2560,6 +2583,36 @@ namespace WdRiscv
                   unsigned start, unsigned elems, bool masked);
     void execVsmul_vx(const DecodedInst*);
 
+    template<typename ELEM_TYPE>
+    void vssr_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVssrl_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vssr_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVssrl_vx(const DecodedInst*);
+    void execVssrl_vi(const DecodedInst*);
+
+    void execVssra_vv(const DecodedInst*);
+    void execVssra_vx(const DecodedInst*);
+    void execVssra_vi(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vnclip_wv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                   unsigned start, unsigned elems, bool masked);
+    void execVnclipu_wv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vnclip_wx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                   unsigned start, unsigned elems, bool masked);
+    void execVnclipu_wx(const DecodedInst*);
+    void execVnclipu_wi(const DecodedInst*);
+
+    void execVnclip_wv(const DecodedInst*);
+    void execVnclip_wx(const DecodedInst*);
+    void execVnclip_wi(const DecodedInst*);
+
     template <typename ELEM_TYPE>
     void vectorLoad(const DecodedInst*, ElementWidth, bool faultOnFirstOnly);
 
@@ -2700,6 +2753,24 @@ namespace WdRiscv
       bool valid_ = false;
       bool wide_ = false;
       bool fp_ = false;
+    };
+
+    struct IdempotentOverride
+    {
+      IdempotentOverride(uint64_t start = 0, uint64_t end = 0,
+                         bool idempotent = false)
+        : start_(start), end_(end), idempotent_(idempotent)
+      { }
+
+      bool matches(uint64_t addr) const
+      { return end_ > start_ and start_ <= addr and addr <= end_; }
+
+      void reset ()
+      { start_ = end_ = 0; idempotent_ = false; }
+
+      uint64_t start_;
+      uint64_t end_;
+      bool idempotent_;
     };
 
     void putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
@@ -2910,6 +2981,9 @@ namespace WdRiscv
     // Physical memory protection.
     bool pmpEnabled_ = false; // True if one or more pmp register defined.
     PmpManager pmpManager_;
+
+    bool idempotentOverride_ = false;
+    std::vector<IdempotentOverride> idempotentOverrideVec_;
 
     VirtMem virtMem_;
 

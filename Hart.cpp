@@ -454,6 +454,10 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
 
   alarmLimit_ = alarmInterval_? alarmInterval_ + instCounter_ : ~uint64_t(0);
   consecutiveIllegalCount_ = 0;
+
+  // Make all idempotent override entries invalid.
+  for (auto& entry : idempotentOverrideVec_)
+    entry.reset();
 }
 
 
@@ -850,6 +854,13 @@ template <typename URV>
 bool
 Hart<URV>::isIdempotentRegion(size_t addr) const
 {
+  if (idempotentOverride_)
+    {
+      for (const auto& entry : idempotentOverrideVec_)
+        if (entry.matches(addr))
+          return entry.idempotent_;
+    }
+
   unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
   URV mracVal = 0;
   if (csRegs_.read(CsrNumber::MRAC, PrivilegeMode::Machine, mracVal))
@@ -3156,7 +3167,7 @@ formatInstTrace<uint32_t>(FILE* out, uint64_t tag, unsigned hartId, uint32_t cur
 		const char* opcode, char resource, uint32_t addr,
 		uint32_t value, const char* assembly)
 {
-  if (resource == 'r')
+  if (resource == 'r' or resource == 'v')
     {
       fprintf(out, "#%" PRId64 " %d %08x %8s r %02x         %08x  %s",
               tag, hartId, currPc, opcode, addr, value, assembly);
@@ -4524,31 +4535,54 @@ bool
 Hart<URV>::openTcpForGdb()
 {
   struct sockaddr_in address;
-  int opt = 1;
   socklen_t addrlen = sizeof(address);
 
   memset(&address, 0, addrlen);
 
   address.sin_family = AF_INET;
-  address.sin_addr.s_addr = INADDR_ANY;
+  address.sin_addr.s_addr = htonl(INADDR_ANY);
   address.sin_port = htons( gdbTcpPort_ );
 
-  bool succ = true;
   int gdbFd = socket(AF_INET, SOCK_STREAM, 0);
-  succ = (gdbFd > 0) and not setsockopt(gdbFd, SOL_SOCKET,
-                                        SO_REUSEADDR | SO_REUSEPORT, &opt,
-                                        sizeof(opt));
-
-  succ = succ and bind(gdbFd, (sockaddr*) &address, addrlen) >= 0;
-  succ = succ and listen(gdbFd, 3) >= 0;
-  if (succ)
+  if (gdbFd < 0)
     {
-      gdbInputFd_ = accept(gdbFd, (sockaddr*) &address, &addrlen);
-      succ = gdbInputFd_ >= 0;
+      std::cerr << "Failed to create gdb socket at port " << gdbTcpPort_ << '\n';
+      return false;
     }
-  return succ;
 
+#ifndef __APPLE__
+  int opt = 1;
+  if (setsockopt(gdbFd, SOL_SOCKET,
+		 SO_REUSEADDR | SO_REUSEPORT, &opt,
+		 sizeof(opt)) != 0)
+    {
+      std::cerr << "Failed to set socket option for gdb socket\n";
+      return false;
+    }
+#endif
+
+  if (bind(gdbFd, (sockaddr*) &address, addrlen) < 0)
+    {
+      std::cerr << "Failed to bind gdb socket\n";
+      return false;
+    }
+
+  if (listen(gdbFd, 3) < 0)
+    {
+      std::cerr << "Failed to listen to gdb socket\n";
+      return false;
+    }
+
+  gdbInputFd_ = accept(gdbFd, (sockaddr*) &address, &addrlen);
+  if (gdbInputFd_ < 0)
+    {
+      std::cerr << "Failed to accept from gdb socket\n";
+      return false;
+    }
+
+  return true;
 }
+
 
 /// Run indefinitely.  If the tohost address is defined, then run till
 /// a write is attempted to that address.
@@ -5640,6 +5674,18 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vasub_vx,
      &&vsmul_vv,
      &&vsmul_vx,
+     &&vssrl_vv,
+     &&vssrl_vx,
+     &&vssrl_vi,
+     &&vssra_vv,
+     &&vssra_vx,
+     &&vssra_vi,
+     &&vnclipu_wv,
+     &&vnclipu_wx,
+     &&vnclipu_wi,
+     &&vnclip_wv,
+     &&vnclip_wx,
+     &&vnclip_wi,
      &&vle8_v,
      &&vle16_v,
      &&vle32_v,
@@ -7455,6 +7501,54 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vsmul_vx:
   execVsmul_vx(di);
+  return;
+
+ vssrl_vv:
+  execVssrl_vv(di);
+  return;
+
+ vssrl_vx:
+  execVssrl_vx(di);
+  return;
+
+ vssrl_vi:
+  execVssrl_vi(di);
+  return;
+
+ vssra_vv:
+  execVssra_vv(di);
+  return;
+
+ vssra_vx:
+  execVssra_vx(di);
+  return;
+
+ vssra_vi:
+  execVssra_vi(di);
+  return;
+
+ vnclipu_wv:
+  execVnclipu_wv(di);
+  return;
+
+ vnclipu_wx:
+  execVnclipu_wx(di);
+  return;
+
+ vnclipu_wi:
+  execVnclipu_wi(di);
+  return;
+
+ vnclip_wv:
+  execVnclip_wv(di);
+  return;
+
+ vnclip_wx:
+  execVnclip_wx(di);
+  return;
+
+ vnclip_wi:
+  execVnclip_wi(di);
   return;
 
  vle8_v:
