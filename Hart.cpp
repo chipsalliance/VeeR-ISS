@@ -4535,31 +4535,54 @@ bool
 Hart<URV>::openTcpForGdb()
 {
   struct sockaddr_in address;
-  int opt = 1;
   socklen_t addrlen = sizeof(address);
 
   memset(&address, 0, addrlen);
 
   address.sin_family = AF_INET;
-  address.sin_addr.s_addr = INADDR_ANY;
+  address.sin_addr.s_addr = htonl(INADDR_ANY);
   address.sin_port = htons( gdbTcpPort_ );
 
-  bool succ = true;
   int gdbFd = socket(AF_INET, SOCK_STREAM, 0);
-  succ = (gdbFd > 0) and not setsockopt(gdbFd, SOL_SOCKET,
-                                        SO_REUSEADDR | SO_REUSEPORT, &opt,
-                                        sizeof(opt));
-
-  succ = succ and bind(gdbFd, (sockaddr*) &address, addrlen) >= 0;
-  succ = succ and listen(gdbFd, 3) >= 0;
-  if (succ)
+  if (gdbFd < 0)
     {
-      gdbInputFd_ = accept(gdbFd, (sockaddr*) &address, &addrlen);
-      succ = gdbInputFd_ >= 0;
+      std::cerr << "Failed to create gdb socket at port " << gdbTcpPort_ << '\n';
+      return false;
     }
-  return succ;
 
+#ifndef __APPLE__
+  int opt = 1;
+  if (setsockopt(gdbFd, SOL_SOCKET,
+		 SO_REUSEADDR | SO_REUSEPORT, &opt,
+		 sizeof(opt)) != 0)
+    {
+      std::cerr << "Failed to set socket option for gdb socket\n";
+      return false;
+    }
+#endif
+
+  if (bind(gdbFd, (sockaddr*) &address, addrlen) < 0)
+    {
+      std::cerr << "Failed to bind gdb socket\n";
+      return false;
+    }
+
+  if (listen(gdbFd, 3) < 0)
+    {
+      std::cerr << "Failed to listen to gdb socket\n";
+      return false;
+    }
+
+  gdbInputFd_ = accept(gdbFd, (sockaddr*) &address, &addrlen);
+  if (gdbInputFd_ < 0)
+    {
+      std::cerr << "Failed to accept from gdb socket\n";
+      return false;
+    }
+
+  return true;
 }
+
 
 /// Run indefinitely.  If the tohost address is defined, then run till
 /// a write is attempted to that address.
