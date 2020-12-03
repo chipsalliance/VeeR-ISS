@@ -9839,8 +9839,13 @@ Hart<URV>::markFsDirty()
   URV val = csRegs_.peekMstatus();
   MstatusFields<URV> fields(val);
   fields.bits_.FS = unsigned(FpFs::Dirty);
+  fields.bits_.SD = 1;
 
   csRegs_.poke(CsrNumber::MSTATUS, fields.value_);
+
+  URV newVal = csRegs_.peekMstatus();
+  if (val != newVal)
+    recordCsrWrite(CsrNumber::MSTATUS);
 
   updateCachedMstatusFields();
 }
@@ -9857,8 +9862,13 @@ Hart<URV>::markVsDirty()
   URV val = csRegs_.peekMstatus();
   MstatusFields<URV> fields(val);
   fields.bits_.VS = unsigned(FpFs::Dirty);
+  fields.bits_.SD = 1;
 
   csRegs_.poke(CsrNumber::MSTATUS, fields.value_);
+
+  URV newVal = csRegs_.peekMstatus();
+  if (val != newVal)
+    recordCsrWrite(CsrNumber::MSTATUS);
 
   updateCachedMstatusFields();
 }
