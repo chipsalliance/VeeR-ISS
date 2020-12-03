@@ -229,8 +229,14 @@ CsRegs<URV>::legalizeMstatusValue(URV value) const
 {
   MstatusFields<URV> fields(value);
   PrivilegeMode mode = PrivilegeMode(fields.bits_.MPP);
+
+  if (fields.bits_.FS == unsigned(FpFs::Dirty) or fields.bits_.XS == unsigned(FpFs::Dirty))
+    fields.bits_.SD = 1;
+  else
+    fields.bits_.SD = 0;
+
   if (mode == PrivilegeMode::Machine)
-    return value;
+    return fields.value_;
 
   if (mode == PrivilegeMode::Supervisor and not supervisorModeEnabled_)
     mode = PrivilegeMode::User;
@@ -242,9 +248,6 @@ CsRegs<URV>::legalizeMstatusValue(URV value) const
     mode = PrivilegeMode::Machine;
 
   fields.bits_.MPP = unsigned(mode);
-
-  if (fields.bits_.FS == unsigned(FpFs::Dirty) or fields.bits_.XS == unsigned(FpFs::Dirty))
-    fields.bits_.SD = 1;
 
   return fields.value_;
 }
