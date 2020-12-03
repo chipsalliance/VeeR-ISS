@@ -142,7 +142,7 @@ receivePacketFromGdb(int fd, std::string& packet)
 {
   unsigned char ch = ' '; // Anything besides $ will do.
 
-  char buffer[256];
+  char buffer[1024];
   uint8_t sum = 0;  // checksum
 
   ssize_t count = read(fd, buffer, sizeof(buffer));

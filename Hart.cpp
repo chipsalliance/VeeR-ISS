@@ -717,7 +717,7 @@ Hart<URV>::putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
   if (not loadQueueEnabled_)
     return;
 
-  if (isAddrInDccm(addr))
+  if (isAddrInDccm(addr) or isAddrMemMapped(addr))
     {
       // Blocking load. Invalidate target register in load queue so
       // that it will not be reverted.
