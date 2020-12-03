@@ -424,6 +424,10 @@ getGdbTargetXml(WdRiscv::Hart<URV>& hart, std::string& xml)
 }
 
 
+// XML describing this RISCV processor to gdb.
+static std::string targetXml;
+static std::mutex xmlMutex;
+
 template <typename URV>
 void
 processXferQuery(const std::string& packet, WdRiscv::Hart<URV>& hart,
@@ -447,13 +451,16 @@ processXferQuery(const std::string& packet, WdRiscv::Hart<URV>& hart,
       return;
     }
 
-  // Fill xml string on first call to this function.
-  static std::string xml;
-  if (xml.empty())
-    getGdbTargetXml(hart, xml);
+  {
+    std::lock_guard<std::mutex> lock(xmlMutex);
 
-  auto part = xml.substr(offset, length);
-  if (offset + length < xml.size())
+    // Fill xml string on first call to this function.
+    if (targetXml.empty())
+      getGdbTargetXml(hart, targetXml);
+  }
+
+  auto part = targetXml.substr(offset, length);
+  if (offset + length < targetXml.size())
     reply << 'm' << part;
   else
     reply << 'l' << part;
