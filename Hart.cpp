@@ -10265,6 +10265,8 @@ Hart<URV>::execFsub_s(const DecodedInst* di)
 
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -10328,6 +10330,8 @@ Hart<URV>::execFsqrt_s(const DecodedInst* di)
 
   bool noUnderflow = spExponentBits(res) != 0;
   updateAccruedFpBits(noUnderflow);
+
+  markFsDirty();
 }
 
 
@@ -10825,7 +10829,7 @@ template <typename URV>
 void
 Hart<URV>::execFmv_w_x(const DecodedInst* di)
 {
-if (not isFpLegal())
+  if (not isFpLegal())
     {
       illegalInst(di);
       return;
