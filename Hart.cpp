@@ -10584,6 +10584,10 @@ Hart<URV>::execFcvt_wu_s(const DecodedInst* di)
     {
       result = ~URV(0);
     }
+  else if (std::signbit(f1))
+    {
+      result = 0;
+    }
   else
     {
       double near = std::nearbyint(f1);
@@ -10591,15 +10595,15 @@ Hart<URV>::execFcvt_wu_s(const DecodedInst* di)
         {
           result = ~URV(0);
         }
+      else if (near < 0)
+        {
+          result = 0;
+        }
       else if (near == 0)
         {
           result = 0;
           valid = true;
           exact = near == f1;
-        }
-      else if (near < 0)
-        {
-          result = 0;
         }
       else
         {
@@ -11680,6 +11684,10 @@ Hart<URV>::execFcvt_wu_d(const DecodedInst* di)
   if (std::isnan(d1))
     {
       result = ~URV(0);
+    }
+  else if (std::signbit(d1))
+    {
+      result = 0;
     }
   else
     {

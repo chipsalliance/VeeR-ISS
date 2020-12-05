@@ -347,6 +347,17 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
   csr->write(value);
   recordWrite(number);
 
+  if (number == CsrNumber::MSTATUS or number == CsrNumber::SSTATUS)
+    {
+      // Write cannot change SD. Update it with a poke.
+      MstatusFields<URV> msf(peekMstatus());
+      if (msf.bits_.FS == unsigned(FpFs::Dirty) or msf.bits_.XS == unsigned(FpFs::Dirty))
+        msf.bits_.SD = 1;
+      else
+        msf.bits_.SD = 0;
+      csr->poke(msf.value_);
+    }
+
   // Cache interrupt enable.
   if (number == CsrNumber::MSTATUS)
     {
