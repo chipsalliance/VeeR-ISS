@@ -10948,6 +10948,8 @@ Hart<uint64_t>::execFcvt_lu_s(const DecodedInst* di)
     }
   else if (std::isnan(f1))
     result = maxUint;
+  else if (std::signbit(f1))
+    result = 0;
   else
     {
       double near = std::nearbyint(double(f1));
@@ -11921,6 +11923,8 @@ Hart<uint64_t>::execFcvt_lu_d(const DecodedInst* di)
     }
   else if (std::isnan(f1))
     result = maxUint;
+  else if (std::signbit(f1))
+    result = 0;
   else
     {
       double near = std::nearbyint(f1);
