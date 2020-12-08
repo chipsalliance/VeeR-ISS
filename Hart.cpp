@@ -380,7 +380,7 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
 
   // Suppress resetting memory mapped register on initial resets sent
   // by the test bench. Otherwise, initial resets obliterate memory
-  // mapped register data loaded from the ELF file.
+  // mapped register data loaded from the ELF/HEX file.
   if (resetMemoryMappedRegs)
     memory_.resetMemoryMappedRegisters();
   memory_.invalidateLr(hartIx_);
