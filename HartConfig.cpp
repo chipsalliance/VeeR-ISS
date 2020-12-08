@@ -1505,8 +1505,15 @@ defineMpicbaddrSideEffects(System<URV>& system)
                     hart->changeMemMappedBase(val);
                   };
 
+      auto reset = [hart] (Csr<URV>& csr) -> void {
+                     URV val = 0;
+                     if (hart->peekCsr(csr.getNumber(), val))
+                       hart->changeMemMappedBase(val);
+                   };
+
       csrPtr->registerPostPoke(post);
       csrPtr->registerPostWrite(post);
+      csrPtr->registerPostReset(reset);
     }
 }
 
