@@ -464,7 +464,7 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
 	}
     }
 
-  // Collect vector register change (format not yet definde).
+  // Collect vector register change (format not yet defined).
 
   // Collect CSR and trigger changes.
   std::vector<CsrNumber> csrs;

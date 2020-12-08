@@ -1443,7 +1443,17 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       }
       return instTable_.getEntry(InstId::illegal);
 
-    l2:
+    l2:       // 00010  I-form
+      {
+	IFormInst iform(inst);
+	op0 = iform.fields.rd;
+	op1 = iform.fields.rs1;
+	op2 = iform.immed(); 
+        unsigned f3 = iform.fields.funct3;
+        if (f3 == 3)  return instTable_.getEntry(InstId::load64);
+        return instTable_.getEntry(InstId::illegal);
+      }
+
     l7:
       return instTable_.getEntry(InstId::illegal);
 
@@ -1471,7 +1481,20 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
       }
       return instTable_.getEntry(InstId::illegal);
 
-    l10:
+    l10:      // 01010  S-form
+      {
+	// For the store instructions, the stored register is op0, the
+	// base-address register is op1 and the offset is op2.
+	SFormInst sform(inst);
+	op0 = sform.bits.rs2;
+	op1 = sform.bits.rs1;
+	op2 = sform.immed();
+	uint32_t f3 = sform.bits.funct3;
+
+        if (f3 == 3)  return instTable_.getEntry(InstId::store64);
+      }
+      return instTable_.getEntry(InstId::illegal);
+
     l15:
       return instTable_.getEntry(InstId::illegal);
 

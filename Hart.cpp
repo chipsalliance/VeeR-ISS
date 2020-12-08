@@ -416,7 +416,7 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
     }
 
   updateStackChecker();  // Swerv-specific feature.
-  enableWideLdStMode(false);  // Swerv-specific feature.
+  wideLdSt_ = false;  // Swerv-specific feature.
 
   hartStarted_ = true;
 
@@ -1431,6 +1431,12 @@ ExceptionCause
 Hart<URV>::determineMisalLoadException(URV addr, unsigned accessSize,
                                        SecondaryCause& secCause) const
 {
+  if (wideLdSt_)
+    {
+      secCause = SecondaryCause::LOAD_ACC_64BIT;
+      return ExceptionCause::LOAD_ACC_FAULT;
+    }
+
   if (not misalDataOk_)
     {
       secCause = SecondaryCause::NONE;
@@ -1470,6 +1476,12 @@ ExceptionCause
 Hart<URV>::determineMisalStoreException(URV addr, unsigned accessSize,
                                         SecondaryCause& secCause) const
 {
+  if (wideLdSt_)
+    {
+      secCause = SecondaryCause::STORE_ACC_64BIT;
+      return ExceptionCause::STORE_ACC_FAULT;
+    }
+
   if (not misalDataOk_)
     {
       secCause = SecondaryCause::NONE;
@@ -1564,12 +1576,12 @@ Hart<URV>::checkStackStore(URV base, URV addr, unsigned storeSize)
 
 template <typename URV>
 bool
-Hart<URV>::wideLoad(uint32_t rd, URV addr, unsigned ldSize)
+Hart<URV>::wideLoad(uint32_t rd, URV addr)
 {
   auto secCause = SecondaryCause::LOAD_ACC_64BIT;
   auto cause = ExceptionCause::LOAD_ACC_FAULT;
 
-  if ((addr & 7) or ldSize != 4 or not isDataAddressExternal(addr))
+  if ((addr & 7) or not isDataAddressExternal(addr))
     {
       initiateLoadException(cause, addr, secCause);
       return false;
@@ -1678,7 +1690,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
       // 64-bit load
       if (wideLdSt_)
         {
-          bool fail = (addr & 7) or ldSize != 4 or ! isDataAddressExternal(addr);
+          bool fail = (addr & 7) or ! isDataAddressExternal(addr);
           fail = fail or ! isAddrReadable(addr+4);
           if (fail)
             {
@@ -1807,7 +1819,7 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
     }
 
   if (wideLdSt_ and not triggerTripped_)
-    return wideLoad(rd, addr, ldSize);
+    return wideLoad(rd, addr);
 
   // Loading from console-io does a standard input read.
   if (conIoValid_ and addr == conIo_ and enableConIn_ and not triggerTripped_)
@@ -1964,7 +1976,7 @@ Hart<URV>::store(uint32_t rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
 
   unsigned stSize = sizeof(STORE_TYPE);
   if (wideLdSt_)
-    return wideStore(addr, storeVal, stSize);
+    return wideStore(addr, storeVal);
 
   if (memory_.write(hartIx_, addr, storeVal))
     {
@@ -2617,8 +2629,6 @@ Hart<URV>::initiateTrap(bool interrupt, URV cause, URV pcToSave, URV info,
 {
   forceAccessFail_ = false;
 
-  enableWideLdStMode(false);  // Swerv specific feature.
-
   memory_.invalidateLr(hartIx_);
 
   PrivilegeMode origMode = privMode_;
@@ -2744,8 +2754,6 @@ template <typename URV>
 void
 Hart<URV>::undelegatedInterrupt(URV cause, URV pcToSave, URV nextPc)
 {
-  enableWideLdStMode(false);  // Swerv specific feature.
-
   hasInterrupt_ = true;
   interruptCount_++;
 
@@ -2967,6 +2975,13 @@ Hart<URV>::pokeCsr(CsrNumber csr, URV val)
   if (not csRegs_.poke(csr, val))
     return false;
 
+  // This makes sure that counters stop counting after corresponding
+  // event reg is poked.
+  if (enableCounters_)
+    if (csr >= CsrNumber::MHPMEVENT3 and csr <= CsrNumber::MHPMEVENT31)
+      if (not csRegs_.applyPerfEventAssign())
+        std::cerr << "Unexpected applyPerfAssign fail\n";
+
   if (csr == CsrNumber::DCSR)
     {
       dcsrStep_ = (val >> 2) & 1;
@@ -2974,8 +2989,6 @@ Hart<URV>::pokeCsr(CsrNumber csr, URV val)
     }
   else if (csr >= CsrNumber::MSPCBA and csr <= CsrNumber::MSPCC)
     updateStackChecker();
-  else if (csr == CsrNumber::MDBAC)
-    enableWideLdStMode(true);
   else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
            (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
     updateMemoryProtection();
@@ -4021,14 +4034,12 @@ Hart<URV>::takeTriggerAction(FILE* traceFile, URV pc, URV info,
     }
   else
     {
-      // bool doingWide = wideLdSt_;
       auto secCause = SecondaryCause::TRIGGER_HIT;
       initiateException(ExceptionCause::BREAKP, pc, info, secCause);
       if (dcsrStep_)
 	{
 	  enterDebugMode(DebugModeCause::TRIGGER, pc_);
 	  enteredDebug = true;
-	  // enableWideLdStMode(doingWide);
 	}
     }
 
@@ -4339,8 +4350,6 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
 	  if (not di->isValid() or di->address() != pc_)
 	    decode(pc_, inst, *di);
 
-	  bool doingWide = wideLdSt_;
-
           // Increment pc and execute instruction
 	  pc_ += di->instSize();
 	  execute(di);
@@ -4366,9 +4375,6 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
 		return true;
 	      continue;
 	    }
-
-	  if (doingWide)
-	    enableWideLdStMode(false);
 
           if (minstretEnabled())
             ++retiredInsts_;
@@ -4599,10 +4605,9 @@ Hart<URV>::run(FILE* file)
   // straight-forward execution. If any option is turned on, we switch
   // to runUntilAdress which supports all features.
   URV stopAddr = stopAddrValid_? stopAddr_ : ~URV(0); // ~URV(0): No-stop PC.
-  bool hasWideLdSt = csRegs_.isImplemented(CsrNumber::MDBAC);
   bool hasClint = clintStart_ < clintLimit_;
   bool complex = (stopAddrValid_ or instFreq_ or enableTriggers_ or enableGdb_
-                  or enableCounters_ or alarmInterval_ or file or hasWideLdSt
+                  or enableCounters_ or alarmInterval_ or file or enableWideLdSt_
                   or hasClint or isRvs());
   if (complex)
     return runUntilAddress(stopAddr, file); 
@@ -4863,8 +4868,6 @@ Hart<URV>::singleStep(FILE* traceFile)
       DecodedInst di;
       decode(pc_, inst, di);
 
-      bool doingWide = wideLdSt_;
-
       // Increment pc and execute instruction
       pc_ += di.instSize();
       execute(&di);
@@ -4895,9 +4898,6 @@ Hart<URV>::singleStep(FILE* traceFile)
 	  takeTriggerAction(traceFile, currPc_, currPc_, instCounter_, true);
 	  return;
 	}
-
-      if (doingWide)
-	enableWideLdStMode(false);
 
       if (minstretEnabled() and not ebreakInstDebug_)
         ++retiredInsts_;
@@ -5520,6 +5520,10 @@ Hart<URV>::execute(const DecodedInst* di)
      &&fsl,
      &&fsr,
      &&fsri,
+
+     // Custom
+     &&load64,
+     &&store64,
 
      // vevtor
      &&vsetvli,
@@ -6893,6 +6897,14 @@ Hart<URV>::execute(const DecodedInst* di)
 
  fsri:
   execFsri(di);
+  return;
+
+ load64:
+  execLoad64(di);
+  return;
+
+ store64:
+  execStore64(di);
   return;
 
  vsetvli:
@@ -8281,8 +8293,6 @@ template <typename URV>
 bool
 Hart<URV>::amoLoad32(uint32_t rs1, URV& value)
 {
-  enableWideLdStMode(false);
-
   URV virtAddr = intRegs_.read(rs1);
 
   ldStAddr_ = virtAddr;   // For reporting load addr in trace-mode.
@@ -8755,8 +8765,6 @@ Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
     }
   else if (csr >= CsrNumber::MSPCBA and csr <= CsrNumber::MSPCC)
     updateStackChecker();
-  else if (csr == CsrNumber::MDBAC)
-    enableWideLdStMode(true);
   else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
            (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
     updateMemoryProtection();
@@ -9019,9 +9027,9 @@ Hart<URV>::execLhu(const DecodedInst* di)
 
 template <typename URV>
 bool
-Hart<URV>::wideStore(URV addr, URV storeVal, unsigned storeSize)
+Hart<URV>::wideStore(URV addr, URV storeVal)
 {
-  if ((addr & 7) or storeSize != 4 or not isDataAddressExternal(addr))
+  if ((addr & 7) or not isDataAddressExternal(addr))
     {
       auto cause = ExceptionCause::STORE_ACC_FAULT;
       auto secCause = SecondaryCause::STORE_ACC_64BIT;
@@ -9113,7 +9121,7 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
       // 64-bit store
       if (wideLdSt_)
         {
-          bool fail = (addr & 7) or stSize != 4 or ! isDataAddressExternal(addr);
+          bool fail = (addr & 7) or ! isDataAddressExternal(addr);
           uint64_t val = 0;
           fail = fail or ! memory_.checkWrite(addr, val);
           if (fail)
@@ -12076,8 +12084,6 @@ template <typename LOAD_TYPE>
 bool
 Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
 {
-  enableWideLdStMode(false);
-
   URV virtAddr = intRegs_.read(rs1);
 
   ldStAddr_ = virtAddr;   // For reporting load addr in trace-mode.
@@ -12194,8 +12200,6 @@ template <typename STORE_TYPE>
 bool
 Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
 {
-  enableWideLdStMode(false);
-
   ldStAddr_ = virtAddr;   // For reporting ld/st addr in trace-mode.
   ldStAddrValid_ = true;  // For reporting ld/st addr in trace-mode.
 
@@ -14825,6 +14829,47 @@ Hart<URV>::execFsri(const DecodedInst* di)
 }
 
 
+template <typename URV>
+void
+Hart<URV>::execLoad64(const DecodedInst* di)
+{
+  if (not enableWideLdSt_)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  wideLdSt_ = true;
+
+  load<uint64_t>(di->op0(), di->op1(), di->op2As<int32_t>());
+
+  wideLdSt_ = false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execStore64(const DecodedInst* di)
+{
+  if (not enableWideLdSt_)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  wideLdSt_ = true;
+
+  uint32_t rs1 = di->op1();
+  URV base = intRegs_.read(rs1);
+  URV addr = base + di->op2As<SRV>();
+  uint32_t value = uint32_t(intRegs_.read(di->op0()));
+
+  store<uint64_t>(rs1, base, addr, value);
+
+  wideLdSt_ = false;
+}
+
+
 template
 ExceptionCause
 WdRiscv::Hart<uint32_t>::determineStoreException<uint8_t>(uint32_t, uint32_t, uint64_t&, uint8_t&, WdRiscv::SecondaryCause&, bool&);
@@ -14840,6 +14885,7 @@ WdRiscv::Hart<uint32_t>::determineStoreException<uint16_t>(uint32_t, uint32_t, u
 template
 ExceptionCause
 WdRiscv::Hart<uint64_t>::determineStoreException<uint16_t>(uint32_t, uint64_t, uint64_t&, uint16_t&, WdRiscv::SecondaryCause&, bool&);
+
 
 template class WdRiscv::Hart<uint32_t>;
 template class WdRiscv::Hart<uint64_t>;

@@ -1815,6 +1815,20 @@ InstTable::setupInstVec()
         OperandType::IntReg, OperandMode::Read, 0x03f000000
       },
 
+      // Custom instruction.
+      { "load64", InstId::load64, 0x300b, funct3Low7Mask,
+	InstType::Load,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::Imm, OperandMode::None, immTop12 },
+
+      // Custom instruction.
+      { "store64", InstId::store64, 0x302b, funct3Low7Mask,
+	InstType::Store,
+	OperandType::IntReg, OperandMode::Read, rs2Mask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::Imm, OperandMode::None, immBeq },
+
       { "vsetvli", InstId::vsetvli,
         0b000000'0'00000'00000'111'00000'1010111, // Opcode
         0b100000'0'00000'00000'111'00000'1111111, // Mask of opcode bits

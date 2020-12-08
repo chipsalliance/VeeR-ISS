@@ -349,6 +349,10 @@ namespace WdRiscv
      fsr,
      fsri,
 
+     // Custom instructions
+     load64,
+     store64,
+
      // vector
      vsetvli,
      vsetvl,
