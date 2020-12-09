@@ -10592,7 +10592,7 @@ Hart<URV>::execFcvt_wu_s(const DecodedInst* di)
     {
       result = ~URV(0);
     }
-  else if (std::signbit(f1))
+  else if (std::signbit(f1) and f1 != 0)
     {
       result = 0;
     }
@@ -10956,7 +10956,7 @@ Hart<uint64_t>::execFcvt_lu_s(const DecodedInst* di)
     }
   else if (std::isnan(f1))
     result = maxUint;
-  else if (std::signbit(f1))
+  else if (std::signbit(f1) and f1 != 0)
     result = 0;
   else
     {
@@ -11695,7 +11695,7 @@ Hart<URV>::execFcvt_wu_d(const DecodedInst* di)
     {
       result = ~URV(0);
     }
-  else if (std::signbit(d1))
+  else if (std::signbit(d1) and d1 != 0)
     {
       result = 0;
     }
@@ -11931,7 +11931,7 @@ Hart<uint64_t>::execFcvt_lu_d(const DecodedInst* di)
     }
   else if (std::isnan(f1))
     result = maxUint;
-  else if (std::signbit(f1))
+  else if (std::signbit(f1) and f1 != 0)
     result = 0;
   else
     {
