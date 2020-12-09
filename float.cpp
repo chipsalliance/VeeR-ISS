@@ -81,12 +81,38 @@ Hart<URV>::effectiveRoundingMode(RoundingMode instMode)
 }
 
 
+/// Return the exponent bits of the given floating point value.
+unsigned
+spExponentBits(float sp)
+{
+  Uint32FloatUnion uf(sp);
+  return (uf.u << 1) >> 24;
+}
+
+
+/// Return the exponent bits of the given double precision value.
+unsigned
+dpExponentBits(double dp)
+{
+  Uint64DoubleUnion ud(dp);
+  return (ud.u << 1) >> 53;
+}
+
+
 #ifdef FAST_SLOPPY
 
 template <typename URV>
 inline
 void
-Hart<URV>::updateAccruedFpBits(bool /* skipUnderflow */)
+Hart<URV>::updateAccruedFpBits(float, bool)
+{
+}
+
+
+template <typename URV>
+inline
+void
+Hart<URV>::updateAccruedFpBits(double, bool)
 {
 }
 
@@ -104,7 +130,7 @@ Hart<URV>::markFsDirty()
 template <typename URV>
 inline
 void
-Hart<URV>::updateAccruedFpBits(bool skipUnderflow)
+Hart<URV>::updateAccruedFpBits(float res, bool invalid)
 {
   URV val = getFpFlags();
   URV prev = val;
@@ -117,7 +143,7 @@ Hart<URV>::updateAccruedFpBits(bool skipUnderflow)
         val |= URV(FpFlags::Inexact);
 
       if (flags & FE_UNDERFLOW)
-        if (not skipUnderflow)
+        if (spExponentBits(res) == 0)
           val |= URV(FpFlags::Underflow);
 
       if (flags & FE_OVERFLOW)
@@ -128,12 +154,55 @@ Hart<URV>::updateAccruedFpBits(bool skipUnderflow)
 
       if (flags & FE_INVALID)
         val |= URV(FpFlags::Invalid);
+    }
 
-      if (val != prev)
-        {
-          setFpFlags(val);
-          recordCsrWrite(CsrNumber::FCSR);
-        }
+  if (invalid)
+    val |= URV(FpFlags::Invalid);
+
+  if (val != prev)
+    {
+      setFpFlags(val);
+      recordCsrWrite(CsrNumber::FCSR);
+    }
+}
+
+
+template <typename URV>
+inline
+void
+Hart<URV>::updateAccruedFpBits(double res, bool invalid)
+{
+  URV val = getFpFlags();
+  URV prev = val;
+
+  int flags = fetestexcept(FE_ALL_EXCEPT);
+      
+  if (flags)
+    {
+      if (flags & FE_INEXACT)
+        val |= URV(FpFlags::Inexact);
+
+      if (flags & FE_UNDERFLOW)
+        if (dpExponentBits(res) == 0)
+          val |= URV(FpFlags::Underflow);
+
+      if (flags & FE_OVERFLOW)
+        val |= URV(FpFlags::Overflow);
+      
+      if (flags & FE_DIVBYZERO)
+        val |= URV(FpFlags::DivByZero);
+
+      if (flags & FE_INVALID)
+        val |= URV(FpFlags::Invalid);
+    }
+
+  if (invalid)
+    val |= URV(FpFlags::Invalid);
+
+  if (val != prev)
+    {
+      setFpFlags(val);
+      recordCsrWrite(CsrNumber::FCSR);
     }
 }
 
@@ -385,25 +454,6 @@ fusedMultiplyAdd(double x, double y, double z, bool& invalid)
 }
 
 
-/// Return the exponent bits of the given floating point value.
-unsigned
-spExponentBits(float sp)
-{
-  Uint32FloatUnion uf(sp);
-  return (uf.u << 1) >> 24;
-}
-
-
-/// Return the exponent bits of the given double precision value.
-unsigned
-dpExponentBits(double dp)
-{
-  Uint64DoubleUnion ud(dp);
-  return (ud.u << 1) >> 53;
-}
-
-
-
 template <typename URV>
 void
 Hart<URV>::execFmadd_s(const DecodedInst* di)
@@ -422,10 +472,7 @@ Hart<URV>::execFmadd_s(const DecodedInst* di)
 
   fpRegs_.writeSingle(di->op0(), res);
 
-  bool noUnderflow = spExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
-  if (invalid)
-    setFcsrFlags(FpFlags::Invalid);
+  updateAccruedFpBits(res, invalid);
 
   markFsDirty();
 }
@@ -449,10 +496,7 @@ Hart<URV>::execFmsub_s(const DecodedInst* di)
 
   fpRegs_.writeSingle(di->op0(), res);
 
-  bool noUnderflow = spExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
-  if (invalid)
-    setFcsrFlags(FpFlags::Invalid);
+  updateAccruedFpBits(res, invalid);
 
   markFsDirty();
 }
@@ -476,10 +520,7 @@ Hart<URV>::execFnmsub_s(const DecodedInst* di)
 
   fpRegs_.writeSingle(di->op0(), res);
 
-  bool noUnderflow = spExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
-  if (invalid)
-    setFcsrFlags(FpFlags::Invalid);
+  updateAccruedFpBits(res, invalid);
 
   markFsDirty();
 }
@@ -505,10 +546,7 @@ Hart<URV>::execFnmadd_s(const DecodedInst* di)
 
   fpRegs_.writeSingle(di->op0(), res);
 
-  bool noUnderflow = spExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
-  if (invalid)
-    setFcsrFlags(FpFlags::Invalid);
+  updateAccruedFpBits(res, invalid);
 
   markFsDirty();
 }
@@ -529,8 +567,7 @@ Hart<URV>::execFadd_s(const DecodedInst* di)
 
   fpRegs_.writeSingle(di->op0(), res);
 
-  bool noUnderflow = spExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -551,8 +588,7 @@ Hart<URV>::execFsub_s(const DecodedInst* di)
 
   fpRegs_.writeSingle(di->op0(), res);
 
-  bool noUnderflow = spExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -573,8 +609,7 @@ Hart<URV>::execFmul_s(const DecodedInst* di)
 
   fpRegs_.writeSingle(di->op0(), res);
 
-  bool noUnderflow = spExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -595,8 +630,7 @@ Hart<URV>::execFdiv_s(const DecodedInst* di)
 
   fpRegs_.writeSingle(di->op0(), res);
 
-  bool noUnderflow = spExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -616,8 +650,7 @@ Hart<URV>::execFsqrt_s(const DecodedInst* di)
 
   fpRegs_.writeSingle(di->op0(), res);
 
-  bool noUnderflow = spExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -847,9 +880,7 @@ Hart<URV>::execFcvt_w_s(const DecodedInst* di)
 
   intRegs_.write(di->op0(), result);
 
-  updateAccruedFpBits(true);
-  if (not valid)
-    setFcsrFlags(FpFlags::Invalid);
+  updateAccruedFpBits(0.0, not valid);
 
   markFsDirty();
 }
@@ -1092,8 +1123,7 @@ Hart<URV>::execFcvt_s_w(const DecodedInst* di)
   float res = float(i1);
   fpRegs_.writeSingle(di->op0(), res);
 
-  bool noUnderflow = spExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -1110,8 +1140,7 @@ Hart<URV>::execFcvt_s_wu(const DecodedInst* di)
   float res = float(u1);
   fpRegs_.writeSingle(di->op0(), res);
 
-  bool noUnderflow = spExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -1190,9 +1219,7 @@ Hart<uint64_t>::execFcvt_l_s(const DecodedInst* di)
 
   intRegs_.write(di->op0(), result);
 
-  updateAccruedFpBits(true);
-  if (not valid)
-    setFcsrFlags(FpFlags::Invalid);
+  updateAccruedFpBits(0.0, not valid);
 
   markFsDirty();
 }
@@ -1302,8 +1329,7 @@ Hart<URV>::execFcvt_s_l(const DecodedInst* di)
   float res = float(i1);
   fpRegs_.writeSingle(di->op0(), res);
 
-  bool noUnderflow = spExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -1326,8 +1352,7 @@ Hart<URV>::execFcvt_s_lu(const DecodedInst* di)
   float res = float(i1);
   fpRegs_.writeSingle(di->op0(), res);
 
-  bool noUnderflow = spExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -1460,10 +1485,7 @@ Hart<URV>::execFmadd_d(const DecodedInst* di)
 
   fpRegs_.write(di->op0(), res);
 
-  bool noUnderflow = dpExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
-  if (invalid)
-    setFcsrFlags(FpFlags::Invalid);
+  updateAccruedFpBits(res, invalid);
 
   markFsDirty();
 }
@@ -1488,10 +1510,7 @@ Hart<URV>::execFmsub_d(const DecodedInst* di)
 
   fpRegs_.write(di->op0(), res);
 
-  bool noUnderflow = dpExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
-  if (invalid)
-    setFcsrFlags(FpFlags::Invalid);
+  updateAccruedFpBits(res, invalid);
 
   markFsDirty();
 }
@@ -1515,10 +1534,7 @@ Hart<URV>::execFnmsub_d(const DecodedInst* di)
 
   fpRegs_.write(di->op0(), res);
 
-  bool noUnderflow = dpExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
-  if (invalid)
-    setFcsrFlags(FpFlags::Invalid);
+  updateAccruedFpBits(res, invalid);
 
   markFsDirty();
 }
@@ -1544,10 +1560,7 @@ Hart<URV>::execFnmadd_d(const DecodedInst* di)
 
   fpRegs_.write(di->op0(), res);
 
-  bool noUnderflow = dpExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
-  if (invalid)
-    setFcsrFlags(FpFlags::Invalid);
+  updateAccruedFpBits(res, invalid);
 
   markFsDirty();
 }
@@ -1568,8 +1581,7 @@ Hart<URV>::execFadd_d(const DecodedInst* di)
 
   fpRegs_.write(di->op0(), res);
 
-  bool noUnderflow = dpExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -1590,8 +1602,7 @@ Hart<URV>::execFsub_d(const DecodedInst* di)
 
   fpRegs_.write(di->op0(), res);
 
-  bool noUnderflow = dpExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -1612,8 +1623,7 @@ Hart<URV>::execFmul_d(const DecodedInst* di)
 
   fpRegs_.write(di->op0(), res);
 
-  bool noUnderflow = dpExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -1634,8 +1644,7 @@ Hart<URV>::execFdiv_d(const DecodedInst* di)
 
   fpRegs_.write(di->op0(), res);
 
-  bool noUnderflow = dpExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -1790,8 +1799,7 @@ Hart<URV>::execFcvt_d_s(const DecodedInst* di)
 
   fpRegs_.write(di->op0(), res);
 
-  bool noUnderflow = dpExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -1811,8 +1819,7 @@ Hart<URV>::execFcvt_s_d(const DecodedInst* di)
 
   fpRegs_.writeSingle(di->op0(), res);
 
-  bool noUnderflow = spExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -1832,8 +1839,7 @@ Hart<URV>::execFsqrt_d(const DecodedInst* di)
 
   fpRegs_.write(di->op0(), res);
 
-  bool noUnderflow = dpExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -1949,9 +1955,7 @@ Hart<URV>::execFcvt_w_d(const DecodedInst* di)
 
   intRegs_.write(di->op0(), result);
 
-  updateAccruedFpBits(true);
-  if (not valid)
-    setFcsrFlags(FpFlags::Invalid);
+  updateAccruedFpBits(0.0, not valid);
 
   markFsDirty();
 }
@@ -2026,8 +2030,7 @@ Hart<URV>::execFcvt_d_w(const DecodedInst* di)
   double res = i1;
   fpRegs_.write(di->op0(), res);
 
-  bool noUnderflow = dpExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -2044,8 +2047,7 @@ Hart<URV>::execFcvt_d_wu(const DecodedInst* di)
   double res = i1;
   fpRegs_.write(di->op0(), res);
 
-  bool noUnderflow = dpExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -2165,9 +2167,7 @@ Hart<uint64_t>::execFcvt_l_d(const DecodedInst* di)
 
   intRegs_.write(di->op0(), result);
 
-  updateAccruedFpBits(true);
-  if (not valid)
-    setFcsrFlags(FpFlags::Invalid);
+  updateAccruedFpBits(0.0, not valid);
 
   markFsDirty();
 }
@@ -2277,8 +2277,7 @@ Hart<URV>::execFcvt_d_l(const DecodedInst* di)
   double res = double(i1);
   fpRegs_.write(di->op0(), res);
 
-  bool noUnderflow = dpExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }
@@ -2301,8 +2300,7 @@ Hart<URV>::execFcvt_d_lu(const DecodedInst* di)
   double res = double(i1);
   fpRegs_.write(di->op0(), res);
 
-  bool noUnderflow = dpExponentBits(res) != 0;
-  updateAccruedFpBits(noUnderflow);
+  updateAccruedFpBits(res, false /*invalid*/);
 
   markFsDirty();
 }

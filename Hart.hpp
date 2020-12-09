@@ -1321,7 +1321,8 @@ namespace WdRiscv
     RoundingMode effectiveRoundingMode(RoundingMode instMode);
 
     /// Update the accrued floating point bits in the FCSR register.
-    void updateAccruedFpBits(bool noUderflow);
+    void updateAccruedFpBits(float res, bool invalid);
+    void updateAccruedFpBits(double res, bool invalid);
 
     /// Set the flags field in FCSR to the least sig 5 bits of the
     /// given value
