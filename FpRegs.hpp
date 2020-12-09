@@ -261,11 +261,21 @@ namespace WdRiscv
 
   protected:
 
-    void reset()
+    void reset(bool isDouble)
     {
+      if (isDouble)
+        {
+          for (auto& reg : regs_)
+            reg = 0;
+        }
+      else
+        {
+          // Only F extension present. Reset to NAN-boxed zeros.
+          for (size_t i = 0; i < regs_.size(); ++i)
+            writeSingle(i, 0);
+        }
+
       clearLastWrittenReg();
-      for (auto& reg : regs_)
-	reg = 0;
     }
 
     /// Clear the number denoting the last written register.

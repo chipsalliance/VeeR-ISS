@@ -442,6 +442,9 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
       csRegs_.write(CsrNumber::MSTATUS, PrivilegeMode::Machine, fields.value_);
     }
 
+  if (isRvf() or isRvd())
+    fpRegs_.reset(isRvd());
+
   // Update cached values of mstatus.mpp and mstatus.mprv and mstatus.fs.
   updateCachedMstatusFields();
 
@@ -10347,7 +10350,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnj_s(const DecodedInst* di)
 {
-if (not isFpLegal())
+  if (not isFpLegal())
     {
       illegalInst(di);
       return;
