@@ -296,7 +296,16 @@ namespace WdRiscv
     {
       if (lastWrittenReg_ < 0) return false;
       regIx = lastWrittenReg_;
-      regValue = originalValue_;
+
+      // Copy bits of last written value inot regValue
+      union
+      {
+        FRV f;
+        uint64_t u;
+      } tmp;
+      tmp.f = originalValue_;
+      regValue = tmp.u;
+
       return true;
     }
 
