@@ -19,8 +19,11 @@
 #include <cfenv>
 #include <cmath>
 #include <emmintrin.h>
+
 #ifdef SOFT_FLOAT
+extern "C" {
 #include <softfloat.h>
+}
 #endif
 
 #include "Hart.hpp"
@@ -1831,7 +1834,13 @@ Hart<URV>::execFmul_d(const DecodedInst* di)
 
   double d1 = fpRegs_.read(di->op1());
   double d2 = fpRegs_.read(di->op2());
+
+#ifdef SOFT_FLOAT
+  double res = f64ToDouble(f64_mul(doubleToF64(d1), doubleToF64(d2)));
+#else
   double res = d1 * d2;
+#endif
+
   if (std::isnan(res))
     res = std::numeric_limits<double>::quiet_NaN();
 
@@ -1852,7 +1861,13 @@ Hart<URV>::execFdiv_d(const DecodedInst* di)
 
   double d1 = fpRegs_.read(di->op1());
   double d2 = fpRegs_.read(di->op2());
+
+#ifdef SOFT_FLOAT
+  double res = f64ToDouble(f64_div(doubleToF64(d1), doubleToF64(d2)));
+#else
   double res = d1 / d2;
+#endif
+
   if (std::isnan(res))
     res = std::numeric_limits<double>::quiet_NaN();
 
