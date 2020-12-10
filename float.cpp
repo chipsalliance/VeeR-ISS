@@ -47,7 +47,7 @@ union Uint32FloatUnion
 /// Unsigned-float union: reinterpret bits as uint64_t or double
 union Uint64DoubleUnion
 {
-  Uint64DoubleUnion(uint32_t u) : u(u)
+  Uint64DoubleUnion(uint64_t u) : u(u)
   { }
 
   Uint64DoubleUnion(double d) : d(d)
@@ -77,7 +77,7 @@ Hart<URV>::resetFloat()
   #ifdef SOFT_FLOAT
 
   softfloat_exceptionFlags = 0;
-  softfloat_detectTininess = softfloat_tininess_afterRouning;
+  softfloat_detectTininess = softfloat_tininess_afterRounding;
 
   #endif
 }
@@ -164,6 +164,7 @@ Hart<URV>::updateAccruedFpBits(float res, bool invalid)
   URV prev = val;
 
 #ifdef SOFT_FLOAT
+  res = res; // Passify compiler.
   int flags = softfloat_exceptionFlags;
   if (flags)
     {
@@ -210,6 +211,7 @@ Hart<URV>::updateAccruedFpBits(double res, bool invalid)
   URV prev = val;
 
 #ifdef SOFT_FLOAT
+  res = res; // Passify compiler.
   int flags = softfloat_exceptionFlags;
   if (flags)
     {
@@ -271,26 +273,15 @@ Hart<URV>::markFsDirty()
 #endif
 
 
-/// Map a RISCV rounding mode to an fetsetround constant.
-static std::array<int, 5> riscvRoungingModeToFe =
-  {
-   FE_TONEAREST,  // NearsetEven
-   FE_TOWARDZERO, // Zero
-   FE_DOWNWARD,   // Down
-   FE_UPWARD,     // Up
-   FE_TONEAREST   // NearestMax
-  };
-
-
 #ifdef SOFT_FLOAT
 /// Map a RISCV rounding mode to a soft-float constant.
 static std::array<int, 5> riscvRoungingModeToSoftFloat =
   {
-   softfloat_round_near_even,  // NearsetEven
-   softfloat_round_minMag,     // Zero
-   softfloat_round_min,        // Down
-   softfloat_round_max,        // Up
-   softfloat_round_maxMag      // NearestMax
+   softfloat_round_near_even,   // NearsetEven
+   softfloat_round_minMag,      // Zero
+   softfloat_round_min,         // Down
+   softfloat_round_max,         // Up
+   softfloat_round_near_maxMag  // NearestMax
   };
 #endif
 
@@ -303,7 +294,7 @@ int
 mapRiscvRoundingModeToSoftFloat(RoundingMode mode)
 {
   uint32_t ix = uint32_t(mode);
-  return riscvRoungingModeToFe.at(ix);
+  return riscvRoungingModeToSoftFloat.at(ix);
 }
 
 
@@ -321,6 +312,17 @@ setSimulatorRoundingMode(RoundingMode mode)
 }
 
 #else
+
+/// Map a RISCV rounding mode to an fetsetround constant.
+static std::array<int, 5> riscvRoungingModeToFe =
+  {
+   FE_TONEAREST,  // NearsetEven
+   FE_TOWARDZERO, // Zero
+   FE_DOWNWARD,   // Down
+   FE_UPWARD,     // Up
+   FE_TONEAREST   // NearestMax
+  };
+
 
 static
 inline
@@ -504,10 +506,11 @@ if (not isFpLegal())
 }
 
 
-#ifdef SOFT_FLAT
+#ifdef SOFT_FLOAT
 
 /// Convert softfloat float32_t to a native float.
-inline operator float(float32_t f32)
+inline float
+f32ToFloat(float32_t f32)
 {
   Uint32FloatUnion tmp(f32.v);
   return tmp.f;
@@ -515,7 +518,8 @@ inline operator float(float32_t f32)
 
 
 /// Convert softfloat float64_t to a native double.
-inline operator double(float64_t f64)
+inline double
+f64ToDouble(float64_t f64)
 {
   Uint64DoubleUnion tmp(f64.v);
   return tmp.d;
@@ -523,18 +527,20 @@ inline operator double(float64_t f64)
 
 
 /// Convert a native float to a softfloat float32_t
-inline operator float32_t(float x)
+inline float32_t
+floatToF32(float x)
 {
   Uint32FloatUnion tmp(x);
-  return float32_t{tmp.i};
+  return float32_t{tmp.u};
 }
 
 
 /// Convert a native double to a softfloat float64_t
-inline operator float64_t(double x)
+inline float64_t
+doubleToF64(double x)
 {
   Uint64DoubleUnion tmp(x);
-  return float64_t{tmp.i};
+  return float64_t{tmp.u};
 }
 
 #endif
@@ -554,7 +560,8 @@ fusedMultiplyAdd(float x, float y, float z, bool& invalid)
   float res = std::fma(x, y, z);
   #endif
 #else
-  float res = f32_mulAdd(x, y);
+  float32_t tmp = f32_mulAdd(floatToF32(x), floatToF32(y), floatToF32(z));
+  float res = f32ToFloat(tmp);
 #endif
 
   invalid = (std::isinf(x) and y == 0) or (x == 0 and std::isinf(y));
@@ -574,7 +581,8 @@ fusedMultiplyAdd(double x, double y, double z, bool& invalid)
   double res = std::fma(x, y, z);
   #endif
 #else
-  double res = f64_mulAdd(x, y);
+  float64_t tmp = f64_mulAdd(doubleToF64(x), doubleToF64(y), doubleToF64(z));
+  double res = f64ToDouble(tmp);
 #endif
 
   invalid = (std::isinf(x) and y == 0) or (x == 0 and std::isinf(y));
@@ -691,7 +699,7 @@ Hart<URV>::execFadd_s(const DecodedInst* di)
   float f2 = fpRegs_.readSingle(di->op2());
 
 #ifdef SOFT_FLOAT
-  float res = f32_add(x, y);
+  float res = f32ToFloat(f32_add(floatToF32(f1), floatToF32(f2)));
 #else
   float res = f1 + f2;
 #endif
@@ -718,7 +726,7 @@ Hart<URV>::execFsub_s(const DecodedInst* di)
   float f2 = fpRegs_.readSingle(di->op2());
 
 #ifdef SOFT_FLOAT
-  float res = f32_sub(x, y);
+  float res = f32ToFloat(f32_sub(floatToF32(f1), floatToF32(f2)));
 #else
   float res = f1 - f2;
 #endif
@@ -745,7 +753,7 @@ Hart<URV>::execFmul_s(const DecodedInst* di)
   float f2 = fpRegs_.readSingle(di->op2());
 
 #ifdef SOFT_FLOAT
-  float res = f32_mul(f1, f2);
+  float res = f32ToFloat(f32_mul(floatToF32(f1), floatToF32(f2)));
 #else
   float res = f1 * f2;
 #endif
@@ -772,7 +780,7 @@ Hart<URV>::execFdiv_s(const DecodedInst* di)
   float f2 = fpRegs_.readSingle(di->op2());
 
 #ifdef SOFT_FLOAT
-  float res = f32_div(f1, f2);
+  float res = f32ToFloat(f32_div(floatToF32(f1), floatToF32(f2)));
 #else
   float res = f1 / f2;
 #endif
@@ -798,7 +806,7 @@ Hart<URV>::execFsqrt_s(const DecodedInst* di)
   float f1 = fpRegs_.readSingle(di->op1());
 
 #ifdef SOFT_FLOAT
-  float res = f32_sqrt(f1);
+  float res = f32ToFloat(f32_sqrt(floatToF32(f1)));
 #else
   float res = std::sqrt(f1);
 #endif
@@ -1015,7 +1023,7 @@ Hart<URV>::execFcvt_w_s(const DecodedInst* di)
   bool valid = false;
 
 #ifdef SOFT_FLOAT
-  result = f32_to_i32(f1, softfloat_roundingMode, true);
+  result = f32_to_i32(floatToF32(f1), softfloat_roundingMode, true);
   valid = true;  // We get invalid from softfloat library.
 #else
 
@@ -1064,8 +1072,8 @@ Hart<URV>::execFcvt_wu_s(const DecodedInst* di)
 #ifdef SOFT_FLOAT
 
   // In 64-bit mode, we sign extend the result to 64-bits.
-  result = SRV(int32_t(f32_to_ui32(f1, softfloat_roundingMode, true)));
-  updateAccruedFpBits(result, false);
+  result = SRV(int32_t(f32_to_ui32(floatToF32(f1), softfloat_roundingMode, true)));
+  updateAccruedFpBits(0.0f, false);
 
 #else
 
@@ -1295,7 +1303,13 @@ Hart<URV>::execFcvt_s_w(const DecodedInst* di)
     return;
 
   int32_t i1 = intRegs_.read(di->op1());
+
+#ifdef SOFT_FLOAT
+  float res = f32ToFloat(i32_to_f32(i1));
+#else
   float res = float(i1);
+#endif
+
   fpRegs_.writeSingle(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
@@ -1312,7 +1326,13 @@ Hart<URV>::execFcvt_s_wu(const DecodedInst* di)
     return;
 
   uint32_t u1 = intRegs_.read(di->op1());
+
+#ifdef SOFT_FLOAT
+  float res = f32ToFloat(ui32_to_f32(u1));
+#else
   float res = float(u1);
+#endif
+
   fpRegs_.writeSingle(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
