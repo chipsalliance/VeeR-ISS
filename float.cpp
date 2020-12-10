@@ -989,28 +989,6 @@ if (not isFpLegal())
 }
 
 
-/// Return sign bit (0 or 1) of given float. Works for all float
-/// values including NANs and INFINITYs.
-static
-unsigned
-signOf(float f)
-{
-  Uint32FloatUnion ufu(f);
-  return ufu.u >> 31;
-}
-
-
-/// Return sign bit (0 or 1) of given double. Works for all double
-/// values including NANs and INFINITYs.
-static
-unsigned
-signOf(double d)
-{
-  Uint64DoubleUnion udu(d);
-  return udu.u >> 63;
-}
-
-
 template <typename URV>
 void
 Hart<URV>::execFcvt_w_s(const DecodedInst* di)
@@ -1030,7 +1008,7 @@ Hart<URV>::execFcvt_w_s(const DecodedInst* di)
   int32_t minInt = int32_t(1) << 31;
   int32_t maxInt = (~uint32_t(0)) >> 1;
 
-  unsigned signBit = signOf(f1);
+  unsigned signBit = std::signbit(f1);
   if (std::isinf(f1))
     result = signBit ? minInt : maxInt;
   else if (std::isnan(f1))
@@ -1118,10 +1096,10 @@ Hart<URV>::execFcvt_wu_s(const DecodedInst* di)
     setFcsrFlags(FpFlags::Invalid);
   if (not exact)
     setFcsrFlags(FpFlags::Inexact);
+
 #endif
 
   intRegs_.write(di->op0(), result);
-
   markFsDirty();
 }
 
@@ -1385,10 +1363,15 @@ Hart<uint64_t>::execFcvt_l_s(const DecodedInst* di)
   SRV result = 0;
   bool valid = false;
 
+#ifdef SOFT_FLOAT
+  result = f32_to_i64(floatToF32(f1), softfloat_roundingMode, true);
+  valid = true;  // We get invalid from softfloat library.
+#else
+
   int64_t maxInt = (~uint64_t(0)) >> 1;
   int64_t minInt = int64_t(1) << 63;
 
-  unsigned signBit = signOf(f1);
+  unsigned signBit = std::signbit(f1);
   if (std::isinf(f1))
     {
       if (signBit)
@@ -1411,6 +1394,8 @@ Hart<uint64_t>::execFcvt_l_s(const DecodedInst* di)
           result = std::lrint(f1);
 	}
     }
+
+#endif
 
   intRegs_.write(di->op0(), result);
 
@@ -1443,12 +1428,20 @@ Hart<uint64_t>::execFcvt_lu_s(const DecodedInst* di)
 
   float f1 = fpRegs_.readSingle(di->op1());
   uint64_t result = 0;
+
+#ifdef SOFT_FLOAT
+
+  result = f32_to_ui64(floatToF32(f1), softfloat_roundingMode, true);
+  updateAccruedFpBits(0.0f, false);
+  
+#else
+
   bool valid = false;
   bool exact = true;
 
   uint64_t maxUint = ~uint64_t(0);
 
-  unsigned signBit = signOf(f1);
+  unsigned signBit = std::signbit(f1);
   if (std::isinf(f1))
     {
       if (signBit)
@@ -1496,13 +1489,15 @@ Hart<uint64_t>::execFcvt_lu_s(const DecodedInst* di)
         }
     }
 
-  intRegs_.write(di->op0(), result);
 
   if (not valid)
     setFcsrFlags(FpFlags::Invalid);
   if (not exact)
     setFcsrFlags(FpFlags::Inexact);
 
+#endif
+
+  intRegs_.write(di->op0(), result);
   markFsDirty();
 }
 
@@ -1521,7 +1516,13 @@ Hart<URV>::execFcvt_s_l(const DecodedInst* di)
     return;
 
   SRV i1 = intRegs_.read(di->op1());
+
+#ifdef SOFT_FLOAT
+  float res = f32ToFloat(i64_to_f32(i1));
+#else
   float res = float(i1);
+#endif
+
   fpRegs_.writeSingle(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
@@ -1544,7 +1545,13 @@ Hart<URV>::execFcvt_s_lu(const DecodedInst* di)
     return;
 
   URV i1 = intRegs_.read(di->op1());
+
+#ifdef SOFT_FLOAT
+  float res = f32ToFloat(ui64_to_f32(i1));
+#else
   float res = float(i1);
+#endif
+
   fpRegs_.writeSingle(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
@@ -1770,7 +1777,13 @@ Hart<URV>::execFadd_d(const DecodedInst* di)
 
   double d1 = fpRegs_.read(di->op1());
   double d2 = fpRegs_.read(di->op2());
+
+#ifdef SOFT_FLOAT
+  double res = f64ToDouble(f64_add(doubleToF64(d1), doubleToF64(d2)));
+#else
   double res = d1 + d2;
+#endif
+
   if (std::isnan(res))
     res = std::numeric_limits<double>::quiet_NaN();
 
@@ -1791,7 +1804,13 @@ Hart<URV>::execFsub_d(const DecodedInst* di)
 
   double d1 = fpRegs_.read(di->op1());
   double d2 = fpRegs_.read(di->op2());
+
+#ifdef SOFT_FLOAT
+  double res = f64ToDouble(f64_sub(doubleToF64(d1), doubleToF64(d2)));
+#else
   double res = d1 - d2;
+#endif
+
   if (std::isnan(res))
     res = std::numeric_limits<double>::quiet_NaN();
 
@@ -2129,7 +2148,7 @@ Hart<URV>::execFcvt_w_d(const DecodedInst* di)
   int32_t minInt = int32_t(1) << 31;
   int32_t maxInt = (~uint32_t(0)) >> 1;
 
-  unsigned signBit = signOf(d1);
+  unsigned signBit = std::signbit(d1);
   if (std::isinf(d1))
     result = signBit? minInt : maxInt;
   else if (std::isnan(d1))
@@ -2333,7 +2352,7 @@ Hart<uint64_t>::execFcvt_l_d(const DecodedInst* di)
   int64_t maxInt = (~uint64_t(0)) >> 1;
   int64_t minInt = int64_t(1) << 63;
 
-  unsigned signBit = signOf(f1);
+  unsigned signBit = std::signbit(f1);
   if (std::isinf(f1))
     {
       if (signBit)
@@ -2396,7 +2415,7 @@ Hart<uint64_t>::execFcvt_lu_d(const DecodedInst* di)
 
   uint64_t maxUint = ~uint64_t(0);
 
-  unsigned signBit = signOf(f1);
+  unsigned signBit = std::signbit(f1);
   if (std::isinf(f1))
     {
       if (signBit)
