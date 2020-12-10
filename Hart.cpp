@@ -1594,6 +1594,8 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
       cause = determineMisalLoadException(addr, ldSize, secCause);
       if (cause == ExceptionCause::LOAD_ADDR_MISAL)
         return cause;  // Misaligned resulting in misaligned-adddress-exception
+      if (wideLdSt_ and cause != ExceptionCause::NONE)
+        return cause;
     }
 
   // Stack access.
@@ -9026,6 +9028,8 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
     {
       cause = determineMisalStoreException(addr, stSize, secCause);
       if (cause == ExceptionCause::STORE_ADDR_MISAL)
+        return cause;
+      if (wideLdSt_ and cause != ExceptionCause::NONE)
         return cause;
     }
 
