@@ -19,6 +19,9 @@
 #include <cfenv>
 #include <cmath>
 #include <emmintrin.h>
+#ifdef SOFT_FLOAT
+#include <softfloat.h>
+#endif
 
 #include "Hart.hpp"
 #include "instforms.hpp"
@@ -53,6 +56,31 @@ union Uint64DoubleUnion
   uint64_t u = 0;
   double d;
 };
+
+
+template <typename URV>
+void
+Hart<URV>::resetFloat()
+{
+  // Enable FP if f/d extension and linux/newlib.
+  if ((isRvf() or isRvd()) and (newlib_ or linux_))
+    {
+      URV val = csRegs_.peekMstatus();
+      MstatusFields<URV> fields(val);
+      fields.bits_.FS = unsigned(FpFs::Initial);
+      csRegs_.write(CsrNumber::MSTATUS, PrivilegeMode::Machine, fields.value_);
+    }
+
+  if (isRvf() or isRvd())
+    fpRegs_.reset(isRvd());
+
+  #ifdef SOFT_FLOAT
+
+  softfloat_exceptionFlags = 0;
+  softfloat_detectTininess = softfloat_tininess_afterRouning;
+
+  #endif
+}
 
 
 template <typename URV>
@@ -135,26 +163,32 @@ Hart<URV>::updateAccruedFpBits(float res, bool invalid)
   URV val = getFpFlags();
   URV prev = val;
 
+#ifdef SOFT_FLOAT
+  int flags = softfloat_exceptionFlags;
+  if (flags)
+    {
+      if (flags & softfloat_flag_inexact)   val |= URV(FpFlags::Inexact);
+      if (flags & softfloat_flag_underflow) val |= URV(FpFlags::Underflow);
+      if (flags & softfloat_flag_overflow)  val |= URV(FpFlags::Overflow);
+      if (flags & softfloat_flag_infinite)  val |= URV(FpFlags::DivByZero);
+      if (flags & softfloat_flag_invalid)   val |= URV(FpFlags::Invalid);
+    }      
+#else
   int flags = fetestexcept(FE_ALL_EXCEPT);
-      
   if (flags)
     {
       if (flags & FE_INEXACT)
         val |= URV(FpFlags::Inexact);
-
-      if (flags & FE_UNDERFLOW)
-        if (spExponentBits(res) == 0)
-          val |= URV(FpFlags::Underflow);
-
+      if ((flags & FE_UNDERFLOW) and (spExponentBits(res) == 0))
+        val |= URV(FpFlags::Underflow);
       if (flags & FE_OVERFLOW)
         val |= URV(FpFlags::Overflow);
-      
       if (flags & FE_DIVBYZERO)
         val |= URV(FpFlags::DivByZero);
-
       if (flags & FE_INVALID)
         val |= URV(FpFlags::Invalid);
     }
+#endif
 
   if (invalid)
     val |= URV(FpFlags::Invalid);
@@ -175,26 +209,32 @@ Hart<URV>::updateAccruedFpBits(double res, bool invalid)
   URV val = getFpFlags();
   URV prev = val;
 
+#ifdef SOFT_FLOAT
+  int flags = softfloat_exceptionFlags;
+  if (flags)
+    {
+      if (flags & softfloat_flag_inexact)   val |= URV(FpFlags::Inexact);
+      if (flags & softfloat_flag_underflow) val |= URV(FpFlags::Underflow);
+      if (flags & softfloat_flag_overflow)  val |= URV(FpFlags::Overflow);
+      if (flags & softfloat_flag_infinite)  val |= URV(FpFlags::DivByZero);
+      if (flags & softfloat_flag_invalid)   val |= URV(FpFlags::Invalid);
+    }      
+#else
   int flags = fetestexcept(FE_ALL_EXCEPT);
-      
   if (flags)
     {
       if (flags & FE_INEXACT)
         val |= URV(FpFlags::Inexact);
-
-      if (flags & FE_UNDERFLOW)
-        if (dpExponentBits(res) == 0)
-          val |= URV(FpFlags::Underflow);
-
+      if ((flags & FE_UNDERFLOW) and (spExponentBits(res) == 0))
+        val |= URV(FpFlags::Underflow);
       if (flags & FE_OVERFLOW)
         val |= URV(FpFlags::Overflow);
-      
       if (flags & FE_DIVBYZERO)
         val |= URV(FpFlags::DivByZero);
-
       if (flags & FE_INVALID)
         val |= URV(FpFlags::Invalid);
     }
+#endif
 
   if (invalid)
     val |= URV(FpFlags::Invalid);
@@ -242,6 +282,46 @@ static std::array<int, 5> riscvRoungingModeToFe =
   };
 
 
+#ifdef SOFT_FLOAT
+/// Map a RISCV rounding mode to a soft-float constant.
+static std::array<int, 5> riscvRoungingModeToSoftFloat =
+  {
+   softfloat_round_near_even,  // NearsetEven
+   softfloat_round_minMag,     // Zero
+   softfloat_round_min,        // Down
+   softfloat_round_max,        // Up
+   softfloat_round_maxMag      // NearestMax
+  };
+#endif
+
+
+#ifdef SOFT_FLOAT
+
+static
+inline
+int
+mapRiscvRoundingModeToSoftFloat(RoundingMode mode)
+{
+  uint32_t ix = uint32_t(mode);
+  return riscvRoungingModeToFe.at(ix);
+}
+
+
+static
+inline
+int
+setSimulatorRoundingMode(RoundingMode mode)
+{
+  int previous = softfloat_roundingMode;
+  int next = mapRiscvRoundingModeToSoftFloat(mode);
+
+  softfloat_roundingMode = next;
+
+  return previous;
+}
+
+#else
+
 static
 inline
 int
@@ -265,6 +345,8 @@ setSimulatorRoundingMode(RoundingMode mode)
 
   return previous;
 }
+
+#endif
 
 
 /// Clear the floating point flags in the machine running this
@@ -422,6 +504,42 @@ if (not isFpLegal())
 }
 
 
+#ifdef SOFT_FLAT
+
+/// Convert softfloat float32_t to a native float.
+inline operator float(float32_t f32)
+{
+  Uint32FloatUnion tmp(f32.v);
+  return tmp.f;
+}
+
+
+/// Convert softfloat float64_t to a native double.
+inline operator double(float64_t f64)
+{
+  Uint64DoubleUnion tmp(f64.v);
+  return tmp.d;
+}
+
+
+/// Convert a native float to a softfloat float32_t
+inline operator float32_t(float x)
+{
+  Uint32FloatUnion tmp(x);
+  return float32_t{tmp.i};
+}
+
+
+/// Convert a native double to a softfloat float64_t
+inline operator float64_t(double x)
+{
+  Uint64DoubleUnion tmp(x);
+  return float64_t{tmp.i};
+}
+
+#endif
+
+
 /// Use fused mutiply-add to perform x*y + z.
 /// Set invalid to true if x and y are zero and infinity or
 /// vice versa since RISCV consider that as an invalid operation.
@@ -429,11 +547,16 @@ static
 float
 fusedMultiplyAdd(float x, float y, float z, bool& invalid)
 {
-#ifdef __FP_FAST_FMA
+#ifndef SOFT_FLOAT
+  #ifdef __FP_FAST_FMA
   float res = x*y + z;
-#else
+  #else
   float res = std::fma(x, y, z);
+  #endif
+#else
+  float res = f32_mulAdd(x, y);
 #endif
+
   invalid = (std::isinf(x) and y == 0) or (x == 0 and std::isinf(y));
   return res;
 }
@@ -444,11 +567,16 @@ static
 double
 fusedMultiplyAdd(double x, double y, double z, bool& invalid)
 {
-#ifdef __FP_FAST_FMA
+#ifndef SOFT_FLOAT
+  #ifdef __FP_FAST_FMA
   double res = x*y + z;
-#else
+  #else
   double res = std::fma(x, y, z);
+  #endif
+#else
+  double res = f64_mulAdd(x, y);
 #endif
+
   invalid = (std::isinf(x) and y == 0) or (x == 0 and std::isinf(y));
   return res;
 }
@@ -561,7 +689,13 @@ Hart<URV>::execFadd_s(const DecodedInst* di)
 
   float f1 = fpRegs_.readSingle(di->op1());
   float f2 = fpRegs_.readSingle(di->op2());
+
+#ifdef SOFT_FLOAT
+  float res = f32_add(x, y);
+#else
   float res = f1 + f2;
+#endif
+
   if (std::isnan(res))
     res = std::numeric_limits<float>::quiet_NaN();
 
@@ -582,7 +716,13 @@ Hart<URV>::execFsub_s(const DecodedInst* di)
 
   float f1 = fpRegs_.readSingle(di->op1());
   float f2 = fpRegs_.readSingle(di->op2());
+
+#ifdef SOFT_FLOAT
+  float res = f32_sub(x, y);
+#else
   float res = f1 - f2;
+#endif
+
   if (std::isnan(res))
     res = std::numeric_limits<float>::quiet_NaN();
 
@@ -603,7 +743,13 @@ Hart<URV>::execFmul_s(const DecodedInst* di)
 
   float f1 = fpRegs_.readSingle(di->op1());
   float f2 = fpRegs_.readSingle(di->op2());
+
+#ifdef SOFT_FLOAT
+  float res = f32_mul(f1, f2);
+#else
   float res = f1 * f2;
+#endif
+
   if (std::isnan(res))
     res = std::numeric_limits<float>::quiet_NaN();
 
@@ -624,7 +770,13 @@ Hart<URV>::execFdiv_s(const DecodedInst* di)
 
   float f1 = fpRegs_.readSingle(di->op1());
   float f2 = fpRegs_.readSingle(di->op2());
+
+#ifdef SOFT_FLOAT
+  float res = f32_div(f1, f2);
+#else
   float res = f1 / f2;
+#endif
+
   if (std::isnan(res))
     res = std::numeric_limits<float>::quiet_NaN();
 
@@ -644,7 +796,13 @@ Hart<URV>::execFsqrt_s(const DecodedInst* di)
     return;
 
   float f1 = fpRegs_.readSingle(di->op1());
+
+#ifdef SOFT_FLOAT
+  float res = f32_sqrt(f1);
+#else
   float res = std::sqrt(f1);
+#endif
+
   if (std::isnan(res))
     res = std::numeric_limits<float>::quiet_NaN();
 
@@ -856,6 +1014,11 @@ Hart<URV>::execFcvt_w_s(const DecodedInst* di)
   SRV result = 0;
   bool valid = false;
 
+#ifdef SOFT_FLOAT
+  result = f32_to_i32(f1, softfloat_roundingMode, true);
+  valid = true;  // We get invalid from softfloat library.
+#else
+
   int32_t minInt = int32_t(1) << 31;
   int32_t maxInt = (~uint32_t(0)) >> 1;
 
@@ -878,6 +1041,8 @@ Hart<URV>::execFcvt_w_s(const DecodedInst* di)
 	}
     }
 
+#endif
+
   intRegs_.write(di->op0(), result);
 
   updateAccruedFpBits(0.0, not valid);
@@ -895,6 +1060,15 @@ Hart<URV>::execFcvt_wu_s(const DecodedInst* di)
 
   float f1 = fpRegs_.readSingle(di->op1());
   SRV result = 0;
+
+#ifdef SOFT_FLOAT
+
+  // In 64-bit mode, we sign extend the result to 64-bits.
+  result = SRV(int32_t(f32_to_ui32(f1, softfloat_roundingMode, true)));
+  updateAccruedFpBits(result, false);
+
+#else
+
   bool valid = false;
   bool exact = true;
 
@@ -932,12 +1106,13 @@ Hart<URV>::execFcvt_wu_s(const DecodedInst* di)
         }
     }
 
-  intRegs_.write(di->op0(), result);
-
   if (not valid)
     setFcsrFlags(FpFlags::Invalid);
   if (not exact)
     setFcsrFlags(FpFlags::Inexact);
+#endif
+
+  intRegs_.write(di->op0(), result);
 
   markFsDirty();
 }

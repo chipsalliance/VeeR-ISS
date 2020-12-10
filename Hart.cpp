@@ -402,17 +402,7 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
         }
     }
 
-  // Enable FP if f/d extension and linux/newlib.
-  if ((isRvf() or isRvd()) and (newlib_ or linux_))
-    {
-      URV val = csRegs_.peekMstatus();
-      MstatusFields<URV> fields(val);
-      fields.bits_.FS = unsigned(FpFs::Initial);
-      csRegs_.write(CsrNumber::MSTATUS, PrivilegeMode::Machine, fields.value_);
-    }
-
-  if (isRvf() or isRvd())
-    fpRegs_.reset(isRvd());
+  resetFloat();
 
   // Update cached values of mstatus.mpp and mstatus.mprv and mstatus.fs.
   updateCachedMstatusFields();

@@ -1232,6 +1232,10 @@ namespace WdRiscv
 
   protected:
 
+    /// Helper to reset: reset floating point related structures.
+    /// No-op if no  floating point extension is enabled.
+    void resetFloat();
+
     // Return true if FS field of mstatus is not off.
     bool isFpEnabled() const
     { return mstatusFs_ != FpFs::Off; }
