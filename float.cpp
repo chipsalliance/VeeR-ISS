@@ -1054,6 +1054,8 @@ Hart<URV>::execFcvt_wu_s(const DecodedInst* di)
 
   // In 64-bit mode, we sign extend the result to 64-bits.
   result = SRV(int32_t(f32_to_ui32(floatToF32(f1), softfloat_roundingMode, true)));
+  if (not std::isnan(f1) and f1 < 0)
+    softfloat_exceptionFlags |= softfloat_flag_invalid;
   updateAccruedFpBits(0.0f, false);
 
 #else
@@ -1435,6 +1437,8 @@ Hart<uint64_t>::execFcvt_lu_s(const DecodedInst* di)
 #ifdef SOFT_FLOAT
 
   result = f32_to_ui64(floatToF32(f1), softfloat_roundingMode, true);
+  if (not std::isnan(f1) and f1 < 0)
+    softfloat_exceptionFlags |= softfloat_flag_invalid;
   updateAccruedFpBits(0.0f, false);
   
 #else
@@ -2042,7 +2046,13 @@ Hart<URV>::execFcvt_s_d(const DecodedInst* di)
     return;
 
   double d1 = fpRegs_.read(di->op1());
+
+#ifdef SOFT_FLOAT
+  float res = f32ToFloat(f64_to_f32(doubleToF64(d1)));
+#else
   float res = float(d1);
+#endif
+
   if (std::isnan(res))
     res = std::numeric_limits<float>::quiet_NaN();
 
@@ -2062,7 +2072,13 @@ Hart<URV>::execFsqrt_d(const DecodedInst* di)
     return;
 
   double d1 = fpRegs_.read(di->op1());
+
+#ifdef SOFT_FLOAT
+  double res = f64ToDouble(f64_sqrt(doubleToF64(d1)));
+#else
   double res = std::sqrt(d1);
+#endif
+
   if (std::isnan(res))
     res = std::numeric_limits<double>::quiet_NaN();
 
@@ -2160,12 +2176,17 @@ Hart<URV>::execFcvt_w_d(const DecodedInst* di)
   SRV result = 0;
   bool valid = false;
 
+#ifdef SOFT_FLOAT
+  result = f64_to_i32(doubleToF64(d1), softfloat_roundingMode, true);
+  valid = true;  // We get invalid from softfloat library.
+#else
+
   int32_t minInt = int32_t(1) << 31;
   int32_t maxInt = (~uint32_t(0)) >> 1;
 
   unsigned signBit = std::signbit(d1);
   if (std::isinf(d1))
-    result = signBit? minInt : maxInt;
+    result = signBit ? minInt : maxInt;
   else if (std::isnan(d1))
     result = maxInt;
   else
@@ -2181,6 +2202,8 @@ Hart<URV>::execFcvt_w_d(const DecodedInst* di)
 	  result = SRV(int32_t(std::lrint(d1)));
 	}
     }
+
+#endif
 
   intRegs_.write(di->op0(), result);
 
@@ -2200,6 +2223,17 @@ Hart<URV>::execFcvt_wu_d(const DecodedInst* di)
 
   double d1 = fpRegs_.read(di->op1());
   SRV result = 0;
+
+#ifdef SOFT_FLOAT
+
+  result = SRV(int32_t(f64_to_ui32(doubleToF64(d1), softfloat_roundingMode, true)));
+  if (not std::isnan(d1) and d1 < 0)
+    softfloat_exceptionFlags |= softfloat_flag_invalid;
+  updateAccruedFpBits(0.0f, false);
+
+#else
+
+
   bool valid = false;
   bool exact = true;
 
@@ -2237,13 +2271,14 @@ Hart<URV>::execFcvt_wu_d(const DecodedInst* di)
         }
     }
 
-  intRegs_.write(di->op0(), result);
-
   if (not valid)
     setFcsrFlags(FpFlags::Invalid);
   if (not exact)
     setFcsrFlags(FpFlags::Inexact);
 
+#endif
+
+  intRegs_.write(di->op0(), result);
   markFsDirty();
 }
 

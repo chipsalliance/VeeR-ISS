@@ -46,10 +46,7 @@ override CPPFLAGS += -I$(VPATH)
 ifdef SOFT_FLOAT
 override CPPFLAGS += -I$(VPATH)/softfloat/source/include
 override CPPFLAGS += -DSOFT_FLOAT
-os := $(shell uname -s)
-processor := $(shell uname -p)
-prefix := $(os)-$(processor)
-soft_float_build := $(wildcard $(VPATH)/softfloat/build/$(prefix)*)
+soft_float_build := $(wildcard $(VPATH)/softfloat/build/RISCV-GCC)
 soft_float_lib := $(soft_float_build)/softfloat.a
 endif
 
