@@ -1023,7 +1023,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::fcvt_s_w:
-      out << "fcvt.s.w " << ", " << fpRegName(di.op0()) << ", "
+      out << "fcvt.s.w " << fpRegName(di.op0()) << ", "
 	  << intRegName(di.op1()) << ", "
 	  << roundingModeString(di.roundingMode());
       break;
@@ -1051,7 +1051,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::fcvt_s_l:
-      out << "fcvt.s.l " << ", " << fpRegName(di.op0()) << ", "
+      out << "fcvt.s.l " << fpRegName(di.op0()) << ", "
 	  << intRegName(di.op1()) << ", "
 	  << roundingModeString(di.roundingMode());
       break;
@@ -1744,6 +1744,14 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
 
     case InstId::fsri:
       printRdRs1Rs3Imm(*this, out, "fsri", di);
+      break;
+
+    case InstId::load64:
+      printLdSt(*this, out, "load64", di);
+      break;
+
+    case InstId::store64:
+      printLdSt(*this, out, "store64", di);
       break;
 
     case InstId::vsetvli:

@@ -40,7 +40,18 @@ DFLAGS := -g
 override CXXFLAGS += -MMD -MP -mfma -std=c++17 $(OFLAGS) -fPIC -pedantic -Wall -Wextra
 
 # Pre-processor flags
-override CPPFLAGS += $(addprefix -isystem ,$(BOOST_INC)) -I$(VPATH)
+override CPPFLAGS += $(addprefix -isystem ,$(BOOST_INC))
+override CPPFLAGS += -I$(VPATH)
+
+ifdef SOFT_FLOAT
+override CPPFLAGS += -I$(VPATH)/softfloat/source/include
+override CPPFLAGS += -DSOFT_FLOAT
+os := $(shell uname -s)
+processor := $(shell uname -p)
+prefix := $(os)-$(processor)
+soft_float_build := $(wildcard $(VPATH)/softfloat/build/$(prefix)*)
+soft_float_lib := $(soft_float_build)/softfloat.a
+endif
 
 # Compile optimized code in opt directory.
 opt:
@@ -53,8 +64,11 @@ dbg:
 	$(MAKE) -C dbg -f ../GNUmakefile.wdc OFLAGS="$(DFLAGS)" VPATH=.. whisper
 
 # Main target.
-whisper: whisper.o librvcore.a
+whisper: whisper.o librvcore.a $(soft_float_lib)
 	$(CXX) -o $@ $^ $(LINK_DIRS) $(LINK_LIBS)
+
+$(soft_float_lib):
+	$(MAKE) -C $(soft_float_build)
 
 # List of CPP source files needed for librvcore.a
 RVCORE_SRCS := IntRegs.cpp CsRegs.cpp FpRegs.cpp instforms.cpp Memory.cpp
@@ -62,7 +76,7 @@ RVCORE_SRCS += Hart.cpp InstEntry.cpp Triggers.cpp PerfRegs.cpp gdb.cpp
 RVCORE_SRCS += HartConfig.cpp Server.cpp Interactive.cpp decode.cpp disas.cpp
 RVCORE_SRCS += Syscall.cpp PmaManager.cpp DecodedInst.cpp snapshot.cpp
 RVCORE_SRCS += PmpManager.cpp VirtMem.cpp Core.cpp System.cpp Cache.cpp
-RVCORE_SRCS += Tlb.cpp VecRegs.cpp vector.cpp wideint.cpp
+RVCORE_SRCS += Tlb.cpp VecRegs.cpp vector.cpp wideint.cpp float.cpp
 
 # List of All CPP source files for the project
 SRCS += $(RVCORE_SRCS) whisper.cpp

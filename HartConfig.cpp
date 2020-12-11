@@ -1014,6 +1014,17 @@ HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
         errors++;
     }
 
+  // Wide (64-bit) load/store. WDC special.
+  tag = "enable_wide_load_store";
+  if (config_ -> count(tag))
+    {
+      bool flag = true;
+      if (getJsonBoolean(tag, config_ ->at(tag), flag))
+        hart.enableWideLoadStore(flag);
+      else
+        errors++;
+    }
+
   // Ld/st instructions trigger misaligned exception if base address
   // (value in rs1) and effective address refer to regions of
   // different types.

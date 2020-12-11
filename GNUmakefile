@@ -47,7 +47,7 @@ LINK_DIRS := $(addprefix -L,$(BOOST_LIB_DIR))
 
 # Generating the Linker options for dependent libraries
 ifeq ($(STATIC_LINK), 1)
-  LINK_LIBS := $(addprefix $(BOOST_LIB_DIR)/lib, $(addsuffix .a, $(BOOST_LIBS))) $(EXTRA_LIBS)
+  LINK_LIBS := $(addprefix -l:lib, $(addsuffix .a, $(BOOST_LIBS))) $(EXTRA_LIBS)
 else
   COMMA := ,
   LINK_DIRS += $(addprefix -Wl$(COMMA)-rpath=, $(BOOST_LIB_DIR))
@@ -91,7 +91,7 @@ RVCORE_SRCS := IntRegs.cpp CsRegs.cpp FpRegs.cpp instforms.cpp \
             Server.cpp Interactive.cpp decode.cpp disas.cpp \
 	    Syscall.cpp PmaManager.cpp DecodedInst.cpp snapshot.cpp \
 	    PmpManager.cpp VirtMem.cpp Core.cpp System.cpp Cache.cpp \
-	    Tlb.cpp VecRegs.cpp vector.cpp wideint.cpp
+	    Tlb.cpp VecRegs.cpp vector.cpp wideint.cpp float.cpp
 
 # List of All CPP Sources for the project
 SRCS_CXX += $(RVCORE_SRCS) whisper.cpp

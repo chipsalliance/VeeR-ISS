@@ -1226,7 +1226,15 @@ namespace WdRiscv
       return true;
     }
 
+    /// Enable disable wide load/store mode (64-bit on 32-bit machine).
+    void enableWideLoadStore(bool flag)
+    { enableWideLdSt_ = flag; }
+
   protected:
+
+    /// Helper to reset: reset floating point related structures.
+    /// No-op if no  floating point extension is enabled.
+    void resetFloat();
 
     // Return true if FS field of mstatus is not off.
     bool isFpEnabled() const
@@ -1317,7 +1325,8 @@ namespace WdRiscv
     RoundingMode effectiveRoundingMode(RoundingMode instMode);
 
     /// Update the accrued floating point bits in the FCSR register.
-    void updateAccruedFpBits(bool noUderflow);
+    void updateAccruedFpBits(float res, bool invalid);
+    void updateAccruedFpBits(double res, bool invalid);
 
     /// Set the flags field in FCSR to the least sig 5 bits of the
     /// given value
@@ -1458,11 +1467,11 @@ namespace WdRiscv
 
     /// Do a 64-bit wide load in one transaction. This is swerv
     /// specfic.
-    bool wideLoad(unsigned rd, URV addr, unsigned ldSize);
+    bool wideLoad(unsigned rd, URV addr);
 
     /// Do a 64-bit wide store in one transaction. This is swerv
     /// specfic.
-    bool wideStore(URV addr, URV storeVal, unsigned storeSize);
+    bool wideStore(URV addr, URV storeVal);
 
     /// Helper to load methods. Check loads performed with stack
     /// pointer.  Return true if referenced bytes are all between the
@@ -1697,10 +1706,6 @@ namespace WdRiscv
 
     /// Update stack checker parameters after a write/poke to a CSR.
     void updateStackChecker();
-
-    /// Enable disable wide load/store mode (64-bit on 32-bit machine).
-    void enableWideLdStMode(bool flag)
-    { wideLdSt_ = flag; }
 
     /// Helper to shift/bit execute instruction with immediate
     /// operands: Signal an illegal instruction if immediate value is
@@ -2009,6 +2014,9 @@ namespace WdRiscv
     void execFsr(const DecodedInst*);
     void execFsri(const DecodedInst*);
 
+    // Custom insts
+    void execLoad64(const DecodedInst*);
+    void execStore64(const DecodedInst*);
 
     // Return true if maskable instruction is legal. Take an illegal instuction
     // exception and return false otherwise.
@@ -2930,7 +2938,8 @@ namespace WdRiscv
     URV stackMax_ = ~URV(0);
     URV stackMin_ = 0;
 
-    bool wideLdSt_ = false;
+    bool enableWideLdSt_ = false;   // True if wide (64-bit) ld/st enabled.
+    bool wideLdSt_ = false;         // True if executing wide ld/st instrution.
 
     // AMO instructions have additional operands: rl and aq.
     bool amoAq_ = false;

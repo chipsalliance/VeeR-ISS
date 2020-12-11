@@ -229,8 +229,14 @@ CsRegs<URV>::legalizeMstatusValue(URV value) const
 {
   MstatusFields<URV> fields(value);
   PrivilegeMode mode = PrivilegeMode(fields.bits_.MPP);
+
+  if (fields.bits_.FS == unsigned(FpFs::Dirty) or fields.bits_.XS == unsigned(FpFs::Dirty))
+    fields.bits_.SD = 1;
+  else
+    fields.bits_.SD = 0;
+
   if (mode == PrivilegeMode::Machine)
-    return value;
+    return fields.value_;
 
   if (mode == PrivilegeMode::Supervisor and not supervisorModeEnabled_)
     mode = PrivilegeMode::User;
@@ -242,9 +248,6 @@ CsRegs<URV>::legalizeMstatusValue(URV value) const
     mode = PrivilegeMode::Machine;
 
   fields.bits_.MPP = unsigned(mode);
-
-  if (fields.bits_.FS == unsigned(FpFs::Dirty) or fields.bits_.XS == unsigned(FpFs::Dirty))
-    fields.bits_.SD = 1;
 
   return fields.value_;
 }
@@ -343,6 +346,17 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
 
   csr->write(value);
   recordWrite(number);
+
+  if (number == CsrNumber::MSTATUS or number == CsrNumber::SSTATUS)
+    {
+      // Write cannot change SD. Update it with a poke.
+      MstatusFields<URV> msf(peekMstatus());
+      if (msf.bits_.FS == unsigned(FpFs::Dirty) or msf.bits_.XS == unsigned(FpFs::Dirty))
+        msf.bits_.SD = 1;
+      else
+        msf.bits_.SD = 0;
+      csr->poke(msf.value_);
+    }
 
   // Cache interrupt enable.
   if (number == CsrNumber::MSTATUS)
@@ -847,16 +861,16 @@ CsRegs<URV>::defineMachineRegs()
   //           D E        S W V X U P S  S  P  E  P P E P P I E I I
   //             S        R   M R M R       P  S  P I S I I E S E E
   //                                V               E   E E
-  URV mask = 0b1'00000000'1'1'1'1'1'1'11'11'11'00'1'1'0'1'0'1'0'1'0;
+  URV mask = 0b0'00000000'1'1'1'1'1'1'11'11'11'00'1'1'0'1'0'1'0'1'0;
   URV val = 0;
   if constexpr (sizeof(URV) == 8)
     {
       mask |= (URV(0b0000) << 32);  // Mask for SXL and UXL (currently not writable).
       val |= (URV(0b1010) << 32);   // Value of SXL and UXL : sxlen=uxlen=64
-      mask |= (URV(1) << 63);       // Make SD writable
-      mask &= ~(URV(1) << 31);      // Clear bit 31 (SD bit in 32-bit mode).
     }
-  defineCsr("mstatus", Csrn::MSTATUS, mand, imp, val, mask, mask);
+  URV pokeMask = mask | (URV(1) << (sizeof(URV)*8 - 1));  // Make SD pokable.
+
+  defineCsr("mstatus", Csrn::MSTATUS, mand, imp, val, mask, pokeMask);
   defineCsr("misa", Csrn::MISA, mand,  imp, 0x40001104, rom, rom);
 
   // Bits corresponding to user-level interrupts are hardwired to zero
