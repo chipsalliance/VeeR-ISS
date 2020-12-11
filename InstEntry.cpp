@@ -1829,6 +1829,13 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::Imm, OperandMode::None, immBeq },
 
+      // Custom instruction.
+      { "bbarrier", InstId::bbarrier,
+        0b0000'1111'1111'0000'000'00000'0001011,
+        0b1111'1111'1111'0000'111'00000'1111111,
+	InstType::Int
+      },
+
       { "vsetvli", InstId::vsetvli,
         0b000000'0'00000'00000'111'00000'1010111, // Opcode
         0b100000'0'00000'00000'111'00000'1111111, // Mask of opcode bits

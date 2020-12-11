@@ -352,6 +352,7 @@ namespace WdRiscv
      // Custom instructions
      load64,
      store64,
+     bbarrier,
 
      // vector
      vsetvli,

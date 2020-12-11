@@ -5474,6 +5474,7 @@ Hart<URV>::execute(const DecodedInst* di)
      // Custom
      &&load64,
      &&store64,
+     &&bbarier,
 
      // vevtor
      &&vsetvli,
@@ -6856,6 +6857,9 @@ Hart<URV>::execute(const DecodedInst* di)
  store64:
   execStore64(di);
   return;
+
+ bbarier:
+  return;  // no-op
 
  vsetvli:
   execVsetvli(di);
