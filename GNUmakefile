@@ -47,7 +47,7 @@ LINK_DIRS := $(addprefix -L,$(BOOST_LIB_DIR))
 
 # Generating the Linker options for dependent libraries
 ifeq ($(STATIC_LINK), 1)
-  LINK_LIBS := $(addprefix $(BOOST_LIB_DIR)/lib, $(addsuffix .a, $(BOOST_LIBS))) $(EXTRA_LIBS)
+  LINK_LIBS := $(addprefix -l:lib, $(addsuffix .a, $(BOOST_LIBS))) $(EXTRA_LIBS)
 else
   COMMA := ,
   LINK_DIRS += $(addprefix -Wl$(COMMA)-rpath=, $(BOOST_LIB_DIR))
