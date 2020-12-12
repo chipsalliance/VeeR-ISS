@@ -59,6 +59,10 @@ else
   LINK_LIBS := $(addprefix -l, $(BOOST_LIBS)) $(EXTRA_LIBS)
 endif
 
+ifeq (Darwin,$(shell uname))
+   LINK_LIBS := -l$(BOOST_LIBS) $(EXTRA_LIBS)
+endif
+
 # For out of source build
 BUILD_DIR := build-$(shell uname -s)
 MKDIR_P ?= mkdir -p
