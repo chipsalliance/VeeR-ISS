@@ -60,7 +60,7 @@ else
 endif
 
 ifeq (Darwin,$(shell uname))
-   LINK_LIBS := -l$(BOOST_LIBS) $(EXTRA_LIBS)
+   LINK_LIBS := $(BOOST_LIB_DIR)/lib$(BOOST_LIBS).a $(EXTRA_LIBS)
 endif
 
 # For out of source build
