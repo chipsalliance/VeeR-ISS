@@ -290,6 +290,9 @@ namespace WdRiscv
       DPC      = 0x7b1,
       DSCRATCH = 0x7b2,
 
+#ifdef __CYGWIN__
+#undef VSTART
+#endif
       // Vector extension register.
       VSTART   = 0x008,
       VXSAT    = 0x009,

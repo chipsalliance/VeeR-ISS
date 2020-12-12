@@ -48,7 +48,7 @@
 using namespace WdRiscv;
 
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__CYGWIN__)
   #define off64_t off_t
   #define MREMAP_MAYMOVE 0
 #endif
@@ -727,7 +727,7 @@ Syscall<URV>::emulate()
 
     case 61:       // getdents64  -- get directory entries
       {
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__CYGWIN__)
 	return SRV(-1);
 #else
 	// TBD: double check that struct linux_dirent is same

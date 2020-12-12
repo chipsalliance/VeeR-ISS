@@ -54,6 +54,11 @@
 #include "Hart.hpp"
 #include "System.hpp"
 
+#ifndef SO_REUSEPORT
+#define SO_REUSEPORT SO_REUSEADDR
+#endif
+
+
 using namespace WdRiscv;
 
 
