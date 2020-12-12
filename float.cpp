@@ -19,6 +19,7 @@
 #include <cfenv>
 #include <cmath>
 #include <emmintrin.h>
+#include <array>
 
 #ifdef SOFT_FLOAT
 extern "C" {

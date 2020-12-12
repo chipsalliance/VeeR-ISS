@@ -33,7 +33,12 @@ BOOST_LIB_DIR := $(wildcard $(BOOST_DIR)/stage/lib $(BOOST_DIR)/lib)
 BOOST_LIBS := boost_program_options
 
 # Add extra dependency libraries here
-EXTRA_LIBS := -lpthread -lz -static-libstdc++ 
+ifeq (CYGWIN_NT-10.0,$(shell uname -s))
+EXTRA_LIBS := -lpthread -lz -lstdc++fs
+else
+EXTRA_LIBS := -lpthread -lz -static-libstdc++
+endif
+
 ifeq (Linux,$(shell uname -s))
 EXTRA_LIBS += -lstdc++fs
 endif
@@ -65,7 +70,12 @@ OFLAGS := -O3
 IFLAGS := $(addprefix -isystem ,$(BOOST_INC)) -I.
 
 # Command to compile .cpp files.
+ifeq (CYGWIN_NT-10.0,$(shell uname -s))
+override CXXFLAGS += -MMD -MP -std=c++17 -D_GNU_SOURCE $(OFLAGS) $(IFLAGS) -pedantic -Wall -Wextra
+else
 override CXXFLAGS += -MMD -MP -std=c++17 $(OFLAGS) $(IFLAGS) -pedantic -Wall -Wextra
+endif
+
 # Command to compile .c files
 override CFLAGS += -MMD -MP $(OFLAGS) $(IFLAGS) -pedantic -Wall -Wextra
 
