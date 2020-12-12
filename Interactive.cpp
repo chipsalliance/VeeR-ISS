@@ -488,7 +488,7 @@ Interactive<URV>::pokeCommand(Hart<URV>& hart, const std::string& line,
     }
 
   const std::string& resource = tokens.at(1);
-  URV value = 0;
+  uint64_t value = 0;
 
   if (resource == "pc")
     {

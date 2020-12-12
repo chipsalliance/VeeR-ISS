@@ -282,6 +282,16 @@ Server<URV>::pokeCommand(const WhisperMessage& req, WhisperMessage& reply)
       }
       break;
 
+    case 'f':
+      {
+	unsigned reg = static_cast<unsigned>(req.address);
+	uint64_t val = req.value;
+	if (reg == req.address)
+	  if (hart.pokeFpReg(reg, val))
+	    return true;
+      }
+      break;
+
     case 'c':
       {
 	URV val = static_cast<URV>(req.value);

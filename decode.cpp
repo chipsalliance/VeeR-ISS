@@ -1450,7 +1450,10 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	op1 = iform.fields.rs1;
 	op2 = iform.immed(); 
         unsigned f3 = iform.fields.funct3;
-        if (f3 == 3)  return instTable_.getEntry(InstId::load64);
+        if (f3 == 3)
+          return instTable_.getEntry(InstId::load64);
+        if (f3 == 0 and op2 == 0x0ff)
+          return instTable_.getEntry(InstId::bbarrier);
         return instTable_.getEntry(InstId::illegal);
       }
 

@@ -1754,6 +1754,10 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printLdSt(*this, out, "store64", di);
       break;
 
+    case InstId::bbarrier:
+      out << "bbarrier";
+      break;
+
     case InstId::vsetvli:
       {
         out << "vsetvli x" << di.op0() << ", x" << di.op1() << ", ";
