@@ -315,6 +315,17 @@ setSimulatorRoundingMode(RoundingMode mode)
   return previous;
 }
 
+
+/// Clear the floating point flags in the machine running this
+/// simulator. Do nothing in the simuated RISCV machine.
+static
+inline
+void
+clearSimulatorFpFlags()
+{
+  softfloat_exceptionFlags = 0;
+}
+
 #else
 
 /// Map a RISCV rounding mode to an fetsetround constant.
@@ -352,8 +363,6 @@ setSimulatorRoundingMode(RoundingMode mode)
   return previous;
 }
 
-#endif
-
 
 /// Clear the floating point flags in the machine running this
 /// simulator. Do nothing in the simuated RISCV machine.
@@ -367,6 +376,8 @@ clearSimulatorFpFlags()
   _mm_setcsr(val);
   // std::feclearexcept(FE_ALL_EXCEPT);
 }
+
+#endif
 
 
 template <typename URV>
@@ -1056,7 +1067,10 @@ Hart<URV>::execFcvt_wu_s(const DecodedInst* di)
   // In 64-bit mode, we sign extend the result to 64-bits.
   result = SRV(int32_t(f32_to_ui32(floatToF32(f1), softfloat_roundingMode, true)));
   if (not std::isnan(f1) and f1 < 0)
-    softfloat_exceptionFlags |= softfloat_flag_invalid;
+    {
+      softfloat_exceptionFlags &= ~softfloat_flag_inexact;  // Should not set inexact.
+      softfloat_exceptionFlags |= softfloat_flag_invalid;
+    }
   updateAccruedFpBits(0.0f, false);
 
 #else
@@ -1439,9 +1453,12 @@ Hart<uint64_t>::execFcvt_lu_s(const DecodedInst* di)
 
   result = f32_to_ui64(floatToF32(f1), softfloat_roundingMode, true);
   if (not std::isnan(f1) and f1 < 0)
-    softfloat_exceptionFlags |= softfloat_flag_invalid;
+    {
+      softfloat_exceptionFlags &= ~softfloat_flag_inexact;  // Should not set inexact.
+      softfloat_exceptionFlags |= softfloat_flag_invalid;
+    }
   updateAccruedFpBits(0.0f, false);
-  
+
 #else
 
   bool valid = false;
@@ -2229,7 +2246,10 @@ Hart<URV>::execFcvt_wu_d(const DecodedInst* di)
 
   result = SRV(int32_t(f64_to_ui32(doubleToF64(d1), softfloat_roundingMode, true)));
   if (not std::isnan(d1) and d1 < 0)
-    softfloat_exceptionFlags |= softfloat_flag_invalid;
+    {
+      softfloat_exceptionFlags &= ~softfloat_flag_inexact;  // Should not set inexact.
+      softfloat_exceptionFlags |= softfloat_flag_invalid;
+    }
   updateAccruedFpBits(0.0f, false);
 
 #else
@@ -2461,6 +2481,19 @@ Hart<uint64_t>::execFcvt_lu_d(const DecodedInst* di)
 
   double f1 = fpRegs_.read(di->op1());
   uint64_t result = 0;
+
+#ifdef SOFT_FLOAT
+
+  result = f64_to_ui64(doubleToF64(f1), softfloat_roundingMode, true);
+  if (not std::isnan(f1) and f1 < 0)
+    {
+      softfloat_exceptionFlags &= ~softfloat_flag_inexact;  // Should not set inexact.
+      softfloat_exceptionFlags |= softfloat_flag_invalid;
+    }
+  updateAccruedFpBits(0.0f, false);
+
+#else
+
   bool valid = false;
   bool exact = true;
 
@@ -2514,13 +2547,15 @@ Hart<uint64_t>::execFcvt_lu_d(const DecodedInst* di)
         }
     }
 
-  intRegs_.write(di->op0(), result);
 
   if (not valid)
     setFcsrFlags(FpFlags::Invalid);
   if (not exact)
     setFcsrFlags(FpFlags::Inexact);
 
+#endif
+
+  intRegs_.write(di->op0(), result);
   markFsDirty();
 }
 
