@@ -8644,6 +8644,12 @@ Hart<URV>::doCsrRead(const DecodedInst* di, CsrNumber csr, URV& value)
         }
     }
 
+  if (csr == CsrNumber::FCSR or csr == CsrNumber::FRM or csr == CsrNumber::FFLAGS)
+    if (not isFpEnabled())
+      {
+        illegalInst(di);
+        return false;
+      }
 
   if (csRegs_.read(csr, privMode_, value))
     return true;
@@ -8694,6 +8700,13 @@ Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
       illegalInst(di);
       return;
     }
+
+  if (csr == CsrNumber::FCSR or csr == CsrNumber::FRM or csr == CsrNumber::FFLAGS)
+    if (not isFpEnabled())
+      {
+        illegalInst(di);
+        return;
+      }
 
   // Make auto-increment happen before CSR write for minstret and cycle.
   if (csr == CsrNumber::MINSTRET or csr == CsrNumber::MINSTRETH)
