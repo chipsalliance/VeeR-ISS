@@ -164,6 +164,9 @@ inline
 void
 Hart<URV>::updateAccruedFpBits(float res, bool invalid)
 {
+  if (triggerTripped_)
+    return;
+
   URV val = getFpFlags();
   URV prev = val;
 
@@ -211,6 +214,9 @@ inline
 void
 Hart<URV>::updateAccruedFpBits(double res, bool invalid)
 {
+  if (triggerTripped_)
+    return;
+
   URV val = getFpFlags();
   URV prev = val;
 

@@ -713,11 +713,18 @@ Hart<URV>::invalidateInLoadQueue(unsigned regIx, bool isDiv, bool fp)
   if (regIx == lastDivRd_ and not isDiv)
     hasLastDiv_ = false;
 
-  // Replace entry containing target register with x0 so that load exception
-  // matching entry will not revert target register.
+  // Invalidate entry containing target register so that a later load
+  // exception matching entry will not revert target register.
   for (unsigned i = 0; i < loadQueue_.size(); ++i)
-    if (loadQueue_[i].regIx_ == regIx and loadQueue_[i].fp_ == fp)
-      loadQueue_[i].makeInvalid();
+    {
+      auto& entry = loadQueue_[i];
+      if (entry.valid_ and entry.regIx_ == regIx and entry.fp_ == fp)
+        {
+          if (entry.wide_)
+            pokeCsr(CsrNumber::MDBHD, entry.prevData_ >> 32); // Revert MDBHD.
+          entry.makeInvalid();
+        }
+    }
 }
 
 
@@ -5479,7 +5486,7 @@ Hart<URV>::execute(const DecodedInst* di)
      // Custom
      &&load64,
      &&store64,
-     &&bbarier,
+     &&bbarrier,
 
      // vevtor
      &&vsetvli,
@@ -6863,7 +6870,7 @@ Hart<URV>::execute(const DecodedInst* di)
   execStore64(di);
   return;
 
- bbarier:
+ bbarrier:
   return;  // no-op
 
  vsetvli:
