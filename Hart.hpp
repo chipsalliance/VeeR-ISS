@@ -1324,7 +1324,8 @@ namespace WdRiscv
     /// floating point instruction.
     RoundingMode effectiveRoundingMode(RoundingMode instMode);
 
-    /// Update the accrued floating point bits in the FCSR register.
+    /// Update the accrued floating point bits in the FCSR
+    /// register. No-op if a trigger has tripped.
     void updateAccruedFpBits(float res, bool invalid);
     void updateAccruedFpBits(double res, bool invalid);
 
@@ -1619,7 +1620,8 @@ namespace WdRiscv
     /// otherwise.
     bool processExternalInterrupt(FILE* traceFile, std::string& insStr);
 
-    /// Helper to FP execution: Set the given flag value (ored values ok) in FCSR.
+    /// Helper to FP execution: Set the given flag value (ored values
+    /// ok) in FCSR. No-op if a trigger has already tripped.
     void setFcsrFlags(FpFlags value);
 
     /// Execute decoded instruction. Branch/jump instructions will

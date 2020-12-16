@@ -91,6 +91,9 @@ template <typename URV>
 void
 Hart<URV>::setFcsrFlags(FpFlags flag)
 {
+  if (triggerTripped_)
+    return;
+
   auto prev = getFpFlags();
   auto val = prev | unsigned(flag);
   if (val != prev)
