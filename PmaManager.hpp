@@ -196,9 +196,23 @@ namespace WdRiscv
     bool defineMemMappedArea(uint64_t base, uint64_t size);
 
     /// Set value to the value of the memory mapped regiser at addr
-    /// returning true if addr is valid. Return false if addr is not a
-    /// memory mapped reg leaving vlaue unmodified.
+    /// returning true if addr is valid. Return false if addr is not word
+    /// aligned or is outside of the memory-mapped-regiser area.
     bool readRegister(uint64_t addr, uint32_t& value) const;
+
+    /// Set value to the value of the memory mapped regiser byte at
+    /// addr returning true if addr is valid. Return false if addr is
+    /// is outside of the memory-mapped-regiser area.
+    bool readRegisterByte(uint64_t addr, uint8_t& value) const
+    {
+      uint32_t word = 0;
+      uint64_t wordAddr = (addr >> 2) << 2;
+      if (not readRegister(wordAddr, word))
+        return false;
+      unsigned byteInWord = addr & 3;
+      value = (word >> (byteInWord*8)) & 0xff;
+      return true;
+    }
 
     /// Set the value of the memory mapped regiser at addr to the
     /// given value returning true if addr is valid. Return false if
@@ -209,8 +223,9 @@ namespace WdRiscv
     bool writeRegisterNoMask(uint64_t addr, uint32_t value);
 
     /// Set the value of the memory mapped regiser byte at addr to the
-    /// given value returning true if addr is valid. Return false if
-    /// addr is not a memory mapped reg leaving vlaue unmodified.
+    /// given value applying masking and returning true if addr is
+    /// valid. Return false if addr is not a memory mapped reg leaving
+    /// vlaue unmodified.
     bool writeRegisterByte(uint64_t addr, uint8_t value);
 
   private:

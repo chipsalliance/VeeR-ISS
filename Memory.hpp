@@ -78,10 +78,12 @@ namespace WdRiscv
     { return size_; }
 
     /// Read an unsigned integer value of type T from memory at the
-    /// given address into value. Return true on success. Return false
-    /// if any of the requested bytes is out of memory bounds, fall in
-    /// unmapped memory, are in a region marked non-read, or if is to
-    /// a memory-mapped-register aht the access size is different than 4.
+    /// given address into value assuming a little-endian memory
+    /// organization. Return true on success. Return false if any of
+    /// the requested bytes is out of memory bounds, fall in unmapped
+    /// memory, are in a region marked non-read, or if is to a
+    /// memory-mapped-register aht the access size is different than
+    /// 4.
     template <typename T>
     bool read(size_t address, T& value) const
     {
@@ -128,10 +130,6 @@ namespace WdRiscv
         cache_->insert(address);
       return true;
     }
-
-    /// Read byte from given address into value. See read method.
-    bool readByte(size_t address, uint8_t& value) const
-    { return read(address, value); }
 
     /// Read an unsigned integer ot type T from memory for instruction
     /// fetch. Return true on success and false if address is not
@@ -202,10 +200,11 @@ namespace WdRiscv
     }
 
     /// Write given unsigned integer value of type T into memory
-    /// starting at the given address. Return true on success. Return
-    /// false if any of the target memory bytes are out of bounds or
-    /// fall in inaccessible regions or if the write crosses memory
-    /// region of different attributes.
+    /// starting at the given address and assuming little-endian
+    /// origanization. Return true on success. Return false if any of
+    /// the target memory bytes are out of bounds or fall in
+    /// inaccessible regions or if the write crosses memory region of
+    /// different attributes.
     template <typename T>
     bool write(unsigned sysHartIx, size_t address, T value)
     {
