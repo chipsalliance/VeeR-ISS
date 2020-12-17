@@ -869,7 +869,7 @@ Syscall<URV>::emulate()
           else
             {
               for (URV addr = newBrk; addr<progBreak_; addr++)
-                hart_.pokeMemory(addr, uint8_t(0));
+                hart_.pokeMemory(addr, uint8_t(0), true /*usePma*/);
               rc = progBreak_ = newBrk;
             }
      	  return rc;
@@ -1331,7 +1331,7 @@ Syscall<URV>::mmap_dealloc(uint64_t addr, uint64_t size)
   auto mem_addr = curr->first;
   auto mem_end_addr = mem_addr+(curr_size);
   for (; mem_addr<mem_end_addr; mem_addr+=uint64_t(sizeof(uint64_t)))
-    hart_.pokeMemory(mem_addr,uint64_t(0));
+    hart_.pokeMemory(mem_addr,uint64_t(0), true /*usePma*/);
   auto next = curr;
   if (++next != mmap_blocks_.end() and next->second.free)
     {
@@ -1388,7 +1388,7 @@ Syscall<URV>::mmap_remap(uint64_t addr, uint64_t old_size, uint64_t new_size,
           uint64_t data;
           bool usePma = true;
           hart_.peekMemory(addr+index, data, usePma);
-          hart_.pokeMemory(new_addr+index, data);
+          hart_.pokeMemory(new_addr+index, data, usePma);
         }
       mmap_dealloc(addr, old_size);
       //print_mmap("remap3");

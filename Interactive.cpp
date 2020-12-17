@@ -582,7 +582,8 @@ Interactive<URV>::pokeCommand(Hart<URV>& hart, const std::string& line,
       size_t addr = 0;
       if (not parseCmdLineNumber("address", addrStr, addr))
 	return false;
-      if (hart.pokeMemory(addr, value))
+      bool usePma = false; // Ignore physicla memory attributes.
+      if (hart.pokeMemory(addr, value, usePma))
 	return true;
       std::cerr << "Address out of bounds: " << addrStr << '\n';
       return false;

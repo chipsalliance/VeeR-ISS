@@ -642,7 +642,8 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
 			    int bb = hexCharToInt(data.at(2*ix));
 			    bb = (bb << 4) | hexCharToInt(data.at(2*ix+1));
                             uint8_t val = bb;
-			    hart.pokeMemory(addr, val);
+                            bool usePma = false; // Ignore physical memory attributes.
+			    hart.pokeMemory(addr, val, usePma);
                             addr++;
 			  }
 			reply << "OK";

@@ -526,13 +526,13 @@ Hart<URV>::peekMemory(size_t address, uint64_t& val, bool usePma) const
 
 template <typename URV>
 bool
-Hart<URV>::pokeMemory(size_t addr, uint8_t val)
+Hart<URV>::pokeMemory(size_t addr, uint8_t val, bool usePma)
 {
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
   memory_.invalidateLrs(addr, sizeof(val));
 
-  if (memory_.poke(addr, val))
+  if (memory_.poke(addr, val, usePma))
     {
       invalidateDecodeCache(addr, sizeof(val));
       return true;
@@ -544,13 +544,13 @@ Hart<URV>::pokeMemory(size_t addr, uint8_t val)
 
 template <typename URV>
 bool
-Hart<URV>::pokeMemory(size_t addr, uint16_t val)
+Hart<URV>::pokeMemory(size_t addr, uint16_t val, bool usePma)
 {
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
   memory_.invalidateLrs(addr, sizeof(val));
 
-  if (memory_.poke(addr, val))
+  if (memory_.poke(addr, val, usePma))
     {
       invalidateDecodeCache(addr, sizeof(val));
       return true;
@@ -562,7 +562,7 @@ Hart<URV>::pokeMemory(size_t addr, uint16_t val)
 
 template <typename URV>
 bool
-Hart<URV>::pokeMemory(size_t addr, uint32_t val)
+Hart<URV>::pokeMemory(size_t addr, uint32_t val, bool usePma)
 {
   // We allow poke to bypass masking for memory mapped registers
   // otherwise, there is no way for external driver to clear bits that
@@ -572,7 +572,7 @@ Hart<URV>::pokeMemory(size_t addr, uint32_t val)
 
   memory_.invalidateLrs(addr, sizeof(val));
 
-  if (memory_.poke(addr, val))
+  if (memory_.poke(addr, val, usePma))
     {
       invalidateDecodeCache(addr, sizeof(val));
       return true;
@@ -584,13 +584,13 @@ Hart<URV>::pokeMemory(size_t addr, uint32_t val)
 
 template <typename URV>
 bool
-Hart<URV>::pokeMemory(size_t addr, uint64_t val)
+Hart<URV>::pokeMemory(size_t addr, uint64_t val, bool usePma)
 {
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
   memory_.invalidateLrs(addr, sizeof(val));
 
-  if (memory_.poke(addr, val))
+  if (memory_.poke(addr, val, usePma))
     {
       invalidateDecodeCache(addr, sizeof(val));
       return true;

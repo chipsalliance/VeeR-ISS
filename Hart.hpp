@@ -511,16 +511,17 @@ namespace WdRiscv
     /// Set the memory byte at the given address to the given value.
     /// Return true on success and false on failure (address out of
     /// bounds, location not mapped, location not writable etc...)
-    bool pokeMemory(size_t addr, uint8_t val);
+    /// Bypass physical memory attribute checking if usePma is false.
+    bool pokeMemory(size_t addr, uint8_t val, bool usePma);
 
     /// Half-word version of the above.
-    bool pokeMemory(size_t address, uint16_t val);
+    bool pokeMemory(size_t address, uint16_t val, bool usePma);
 
     /// Word version of the above.
-    bool pokeMemory(size_t addr, uint32_t val);
+    bool pokeMemory(size_t addr, uint32_t val, bool usePma);
 
     /// Double-word version of the above.
-    bool pokeMemory(size_t addr, uint64_t val);
+    bool pokeMemory(size_t addr, uint64_t val, bool usePma);
 
     /// Define value of program counter after a reset.
     void defineResetPc(URV addr)

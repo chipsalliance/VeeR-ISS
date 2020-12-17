@@ -301,14 +301,18 @@ Server<URV>::pokeCommand(const WhisperMessage& req, WhisperMessage& reply)
       break;
 
     case 'm':
-      if (sizeof(URV) == 4)
-	{
-	  // Poke a word in 32-bit harts.
-	  if (hart.pokeMemory(req.address, uint32_t(req.value)))
-	    return true;
-	}
-      else if (hart.pokeMemory(req.address, req.value))
-	return true;
+      {
+        bool usePma = false; // Ignore phsical memory attributes.
+
+        if (sizeof(URV) == 4)
+          {
+            // Poke a word in 32-bit harts.
+            if (hart.pokeMemory(req.address, uint32_t(req.value), usePma))
+              return true;
+          }
+        else if (hart.pokeMemory(req.address, req.value, usePma))
+          return true;
+      }
       break;
     }
 
