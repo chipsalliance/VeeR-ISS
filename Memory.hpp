@@ -284,6 +284,57 @@ namespace WdRiscv
     bool writeDoubleWord(unsigned sysHartIx, size_t address, uint64_t value)
     { return write(sysHartIx, address, value); }
 
+    /// Similar to read but ignore physical-memory-attributes if
+    /// usePma is false.
+    template <typename T>
+    bool peek(size_t address, T& value, bool usePma) const
+    {
+      if (address + sizeof(T) > size_)
+        return false;
+
+#ifdef FAST_SLOPPY
+      value = *(reinterpret_cast<const T*>(data_ + address));
+      return true;
+#endif
+
+      // Memory mapped region accessible only with word-size read.
+      Pma pma1 = pmaMgr_.getPma(address);
+      if (pma1.isMemMappedReg())
+        {
+          if constexpr (sizeof(T) == 4)
+            return readRegister(address, value);
+          else
+            return false;
+        }
+
+      if (usePma)
+        {
+          if (not pma1.isRead() and not pma1.isExec())
+            return false;
+
+          if (address & (sizeof(T) - 1))  // If address is misaligned
+            {
+              Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
+              if (not pma2.isRead() and not pma2.isExec())
+                return false;
+            }
+        }
+
+#ifdef MEM_CALLBACKS
+      if (readCallback_)
+        {
+          uint64_t val = 0;
+          if (not readCallback_(address, sizeof(T), val))
+            return false;
+          value = val;
+          return true;
+        }
+#endif
+
+      value = *(reinterpret_cast<const T*>(data_ + address));
+      return true;
+    }
+
     /// Load the given hex file and set memory locations accordingly.
     /// Return true on success. Return false if file does not exists,
     /// cannot be opened or contains malformed data.
@@ -393,28 +444,43 @@ namespace WdRiscv
 
   protected:
 
-    /// Same as write but effects not recorded in last-write info.
+    /// Same as write but effects not recorded in last-write info and
+    /// physical memory attributes are ignored if usePma is false.
     template <typename T>
-    bool poke(size_t address, T value)
+    bool poke(size_t address, T value, bool usePma = true)
     {
-      Pma pma1 = pmaMgr_.getPma(address);
-      if (not pma1.isMapped())
-	return false;
-
-      if (address & (sizeof(T) - 1))  // If address is misaligned
-	{
-          Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
-          if (not pma2.isMapped())
-	    return false;
-	}
+      if (address + sizeof(T) > size_)
+        return false;
 
       // Memory mapped region accessible only with word-size poke.
+      Pma pma1 = pmaMgr_.getPma(address);
       if (pma1.isMemMappedReg())
         {
           if constexpr (sizeof(T) != 4)
             return false;
           return pmaMgr_.writeRegisterNoMask(address, value);
         }
+
+      if (usePma)
+        {
+          if (not pma1.isMapped())
+            return false;
+
+          if (address & (sizeof(T) - 1))  // If address is misaligned
+            {
+              Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
+              if (not pma2.isMapped())
+                return false;
+            }
+        }
+
+#ifdef MEM_CALLBACKS
+      if (writeCallback_)
+        {
+          uint64_t val = value;
+          return writeCallback_(address, sizeof(T), val))
+        }
+#endif
 
       *(reinterpret_cast<T*>(data_ + address)) = value;
       return true;

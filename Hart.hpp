@@ -493,39 +493,34 @@ namespace WdRiscv
     void printElfSymbols(std::ostream& out) const
     { memory_.printElfSymbols(out); }
 
-    /// Set val to the value of the memory byte at the given address
+    /// Set val to the value of the byte at the given address
     /// returning true on success and false if address is out of
-    /// bounds.
-    bool peekMemory(size_t address, uint8_t& val) const;
+    /// bounds. Memory is little endian. Bypass physical memory
+    /// attribute checking if usePma is false.
+    bool peekMemory(size_t addr, uint8_t& val, bool usePma) const;
 
-    /// Set val to the value of the half-word at the given address
-    /// returning true on success and false if address is out of
-    /// bounds. Memory is little endian.
-    bool peekMemory(size_t address, uint16_t& val) const;
+    /// Half-word version of the above.
+    bool peekMemory(size_t addr, uint16_t& val, bool usePma) const;
 
-    /// Set val to the value of the word at the given address
-    /// returning true on success and false if address is out of
-    /// bounds. Memory is little endian.
-    bool peekMemory(size_t address, uint32_t& val) const;
+    /// Word version of the above.
+    bool peekMemory(size_t addr, uint32_t& val, bool usePma) const;
 
-    /// Set val to the value of the word at the given address
-    /// returning true on success and false if address is out of
-    /// bounds. Memory is little endian.
-    bool peekMemory(size_t address, uint64_t& val) const;
+    /// Double-word version of the above.
+    bool peekMemory(size_t addr, uint64_t& val, bool usePma) const;
 
     /// Set the memory byte at the given address to the given value.
     /// Return true on success and false on failure (address out of
     /// bounds, location not mapped, location not writable etc...)
-    bool pokeMemory(size_t address, uint8_t val);
+    bool pokeMemory(size_t addr, uint8_t val);
 
     /// Half-word version of the above.
     bool pokeMemory(size_t address, uint16_t val);
 
     /// Word version of the above.
-    bool pokeMemory(size_t address, uint32_t val);
+    bool pokeMemory(size_t addr, uint32_t val);
 
     /// Double-word version of the above.
-    bool pokeMemory(size_t address, uint64_t val);
+    bool pokeMemory(size_t addr, uint64_t val);
 
     /// Define value of program counter after a reset.
     void defineResetPc(URV addr)

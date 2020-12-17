@@ -877,8 +877,7 @@ Memory::copy(const Memory& other)
 bool
 Memory::specialInitializeByte(size_t addr, uint8_t value)
 {
-  Pma pma = pmaMgr_.getPma(addr);
-  if (not pma.isMapped())
+  if (addr >= size_)
     return false;
 
   if (pmaMgr_.isAddrMemMapped(addr))

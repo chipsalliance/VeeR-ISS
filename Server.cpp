@@ -367,7 +367,7 @@ Server<URV>::peekCommand(const WhisperMessage& req, WhisperMessage& reply)
 	}
       break;
     case 'm':
-      if (hart.peekMemory(req.address, value))
+      if (hart.peekMemory(req.address, value, false /*usePma*/))
 	{
 	  reply.value = value;
 	  return true;

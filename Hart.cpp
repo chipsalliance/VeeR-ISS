@@ -486,61 +486,41 @@ Hart<URV>::loadElfFile(const std::string& file, size_t& entryPoint)
 
 template <typename URV>
 bool
-Hart<URV>::peekMemory(size_t address, uint8_t& val) const
+Hart<URV>::peekMemory(size_t address, uint8_t& val, bool usePma) const
 {
-  if (memory_.read(address, val))
-    return true;
-
-  // We may have failed because location is in instruction space.
-  return memory_.readInst(address, val);
+  return memory_.peek(address, val, usePma);
 }
   
 
 template <typename URV>
 bool
-Hart<URV>::peekMemory(size_t address, uint16_t& val) const
+Hart<URV>::peekMemory(size_t address, uint16_t& val, bool usePma) const
 {
-  if (memory_.read(address, val))
-    return true;
-
-  // We may have failed because location is in instruction space.
-  return memory_.readInst(address, val);
+  return memory_.peek(address, val, usePma);
 }
 
 
 template <typename URV>
 bool
-Hart<URV>::peekMemory(size_t address, uint32_t& val) const
+Hart<URV>::peekMemory(size_t address, uint32_t& val, bool usePma) const
 {
-  if (memory_.read(address, val))
-    return true;
-
-  // We may have failed because location is in instruction space.
-  return memory_.readInst(address, val);
+  return memory_.peek(address, val, usePma);
 }
 
 
 template <typename URV>
 bool
-Hart<URV>::peekMemory(size_t address, uint64_t& val) const
+Hart<URV>::peekMemory(size_t address, uint64_t& val, bool usePma) const
 {
   uint32_t high = 0, low = 0;
 
-  if (memory_.read(address, low) and memory_.read(address + 4, high))
+  if (memory_.peek(address, low, usePma) and memory_.peek(address + 4, high, usePma))
     {
       val = (uint64_t(high) << 32) | low;
       return true;
     }
 
-  // We may have failed because location is in instruction space.
-  if (memory_.readInst(address, low) and
-      memory_.readInst(address + 4, high))
-    {
-      val = (uint64_t(high) << 32) | low;
-      return true;
-    }
-
-  return true;
+  return false;
 }
 
 

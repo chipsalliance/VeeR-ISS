@@ -356,7 +356,8 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
       uint32_t word = 0;
       for (size_t addr = addr0; addr <= addr1; addr += 4)
 	{
-	  if (not hart.peekMemory(addr, word))
+          bool usePma = false;
+	  if (not hart.peekMemory(addr, word, usePma))
 	    {
 	      std::cerr << "Memory address out of bounds: " << addrStr << '\n';
 	      return false;
@@ -646,7 +647,8 @@ Interactive<URV>::disassCommand(Hart<URV>& hart, const std::string& line,
       for (size_t addr = start; addr < end; )
 	{
 	  uint32_t inst = 0;
-	  if (not hart.peekMemory(addr, inst))
+          bool usePma = false;
+	  if (not hart.peekMemory(addr, inst, usePma))
 	    {
 	      std::cerr << "Address out of bounds: 0x" << std::hex << addr
 			<< '\n' << std::dec;
@@ -687,7 +689,8 @@ Interactive<URV>::disassCommand(Hart<URV>& hart, const std::string& line,
   for (URV addr = addr1; addr <= addr2; )
     {
       uint32_t inst = 0;
-      if (not hart.peekMemory(addr, inst))
+      bool usePma = false;
+      if (not hart.peekMemory(addr, inst, usePma))
 	{
 	  std::cerr << "Address out of bounds: 0x" << std::hex << addr
 		    << '\n' << std::dec;

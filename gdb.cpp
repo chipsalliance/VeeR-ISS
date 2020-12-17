@@ -609,7 +609,8 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
 		    for (URV ix = 0; ix < len; ++ix)
 		      {
 			uint8_t byte = 0, high = 0, low = 0;
-			hart.peekMemory(addr++, byte);
+                        bool usePma = false; // Ignore physical memory attributes.
+			hart.peekMemory(addr++, byte, usePma);
                         byteToHexChars(byte, high, low);
                         reply.write((char*) &high, 1);
                         reply.write((char*) &low, 1);

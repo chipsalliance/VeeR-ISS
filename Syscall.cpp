@@ -1386,7 +1386,8 @@ Syscall<URV>::mmap_remap(uint64_t addr, uint64_t old_size, uint64_t new_size,
       for (uint64_t index=0; index<old_size; index+=uint64_t(sizeof(uint64_t)))
         {
           uint64_t data;
-          hart_.peekMemory(addr+index, data);
+          bool usePma = true;
+          hart_.peekMemory(addr+index, data, usePma);
           hart_.pokeMemory(new_addr+index, data);
         }
       mmap_dealloc(addr, old_size);
