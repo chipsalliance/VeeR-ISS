@@ -1381,6 +1381,17 @@ Hart<URV>::reportPmpStat(FILE* file) const
 
 
 template <typename URV>
+void
+Hart<URV>::reportLrScStat(FILE* file) const
+{
+  fprintf(file, "Load-reserve dispatched: %" PRId64 "\n", lrCount_);
+  fprintf(file, "Load-reserve successful: %" PRId64 "\n", lrSuccess_); 
+  fprintf(file, "Store-conditional dispatched: %" PRId64 "\n", scCount_);
+  fprintf(file, "Store-conditional successful: %" PRId64 "\n", scSuccess_);
+}
+
+
+template <typename URV>
 ExceptionCause
 Hart<URV>::determineMisalLoadException(URV addr, unsigned accessSize,
                                        SecondaryCause& secCause) const
@@ -7867,6 +7878,9 @@ Hart<URV>::exitDebugMode()
       return;
     }
 
+  // Exiting debug modes loses LR reservation.
+  memory_.invalidateLr(hartIx_);
+
   peekCsr(CsrNumber::DPC, pc_);
 
   // If in debug-step go to debug-halt. If in debug-halt go to normal
@@ -9849,11 +9863,13 @@ void
 Hart<URV>::execLr_w(const DecodedInst* di)
 {
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
+
+  lrCount_++;
   uint64_t physAddr = 0;
   if (not loadReserve<int32_t>(di->op0(), di->op1(), physAddr))
     return;
-
   memory_.makeLr(hartIx_, physAddr, 4 /*size*/);
+  lrSuccess_++;
 }
 
 
@@ -9958,6 +9974,7 @@ Hart<URV>::execSc_w(const DecodedInst* di)
   uint32_t rs1 = di->op1();
   URV value = intRegs_.read(di->op2());
   URV addr = intRegs_.read(rs1);
+  scCount_++;
 
   uint64_t prevCount = exceptionCount_;
 
@@ -9968,6 +9985,7 @@ Hart<URV>::execSc_w(const DecodedInst* di)
     {
       memory_.invalidateOtherHartLr(hartIx_, addr, 4);
       intRegs_.write(di->op0(), 0); // success
+      scSuccess_++;
       return;
     }
 
@@ -10254,11 +10272,12 @@ Hart<URV>::execLr_d(const DecodedInst* di)
 {
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
+  lrCount_++;
   uint64_t physAddr = 0;
   if (not loadReserve<int64_t>(di->op0(), di->op1(), physAddr))
     return;
-
   memory_.makeLr(hartIx_, physAddr, 8 /*size*/);
+  lrSuccess_++;
 }
 
 
@@ -10271,6 +10290,7 @@ Hart<URV>::execSc_d(const DecodedInst* di)
   uint32_t rs1 = di->op1();
   URV value = intRegs_.read(di->op2());
   URV addr = intRegs_.read(rs1);
+  scCount_++;
 
   uint64_t prevCount = exceptionCount_;
 
@@ -10281,6 +10301,7 @@ Hart<URV>::execSc_d(const DecodedInst* di)
     {
       memory_.invalidateOtherHartLr(hartIx_, addr, 8);
       intRegs_.write(di->op0(), 0); // success
+      scSuccess_++;
       return;
     }
 

@@ -827,6 +827,9 @@ namespace WdRiscv
     /// Print collected physical memory protection stats on the given file.
     void reportPmpStat(FILE* file) const;
 
+    /// Print collected load-reserve/store-conditional stats on the given file.
+    void reportLrScStat(FILE* file) const;
+
     /// Reset trace data (items changed by the execution of an
     /// instruction.)
     void clearTraceData();
@@ -2878,6 +2881,10 @@ namespace WdRiscv
     uint64_t nmiCount_ = 0;
     uint64_t consecutiveIllegalCount_ = 0;
     uint64_t counterAtLastIllegal_ = 0;
+    uint64_t lrCount_ = 0;    // Count of dispatched load-reserve instructions.
+    uint64_t lrSuccess_ = 0;  // Counte of successful LR (reservaton acquired).
+    uint64_t scCount_ = 0;    // Count of dispatched store-conditional instructions.
+    uint64_t scSuccess_ = 0;  // Counte of successful SC (store accomplished).
     bool forceAccessFail_ = false;  // Force load/store access fault.
     bool forceFetchFail_ = false;   // Force fetch access fault.
     bool fastInterrupts_ = false;
@@ -2938,10 +2945,6 @@ namespace WdRiscv
 
     bool enableWideLdSt_ = false;   // True if wide (64-bit) ld/st enabled.
     bool wideLdSt_ = false;         // True if executing wide ld/st instrution.
-
-    // AMO instructions have additional operands: rl and aq.
-    bool amoAq_ = false;
-    bool amoRl_ = false;
 
     int gdbInputFd_ = -1;  // Input file descriptor when running in gdb mode.
 
