@@ -9404,8 +9404,17 @@ template <typename ELEM_TYPE>
 void
 Hart<URV>::vectorLoad(const DecodedInst* di, ElementWidth eew, bool faultFirst)
 {
-  bool badConfig = not vecRegs_.legalConfig(eew, vecRegs_.groupMultiplier());
-  if ((not isVecLegal()) or badConfig)
+  // Compute emul: lmul*eew/sew
+  unsigned groupX8 = vecRegs_.groupMultiplierX8();
+  groupX8 = groupX8 * vecRegs_.elementWidthInBits(eew) / vecRegs_.elementWidthInBits();
+  GroupMultiplier lmul = GroupMultiplier::One;
+  bool badConfig = false;
+  if (not vecRegs_.groupNumberX8ToSymbol(groupX8, lmul))
+    badConfig = true;
+  else
+    badConfig = not vecRegs_.legalConfig(eew, lmul);
+
+  if (not isVecLegal() or badConfig)
     {
       illegalInst(di);
       return;
@@ -9415,10 +9424,10 @@ Hart<URV>::vectorLoad(const DecodedInst* di, ElementWidth eew, bool faultFirst)
   unsigned vd = di->op0(), rs1 = di->op1(), errors = 0;
   uint64_t addr = intRegs_.read(rs1);
 
-  unsigned group = vecRegs_.groupMultiplierX8(), start = vecRegs_.startIndex();
+  unsigned start = vecRegs_.startIndex();
   unsigned elemCount = vecRegs_.elemCount();
 
-  // TODO check permissions, translate, ....
+  // FIX TODO: check permissions, translate, ....
   for (unsigned ix = start; ix < elemCount; ++ix)
     {
       if (masked and not vecRegs_.isActive(0, ix))
@@ -9457,7 +9466,7 @@ Hart<URV>::vectorLoad(const DecodedInst* di, ElementWidth eew, bool faultFirst)
           break;
         }
 
-      if (not vecRegs_.write(vd, ix, group, elem))
+      if (not vecRegs_.write(vd, ix, groupX8, elem))
         {
           errors++;
           break;
@@ -9539,8 +9548,17 @@ template <typename ELEM_TYPE>
 void
 Hart<URV>::vectorStore(const DecodedInst* di, ElementWidth eew)
 {
-  bool badConfig = not vecRegs_.legalConfig(eew, vecRegs_.groupMultiplier());
-  if ((not isVecLegal()) or badConfig)
+  // Compute emul: lmul*eew/sew
+  unsigned groupX8 = vecRegs_.groupMultiplierX8();
+  groupX8 = groupX8 * vecRegs_.elementWidthInBits(eew) / vecRegs_.elementWidthInBits();
+  GroupMultiplier lmul = GroupMultiplier::One;
+  bool badConfig = false;
+  if (not vecRegs_.groupNumberX8ToSymbol(groupX8, lmul))
+    badConfig = true;
+  else
+    badConfig = not vecRegs_.legalConfig(eew, lmul);
+
+  if (not isVecLegal() or badConfig)
     {
       illegalInst(di);
       return;
@@ -9550,7 +9568,7 @@ Hart<URV>::vectorStore(const DecodedInst* di, ElementWidth eew)
   uint32_t vd = di->op0(), rs1 = di->op1(), errors = 0;
   uint64_t addr = intRegs_.read(rs1);
 
-  unsigned group = vecRegs_.groupMultiplierX8(), start = vecRegs_.startIndex();
+  unsigned start = vecRegs_.startIndex();
   unsigned elemCount = vecRegs_.elemCount();
 
   // TODO check permissions, translate, ....
@@ -9559,7 +9577,7 @@ Hart<URV>::vectorStore(const DecodedInst* di, ElementWidth eew)
       if (masked and not vecRegs_.isActive(0, ix))
         continue;
       ELEM_TYPE elem = 0;
-      if (not vecRegs_.read(vd, ix, group, elem))
+      if (not vecRegs_.read(vd, ix, groupX8, elem))
         {
           errors++;
           break;
@@ -9991,8 +10009,17 @@ template <typename ELEM_TYPE>
 void
 Hart<URV>::vectorLoadStrided(const DecodedInst* di, ElementWidth eew)
 {
-  bool badConfig = not vecRegs_.legalConfig(eew, vecRegs_.groupMultiplier());
-  if ((not isVecLegal()) or badConfig)
+  // Compute emul: lmul*eew/sew
+  unsigned groupX8 = vecRegs_.groupMultiplierX8();
+  groupX8 = groupX8 * vecRegs_.elementWidthInBits(eew) / vecRegs_.elementWidthInBits();
+  GroupMultiplier lmul = GroupMultiplier::One;
+  bool badConfig = false;
+  if (not vecRegs_.groupNumberX8ToSymbol(groupX8, lmul))
+    badConfig = true;
+  else
+    badConfig = not vecRegs_.legalConfig(eew, lmul);
+
+  if (not isVecLegal() or badConfig)
     {
       illegalInst(di);
       return;
@@ -10003,7 +10030,7 @@ Hart<URV>::vectorLoadStrided(const DecodedInst* di, ElementWidth eew)
   uint64_t addr = intRegs_.read(rs1);
   uint64_t stride = intRegs_.read(rs2);
 
-  unsigned group = vecRegs_.groupMultiplierX8(), start = vecRegs_.startIndex();
+  unsigned start = vecRegs_.startIndex();
   unsigned elemCount = vecRegs_.elemCount();
 
   // TODO check permissions, translate, ....
@@ -10044,7 +10071,7 @@ Hart<URV>::vectorLoadStrided(const DecodedInst* di, ElementWidth eew)
           break;
         }
 
-      if (not vecRegs_.write(vd, ix, group, elem))
+      if (not vecRegs_.write(vd, ix, groupX8, elem))
         {
           errors++;
           break;
@@ -10126,8 +10153,17 @@ template <typename ELEM_TYPE>
 void
 Hart<URV>::vectorStoreStrided(const DecodedInst* di, ElementWidth eew)
 {
-  bool badConfig = not vecRegs_.legalConfig(eew, vecRegs_.groupMultiplier());
-  if ((not isVecLegal()) or badConfig)
+  // Compute emul: lmul*eew/sew
+  unsigned groupX8 = vecRegs_.groupMultiplierX8();
+  groupX8 = groupX8 * vecRegs_.elementWidthInBits(eew) / vecRegs_.elementWidthInBits();
+  GroupMultiplier lmul = GroupMultiplier::One;
+  bool badConfig = false;
+  if (not vecRegs_.groupNumberX8ToSymbol(groupX8, lmul))
+    badConfig = true;
+  else
+    badConfig = not vecRegs_.legalConfig(eew, lmul);
+
+  if (not isVecLegal() or badConfig)
     {
       illegalInst(di);
       return;
@@ -10138,7 +10174,7 @@ Hart<URV>::vectorStoreStrided(const DecodedInst* di, ElementWidth eew)
   uint64_t addr = intRegs_.read(rs1);
   uint64_t stride = intRegs_.read(rs2);
 
-  unsigned group = vecRegs_.groupMultiplierX8(), start = vecRegs_.startIndex();
+  unsigned start = vecRegs_.startIndex();
   unsigned elemCount = vecRegs_.elemCount();
 
   // TODO check permissions, translate, ....
@@ -10148,7 +10184,7 @@ Hart<URV>::vectorStoreStrided(const DecodedInst* di, ElementWidth eew)
         continue;
       bool exception = false;
       ELEM_TYPE elem = 0;
-      if (not vecRegs_.read(vd, ix, group, elem))
+      if (not vecRegs_.read(vd, ix, groupX8, elem))
         {
           errors++;
           break;
