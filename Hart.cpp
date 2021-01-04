@@ -924,16 +924,12 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
   for (size_t ix = 0; ix < loadQueue_.size(); ++ix)
     {
       auto& entry = loadQueue_.at(ix);
-      if (entry.tag_ == tag and entry.fp_ == fp)
-	{
-	  removeIx = ix;
-	  if (not entry.isValid())
-	    continue;
-	}
-      else
-	continue;
+      if (entry.tag_ != tag or entry.fp_ != fp)
+        continue;  // Not a match.
 
       removeIx = ix;
+      if (not entry.isValid())
+        continue;
 
       uint64_t prev = entry.prevData_;
 
