@@ -1049,6 +1049,11 @@ Memory::defineMemoryMappedRegisterArea(size_t addr, size_t size, bool trim)
 
   // Mark as read/write/memory-mapped.
   Pma::Attrib attrib = Pma::Attrib(Pma::Read | Pma::Write | Pma::MemMapped);
+
+  // For elx2s: mark as executable as well.
+  if (not trim)
+    attrib = Pma::Attrib(attrib | Pma::Exec);
+
   pmaMgr_.setAttribute(addr, addr + size - 1, attrib);
 
   pmaMgr_.defineMemMappedArea(addr, size);
