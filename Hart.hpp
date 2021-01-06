@@ -1229,6 +1229,10 @@ namespace WdRiscv
     void enableWideLoadStore(bool flag)
     { enableWideLdSt_ = flag; }
 
+    /// Enable bbarrier (bus barrier) custom instruction.
+    void enableBusBarrier(bool flag)
+    { enableBbarrier_ = flag; }
+
   protected:
 
     /// Helper to reset: reset floating point related structures.
@@ -2018,6 +2022,7 @@ namespace WdRiscv
     // Custom insts
     void execLoad64(const DecodedInst*);
     void execStore64(const DecodedInst*);
+    void execBbarrier(const DecodedInst*);
 
     // Return true if maskable instruction is legal. Take an illegal instuction
     // exception and return false otherwise.
@@ -2945,6 +2950,7 @@ namespace WdRiscv
 
     bool enableWideLdSt_ = false;   // True if wide (64-bit) ld/st enabled.
     bool wideLdSt_ = false;         // True if executing wide ld/st instrution.
+    bool enableBbarrier_ = true;
 
     int gdbInputFd_ = -1;  // Input file descriptor when running in gdb mode.
 

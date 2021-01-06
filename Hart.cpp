@@ -6858,7 +6858,8 @@ Hart<URV>::execute(const DecodedInst* di)
   return;
 
  bbarrier:
-  return;  // no-op
+  execBbarrier(di);
+  return;
 
  vsetvli:
   execVsetvli(di);
@@ -7834,6 +7835,22 @@ Hart<URV>::enterDebugMode(DebugModeCause cause, URV pc)
 
       csRegs_.poke(CsrNumber::DPC, pc);
     }
+
+#if 0
+  // Revert valid entries in the load queue. The load queue may be
+  // non-empy on a forced debug halt.
+  for (size_t i = loadQueue_.size(); i > 0; --i)
+    {
+      auto& entry = loadQueue_.at(i-1);
+      if (not entry.valid_)
+        continue;
+      if (entry.fp_)
+        pokeFpReg(entry.regIx_, entry.prevData_);
+      else
+        pokeIntReg(entry.regIx_, entry.prevData_);
+    }
+  loadQueue_.clear();
+#endif
 }
 
 
@@ -12547,6 +12564,20 @@ Hart<URV>::execStore64(const DecodedInst* di)
   store<uint64_t>(rs1, base, addr, value);
 
   wideLdSt_ = false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execBbarrier(const DecodedInst* di)
+{
+  if (not enableBbarrier_)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  // no-op.
 }
 
 
