@@ -3531,7 +3531,7 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
       else if (id == InstId::ecall)
 	pregs.updateCounters(EventNumber::Ecall, prevPerfControl_,
                              lastPriv_);
-      else if (id == InstId::fence)
+      else if (id == InstId::fence or id == InstId::bbarrier)
 	pregs.updateCounters(EventNumber::Fence, prevPerfControl_,
                              lastPriv_);
       else if (id == InstId::fencei)
