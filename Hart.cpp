@@ -1597,6 +1597,13 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
         return cause;
     }
 
+  // Wide load.
+  if (wideLdSt_ and not isDataAddressExternal(addr))
+    {
+      secCause = SecondaryCause::LOAD_ACC_64BIT;
+      return ExceptionCause::LOAD_ACC_FAULT;
+    }
+
   // Stack access.
   if (rs1 == RegSp and checkStackAccess_ and
       not checkStackLoad(base, addr, ldSize))
@@ -1648,18 +1655,6 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
             }
           else
             return ExceptionCause::LOAD_ACC_FAULT;
-        }
-
-      // 64-bit load
-      if (wideLdSt_)
-        {
-          bool fail = (addr & 7) or ! isDataAddressExternal(addr);
-          fail = fail or ! isAddrReadable(addr+4);
-          if (fail)
-            {
-              secCause = SecondaryCause::LOAD_ACC_64BIT;
-              return ExceptionCause::LOAD_ACC_FAULT;
-            }
         }
 
       // Region predict (Effective address compatible with base).
@@ -7835,22 +7830,6 @@ Hart<URV>::enterDebugMode(DebugModeCause cause, URV pc)
 
       csRegs_.poke(CsrNumber::DPC, pc);
     }
-
-#if 0
-  // Revert valid entries in the load queue. The load queue may be
-  // non-empy on a forced debug halt.
-  for (size_t i = loadQueue_.size(); i > 0; --i)
-    {
-      auto& entry = loadQueue_.at(i-1);
-      if (not entry.valid_)
-        continue;
-      if (entry.fp_)
-        pokeFpReg(entry.regIx_, entry.prevData_);
-      else
-        pokeIntReg(entry.regIx_, entry.prevData_);
-    }
-  loadQueue_.clear();
-#endif
 }
 
 
@@ -7878,6 +7857,22 @@ Hart<URV>::enterDebugMode(URV pc)
   debugMode_ = false;
 
   enterDebugMode(DebugModeCause::DEBUGGER, pc);
+
+#if 1
+  // Revert valid entries in the load queue. The load queue may be
+  // non-empy on a forced debug halt.
+  for (size_t i = loadQueue_.size(); i > 0; --i)
+    {
+      auto& entry = loadQueue_.at(i-1);
+      if (not entry.valid_)
+        continue;
+      if (entry.fp_)
+        pokeFpReg(entry.regIx_, entry.prevData_);
+      else
+        pokeIntReg(entry.regIx_, entry.prevData_);
+    }
+  loadQueue_.clear();
+#endif
 }
 
 
@@ -9069,6 +9064,13 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
         return cause;
     }
 
+  // Wide store.
+  if (wideLdSt_ and not isDataAddressExternal(addr))
+    {
+      secCause = SecondaryCause::STORE_ACC_64BIT;
+      return ExceptionCause::STORE_ACC_FAULT;
+    }
+
   // Stack access.
   if (rs1 == RegSp and checkStackAccess_ and
       not checkStackStore(base, addr, stSize))
@@ -9104,19 +9106,6 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
           if (regionHasLocalDataMem_.at(region))
             secCause = SecondaryCause::STORE_ACC_LOCAL_UNMAPPED;
           return ExceptionCause::STORE_ACC_FAULT;
-        }
-
-      // 64-bit store
-      if (wideLdSt_)
-        {
-          bool fail = (addr & 7) or ! isDataAddressExternal(addr);
-          uint64_t val = 0;
-          fail = fail or ! memory_.checkWrite(addr, val);
-          if (fail)
-            {
-              secCause = SecondaryCause::STORE_ACC_64BIT;
-              return ExceptionCause::STORE_ACC_FAULT;
-            }
         }
 
       // Region predict (Effective address compatible with base).
