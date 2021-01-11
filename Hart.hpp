@@ -790,12 +790,11 @@ namespace WdRiscv
 
     /// Put this hart in debug mode setting the DCSR cause field to
     /// the given cause.
-    void enterDebugMode(DebugModeCause cause, URV pc);
+    void enterDebugMode_(DebugModeCause cause, URV pc);
 
     /// Put this hart in debug mode setting the DCSR cause field to
     /// either DEBUGGER or SETP depending on the step bit of DCSR.
-    /// given cause.
-    void enterDebugMode(URV pc);
+    void enterDebugMode(URV pc, bool force = false);
 
     /// True if in debug mode.
     bool inDebugMode() const

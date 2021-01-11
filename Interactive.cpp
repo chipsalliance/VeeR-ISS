@@ -79,6 +79,27 @@ parseCmdLineNumber(const std::string& option,
 }
 
 
+static
+bool
+parseCmdLineBool(const std::string& option, const std::string& str, bool& val)
+{
+  bool good = true;
+
+  if (str == "0" or str == "false")
+    val = false;
+  else if (str == "1" or str == "true")
+    val = true;
+  else
+    good = false;
+
+  if (not good)
+    std::cerr << "Invalid command line " << option << " value: " << str
+	      << '\n';
+
+  return good;
+}
+
+
 template <typename URV>
 Interactive<URV>::Interactive(System<URV>& system)
   : system_(system)
@@ -1441,9 +1462,13 @@ Interactive<URV>::executeLine(unsigned& currentHartId,
 
   if (command == "enter_debug")
     {
-      hart.enterDebugMode(hart.peekPc());
+      bool force = false;
+      if (tokens.size() == 2)
+        if (not parseCmdLineBool("force", tokens[1], force))
+          return false;
+      hart.enterDebugMode(hart.peekPc(), force);
       if (commandLog)
-	fprintf(commandLog, "%s\n", outLine.c_str());
+	fprintf(commandLog, "%s %s\n", outLine.c_str(), force? "true" : "false");
       return true;
     }
 

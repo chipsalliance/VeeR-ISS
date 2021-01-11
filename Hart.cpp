@@ -1598,7 +1598,8 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
     }
 
   // Wide load.
-  if (wideLdSt_ and not isDataAddressExternal(addr))
+  size_t region = memory_.getRegionIndex(addr);
+  if (wideLdSt_ and regionHasLocalDataMem_.at(region))
     {
       secCause = SecondaryCause::LOAD_ACC_64BIT;
       return ExceptionCause::LOAD_ACC_FAULT;
@@ -1644,7 +1645,6 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
       if (not isReadable)
         {
           secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
-          size_t region = memory_.getRegionIndex(addr);
           if (regionHasLocalDataMem_.at(region))
             {
               if (not isAddrMemMapped(addr))
@@ -3286,6 +3286,13 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
 
       formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'm',
 			   URV(address), URV(memValue), tmp.c_str());
+      if (sizeof(URV) == 4 and writeSize == 8)  // wide store
+        {
+          fprintf(out, "  +\n");
+          formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'm',
+                               URV(address+4), URV(memValue >> 32),
+                               tmp.c_str());
+        }
       pending = true;
     }
 
@@ -3987,7 +3994,7 @@ Hart<URV>::takeTriggerAction(FILE* traceFile, URV pc, URV info,
 
   if (csRegs_.hasEnterDebugModeTripped())
     {
-      enterDebugMode(DebugModeCause::TRIGGER, pc);
+      enterDebugMode_(DebugModeCause::TRIGGER, pc);
       enteredDebug = true;
     }
   else
@@ -3996,7 +4003,7 @@ Hart<URV>::takeTriggerAction(FILE* traceFile, URV pc, URV info,
       initiateException(ExceptionCause::BREAKP, pc, info, secCause);
       if (dcsrStep_)
 	{
-	  enterDebugMode(DebugModeCause::TRIGGER, pc_);
+	  enterDebugMode_(DebugModeCause::TRIGGER, pc_);
 	  enteredDebug = true;
 	}
     }
@@ -4215,7 +4222,7 @@ Hart<URV>::fetchInstWithTrigger(URV addr, uint32_t& inst, FILE* file)
         }
 
       if (dcsrStep_)
-        enterDebugMode(DebugModeCause::STEP, pc_);
+        enterDebugMode_(DebugModeCause::STEP, pc_);
 
       return false;  // Next instruction in trap handler.
     }
@@ -4846,7 +4853,7 @@ Hart<URV>::singleStep(FILE* traceFile)
 	  if (traceFile)
 	    printInstTrace(di, instCounter_, instStr, traceFile);
 	  if (dcsrStep_ and not ebreakInstDebug_)
-	    enterDebugMode(DebugModeCause::STEP, pc_);
+	    enterDebugMode_(DebugModeCause::STEP, pc_);
 	  return;
 	}
 
@@ -4884,7 +4891,7 @@ Hart<URV>::singleStep(FILE* traceFile)
 
       // If step bit set in dcsr then enter debug mode unless already there.
       if (dcsrStep_ and not ebreakInstDebug_)
-	enterDebugMode(DebugModeCause::STEP, pc_);
+	enterDebugMode_(DebugModeCause::STEP, pc_);
 
       prevPerfControl_ = perfControl_;
     }
@@ -4893,7 +4900,7 @@ Hart<URV>::singleStep(FILE* traceFile)
       // If step bit set in dcsr then enter debug mode unless already there.
       // This is for the benefit of the test bench.
       if (dcsrStep_ and not ebreakInstDebug_)
-	enterDebugMode(DebugModeCause::STEP, pc_);
+	enterDebugMode_(DebugModeCause::STEP, pc_);
 
       logStop(ce, instCounter_, traceFile);
     }
@@ -4934,7 +4941,7 @@ Hart<URV>::whatIfSingleStep(uint32_t inst, ChangeRecord& record)
 
   // If step bit set in dcsr then enter debug mode unless already there.
   if (dcsrStep_ and not ebreakInstDebug_)
-    enterDebugMode(DebugModeCause::STEP, pc_);
+    enterDebugMode_(DebugModeCause::STEP, pc_);
 
   // Collect changes. Undo each collected change.
   exceptionCount_ = prevExceptionCount;
@@ -7796,7 +7803,7 @@ Hart<URV>::enableInstructionFrequency(bool b)
 
 template <typename URV>
 void
-Hart<URV>::enterDebugMode(DebugModeCause cause, URV pc)
+Hart<URV>::enterDebugMode_(DebugModeCause cause, URV pc)
 {
   // Entering debug modes loses LR reservation.
   memory_.invalidateLr(hartIx_);
@@ -7835,7 +7842,7 @@ Hart<URV>::enterDebugMode(DebugModeCause cause, URV pc)
 
 template <typename URV>
 void
-Hart<URV>::enterDebugMode(URV pc)
+Hart<URV>::enterDebugMode(URV pc, bool force)
 {
   if (forceAccessFail_)
     {
@@ -7856,11 +7863,13 @@ Hart<URV>::enterDebugMode(URV pc)
   debugStepMode_ = false;
   debugMode_ = false;
 
-  enterDebugMode(DebugModeCause::DEBUGGER, pc);
+  enterDebugMode_(DebugModeCause::DEBUGGER, pc);
 
-#if 1
+  if (not force)
+    return;
+
   // Revert valid entries in the load queue. The load queue may be
-  // non-empy on a forced debug halt.
+  // non-empty on a forced debug halt.
   for (size_t i = loadQueue_.size(); i > 0; --i)
     {
       auto& entry = loadQueue_.at(i-1);
@@ -7872,7 +7881,6 @@ Hart<URV>::enterDebugMode(URV pc)
         pokeIntReg(entry.regIx_, entry.prevData_);
     }
   loadQueue_.clear();
-#endif
 }
 
 
@@ -8406,7 +8414,7 @@ Hart<URV>::execEbreak(const DecodedInst*)
         {
           // The documentation (RISCV external debug support) does
           // not say whether or not we set EPC and MTVAL.
-          enterDebugMode(DebugModeCause::EBREAK, currPc_);
+          enterDebugMode_(DebugModeCause::EBREAK, currPc_);
           ebreakInstDebug_ = true;
           recordCsrWrite(CsrNumber::DCSR);
           return;
@@ -9010,24 +9018,21 @@ template <typename URV>
 bool
 Hart<URV>::wideStore(URV addr, URV storeVal)
 {
-  if ((addr & 7) or not isDataAddressExternal(addr))
-    {
-      auto cause = ExceptionCause::STORE_ACC_FAULT;
-      auto secCause = SecondaryCause::STORE_ACC_64BIT;
-      initiateStoreException(cause, addr, secCause);
-      return false;
-    }
-
   uint32_t lower = storeVal;
 
   URV temp = 0;
   peekCsr(CsrNumber::MDBHD, temp);
   uint32_t upper = temp;
 
+#if 0
+  // Enable when bench is ready.
+  uint64_t val = (uint64_t(upper) << 32) | lower;
+  if (not memory_.write(hartIx_, addr, val))
+#else
   if (not memory_.write(hartIx_, addr + 4, upper) or
       not memory_.write(hartIx_, addr, lower))
+#endif
     {
-      // FIX: Clear last written data if 1st 4 bytes written.
       auto cause = ExceptionCause::STORE_ACC_FAULT;
       auto secCause = SecondaryCause::STORE_ACC_64BIT;
       initiateStoreException(cause, addr, secCause);
@@ -9065,7 +9070,8 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
     }
 
   // Wide store.
-  if (wideLdSt_ and not isDataAddressExternal(addr))
+  size_t region = memory_.getRegionIndex(addr);
+  if (wideLdSt_ and regionHasLocalDataMem_.at(region))
     {
       secCause = SecondaryCause::STORE_ACC_64BIT;
       return ExceptionCause::STORE_ACC_FAULT;
@@ -9102,7 +9108,6 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
       if (not writeOk and not isAddrMemMapped(addr))
         {
           secCause = SecondaryCause::STORE_ACC_MEM_PROTECTION;
-          size_t region = memory_.getRegionIndex(addr);
           if (regionHasLocalDataMem_.at(region))
             secCause = SecondaryCause::STORE_ACC_LOCAL_UNMAPPED;
           return ExceptionCause::STORE_ACC_FAULT;

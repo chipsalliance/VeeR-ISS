@@ -893,7 +893,10 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
 
 	    case EnterDebug:
               if (checkHart(msg, "enter_debug", reply))
-                hart.enterDebugMode(hart.peekPc());
+                {
+                  bool force = msg.flags;
+                  hart.enterDebugMode(hart.peekPc(), force);
+                }
               if (commandLog)
                 fprintf(commandLog, "hart=%d enter_debug # ts=%s\n", hartId,
                         timeStamp.c_str());
