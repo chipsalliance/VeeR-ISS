@@ -7851,6 +7851,27 @@ Hart<URV>::enterDebugMode(URV pc, bool force)
       forceAccessFail_ = false;
     }
 
+  if (force)
+    {
+      // Revert valid entries in the load queue. The load queue may be
+      // non-empty on a forced debug halt.
+      for (size_t i = loadQueue_.size(); i > 0; --i)
+        {
+          auto& entry = loadQueue_.at(i-1);
+          if (not entry.valid_)
+            continue;
+          if (entry.fp_)
+            pokeFpReg(entry.regIx_, entry.prevData_);
+          else
+            {
+              pokeIntReg(entry.regIx_, entry.prevData_);
+              if (entry.wide_)
+                pokeCsr(CsrNumber::MDBHD, entry.prevData_ >> 32);
+            }
+        }
+      loadQueue_.clear();
+    }
+
   // This method is used by the test-bench to make the simulator
   // follow it into debug-halt or debug-stop mode. Do nothing if the
   // simulator got into debug mode on its own.
@@ -7864,23 +7885,6 @@ Hart<URV>::enterDebugMode(URV pc, bool force)
   debugMode_ = false;
 
   enterDebugMode_(DebugModeCause::DEBUGGER, pc);
-
-  if (not force)
-    return;
-
-  // Revert valid entries in the load queue. The load queue may be
-  // non-empty on a forced debug halt.
-  for (size_t i = loadQueue_.size(); i > 0; --i)
-    {
-      auto& entry = loadQueue_.at(i-1);
-      if (not entry.valid_)
-        continue;
-      if (entry.fp_)
-        pokeFpReg(entry.regIx_, entry.prevData_);
-      else
-        pokeIntReg(entry.regIx_, entry.prevData_);
-    }
-  loadQueue_.clear();
 }
 
 
@@ -9024,7 +9028,7 @@ Hart<URV>::wideStore(URV addr, URV storeVal)
   peekCsr(CsrNumber::MDBHD, temp);
   uint32_t upper = temp;
 
-#if 0
+#if 1
   // Enable when bench is ready.
   uint64_t val = (uint64_t(upper) << 32) | lower;
   if (not memory_.write(hartIx_, addr, val))
