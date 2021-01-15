@@ -549,11 +549,18 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
   hart.lastMemory(addresses, words);
   assert(addresses.size() == words.size());
 
-  for (size_t i = 0; i < addresses.size(); ++i)
+  if (addresses.size() == 2 and (addresses.at(0) + 4 == addresses.at(1)))
     {
-      WhisperMessage msg(0, Change, 'm', addresses.at(i), words.at(i));
+      uint64_t dword = (uint64_t(words.at(1)) << 32) | words.at(0);
+      WhisperMessage msg (0, Change, 'm', addresses.at(0),  dword);
       pendingChanges.push_back(msg);
     }
+  else
+    for (size_t i = 0; i < addresses.size(); ++i)
+      {
+        WhisperMessage msg(0, Change, 'm', addresses.at(i), words.at(i));
+        pendingChanges.push_back(msg);
+      }
 
   // Add count of changes to reply.
   reply.value = pendingChanges.size();

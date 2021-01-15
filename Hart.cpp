@@ -357,7 +357,7 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   // mapped register data loaded from the ELF/HEX file.
   if (resetMemoryMappedRegs)
     memory_.resetMemoryMappedRegisters();
-  memory_.invalidateLr(hartIx_);
+  cancelLr(); // Clear LR reservation (if any).
 
   clearPendingNmi();
   clearTraceData();
@@ -2587,7 +2587,7 @@ Hart<URV>::initiateTrap(bool interrupt, URV cause, URV pcToSave, URV info,
 {
   forceAccessFail_ = false;
 
-  memory_.invalidateLr(hartIx_);
+  cancelLr(); // Clear LR reservation (if any).
 
   PrivilegeMode origMode = privMode_;
 
@@ -2715,7 +2715,7 @@ Hart<URV>::undelegatedInterrupt(URV cause, URV pcToSave, URV nextPc)
   hasInterrupt_ = true;
   interruptCount_++;
 
-  memory_.invalidateLr(hartIx_);
+  cancelLr();  // Clear LR reservation (if any).
 
   PrivilegeMode origMode = privMode_;
 
@@ -3284,15 +3284,15 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
       if (pending)
 	fprintf(out, "  +\n");
 
-      formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'm',
-			   URV(address), URV(memValue), tmp.c_str());
       if (sizeof(URV) == 4 and writeSize == 8)  // wide store
         {
-          fprintf(out, "  +\n");
-          formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'm',
-                               URV(address+4), URV(memValue >> 32),
-                               tmp.c_str());
+          fprintf(out, "#%ld %d %08x %8s m %08x %016lx  %s",
+                  tag, hartIx_, uint32_t(currPc_), instBuff, uint32_t(address),
+                  memValue, tmp.c_str());
         }
+      else
+        formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'm',
+                             URV(address), URV(memValue), tmp.c_str());
       pending = true;
     }
 
@@ -7805,8 +7805,7 @@ template <typename URV>
 void
 Hart<URV>::enterDebugMode_(DebugModeCause cause, URV pc)
 {
-  // Entering debug modes loses LR reservation.
-  memory_.invalidateLr(hartIx_);
+  cancelLr();  // Entering debug modes loses LR reservation.
 
   if (debugMode_)
     {
@@ -7898,8 +7897,7 @@ Hart<URV>::exitDebugMode()
       return;
     }
 
-  // Exiting debug modes loses LR reservation.
-  memory_.invalidateLr(hartIx_);
+  cancelLr();  // Exiting debug modes loses LR reservation.
 
   peekCsr(CsrNumber::DPC, pc_);
 
@@ -8488,7 +8486,7 @@ Hart<URV>::execMret(const DecodedInst* di)
   if (triggerTripped_)
     return;
 
-  memory_.invalidateLr(hartIx_); // Clear LR reservation (if any).
+  cancelLr(); // Clear LR reservation (if any).
 
   // Restore privilege mode and interrupt enable by getting
   // current value of MSTATUS, ...
@@ -8547,7 +8545,7 @@ Hart<URV>::execSret(const DecodedInst* di)
   if (triggerTripped_)
     return;
 
-  memory_.invalidateLr(hartIx_); // Clear LR reservation (if any).
+  cancelLr(); // Clear LR reservation (if any).
 
   // Restore privilege mode and interrupt enable by getting
   // current value of SSTATUS, ...
@@ -9990,7 +9988,7 @@ Hart<URV>::execSc_w(const DecodedInst* di)
   uint64_t prevCount = exceptionCount_;
 
   bool ok = storeConditional(rs1, addr, uint32_t(value));
-  memory_.invalidateLr(hartIx_);
+  cancelLr(); // Clear LR reservation (if any).
 
   if (ok)
     {
@@ -10306,7 +10304,7 @@ Hart<URV>::execSc_d(const DecodedInst* di)
   uint64_t prevCount = exceptionCount_;
 
   bool ok = storeConditional(rs1, addr, uint64_t(value));
-  memory_.invalidateLr(hartIx_);
+  cancelLr(); // Clear LR reservation (if any).
 
   if (ok)
     {
