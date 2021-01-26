@@ -8119,7 +8119,7 @@ template <typename URV>
 void
 Hart<URV>::execSll(const DecodedInst* di)
 {
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   URV v = intRegs_.read(di->op1()) << (intRegs_.read(di->op2()) & mask);
   intRegs_.write(di->op0(), v);
 }
@@ -8160,7 +8160,7 @@ template <typename URV>
 void
 Hart<URV>::execSrl(const DecodedInst* di)
 {
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   URV v = intRegs_.read(di->op1()) >> (intRegs_.read(di->op2()) & mask);
   intRegs_.write(di->op0(), v);
 }
@@ -8170,7 +8170,7 @@ template <typename URV>
 void
 Hart<URV>::execSra(const DecodedInst* di)
 {
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   URV v = SRV(intRegs_.read(di->op1())) >> (intRegs_.read(di->op2()) & mask);
   intRegs_.write(di->op0(), v);
 }
@@ -10695,7 +10695,7 @@ Hart<URV>::execSlo(const DecodedInst* di)
       return;
     }
 
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   URV shift = intRegs_.read(di->op2()) & mask;
 
   URV v1 = intRegs_.read(di->op1());
@@ -10714,7 +10714,7 @@ Hart<URV>::execSro(const DecodedInst* di)
       return;
     }
 
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   URV shift = intRegs_.read(di->op2()) & mask;
 
   URV v1 = intRegs_.read(di->op1());
@@ -10841,7 +10841,7 @@ Hart<URV>::execRol(const DecodedInst* di)
       return;
     }
 
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   URV rot = intRegs_.read(di->op2()) & mask;  // Rotate amount
 
   URV v1 = intRegs_.read(di->op1());
@@ -10861,7 +10861,7 @@ Hart<URV>::execRor(const DecodedInst* di)
       return;
     }
 
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   URV rot = intRegs_.read(di->op2()) & mask;  // Rotate amount
 
   URV v1 = intRegs_.read(di->op1());
@@ -11457,7 +11457,7 @@ Hart<URV>::execSbset(const DecodedInst* di)
       return;
     }
 
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   unsigned bitIx = intRegs_.read(di->op2()) & mask;
 
   URV value = intRegs_.read(di->op1()) | (URV(1) << bitIx);
@@ -11475,7 +11475,7 @@ Hart<URV>::execSbclr(const DecodedInst* di)
       return;
     }
 
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   unsigned bitIx = intRegs_.read(di->op2()) & mask;
 
   URV value = intRegs_.read(di->op1()) & ~(URV(1) << bitIx);
@@ -11493,7 +11493,7 @@ Hart<URV>::execSbinv(const DecodedInst* di)
       return;
     }
 
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   unsigned bitIx = intRegs_.read(di->op2()) & mask;
 
   URV value = intRegs_.read(di->op1()) ^ (URV(1) << bitIx);
@@ -11511,7 +11511,7 @@ Hart<URV>::execSbext(const DecodedInst* di)
       return;
     }
 
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   unsigned bitIx = intRegs_.read(di->op2()) & mask;
 
   URV value = (intRegs_.read(di->op1()) >> bitIx) & 1;
@@ -11660,7 +11660,7 @@ Hart<URV>::execBfp(const DecodedInst* di)
   URV v1 = intRegs_.read(di->op1());
   URV v2 = intRegs_.read(di->op2());
 
-  unsigned off = (v2 >> 16) & intRegs_.shiftMask();
+  unsigned off = (v2 >> 16) & shiftMask();
   unsigned len = (v2 >> 24) & 0xf;
   if (len == 0)
     len = 16;

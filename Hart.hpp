@@ -1733,6 +1733,19 @@ namespace WdRiscv
     /// limit if timer-limit regiser is written.
     void processClintWrite(size_t addr, unsigned stSize, URV stVal);
 
+    /// Mask to extract shift amount from a integer register value to use
+    /// in shift instructions. This returns 0x1f in 32-bit more and 0x3f
+    /// in 64-bit mode.
+    uint32_t shiftMask() const
+    {
+      if constexpr (std::is_same<URV, uint32_t>::value)
+	return 0x1f;
+      if constexpr (std::is_same<URV, uint64_t>::value)
+	return 0x3f;
+      assert(0 and "Register value type must be uint32_t or uint64_t.");
+      return 0x1f;
+    }
+
     // rs1: index of source register (value range: 0 to 31)
     // rs2: index of source register (value range: 0 to 31)
     // rd: index of destination register (value range: 0 to 31)
