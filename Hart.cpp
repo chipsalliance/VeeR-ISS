@@ -8240,6 +8240,7 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
 
   // Temporary: Check if not cachable. FIX: this should be part of
   // physical memory attributes.
+#if 1
   if (not fail and not isAddrInDccm(addr))
     {
       unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
@@ -8250,6 +8251,7 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
           fail = bit == 0;
         }
     }
+#endif
 
   if (fail)
     {
@@ -9816,6 +9818,7 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
 
   // Temporary: Check if not cachable. FIX: this should be part of
   // physical memory attributes.
+#if 1
   if (not fail and not isAddrInDccm(addr))
     {
       unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
@@ -9826,6 +9829,7 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
           fail = bit == 0;
         }
     }
+#endif
 
   if (fail)
     {
@@ -9916,6 +9920,7 @@ Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
 
   // Temporary: Check if not cachable. FIX: this should be part of
   // physical memory attributes.
+#if 1
   if (not fail and not isAddrInDccm(addr))
     {
       unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
@@ -9926,6 +9931,7 @@ Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
           fail = bit == 0;
         }
     }
+#endif
 
   if (fail)
     {
@@ -12576,6 +12582,22 @@ Hart<URV>::execBbarrier(const DecodedInst* di)
   // no-op.
 }
 
+
+template
+bool
+WdRiscv::Hart<uint32_t>::store<uint32_t>(uint32_t, uint32_t, uint32_t, uint32_t);
+
+template
+bool
+WdRiscv::Hart<uint32_t>::store<uint64_t>(uint32_t, uint32_t, uint32_t, uint64_t);
+
+template
+bool
+WdRiscv::Hart<uint64_t>::store<uint32_t>(uint32_t, uint64_t, uint64_t, uint32_t);
+
+template
+bool
+WdRiscv::Hart<uint64_t>::store<uint64_t>(uint32_t, uint64_t, uint64_t, uint64_t);
 
 template
 ExceptionCause
