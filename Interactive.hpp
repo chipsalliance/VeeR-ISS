@@ -63,7 +63,7 @@ namespace WdRiscv
     bool pokeCommand(Hart<URV>&, const std::string& line,
 		     const std::vector<std::string>& tokens);
 
-    /// Helper to interact: "disas" command. Disassemble.
+    /// Helper to interact: "disass" command. Disassemble.
     bool disassCommand(Hart<URV>&, const std::string& line,
 		       const std::vector<std::string>& tokens);
 

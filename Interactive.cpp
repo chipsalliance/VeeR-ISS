@@ -1226,11 +1226,11 @@ Interactive<URV>::helpCommand(const std::vector<std::string>& tokens)
       return;
     }
 
-  if (tag == "disas")
+  if (tag == "disas" or tag == "disass")
     {
-      cout << "disas opcode <op0> <op1> ...\n"
-	   << "disas func <address>\n"
-	   << "disas <addr1> <addr2>\n"
+      cout << "disass opcode <op0> <op1> ...\n"
+	   << "disass func <address>\n"
+	   << "disass <addr1> <addr2>\n"
 	   << "  The first form will disassemble the given opcodes.\n"
 	   << "  The second form will disassemble the instructions of the\n"
 	   << "  function containing the given address.\n"
@@ -1408,7 +1408,7 @@ Interactive<URV>::executeLine(unsigned& currentHartId,
       return true;
     }
 
-  if (command == "d" or command == "disas")
+  if (command == "d" or command == "disas" or command == "disass")
     {
       if (not disassCommand(hart, line, tokens))
 	return false;
