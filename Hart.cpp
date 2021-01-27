@@ -749,9 +749,8 @@ inline
 void
 Hart<URV>::execBeq(const DecodedInst* di)
 {
-  uint32_t rs1 = di->op0();
-  uint32_t rs2 = di->op1();
-  if (intRegs_.read(rs1) != intRegs_.read(rs2))
+  URV v1 = intRegs_.read(di->op0()),  v2 = intRegs_.read(di->op1());
+  if (v1 != v2)
     return;
   pc_ = currPc_ + di->op2As<SRV>();
   pc_ = (pc_ >> 1) << 1;  // Clear least sig bit.
@@ -764,7 +763,8 @@ inline
 void
 Hart<URV>::execBne(const DecodedInst* di)
 {
-  if (intRegs_.read(di->op0()) == intRegs_.read(di->op1()))
+  URV v1 = intRegs_.read(di->op0()),  v2 = intRegs_.read(di->op1());
+  if (v1 == v2)
     return;
   pc_ = currPc_ + di->op2As<SRV>();
   pc_ = (pc_ >> 1) << 1;  // Clear least sig bit.
@@ -8057,7 +8057,7 @@ void
 Hart<URV>::execSltiu(const DecodedInst* di)
 {
   URV imm = di->op2As<SRV>();   // We sign extend then use as unsigned.
-  URV v = intRegs_.read(di->op1()) < imm ? 1 : 0;
+  URV v = URV(intRegs_.read(di->op1())) < imm ? 1 : 0;
   intRegs_.write(di->op0(), v);
 }
 
@@ -8079,7 +8079,8 @@ Hart<URV>::execSrli(const DecodedInst* di)
   if (not checkShiftImmediate(di, amount))
     return;
 
-  URV v = intRegs_.read(di->op1()) >> amount;
+  URV v = intRegs_.read(di->op1());
+  v >>= amount;
   intRegs_.write(di->op0(), v);
 }
 
@@ -8161,7 +8162,8 @@ void
 Hart<URV>::execSrl(const DecodedInst* di)
 {
   URV mask = shiftMask();
-  URV v = intRegs_.read(di->op1()) >> (intRegs_.read(di->op2()) & mask);
+  URV v = intRegs_.read(di->op1());
+  v >>= (intRegs_.read(di->op2()) & mask);
   intRegs_.write(di->op0(), v);
 }
 
@@ -8240,7 +8242,7 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
 
   // Temporary: Check if not cachable. FIX: this should be part of
   // physical memory attributes.
-#if 1
+#if 0
   if (not fail and not isAddrInDccm(addr))
     {
       unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
@@ -9028,14 +9030,9 @@ Hart<URV>::wideStore(URV addr, URV storeVal)
   peekCsr(CsrNumber::MDBHD, temp);
   uint32_t upper = temp;
 
-#if 1
   // Enable when bench is ready.
   uint64_t val = (uint64_t(upper) << 32) | lower;
   if (not memory_.write(hartIx_, addr, val))
-#else
-  if (not memory_.write(hartIx_, addr + 4, upper) or
-      not memory_.write(hartIx_, addr, lower))
-#endif
     {
       auto cause = ExceptionCause::STORE_ACC_FAULT;
       auto secCause = SecondaryCause::STORE_ACC_64BIT;
@@ -9232,7 +9229,7 @@ namespace WdRiscv
   Hart<uint32_t>::execMulhsu(const DecodedInst* di)
   {
     int64_t a = int32_t(intRegs_.read(di->op1()));
-    uint64_t b = intRegs_.read(di->op2());
+    uint64_t b = uint32_t(intRegs_.read(di->op2()));
     int64_t c = a * b;
     int32_t high = static_cast<int32_t>(c >> 32);
 
@@ -9244,8 +9241,8 @@ namespace WdRiscv
   void
   Hart<uint32_t>::execMulhu(const DecodedInst* di)
   {
-    uint64_t a = intRegs_.read(di->op1());
-    uint64_t b = intRegs_.read(di->op2());
+    uint64_t a = uint32_t(intRegs_.read(di->op1()));
+    uint64_t b = uint32_t(intRegs_.read(di->op2()));
     uint64_t c = a * b;
     uint32_t high = static_cast<uint32_t>(c >> 32);
 
@@ -9818,7 +9815,7 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
 
   // Temporary: Check if not cachable. FIX: this should be part of
   // physical memory attributes.
-#if 1
+#if 0
   if (not fail and not isAddrInDccm(addr))
     {
       unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
@@ -9920,7 +9917,7 @@ Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
 
   // Temporary: Check if not cachable. FIX: this should be part of
   // physical memory attributes.
-#if 1
+#if 0
   if (not fail and not isAddrInDccm(addr))
     {
       unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
@@ -10959,8 +10956,8 @@ Hart<URV>::execPack(const DecodedInst* di)
     }
 
   unsigned halfXlen = mxlen_ >> 1;
-  URV lower = (intRegs_.read(di->op1()) << halfXlen) >> halfXlen;
-  URV upper = intRegs_.read(di->op2()) << halfXlen;
+  URV lower = (URV(intRegs_.read(di->op1())) << halfXlen) >> halfXlen;
+  URV upper = URV(intRegs_.read(di->op2())) << halfXlen;
   URV res = upper | lower;
   intRegs_.write(di->op0(), res);
 }
