@@ -493,39 +493,35 @@ namespace WdRiscv
     void printElfSymbols(std::ostream& out) const
     { memory_.printElfSymbols(out); }
 
-    /// Set val to the value of the memory byte at the given address
+    /// Set val to the value of the byte at the given address
     /// returning true on success and false if address is out of
-    /// bounds.
-    bool peekMemory(size_t address, uint8_t& val) const;
+    /// bounds. Memory is little endian. Bypass physical memory
+    /// attribute checking if usePma is false.
+    bool peekMemory(size_t addr, uint8_t& val, bool usePma) const;
 
-    /// Set val to the value of the half-word at the given address
-    /// returning true on success and false if address is out of
-    /// bounds. Memory is little endian.
-    bool peekMemory(size_t address, uint16_t& val) const;
+    /// Half-word version of the above.
+    bool peekMemory(size_t addr, uint16_t& val, bool usePma) const;
 
-    /// Set val to the value of the word at the given address
-    /// returning true on success and false if address is out of
-    /// bounds. Memory is little endian.
-    bool peekMemory(size_t address, uint32_t& val) const;
+    /// Word version of the above.
+    bool peekMemory(size_t addr, uint32_t& val, bool usePma) const;
 
-    /// Set val to the value of the word at the given address
-    /// returning true on success and false if address is out of
-    /// bounds. Memory is little endian.
-    bool peekMemory(size_t address, uint64_t& val) const;
+    /// Double-word version of the above.
+    bool peekMemory(size_t addr, uint64_t& val, bool usePma) const;
 
     /// Set the memory byte at the given address to the given value.
     /// Return true on success and false on failure (address out of
     /// bounds, location not mapped, location not writable etc...)
-    bool pokeMemory(size_t address, uint8_t val);
+    /// Bypass physical memory attribute checking if usePma is false.
+    bool pokeMemory(size_t addr, uint8_t val, bool usePma);
 
     /// Half-word version of the above.
-    bool pokeMemory(size_t address, uint16_t val);
+    bool pokeMemory(size_t address, uint16_t val, bool usePma);
 
     /// Word version of the above.
-    bool pokeMemory(size_t address, uint32_t val);
+    bool pokeMemory(size_t addr, uint32_t val, bool usePma);
 
     /// Double-word version of the above.
-    bool pokeMemory(size_t address, uint64_t val);
+    bool pokeMemory(size_t addr, uint64_t val, bool usePma);
 
     /// Define value of program counter after a reset.
     void defineResetPc(URV addr)
@@ -794,12 +790,11 @@ namespace WdRiscv
 
     /// Put this hart in debug mode setting the DCSR cause field to
     /// the given cause.
-    void enterDebugMode(DebugModeCause cause, URV pc);
+    void enterDebugMode_(DebugModeCause cause, URV pc);
 
     /// Put this hart in debug mode setting the DCSR cause field to
     /// either DEBUGGER or SETP depending on the step bit of DCSR.
-    /// given cause.
-    void enterDebugMode(URV pc);
+    void enterDebugMode(URV pc, bool force = false);
 
     /// True if in debug mode.
     bool inDebugMode() const
@@ -830,6 +825,9 @@ namespace WdRiscv
 
     /// Print collected physical memory protection stats on the given file.
     void reportPmpStat(FILE* file) const;
+
+    /// Print collected load-reserve/store-conditional stats on the given file.
+    void reportLrScStat(FILE* file) const;
 
     /// Reset trace data (items changed by the execution of an
     /// instruction.)
@@ -1230,6 +1228,10 @@ namespace WdRiscv
     void enableWideLoadStore(bool flag)
     { enableWideLdSt_ = flag; }
 
+    /// Enable bbarrier (bus barrier) custom instruction.
+    void enableBusBarrier(bool flag)
+    { enableBbarrier_ = flag; }
+
   protected:
 
     /// Helper to reset: reset floating point related structures.
@@ -1324,7 +1326,8 @@ namespace WdRiscv
     /// floating point instruction.
     RoundingMode effectiveRoundingMode(RoundingMode instMode);
 
-    /// Update the accrued floating point bits in the FCSR register.
+    /// Update the accrued floating point bits in the FCSR
+    /// register. No-op if a trigger has tripped.
     void updateAccruedFpBits(float res, bool invalid);
     void updateAccruedFpBits(double res, bool invalid);
 
@@ -1619,7 +1622,8 @@ namespace WdRiscv
     /// otherwise.
     bool processExternalInterrupt(FILE* traceFile, std::string& insStr);
 
-    /// Helper to FP execution: Set the given flag value (ored values ok) in FCSR.
+    /// Helper to FP execution: Set the given flag value (ored values
+    /// ok) in FCSR. No-op if a trigger has already tripped.
     void setFcsrFlags(FpFlags value);
 
     /// Execute decoded instruction. Branch/jump instructions will
@@ -1728,6 +1732,19 @@ namespace WdRiscv
     /// corresponding hart if all the conditions are met. Set timer
     /// limit if timer-limit regiser is written.
     void processClintWrite(size_t addr, unsigned stSize, URV stVal);
+
+    /// Mask to extract shift amount from a integer register value to use
+    /// in shift instructions. This returns 0x1f in 32-bit more and 0x3f
+    /// in 64-bit mode.
+    uint32_t shiftMask() const
+    {
+      if constexpr (std::is_same<URV, uint32_t>::value)
+	return 0x1f;
+      if constexpr (std::is_same<URV, uint64_t>::value)
+	return 0x3f;
+      assert(0 and "Register value type must be uint32_t or uint64_t.");
+      return 0x1f;
+    }
 
     // rs1: index of source register (value range: 0 to 31)
     // rs2: index of source register (value range: 0 to 31)
@@ -2017,6 +2034,7 @@ namespace WdRiscv
     // Custom insts
     void execLoad64(const DecodedInst*);
     void execStore64(const DecodedInst*);
+    void execBbarrier(const DecodedInst*);
 
     // Return true if maskable instruction is legal. Take an illegal instuction
     // exception and return false otherwise.
@@ -2880,6 +2898,10 @@ namespace WdRiscv
     uint64_t nmiCount_ = 0;
     uint64_t consecutiveIllegalCount_ = 0;
     uint64_t counterAtLastIllegal_ = 0;
+    uint64_t lrCount_ = 0;    // Count of dispatched load-reserve instructions.
+    uint64_t lrSuccess_ = 0;  // Counte of successful LR (reservaton acquired).
+    uint64_t scCount_ = 0;    // Count of dispatched store-conditional instructions.
+    uint64_t scSuccess_ = 0;  // Counte of successful SC (store accomplished).
     bool forceAccessFail_ = false;  // Force load/store access fault.
     bool forceFetchFail_ = false;   // Force fetch access fault.
     bool fastInterrupts_ = false;
@@ -2940,10 +2962,7 @@ namespace WdRiscv
 
     bool enableWideLdSt_ = false;   // True if wide (64-bit) ld/st enabled.
     bool wideLdSt_ = false;         // True if executing wide ld/st instrution.
-
-    // AMO instructions have additional operands: rl and aq.
-    bool amoAq_ = false;
-    bool amoRl_ = false;
+    bool enableBbarrier_ = true;
 
     int gdbInputFd_ = -1;  // Input file descriptor when running in gdb mode.
 

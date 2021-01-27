@@ -255,10 +255,6 @@ namespace WdRiscv
       return std::string("f?");
     }
 
-    /// Return the number of bits in a register in this register file.
-    static constexpr uint32_t regWidth()
-    { return sizeof(FRV)*8; }
-
   protected:
 
     void reset(bool isDouble)

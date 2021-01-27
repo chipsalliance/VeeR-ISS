@@ -357,7 +357,7 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   // mapped register data loaded from the ELF/HEX file.
   if (resetMemoryMappedRegs)
     memory_.resetMemoryMappedRegisters();
-  memory_.invalidateLr(hartIx_);
+  cancelLr(); // Clear LR reservation (if any).
 
   clearPendingNmi();
   clearTraceData();
@@ -486,73 +486,53 @@ Hart<URV>::loadElfFile(const std::string& file, size_t& entryPoint)
 
 template <typename URV>
 bool
-Hart<URV>::peekMemory(size_t address, uint8_t& val) const
+Hart<URV>::peekMemory(size_t address, uint8_t& val, bool usePma) const
 {
-  if (memory_.read(address, val))
-    return true;
-
-  // We may have failed because location is in instruction space.
-  return memory_.readInst(address, val);
+  return memory_.peek(address, val, usePma);
 }
   
 
 template <typename URV>
 bool
-Hart<URV>::peekMemory(size_t address, uint16_t& val) const
+Hart<URV>::peekMemory(size_t address, uint16_t& val, bool usePma) const
 {
-  if (memory_.read(address, val))
-    return true;
-
-  // We may have failed because location is in instruction space.
-  return memory_.readInst(address, val);
+  return memory_.peek(address, val, usePma);
 }
 
 
 template <typename URV>
 bool
-Hart<URV>::peekMemory(size_t address, uint32_t& val) const
+Hart<URV>::peekMemory(size_t address, uint32_t& val, bool usePma) const
 {
-  if (memory_.read(address, val))
-    return true;
-
-  // We may have failed because location is in instruction space.
-  return memory_.readInst(address, val);
+  return memory_.peek(address, val, usePma);
 }
 
 
 template <typename URV>
 bool
-Hart<URV>::peekMemory(size_t address, uint64_t& val) const
+Hart<URV>::peekMemory(size_t address, uint64_t& val, bool usePma) const
 {
   uint32_t high = 0, low = 0;
 
-  if (memory_.read(address, low) and memory_.read(address + 4, high))
+  if (memory_.peek(address, low, usePma) and memory_.peek(address + 4, high, usePma))
     {
       val = (uint64_t(high) << 32) | low;
       return true;
     }
 
-  // We may have failed because location is in instruction space.
-  if (memory_.readInst(address, low) and
-      memory_.readInst(address + 4, high))
-    {
-      val = (uint64_t(high) << 32) | low;
-      return true;
-    }
-
-  return true;
+  return false;
 }
 
 
 template <typename URV>
 bool
-Hart<URV>::pokeMemory(size_t addr, uint8_t val)
+Hart<URV>::pokeMemory(size_t addr, uint8_t val, bool usePma)
 {
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
   memory_.invalidateLrs(addr, sizeof(val));
 
-  if (memory_.poke(addr, val))
+  if (memory_.poke(addr, val, usePma))
     {
       invalidateDecodeCache(addr, sizeof(val));
       return true;
@@ -564,13 +544,13 @@ Hart<URV>::pokeMemory(size_t addr, uint8_t val)
 
 template <typename URV>
 bool
-Hart<URV>::pokeMemory(size_t addr, uint16_t val)
+Hart<URV>::pokeMemory(size_t addr, uint16_t val, bool usePma)
 {
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
   memory_.invalidateLrs(addr, sizeof(val));
 
-  if (memory_.poke(addr, val))
+  if (memory_.poke(addr, val, usePma))
     {
       invalidateDecodeCache(addr, sizeof(val));
       return true;
@@ -582,7 +562,7 @@ Hart<URV>::pokeMemory(size_t addr, uint16_t val)
 
 template <typename URV>
 bool
-Hart<URV>::pokeMemory(size_t addr, uint32_t val)
+Hart<URV>::pokeMemory(size_t addr, uint32_t val, bool usePma)
 {
   // We allow poke to bypass masking for memory mapped registers
   // otherwise, there is no way for external driver to clear bits that
@@ -592,7 +572,7 @@ Hart<URV>::pokeMemory(size_t addr, uint32_t val)
 
   memory_.invalidateLrs(addr, sizeof(val));
 
-  if (memory_.poke(addr, val))
+  if (memory_.poke(addr, val, usePma))
     {
       invalidateDecodeCache(addr, sizeof(val));
       return true;
@@ -604,13 +584,13 @@ Hart<URV>::pokeMemory(size_t addr, uint32_t val)
 
 template <typename URV>
 bool
-Hart<URV>::pokeMemory(size_t addr, uint64_t val)
+Hart<URV>::pokeMemory(size_t addr, uint64_t val, bool usePma)
 {
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
   memory_.invalidateLrs(addr, sizeof(val));
 
-  if (memory_.poke(addr, val))
+  if (memory_.poke(addr, val, usePma))
     {
       invalidateDecodeCache(addr, sizeof(val));
       return true;
@@ -713,11 +693,18 @@ Hart<URV>::invalidateInLoadQueue(unsigned regIx, bool isDiv, bool fp)
   if (regIx == lastDivRd_ and not isDiv)
     hasLastDiv_ = false;
 
-  // Replace entry containing target register with x0 so that load exception
-  // matching entry will not revert target register.
+  // Invalidate entry containing target register so that a later load
+  // exception matching entry will not revert target register.
   for (unsigned i = 0; i < loadQueue_.size(); ++i)
-    if (loadQueue_[i].regIx_ == regIx and loadQueue_[i].fp_ == fp)
-      loadQueue_[i].makeInvalid();
+    {
+      auto& entry = loadQueue_[i];
+      if (entry.valid_ and entry.regIx_ == regIx and entry.fp_ == fp)
+        {
+          if (entry.wide_)
+            pokeCsr(CsrNumber::MDBHD, entry.prevData_ >> 32); // Revert MDBHD.
+          entry.makeInvalid();
+        }
+    }
 }
 
 
@@ -762,9 +749,8 @@ inline
 void
 Hart<URV>::execBeq(const DecodedInst* di)
 {
-  uint32_t rs1 = di->op0();
-  uint32_t rs2 = di->op1();
-  if (intRegs_.read(rs1) != intRegs_.read(rs2))
+  URV v1 = intRegs_.read(di->op0()),  v2 = intRegs_.read(di->op1());
+  if (v1 != v2)
     return;
   pc_ = currPc_ + di->op2As<SRV>();
   pc_ = (pc_ >> 1) << 1;  // Clear least sig bit.
@@ -777,7 +763,8 @@ inline
 void
 Hart<URV>::execBne(const DecodedInst* di)
 {
-  if (intRegs_.read(di->op0()) == intRegs_.read(di->op1()))
+  URV v1 = intRegs_.read(di->op0()),  v2 = intRegs_.read(di->op1());
+  if (v1 == v2)
     return;
   pc_ = currPc_ + di->op2As<SRV>();
   pc_ = (pc_ >> 1) << 1;  // Clear least sig bit.
@@ -937,16 +924,12 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
   for (size_t ix = 0; ix < loadQueue_.size(); ++ix)
     {
       auto& entry = loadQueue_.at(ix);
-      if (entry.tag_ == tag and entry.fp_ == fp)
-	{
-	  removeIx = ix;
-	  if (not entry.isValid())
-	    continue;
-	}
-      else
-	continue;
+      if (entry.tag_ != tag or entry.fp_ != fp)
+        continue;  // Not a match.
 
       removeIx = ix;
+      if (not entry.isValid())
+        continue;
 
       uint64_t prev = entry.prevData_;
 
@@ -1394,6 +1377,17 @@ Hart<URV>::reportPmpStat(FILE* file) const
 
 
 template <typename URV>
+void
+Hart<URV>::reportLrScStat(FILE* file) const
+{
+  fprintf(file, "Load-reserve dispatched: %" PRId64 "\n", lrCount_);
+  fprintf(file, "Load-reserve successful: %" PRId64 "\n", lrSuccess_); 
+  fprintf(file, "Store-conditional dispatched: %" PRId64 "\n", scCount_);
+  fprintf(file, "Store-conditional successful: %" PRId64 "\n", scSuccess_);
+}
+
+
+template <typename URV>
 ExceptionCause
 Hart<URV>::determineMisalLoadException(URV addr, unsigned accessSize,
                                        SecondaryCause& secCause) const
@@ -1603,6 +1597,14 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
         return cause;
     }
 
+  // Wide load.
+  size_t region = memory_.getRegionIndex(addr);
+  if (wideLdSt_ and regionHasLocalDataMem_.at(region))
+    {
+      secCause = SecondaryCause::LOAD_ACC_64BIT;
+      return ExceptionCause::LOAD_ACC_FAULT;
+    }
+
   // Stack access.
   if (rs1 == RegSp and checkStackAccess_ and
       not checkStackLoad(base, addr, ldSize))
@@ -1643,7 +1645,6 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
       if (not isReadable)
         {
           secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
-          size_t region = memory_.getRegionIndex(addr);
           if (regionHasLocalDataMem_.at(region))
             {
               if (not isAddrMemMapped(addr))
@@ -1654,18 +1655,6 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
             }
           else
             return ExceptionCause::LOAD_ACC_FAULT;
-        }
-
-      // 64-bit load
-      if (wideLdSt_)
-        {
-          bool fail = (addr & 7) or ! isDataAddressExternal(addr);
-          fail = fail or ! isAddrReadable(addr+4);
-          if (fail)
-            {
-              secCause = SecondaryCause::LOAD_ACC_64BIT;
-              return ExceptionCause::LOAD_ACC_FAULT;
-            }
         }
 
       // Region predict (Effective address compatible with base).
@@ -2598,7 +2587,7 @@ Hart<URV>::initiateTrap(bool interrupt, URV cause, URV pcToSave, URV info,
 {
   forceAccessFail_ = false;
 
-  memory_.invalidateLr(hartIx_);
+  cancelLr(); // Clear LR reservation (if any).
 
   PrivilegeMode origMode = privMode_;
 
@@ -2726,7 +2715,7 @@ Hart<URV>::undelegatedInterrupt(URV cause, URV pcToSave, URV nextPc)
   hasInterrupt_ = true;
   interruptCount_++;
 
-  memory_.invalidateLr(hartIx_);
+  cancelLr();  // Clear LR reservation (if any).
 
   PrivilegeMode origMode = privMode_;
 
@@ -3295,8 +3284,15 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
       if (pending)
 	fprintf(out, "  +\n");
 
-      formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'm',
-			   URV(address), URV(memValue), tmp.c_str());
+      if (sizeof(URV) == 4 and writeSize == 8)  // wide store
+        {
+          fprintf(out, "#%ld %d %08x %8s m %08x %016lx  %s",
+                  tag, hartIx_, uint32_t(currPc_), instBuff, uint32_t(address),
+                  memValue, tmp.c_str());
+        }
+      else
+        formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'm',
+                             URV(address), URV(memValue), tmp.c_str());
       pending = true;
     }
 
@@ -3537,7 +3533,7 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
       else if (id == InstId::ecall)
 	pregs.updateCounters(EventNumber::Ecall, prevPerfControl_,
                              lastPriv_);
-      else if (id == InstId::fence)
+      else if (id == InstId::fence or id == InstId::bbarrier)
 	pregs.updateCounters(EventNumber::Fence, prevPerfControl_,
                              lastPriv_);
       else if (id == InstId::fencei)
@@ -3998,7 +3994,7 @@ Hart<URV>::takeTriggerAction(FILE* traceFile, URV pc, URV info,
 
   if (csRegs_.hasEnterDebugModeTripped())
     {
-      enterDebugMode(DebugModeCause::TRIGGER, pc);
+      enterDebugMode_(DebugModeCause::TRIGGER, pc);
       enteredDebug = true;
     }
   else
@@ -4007,7 +4003,7 @@ Hart<URV>::takeTriggerAction(FILE* traceFile, URV pc, URV info,
       initiateException(ExceptionCause::BREAKP, pc, info, secCause);
       if (dcsrStep_)
 	{
-	  enterDebugMode(DebugModeCause::TRIGGER, pc_);
+	  enterDebugMode_(DebugModeCause::TRIGGER, pc_);
 	  enteredDebug = true;
 	}
     }
@@ -4226,7 +4222,7 @@ Hart<URV>::fetchInstWithTrigger(URV addr, uint32_t& inst, FILE* file)
         }
 
       if (dcsrStep_)
-        enterDebugMode(DebugModeCause::STEP, pc_);
+        enterDebugMode_(DebugModeCause::STEP, pc_);
 
       return false;  // Next instruction in trap handler.
     }
@@ -4857,7 +4853,7 @@ Hart<URV>::singleStep(FILE* traceFile)
 	  if (traceFile)
 	    printInstTrace(di, instCounter_, instStr, traceFile);
 	  if (dcsrStep_ and not ebreakInstDebug_)
-	    enterDebugMode(DebugModeCause::STEP, pc_);
+	    enterDebugMode_(DebugModeCause::STEP, pc_);
 	  return;
 	}
 
@@ -4895,7 +4891,7 @@ Hart<URV>::singleStep(FILE* traceFile)
 
       // If step bit set in dcsr then enter debug mode unless already there.
       if (dcsrStep_ and not ebreakInstDebug_)
-	enterDebugMode(DebugModeCause::STEP, pc_);
+	enterDebugMode_(DebugModeCause::STEP, pc_);
 
       prevPerfControl_ = perfControl_;
     }
@@ -4904,7 +4900,7 @@ Hart<URV>::singleStep(FILE* traceFile)
       // If step bit set in dcsr then enter debug mode unless already there.
       // This is for the benefit of the test bench.
       if (dcsrStep_ and not ebreakInstDebug_)
-	enterDebugMode(DebugModeCause::STEP, pc_);
+	enterDebugMode_(DebugModeCause::STEP, pc_);
 
       logStop(ce, instCounter_, traceFile);
     }
@@ -4945,7 +4941,7 @@ Hart<URV>::whatIfSingleStep(uint32_t inst, ChangeRecord& record)
 
   // If step bit set in dcsr then enter debug mode unless already there.
   if (dcsrStep_ and not ebreakInstDebug_)
-    enterDebugMode(DebugModeCause::STEP, pc_);
+    enterDebugMode_(DebugModeCause::STEP, pc_);
 
   // Collect changes. Undo each collected change.
   exceptionCount_ = prevExceptionCount;
@@ -5479,7 +5475,7 @@ Hart<URV>::execute(const DecodedInst* di)
      // Custom
      &&load64,
      &&store64,
-     &&bbarier,
+     &&bbarrier,
 
      // vevtor
      &&vsetvli,
@@ -6863,8 +6859,9 @@ Hart<URV>::execute(const DecodedInst* di)
   execStore64(di);
   return;
 
- bbarier:
-  return;  // no-op
+ bbarrier:
+  execBbarrier(di);
+  return;
 
  vsetvli:
   execVsetvli(di);
@@ -7806,10 +7803,9 @@ Hart<URV>::enableInstructionFrequency(bool b)
 
 template <typename URV>
 void
-Hart<URV>::enterDebugMode(DebugModeCause cause, URV pc)
+Hart<URV>::enterDebugMode_(DebugModeCause cause, URV pc)
 {
-  // Entering debug modes loses LR reservation.
-  memory_.invalidateLr(hartIx_);
+  cancelLr();  // Entering debug modes loses LR reservation.
 
   if (debugMode_)
     {
@@ -7845,13 +7841,34 @@ Hart<URV>::enterDebugMode(DebugModeCause cause, URV pc)
 
 template <typename URV>
 void
-Hart<URV>::enterDebugMode(URV pc)
+Hart<URV>::enterDebugMode(URV pc, bool force)
 {
   if (forceAccessFail_)
     {
       std::cerr << "Entering debug mode with a pending forced exception from"
 		<< " test-bench. Exception cleared.\n";
       forceAccessFail_ = false;
+    }
+
+  if (force)
+    {
+      // Revert valid entries in the load queue. The load queue may be
+      // non-empty on a forced debug halt.
+      for (size_t i = loadQueue_.size(); i > 0; --i)
+        {
+          auto& entry = loadQueue_.at(i-1);
+          if (not entry.valid_)
+            continue;
+          if (entry.fp_)
+            pokeFpReg(entry.regIx_, entry.prevData_);
+          else
+            {
+              pokeIntReg(entry.regIx_, entry.prevData_);
+              if (entry.wide_)
+                pokeCsr(CsrNumber::MDBHD, entry.prevData_ >> 32);
+            }
+        }
+      loadQueue_.clear();
     }
 
   // This method is used by the test-bench to make the simulator
@@ -7866,7 +7883,7 @@ Hart<URV>::enterDebugMode(URV pc)
   debugStepMode_ = false;
   debugMode_ = false;
 
-  enterDebugMode(DebugModeCause::DEBUGGER, pc);
+  enterDebugMode_(DebugModeCause::DEBUGGER, pc);
 }
 
 
@@ -7879,6 +7896,8 @@ Hart<URV>::exitDebugMode()
       std::cerr << "Error: Bench sent exit debug while not in debug mode.\n";
       return;
     }
+
+  cancelLr();  // Exiting debug modes loses LR reservation.
 
   peekCsr(CsrNumber::DPC, pc_);
 
@@ -8038,7 +8057,7 @@ void
 Hart<URV>::execSltiu(const DecodedInst* di)
 {
   URV imm = di->op2As<SRV>();   // We sign extend then use as unsigned.
-  URV v = intRegs_.read(di->op1()) < imm ? 1 : 0;
+  URV v = URV(intRegs_.read(di->op1())) < imm ? 1 : 0;
   intRegs_.write(di->op0(), v);
 }
 
@@ -8060,7 +8079,8 @@ Hart<URV>::execSrli(const DecodedInst* di)
   if (not checkShiftImmediate(di, amount))
     return;
 
-  URV v = intRegs_.read(di->op1()) >> amount;
+  URV v = intRegs_.read(di->op1());
+  v >>= amount;
   intRegs_.write(di->op0(), v);
 }
 
@@ -8100,7 +8120,7 @@ template <typename URV>
 void
 Hart<URV>::execSll(const DecodedInst* di)
 {
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   URV v = intRegs_.read(di->op1()) << (intRegs_.read(di->op2()) & mask);
   intRegs_.write(di->op0(), v);
 }
@@ -8141,8 +8161,9 @@ template <typename URV>
 void
 Hart<URV>::execSrl(const DecodedInst* di)
 {
-  URV mask = intRegs_.shiftMask();
-  URV v = intRegs_.read(di->op1()) >> (intRegs_.read(di->op2()) & mask);
+  URV mask = shiftMask();
+  URV v = intRegs_.read(di->op1());
+  v >>= (intRegs_.read(di->op2()) & mask);
   intRegs_.write(di->op0(), v);
 }
 
@@ -8151,7 +8172,7 @@ template <typename URV>
 void
 Hart<URV>::execSra(const DecodedInst* di)
 {
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   URV v = SRV(intRegs_.read(di->op1())) >> (intRegs_.read(di->op2()) & mask);
   intRegs_.write(di->op0(), v);
 }
@@ -8221,6 +8242,7 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
 
   // Temporary: Check if not cachable. FIX: this should be part of
   // physical memory attributes.
+#if 0
   if (not fail and not isAddrInDccm(addr))
     {
       unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
@@ -8231,6 +8253,7 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
           fail = bit == 0;
         }
     }
+#endif
 
   if (fail)
     {
@@ -8397,7 +8420,7 @@ Hart<URV>::execEbreak(const DecodedInst*)
         {
           // The documentation (RISCV external debug support) does
           // not say whether or not we set EPC and MTVAL.
-          enterDebugMode(DebugModeCause::EBREAK, currPc_);
+          enterDebugMode_(DebugModeCause::EBREAK, currPc_);
           ebreakInstDebug_ = true;
           recordCsrWrite(CsrNumber::DCSR);
           return;
@@ -8467,7 +8490,7 @@ Hart<URV>::execMret(const DecodedInst* di)
   if (triggerTripped_)
     return;
 
-  memory_.invalidateLr(hartIx_); // Clear LR reservation (if any).
+  cancelLr(); // Clear LR reservation (if any).
 
   // Restore privilege mode and interrupt enable by getting
   // current value of MSTATUS, ...
@@ -8526,7 +8549,7 @@ Hart<URV>::execSret(const DecodedInst* di)
   if (triggerTripped_)
     return;
 
-  memory_.invalidateLr(hartIx_); // Clear LR reservation (if any).
+  cancelLr(); // Clear LR reservation (if any).
 
   // Restore privilege mode and interrupt enable by getting
   // current value of SSTATUS, ...
@@ -9001,24 +9024,16 @@ template <typename URV>
 bool
 Hart<URV>::wideStore(URV addr, URV storeVal)
 {
-  if ((addr & 7) or not isDataAddressExternal(addr))
-    {
-      auto cause = ExceptionCause::STORE_ACC_FAULT;
-      auto secCause = SecondaryCause::STORE_ACC_64BIT;
-      initiateStoreException(cause, addr, secCause);
-      return false;
-    }
-
   uint32_t lower = storeVal;
 
   URV temp = 0;
   peekCsr(CsrNumber::MDBHD, temp);
   uint32_t upper = temp;
 
-  if (not memory_.write(hartIx_, addr + 4, upper) or
-      not memory_.write(hartIx_, addr, lower))
+  // Enable when bench is ready.
+  uint64_t val = (uint64_t(upper) << 32) | lower;
+  if (not memory_.write(hartIx_, addr, val))
     {
-      // FIX: Clear last written data if 1st 4 bytes written.
       auto cause = ExceptionCause::STORE_ACC_FAULT;
       auto secCause = SecondaryCause::STORE_ACC_64BIT;
       initiateStoreException(cause, addr, secCause);
@@ -9055,6 +9070,14 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
         return cause;
     }
 
+  // Wide store.
+  size_t region = memory_.getRegionIndex(addr);
+  if (wideLdSt_ and regionHasLocalDataMem_.at(region))
+    {
+      secCause = SecondaryCause::STORE_ACC_64BIT;
+      return ExceptionCause::STORE_ACC_FAULT;
+    }
+
   // Stack access.
   if (rs1 == RegSp and checkStackAccess_ and
       not checkStackStore(base, addr, stSize))
@@ -9086,23 +9109,9 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
       if (not writeOk and not isAddrMemMapped(addr))
         {
           secCause = SecondaryCause::STORE_ACC_MEM_PROTECTION;
-          size_t region = memory_.getRegionIndex(addr);
           if (regionHasLocalDataMem_.at(region))
             secCause = SecondaryCause::STORE_ACC_LOCAL_UNMAPPED;
           return ExceptionCause::STORE_ACC_FAULT;
-        }
-
-      // 64-bit store
-      if (wideLdSt_)
-        {
-          bool fail = (addr & 7) or ! isDataAddressExternal(addr);
-          uint64_t val = 0;
-          fail = fail or ! memory_.checkWrite(addr, val);
-          if (fail)
-            {
-              secCause = SecondaryCause::STORE_ACC_64BIT;
-              return ExceptionCause::STORE_ACC_FAULT;
-            }
         }
 
       // Region predict (Effective address compatible with base).
@@ -9220,7 +9229,7 @@ namespace WdRiscv
   Hart<uint32_t>::execMulhsu(const DecodedInst* di)
   {
     int64_t a = int32_t(intRegs_.read(di->op1()));
-    uint64_t b = intRegs_.read(di->op2());
+    uint64_t b = uint32_t(intRegs_.read(di->op2()));
     int64_t c = a * b;
     int32_t high = static_cast<int32_t>(c >> 32);
 
@@ -9232,8 +9241,8 @@ namespace WdRiscv
   void
   Hart<uint32_t>::execMulhu(const DecodedInst* di)
   {
-    uint64_t a = intRegs_.read(di->op1());
-    uint64_t b = intRegs_.read(di->op2());
+    uint64_t a = uint32_t(intRegs_.read(di->op1()));
+    uint64_t b = uint32_t(intRegs_.read(di->op2()));
     uint64_t c = a * b;
     uint32_t high = static_cast<uint32_t>(c >> 32);
 
@@ -9806,6 +9815,7 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
 
   // Temporary: Check if not cachable. FIX: this should be part of
   // physical memory attributes.
+#if 0
   if (not fail and not isAddrInDccm(addr))
     {
       unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
@@ -9816,6 +9826,7 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
           fail = bit == 0;
         }
     }
+#endif
 
   if (fail)
     {
@@ -9862,11 +9873,13 @@ void
 Hart<URV>::execLr_w(const DecodedInst* di)
 {
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
+
+  lrCount_++;
   uint64_t physAddr = 0;
   if (not loadReserve<int32_t>(di->op0(), di->op1(), physAddr))
     return;
-
   memory_.makeLr(hartIx_, physAddr, 4 /*size*/);
+  lrSuccess_++;
 }
 
 
@@ -9904,6 +9917,7 @@ Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
 
   // Temporary: Check if not cachable. FIX: this should be part of
   // physical memory attributes.
+#if 0
   if (not fail and not isAddrInDccm(addr))
     {
       unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
@@ -9914,6 +9928,7 @@ Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
           fail = bit == 0;
         }
     }
+#endif
 
   if (fail)
     {
@@ -9971,16 +9986,18 @@ Hart<URV>::execSc_w(const DecodedInst* di)
   uint32_t rs1 = di->op1();
   URV value = intRegs_.read(di->op2());
   URV addr = intRegs_.read(rs1);
+  scCount_++;
 
   uint64_t prevCount = exceptionCount_;
 
   bool ok = storeConditional(rs1, addr, uint32_t(value));
-  memory_.invalidateLr(hartIx_);
+  cancelLr(); // Clear LR reservation (if any).
 
   if (ok)
     {
       memory_.invalidateOtherHartLr(hartIx_, addr, 4);
       intRegs_.write(di->op0(), 0); // success
+      scSuccess_++;
       return;
     }
 
@@ -10267,11 +10284,12 @@ Hart<URV>::execLr_d(const DecodedInst* di)
 {
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
+  lrCount_++;
   uint64_t physAddr = 0;
   if (not loadReserve<int64_t>(di->op0(), di->op1(), physAddr))
     return;
-
   memory_.makeLr(hartIx_, physAddr, 8 /*size*/);
+  lrSuccess_++;
 }
 
 
@@ -10284,16 +10302,18 @@ Hart<URV>::execSc_d(const DecodedInst* di)
   uint32_t rs1 = di->op1();
   URV value = intRegs_.read(di->op2());
   URV addr = intRegs_.read(rs1);
+  scCount_++;
 
   uint64_t prevCount = exceptionCount_;
 
   bool ok = storeConditional(rs1, addr, uint64_t(value));
-  memory_.invalidateLr(hartIx_);
+  cancelLr(); // Clear LR reservation (if any).
 
   if (ok)
     {
       memory_.invalidateOtherHartLr(hartIx_, addr, 8);
       intRegs_.write(di->op0(), 0); // success
+      scSuccess_++;
       return;
     }
 
@@ -10672,7 +10692,7 @@ Hart<URV>::execSlo(const DecodedInst* di)
       return;
     }
 
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   URV shift = intRegs_.read(di->op2()) & mask;
 
   URV v1 = intRegs_.read(di->op1());
@@ -10691,7 +10711,7 @@ Hart<URV>::execSro(const DecodedInst* di)
       return;
     }
 
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   URV shift = intRegs_.read(di->op2()) & mask;
 
   URV v1 = intRegs_.read(di->op1());
@@ -10818,7 +10838,7 @@ Hart<URV>::execRol(const DecodedInst* di)
       return;
     }
 
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   URV rot = intRegs_.read(di->op2()) & mask;  // Rotate amount
 
   URV v1 = intRegs_.read(di->op1());
@@ -10838,7 +10858,7 @@ Hart<URV>::execRor(const DecodedInst* di)
       return;
     }
 
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   URV rot = intRegs_.read(di->op2()) & mask;  // Rotate amount
 
   URV v1 = intRegs_.read(di->op1());
@@ -10936,8 +10956,8 @@ Hart<URV>::execPack(const DecodedInst* di)
     }
 
   unsigned halfXlen = mxlen_ >> 1;
-  URV lower = (intRegs_.read(di->op1()) << halfXlen) >> halfXlen;
-  URV upper = intRegs_.read(di->op2()) << halfXlen;
+  URV lower = (URV(intRegs_.read(di->op1())) << halfXlen) >> halfXlen;
+  URV upper = URV(intRegs_.read(di->op2())) << halfXlen;
   URV res = upper | lower;
   intRegs_.write(di->op0(), res);
 }
@@ -11434,7 +11454,7 @@ Hart<URV>::execSbset(const DecodedInst* di)
       return;
     }
 
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   unsigned bitIx = intRegs_.read(di->op2()) & mask;
 
   URV value = intRegs_.read(di->op1()) | (URV(1) << bitIx);
@@ -11452,7 +11472,7 @@ Hart<URV>::execSbclr(const DecodedInst* di)
       return;
     }
 
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   unsigned bitIx = intRegs_.read(di->op2()) & mask;
 
   URV value = intRegs_.read(di->op1()) & ~(URV(1) << bitIx);
@@ -11470,7 +11490,7 @@ Hart<URV>::execSbinv(const DecodedInst* di)
       return;
     }
 
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   unsigned bitIx = intRegs_.read(di->op2()) & mask;
 
   URV value = intRegs_.read(di->op1()) ^ (URV(1) << bitIx);
@@ -11488,7 +11508,7 @@ Hart<URV>::execSbext(const DecodedInst* di)
       return;
     }
 
-  URV mask = intRegs_.shiftMask();
+  URV mask = shiftMask();
   unsigned bitIx = intRegs_.read(di->op2()) & mask;
 
   URV value = (intRegs_.read(di->op1()) >> bitIx) & 1;
@@ -11637,7 +11657,7 @@ Hart<URV>::execBfp(const DecodedInst* di)
   URV v1 = intRegs_.read(di->op1());
   URV v2 = intRegs_.read(di->op2());
 
-  unsigned off = (v2 >> 16) & intRegs_.shiftMask();
+  unsigned off = (v2 >> 16) & shiftMask();
   unsigned len = (v2 >> 24) & 0xf;
   if (len == 0)
     len = 16;
@@ -12545,6 +12565,36 @@ Hart<URV>::execStore64(const DecodedInst* di)
   wideLdSt_ = false;
 }
 
+
+template <typename URV>
+void
+Hart<URV>::execBbarrier(const DecodedInst* di)
+{
+  if (not enableBbarrier_)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  // no-op.
+}
+
+
+template
+bool
+WdRiscv::Hart<uint32_t>::store<uint32_t>(uint32_t, uint32_t, uint32_t, uint32_t);
+
+template
+bool
+WdRiscv::Hart<uint32_t>::store<uint64_t>(uint32_t, uint32_t, uint32_t, uint64_t);
+
+template
+bool
+WdRiscv::Hart<uint64_t>::store<uint32_t>(uint32_t, uint64_t, uint64_t, uint32_t);
+
+template
+bool
+WdRiscv::Hart<uint64_t>::store<uint64_t>(uint32_t, uint64_t, uint64_t, uint64_t);
 
 template
 ExceptionCause

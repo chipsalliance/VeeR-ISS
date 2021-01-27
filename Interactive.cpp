@@ -79,6 +79,27 @@ parseCmdLineNumber(const std::string& option,
 }
 
 
+static
+bool
+parseCmdLineBool(const std::string& option, const std::string& str, bool& val)
+{
+  bool good = true;
+
+  if (str == "0" or str == "false")
+    val = false;
+  else if (str == "1" or str == "true")
+    val = true;
+  else
+    good = false;
+
+  if (not good)
+    std::cerr << "Invalid command line " << option << " value: " << str
+	      << '\n';
+
+  return good;
+}
+
+
 template <typename URV>
 Interactive<URV>::Interactive(System<URV>& system)
   : system_(system)
@@ -356,7 +377,8 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
       uint32_t word = 0;
       for (size_t addr = addr0; addr <= addr1; addr += 4)
 	{
-	  if (not hart.peekMemory(addr, word))
+          bool usePma = false;
+	  if (not hart.peekMemory(addr, word, usePma))
 	    {
 	      std::cerr << "Memory address out of bounds: " << addrStr << '\n';
 	      return false;
@@ -581,7 +603,9 @@ Interactive<URV>::pokeCommand(Hart<URV>& hart, const std::string& line,
       size_t addr = 0;
       if (not parseCmdLineNumber("address", addrStr, addr))
 	return false;
-      if (hart.pokeMemory(addr, value))
+      bool usePma = false; // Ignore physicla memory attributes.
+      uint32_t word = value; // Memory peek/poke in words.
+      if (hart.pokeMemory(addr, word, usePma))
 	return true;
       std::cerr << "Address out of bounds: " << addrStr << '\n';
       return false;
@@ -646,7 +670,8 @@ Interactive<URV>::disassCommand(Hart<URV>& hart, const std::string& line,
       for (size_t addr = start; addr < end; )
 	{
 	  uint32_t inst = 0;
-	  if (not hart.peekMemory(addr, inst))
+          bool usePma = false;
+	  if (not hart.peekMemory(addr, inst, usePma))
 	    {
 	      std::cerr << "Address out of bounds: 0x" << std::hex << addr
 			<< '\n' << std::dec;
@@ -687,7 +712,8 @@ Interactive<URV>::disassCommand(Hart<URV>& hart, const std::string& line,
   for (URV addr = addr1; addr <= addr2; )
     {
       uint32_t inst = 0;
-      if (not hart.peekMemory(addr, inst))
+      bool usePma = false;
+      if (not hart.peekMemory(addr, inst, usePma))
 	{
 	  std::cerr << "Address out of bounds: 0x" << std::hex << addr
 		    << '\n' << std::dec;
@@ -1200,11 +1226,11 @@ Interactive<URV>::helpCommand(const std::vector<std::string>& tokens)
       return;
     }
 
-  if (tag == "disas")
+  if (tag == "disas" or tag == "disass")
     {
-      cout << "disas opcode <op0> <op1> ...\n"
-	   << "disas func <address>\n"
-	   << "disas <addr1> <addr2>\n"
+      cout << "disass opcode <op0> <op1> ...\n"
+	   << "disass func <address>\n"
+	   << "disass <addr1> <addr2>\n"
 	   << "  The first form will disassemble the given opcodes.\n"
 	   << "  The second form will disassemble the instructions of the\n"
 	   << "  function containing the given address.\n"
@@ -1382,7 +1408,7 @@ Interactive<URV>::executeLine(unsigned& currentHartId,
       return true;
     }
 
-  if (command == "d" or command == "disas")
+  if (command == "d" or command == "disas" or command == "disass")
     {
       if (not disassCommand(hart, line, tokens))
 	return false;
@@ -1437,9 +1463,13 @@ Interactive<URV>::executeLine(unsigned& currentHartId,
 
   if (command == "enter_debug")
     {
-      hart.enterDebugMode(hart.peekPc());
+      bool force = false;
+      if (tokens.size() == 2)
+        if (not parseCmdLineBool("force", tokens[1], force))
+          return false;
+      hart.enterDebugMode(hart.peekPc(), force);
       if (commandLog)
-	fprintf(commandLog, "%s\n", outLine.c_str());
+	fprintf(commandLog, "%s %s\n", outLine.c_str(), force? "true" : "false");
       return true;
     }
 

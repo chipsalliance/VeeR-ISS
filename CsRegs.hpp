@@ -649,10 +649,6 @@ namespace WdRiscv
     /// in the given mode.
     bool isWriteable(CsrNumber number, PrivilegeMode mode) const;
 
-    /// Return the number of bits in a register in this register file.
-    static constexpr uint32_t regWidth()
-    { return sizeof(URV)*8; }
-
   protected:
 
     /// Define csr with given name and number. Return pointer to csr

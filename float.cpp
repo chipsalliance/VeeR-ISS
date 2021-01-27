@@ -91,6 +91,9 @@ template <typename URV>
 void
 Hart<URV>::setFcsrFlags(FpFlags flag)
 {
+  if (triggerTripped_)
+    return;
+
   auto prev = getFpFlags();
   auto val = prev | unsigned(flag);
   if (val != prev)
@@ -164,6 +167,9 @@ inline
 void
 Hart<URV>::updateAccruedFpBits(float res, bool invalid)
 {
+  if (triggerTripped_)
+    return;
+
   URV val = getFpFlags();
   URV prev = val;
 
@@ -211,6 +217,9 @@ inline
 void
 Hart<URV>::updateAccruedFpBits(double res, bool invalid)
 {
+  if (triggerTripped_)
+    return;
+
   URV val = getFpFlags();
   URV prev = val;
 
@@ -502,7 +511,7 @@ template <typename URV>
 void
 Hart<URV>::execFsw(const DecodedInst* di)
 {
-if (not isFpLegal())
+  if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -1066,11 +1075,6 @@ Hart<URV>::execFcvt_wu_s(const DecodedInst* di)
 
   // In 64-bit mode, we sign extend the result to 64-bits.
   result = SRV(int32_t(f32_to_ui32(floatToF32(f1), softfloat_roundingMode, true)));
-  if (not std::isnan(f1) and f1 < 0)
-    {
-      softfloat_exceptionFlags &= ~softfloat_flag_inexact;  // Should not set inexact.
-      softfloat_exceptionFlags |= softfloat_flag_invalid;
-    }
   updateAccruedFpBits(0.0f, false);
 
 #else
@@ -1452,11 +1456,6 @@ Hart<uint64_t>::execFcvt_lu_s(const DecodedInst* di)
 #ifdef SOFT_FLOAT
 
   result = f32_to_ui64(floatToF32(f1), softfloat_roundingMode, true);
-  if (not std::isnan(f1) and f1 < 0)
-    {
-      softfloat_exceptionFlags &= ~softfloat_flag_inexact;  // Should not set inexact.
-      softfloat_exceptionFlags |= softfloat_flag_invalid;
-    }
   updateAccruedFpBits(0.0f, false);
 
 #else
@@ -2245,11 +2244,6 @@ Hart<URV>::execFcvt_wu_d(const DecodedInst* di)
 #ifdef SOFT_FLOAT
 
   result = SRV(int32_t(f64_to_ui32(doubleToF64(d1), softfloat_roundingMode, true)));
-  if (not std::isnan(d1) and d1 < 0)
-    {
-      softfloat_exceptionFlags &= ~softfloat_flag_inexact;  // Should not set inexact.
-      softfloat_exceptionFlags |= softfloat_flag_invalid;
-    }
   updateAccruedFpBits(0.0f, false);
 
 #else
@@ -2485,11 +2479,6 @@ Hart<uint64_t>::execFcvt_lu_d(const DecodedInst* di)
 #ifdef SOFT_FLOAT
 
   result = f64_to_ui64(doubleToF64(f1), softfloat_roundingMode, true);
-  if (not std::isnan(f1) and f1 < 0)
-    {
-      softfloat_exceptionFlags &= ~softfloat_flag_inexact;  // Should not set inexact.
-      softfloat_exceptionFlags |= softfloat_flag_invalid;
-    }
   updateAccruedFpBits(0.0f, false);
 
 #else

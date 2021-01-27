@@ -1025,6 +1025,17 @@ HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
         errors++;
     }
 
+  // Bus barrier. WDC special.
+  tag = "enable_bus_barrier";
+  if (config_ -> count(tag))
+    {
+      bool flag = true;
+      if (getJsonBoolean(tag, config_ ->at(tag), flag))
+        hart.enableBusBarrier(flag);
+      else
+        errors++;
+    }
+
   // Ld/st instructions trigger misaligned exception if base address
   // (value in rs1) and effective address refer to regions of
   // different types.

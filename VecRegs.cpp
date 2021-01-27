@@ -42,7 +42,6 @@ VecRegs::VecRegs()
   // Temporary, for testing. FIX.
   elems_ = 2;
 
-  std::cerr << "VecRegs::VecRegs: Remove test code\n";
 }
 
 

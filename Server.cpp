@@ -301,14 +301,18 @@ Server<URV>::pokeCommand(const WhisperMessage& req, WhisperMessage& reply)
       break;
 
     case 'm':
-      if (sizeof(URV) == 4)
-	{
-	  // Poke a word in 32-bit harts.
-	  if (hart.pokeMemory(req.address, uint32_t(req.value)))
-	    return true;
-	}
-      else if (hart.pokeMemory(req.address, req.value))
-	return true;
+      {
+        bool usePma = false; // Ignore phsical memory attributes.
+
+        if (sizeof(URV) == 4)
+          {
+            // Poke a word in 32-bit harts.
+            if (hart.pokeMemory(req.address, uint32_t(req.value), usePma))
+              return true;
+          }
+        else if (hart.pokeMemory(req.address, req.value, usePma))
+          return true;
+      }
       break;
     }
 
@@ -367,7 +371,7 @@ Server<URV>::peekCommand(const WhisperMessage& req, WhisperMessage& reply)
 	}
       break;
     case 'm':
-      if (hart.peekMemory(req.address, value))
+      if (hart.peekMemory(req.address, value, false /*usePma*/))
 	{
 	  reply.value = value;
 	  return true;
@@ -545,11 +549,18 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
   hart.lastMemory(addresses, words);
   assert(addresses.size() == words.size());
 
-  for (size_t i = 0; i < addresses.size(); ++i)
+  if (addresses.size() == 2 and (addresses.at(0) + 4 == addresses.at(1)))
     {
-      WhisperMessage msg(0, Change, 'm', addresses.at(i), words.at(i));
+      uint64_t dword = (uint64_t(words.at(1)) << 32) | words.at(0);
+      WhisperMessage msg (0, Change, 'm', addresses.at(0),  dword);
       pendingChanges.push_back(msg);
     }
+  else
+    for (size_t i = 0; i < addresses.size(); ++i)
+      {
+        WhisperMessage msg(0, Change, 'm', addresses.at(i), words.at(i));
+        pendingChanges.push_back(msg);
+      }
 
   // Add count of changes to reply.
   reply.value = pendingChanges.size();
@@ -888,11 +899,14 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
 	      break;
 
 	    case EnterDebug:
-              if (checkHart(msg, "enter_debug", reply))
-                hart.enterDebugMode(hart.peekPc());
-              if (commandLog)
-                fprintf(commandLog, "hart=%d enter_debug # ts=%s\n", hartId,
-                        timeStamp.c_str());
+              {
+                bool force = msg.flags;
+                if (checkHart(msg, "enter_debug", reply))
+                  hart.enterDebugMode(hart.peekPc(), force);
+                if (commandLog)
+                  fprintf(commandLog, "hart=%d enter_debug %s # ts=%s\n", hartId,
+                          force? "true" : "false", timeStamp.c_str());
+              }
 	      break;
 
 	    case ExitDebug:

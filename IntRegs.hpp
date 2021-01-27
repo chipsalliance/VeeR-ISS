@@ -151,10 +151,6 @@ namespace WdRiscv
     /// 2. If name is "tp" then ix will be set to 4.
     bool findReg(const std::string& name, unsigned& ix) const;
 
-    /// Return the number of bits in a register in this register file.
-    static constexpr uint32_t regWidth()
-    { return sizeof(URV)*8; }
-
     /// Return the name of the given register.
     std::string regName(unsigned i, bool abiNames = false) const
     {
@@ -167,35 +163,6 @@ namespace WdRiscv
       if (i < numberToName_.size())
 	return numberToName_[i];
       return std::string("x?");
-    }
-
-    /// Return the number of bits used to encode a shift amount in
-    /// the RISC-V instruction. For 32-bit registers, this returns 5
-    /// (which allows us to encode the amounts 0 to 31),
-    /// for 64-bit registers it returns 6 (which allows encoding of 0
-    /// to 63).
-    static uint32_t log2RegWidth()
-    { 
-      if (std::is_same<URV, uint32_t>::value)
-	return 5;
-      if (std::is_same<URV, uint64_t>::value)
-	return 6;
-      assert(0 and "Register value type must be uint32_t or uint64_t.");
-      return 5;
-    }
-
-    /// Return a register value with the least significant n-bits set to 1
-    /// and all remaining bits set to zero where n is the number of bits
-    /// required to encode any bit number in a register. For 32-bit registers
-    /// this returns 0x1f, for 64-bit registers it returns 0x3f.
-    static URV shiftMask()
-    {
-      if (std::is_same<URV, uint32_t>::value)
-	return 0x1f;
-      if (std::is_same<URV, uint64_t>::value)
-	return 0x3f;
-      assert(0 and "Register value type must be uint32_t or uint64_t.");
-      return 0x1f;
     }
 
   protected:
