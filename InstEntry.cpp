@@ -1496,17 +1496,17 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::Imm, OperandMode::None, immTop12 },
 
-      { "sext_b", InstId::sext_b, 0x60401013, 0xfff0707f,
+      { "sext.b", InstId::sext_b, 0x60401013, 0xfff0707f,
         InstType::Zbb,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask },
 
-      { "sext_h", InstId::sext_h, 0x60501013, 0xfff0707f,
+      { "sext.h", InstId::sext_h, 0x60501013, 0xfff0707f,
         InstType::Zbb,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask },
 
-      { "addu_w", InstId::addu_w, 0x800003b, top7Funct3Low7Mask,
+      { "add.uw", InstId::add_uw, 0x800003b, top7Funct3Low7Mask,
         InstType::Zbb,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
@@ -1518,7 +1518,7 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "slliu_w", InstId::slliu_w, 0x0800101b, 0xf800707f,
+      { "slli.uw", InstId::slli_uw, 0x0800101b, 0xf800707f,
 	InstType::Zbb,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
@@ -1698,19 +1698,19 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "sh1addu_w", InstId::sh1addu_w, 0x2000203B, top7Funct3Low7Mask,
+      { "sh1add.uw", InstId::sh1add_uw, 0x2000203B, top7Funct3Low7Mask,
 	InstType::Zba,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "sh2addu_w", InstId::sh2addu_w, 0x2000403B, top7Funct3Low7Mask,
+      { "sh2add.uw", InstId::sh2add_uw, 0x2000403B, top7Funct3Low7Mask,
 	InstType::Zba,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "sh3addu_w", InstId::sh3addu_w, 0x2000603B, top7Funct3Low7Mask,
+      { "sh3add.uw", InstId::sh3add_uw, 0x2000603B, top7Funct3Low7Mask,
 	InstType::Zba,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,

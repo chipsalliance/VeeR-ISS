@@ -227,7 +227,7 @@ namespace WdRiscv
     unsigned top4() const
     { return uimmed() >> 8; }
 
-    /// Return top 5-bits of instruction (for slliu.w).
+    /// Return top 5-bits of instruction (for slli.uw).
     unsigned top5() const
     { return uimmed() >> 7; }
 

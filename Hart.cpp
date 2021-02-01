@@ -5414,9 +5414,9 @@ Hart<URV>::execute(const DecodedInst* di)
      &&addiwu,
      &&sext_b,
      &&sext_h,
-     &&addu_w,
+     &&add_uw,
      &&subu_w,
-     &&slliu_w,
+     &&slli_uw,
      &&packh,
      &&packu,
      &&packw,
@@ -5446,9 +5446,9 @@ Hart<URV>::execute(const DecodedInst* di)
      &&sh1add,
      &&sh2add,
      &&sh3add,
-     &&sh1addu_w,
-     &&sh2addu_w,
-     &&sh3addu_w,
+     &&sh1add_uw,
+     &&sh2add_uw,
+     &&sh3add_uw,
 
      // zbr
      &&crc32_b,
@@ -6647,16 +6647,16 @@ Hart<URV>::execute(const DecodedInst* di)
   execSext_h(di);
   return;
 
- addu_w:
-  execAddu_w(di);
+ add_uw:
+  execAdd_uw(di);
   return;
 
  subu_w:
   execSubu_w(di);
   return;
 
- slliu_w:
-  execSlliu_w(di);
+ slli_uw:
+  execSlli_uw(di);
   return;
 
  packh:
@@ -6775,16 +6775,16 @@ Hart<URV>::execute(const DecodedInst* di)
   execSh3add(di);
   return;
 
- sh1addu_w:
-  execSh1addu_w(di);
+ sh1add_uw:
+  execSh1add_uw(di);
   return;
 
- sh2addu_w:
-  execSh2addu_w(di);
+ sh2add_uw:
+  execSh2add_uw(di);
   return;
 
- sh3addu_w:
-  execSh3addu_w(di);
+ sh3add_uw:
+  execSh3add_uw(di);
   return;
 
  crc32_b:
@@ -11042,7 +11042,7 @@ Hart<URV>::execSext_h(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execAddu_w(const DecodedInst* di)
+Hart<URV>::execAdd_uw(const DecodedInst* di)
 {
   if (not isRv64() or not isRvzbb())
     {
@@ -11072,7 +11072,7 @@ Hart<URV>::execSubu_w(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execSlliu_w(const DecodedInst* di)
+Hart<URV>::execSlli_uw(const DecodedInst* di)
 {
   if (not isRv64() or not isRvzbb())
     {
@@ -11985,7 +11985,7 @@ getModeFromPmpconfigByte(uint8_t byte)
 
 template <typename URV>
 void
-Hart<URV>::execSh1addu_w(const DecodedInst* di)
+Hart<URV>::execSh1add_uw(const DecodedInst* di)
 {
   if (not isRv64() or not isRvzba())
     {
@@ -12003,7 +12003,7 @@ Hart<URV>::execSh1addu_w(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execSh2addu_w(const DecodedInst* di)
+Hart<URV>::execSh2add_uw(const DecodedInst* di)
 {
   if (not isRv64() or not isRvzba())
     {
@@ -12021,7 +12021,7 @@ Hart<URV>::execSh2addu_w(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execSh3addu_w(const DecodedInst* di)
+Hart<URV>::execSh3add_uw(const DecodedInst* di)
 {
   if (not isRv64() or not isRvzba())
     {

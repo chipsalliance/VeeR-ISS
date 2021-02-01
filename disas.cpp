@@ -1542,16 +1542,16 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printRdRs1(*this, out, "sext.h", di);
       break;
 
-    case InstId::addu_w:
-      printRdRs1Rs2(*this, out, "addu.w", di);
+    case InstId::add_uw:
+      printRdRs1Rs2(*this, out, "add.uw", di);
       break;
 
     case InstId::subu_w:
       printRdRs1Rs2(*this, out, "subu.w", di);
       break;
 
-    case InstId::slliu_w:
-      printShiftImm(*this, out, "slliu.w", di);
+    case InstId::slli_uw:
+      printShiftImm(*this, out, "slli.uw", di);
       break;
 
     case InstId::packh:
@@ -1670,16 +1670,16 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printRdRs1Rs2(*this, out, "sh3add", di);
       break;
 
-    case InstId::sh1addu_w:
-      printRdRs1Rs2(*this, out, "sh1addu.w ", di);
+    case InstId::sh1add_uw:
+      printRdRs1Rs2(*this, out, "sh1add.uw ", di);
       break;
 
-    case InstId::sh2addu_w:
-      printRdRs1Rs2(*this, out, "sh2addu.w ", di);
+    case InstId::sh2add_uw:
+      printRdRs1Rs2(*this, out, "sh2add.uw ", di);
       break;
 
-    case InstId::sh3addu_w:
-      printRdRs1Rs2(*this, out, "sh3addu.w ", di);
+    case InstId::sh3add_uw:
+      printRdRs1Rs2(*this, out, "sh3add.uw ", di);
       break;
 
     case InstId::crc32_b:

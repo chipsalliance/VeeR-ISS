@@ -1970,9 +1970,9 @@ namespace WdRiscv
     void execAddiwu(const DecodedInst*);
     void execSext_b(const DecodedInst*);
     void execSext_h(const DecodedInst*);
-    void execAddu_w(const DecodedInst*);
+    void execAdd_uw(const DecodedInst*);
     void execSubu_w(const DecodedInst*);
-    void execSlliu_w(const DecodedInst*);
+    void execSlli_uw(const DecodedInst*);
     void execPackh(const DecodedInst*);
     void execPacku(const DecodedInst*);
     void execPackw(const DecodedInst*);
@@ -2008,9 +2008,9 @@ namespace WdRiscv
     void execSh1add(const DecodedInst*);
     void execSh2add(const DecodedInst*);
     void execSh3add(const DecodedInst*);
-    void execSh1addu_w(const DecodedInst*);
-    void execSh2addu_w(const DecodedInst*);
-    void execSh3addu_w(const DecodedInst*);
+    void execSh1add_uw(const DecodedInst*);
+    void execSh2add_uw(const DecodedInst*);
+    void execSh3add_uw(const DecodedInst*);
 
     void execCrc32_b(const DecodedInst*);
     void execCrc32_h(const DecodedInst*);
