@@ -259,7 +259,7 @@ namespace WdRiscv
      // zbb
      clz,
      ctz,
-     pcnt,
+     cpop,
      andn,
      orn,
      xnor,
@@ -275,20 +275,11 @@ namespace WdRiscv
      ror,
      rori,
      rev8,  // was bswap
-     rev,   // was brev
      pack,
-     addwu,
-     subwu,
-     addiwu,
      sext_b,
      sext_h,
-     add_uw,
-     subu_w,
      slli_uw,
      packh,
-     packu,
-     packw,
-     packuw,
      grev,
      grevi,
      gorc,
@@ -298,18 +289,17 @@ namespace WdRiscv
      unshfl,
      unshfli,
 
-     sbset,
-     sbclr,
-     sbinv,
-     sbext,
-     sbseti,
-     sbclri,
-     sbinvi,
-     sbexti,
+     bset,
+     bclr,
+     binv,
+     bext,
+     bseti,
+     bclri,
+     binvi,
+     bexti,
 
      // zbe
      bdep,
-     bext,
 
      // zbf
      bfp,
@@ -326,6 +316,7 @@ namespace WdRiscv
      sh1add_uw,
      sh2add_uw,
      sh3add_uw,
+     add_uw,
 
      // zbr
      crc32_b,

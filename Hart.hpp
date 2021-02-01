@@ -1947,7 +1947,7 @@ namespace WdRiscv
     // Bit manipulation: zbb
     void execClz(const DecodedInst*);
     void execCtz(const DecodedInst*);
-    void execPcnt(const DecodedInst*);
+    void execCpop(const DecodedInst*);
     void execAndn(const DecodedInst*);
     void execOrn(const DecodedInst*);
     void execXnor(const DecodedInst*);
@@ -1963,20 +1963,11 @@ namespace WdRiscv
     void execRor(const DecodedInst*);
     void execRori(const DecodedInst*);
     void execRev8(const DecodedInst*);
-    void execRev(const DecodedInst*);
     void execPack(const DecodedInst*);
-    void execAddwu(const DecodedInst*);
-    void execSubwu(const DecodedInst*);
-    void execAddiwu(const DecodedInst*);
     void execSext_b(const DecodedInst*);
     void execSext_h(const DecodedInst*);
-    void execAdd_uw(const DecodedInst*);
-    void execSubu_w(const DecodedInst*);
     void execSlli_uw(const DecodedInst*);
     void execPackh(const DecodedInst*);
-    void execPacku(const DecodedInst*);
-    void execPackw(const DecodedInst*);
-    void execPackuw(const DecodedInst*);
     void execGrev(const DecodedInst*);
     void execGrevi(const DecodedInst*);
     void execGorc(const DecodedInst*);
@@ -1987,17 +1978,16 @@ namespace WdRiscv
     void execUnshfli(const DecodedInst*);
 
     // Bit manipulation: zbs
-    void execSbset(const DecodedInst*);
-    void execSbclr(const DecodedInst*);
-    void execSbinv(const DecodedInst*);
-    void execSbext(const DecodedInst*);
-
-    void execSbseti(const DecodedInst*);
-    void execSbclri(const DecodedInst*);
-    void execSbinvi(const DecodedInst*);
-    void execSbexti(const DecodedInst*);
-
+    void execBset(const DecodedInst*);
+    void execBclr(const DecodedInst*);
+    void execBinv(const DecodedInst*);
     void execBext(const DecodedInst*);
+
+    void execBseti(const DecodedInst*);
+    void execBclri(const DecodedInst*);
+    void execBinvi(const DecodedInst*);
+    void execBexti(const DecodedInst*);
+
     void execBdep(const DecodedInst*);
     void execBfp(const DecodedInst*);
 
@@ -2011,6 +2001,7 @@ namespace WdRiscv
     void execSh1add_uw(const DecodedInst*);
     void execSh2add_uw(const DecodedInst*);
     void execSh3add_uw(const DecodedInst*);
+    void execAdd_uw(const DecodedInst*);
 
     void execCrc32_b(const DecodedInst*);
     void execCrc32_h(const DecodedInst*);
