@@ -5392,6 +5392,9 @@ Hart<URV>::execute(const DecodedInst* di)
      &&clz,
      &&ctz,
      &&cpop,
+     &&clzw,
+     &&ctzw,
+     &&cpopw,
      &&andn,
      &&orn,
      &&xnor,
@@ -6552,6 +6555,18 @@ Hart<URV>::execute(const DecodedInst* di)
 
  cpop:
   execCpop(di);
+  return;
+
+ clzw:
+  execClzw(di);
+  return;
+
+ ctzw:
+  execCtzw(di);
+  return;
+
+ cpopw:
+  execCpopw(di);
   return;
 
  andn:
@@ -10601,6 +10616,60 @@ Hart<URV>::execCpop(const DecodedInst* di)
     }
 
   URV v1 = intRegs_.read(di->op1());
+  URV res = __builtin_popcount(v1);
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execClzw(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbb())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t v1 = intRegs_.read(di->op1());
+
+  if (v1 == 0)
+    v1 = 32;
+  else
+    v1 = __builtin_clz(v1);
+
+  intRegs_.write(di->op0(), v1);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execCtzw(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbb())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  v1 = __builtin_ctz(v1);
+
+  intRegs_.write(di->op0(), v1);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execCpopw(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbb())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t v1 = intRegs_.read(di->op1());
   URV res = __builtin_popcount(v1);
   intRegs_.write(di->op0(), res);
 }

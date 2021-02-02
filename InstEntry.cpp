@@ -1378,6 +1378,21 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask },
 
+      { "clzw", InstId::clzw, 0x6000101b, 0xfff0707f,
+	InstType::Zbb,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask },
+
+      { "ctzw", InstId::ctzw, 0x6010101b, 0xfff0707f,
+	InstType::Zbb,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask },
+
+      { "cpopw", InstId::cpopw, 0x6020101b, 0xfff0707f,
+	InstType::Zbb,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask },
+
       { "andn", InstId::andn, 0x40007033, top7Funct3Low7Mask,
 	InstType::Zbb,
 	OperandType::IntReg, OperandMode::Write, rdMask,

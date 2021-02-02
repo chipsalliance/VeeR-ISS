@@ -1948,6 +1948,9 @@ namespace WdRiscv
     void execClz(const DecodedInst*);
     void execCtz(const DecodedInst*);
     void execCpop(const DecodedInst*);
+    void execClzw(const DecodedInst*);
+    void execCtzw(const DecodedInst*);
+    void execCpopw(const DecodedInst*);
     void execAndn(const DecodedInst*);
     void execOrn(const DecodedInst*);
     void execXnor(const DecodedInst*);

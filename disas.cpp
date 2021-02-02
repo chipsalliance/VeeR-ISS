@@ -1454,6 +1454,18 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printRdRs1(*this, out, "cpop", di);
       break;
 
+    case InstId::clzw:
+      printRdRs1(*this, out, "clzw", di);
+      break;
+
+    case InstId::ctzw:
+      printRdRs1(*this, out, "ctzw", di);
+      break;
+
+    case InstId::cpopw:
+      printRdRs1(*this, out, "cpopw", di);
+      break;
+
     case InstId::andn:
       printRdRs1Rs2(*this, out, "andn", di);
       break;

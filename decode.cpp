@@ -1752,6 +1752,20 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
                 return instTable_.getEntry(InstId::slli_uw);
               }
 	  }
+        else if (funct3 == 1)
+          {
+	    unsigned top5 = iform.uimmed() >> 7;
+	    unsigned amt = iform.uimmed() & 0x7f;
+            if (top5 == 0x0c)
+              {
+		if (amt == 0)
+		  return instTable_.getEntry(InstId::clzw);
+		else if (amt == 1)
+		  return instTable_.getEntry(InstId::ctzw);
+		else if (amt == 2)
+		  return instTable_.getEntry(InstId::cpopw);
+              }
+          }
 	else if (funct3 == 5)
 	  {
 	    op2 = iform.fields2.shamt;
