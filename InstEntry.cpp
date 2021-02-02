@@ -1495,6 +1495,24 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
+      { "packu", InstId::packu, 0x48004033, top7Funct3Low7Mask,
+        InstType::Zbm,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "packw", InstId::packw, 0x0800403b, top7Funct3Low7Mask,
+        InstType::Zbp,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "packuw", InstId::packuw, 0x4800403b, top7Funct3Low7Mask,
+        InstType::Zbp,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
       { "grev", InstId::grev, 0x68005033, top7Funct3Low7Mask,
         InstType::Zbp,
 	OperandType::IntReg, OperandMode::Write, rdMask,
@@ -1591,7 +1609,13 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::Imm, OperandMode::None, shamtMask },
 
-      { "bdep", InstId::bdep, 0x48006033, top7Funct3Low7Mask,
+      { "bcompress", InstId::bcompress, 0x08006033, top7Funct3Low7Mask,
+	InstType::Zbe,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "bdecompress", InstId::bdecompress, 0x48006033, top7Funct3Low7Mask,
 	InstType::Zbe,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,

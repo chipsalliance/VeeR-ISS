@@ -280,6 +280,9 @@ namespace WdRiscv
      sext_h,
      slli_uw,
      packh,
+     packu,
+     packw,
+     packuw,
      grev,
      grevi,
      gorc,
@@ -299,7 +302,8 @@ namespace WdRiscv
      bexti,
 
      // zbe
-     bdep,
+     bcompress,    // was bext
+     bdecompress,  // Was bdep
 
      // zbf
      bfp,

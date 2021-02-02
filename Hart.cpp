@@ -5412,6 +5412,9 @@ Hart<URV>::execute(const DecodedInst* di)
      &&sext_h,
      &&slli_uw,
      &&packh,
+     &&packu,
+     &&packw,
+     &&packuw,
      &&grev,
      &&grevi,
      &&gorc,
@@ -5428,7 +5431,8 @@ Hart<URV>::execute(const DecodedInst* di)
      &&bclri,
      &&binvi,
      &&bexti,
-     &&bdep,
+     &&bcompress,
+     &&bdecompress,
      &&bfp,
      &&clmul,
      &&clmulh,
@@ -6630,6 +6634,18 @@ Hart<URV>::execute(const DecodedInst* di)
   execPackh(di);
   return;
 
+ packu:
+  execPacku(di);
+  return;
+
+ packw:
+  execPackw(di);
+  return;
+
+ packuw:
+  execPackuw(di);
+  return;
+
  grev:
   execGrev(di);
   return;
@@ -6694,8 +6710,12 @@ Hart<URV>::execute(const DecodedInst* di)
   execBexti(di);
   return;
 
- bdep:
-  execBdep(di);
+ bcompress:
+  execBcompress(di);
+  return;
+
+ bdecompress:
+  execBdecompress(di);
   return;
 
  bfp:
@@ -10850,7 +10870,7 @@ Hart<URV>::execRev8(const DecodedInst* di)
 {
   // Byte swap.
 
-  if (not isRvzbb() and not isRvzbp())
+  if (not isRvzbb())
     {
       illegalInst(di);
       return;
@@ -10871,7 +10891,8 @@ template <typename URV>
 void
 Hart<URV>::execPack(const DecodedInst* di)
 {
-  if (not isRvzbe() and not isRvzbf())
+  // Sext.h is a zbb pseudo-inst that maps to pack.
+  if (not isRvzbe() and not isRvzbf() and not isRvzbb())
     {
       illegalInst(di);
       return;
@@ -10947,7 +10968,7 @@ template <typename URV>
 void
 Hart<URV>::execPackh(const DecodedInst* di)
 {
-  if (not isRvzbe() and not isRvzbf())
+  if (not isRvzbe() and not isRvzbf() and not isRvzbp())
     {
       illegalInst(di);
       return;
@@ -10955,6 +10976,78 @@ Hart<URV>::execPackh(const DecodedInst* di)
 
   URV lower = intRegs_.read(di->op1()) & 0xff;
   URV upper = (intRegs_.read(di->op2()) & 0xff) << 8;
+  URV value = lower | upper;
+  intRegs_.write(di->op0(), value);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execPacku(const DecodedInst* di)
+{
+  if (not isRvzbb() and not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned halfXlen = mxlen_ >> 1;
+
+  URV lower = intRegs_.read(di->op1()) >> halfXlen;
+  URV upper = (intRegs_.read(di->op2()) >> halfXlen) << halfXlen;
+  URV value = lower | upper;
+  intRegs_.write(di->op0(), value);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execPackw(const DecodedInst* di)
+{
+  // zext.h is an alias for packw and is part of zbb.
+  if (not isRvzbb() and not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  if (not isRv64())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV lower = intRegs_.read(di->op1()) & 0xffff;
+  URV upper = (intRegs_.read(di->op2()) & 0xffff) << 16;
+  URV value = lower | upper;
+  intRegs_.write(di->op0(), value);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execPackuw(const DecodedInst* di)
+{
+  if (not isRvzbb() and not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  if (not isRv64())
+    {
+      illegalInst(di);
+      return;
+    }
+
+
+  unsigned halfXlen = mxlen_ >> 1;
+
+  URV lower = (intRegs_.read(di->op1()) >> halfXlen);
+  URV upper = (intRegs_.read(di->op2()) >> halfXlen);
+
+  lower = lower & 0xffff;
+  upper = (upper & 0xffff) << 16;
   URV value = lower | upper;
   intRegs_.write(di->op0(), value);
 }
@@ -11218,7 +11311,7 @@ unshuffle64(uint64_t x, unsigned shamt)
 
 template <typename URV>
 void
-Hart<URV>::execSbset(const DecodedInst* di)
+Hart<URV>::execBset(const DecodedInst* di)
 {
   if (not isRvzbs())
     {
@@ -11236,7 +11329,7 @@ Hart<URV>::execSbset(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execBbclr(const DecodedInst* di)
+Hart<URV>::execBclr(const DecodedInst* di)
 {
   if (not isRvzbs())
     {
@@ -11366,7 +11459,7 @@ Hart<URV>::execBexti(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execBextr(const DecodedInst* di)
+Hart<URV>::execBcompress(const DecodedInst* di)
 {
   if (not isRvzbe())
     {
@@ -11392,7 +11485,7 @@ Hart<URV>::execBextr(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execBdep(const DecodedInst* di)
+Hart<URV>::execBdecompress(const DecodedInst* di)
 {
   if (not isRvzbe())
     {

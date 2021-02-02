@@ -1857,7 +1857,7 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	    else if (funct3 == 3) return instTable_.getEntry(InstId::bmator);
 	    else if (funct3 == 4) return instTable_.getEntry(InstId::pack);
             else if (funct3 == 5) return instTable_.getEntry(InstId::unshfl);
-            else if (funct3 == 6) return instTable_.getEntry(InstId::bext);
+            else if (funct3 == 6) return instTable_.getEntry(InstId::bcompress);
             else if (funct3 == 7) return instTable_.getEntry(InstId::packh);
 	  }
 	else if (funct7 == 5)
@@ -1895,7 +1895,9 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	  {
 	    if      (funct3 == 1) return instTable_.getEntry(InstId::bclr);
             else if (funct3 == 3) return instTable_.getEntry(InstId::bmatxor);
-            else if (funct3 == 6) return instTable_.getEntry(InstId::bdep);
+            else if (funct3 == 4) return instTable_.getEntry(InstId::packu);
+            else if (funct3 == 6) return instTable_.getEntry(InstId::bdecompress);
+	    else if (funct3 == 5) return instTable_.getEntry(InstId::bext);
             else if (funct3 == 7) return instTable_.getEntry(InstId::bfp);
 	  }
 	else if (funct7 == 0x30)
@@ -1957,6 +1959,7 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         else if (funct7 == 4)
           {
             if      (funct3 == 0) return instTable_.getEntry(InstId::add_uw);
+            if      (funct3 == 4) return instTable_.getEntry(InstId::packw);
           }
 	else if (funct7 == 0x10)
           {
@@ -1968,6 +1971,10 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	  {
 	    if      (funct3 == 0)  return instTable_.getEntry(InstId::subw);
 	    else if (funct3 == 5)  return instTable_.getEntry(InstId::sraw);
+	  }
+	else if (funct7 == 0x24)
+	  {
+            if      (funct3 == 4) return instTable_.getEntry(InstId::packuw);
 	  }
       }
       return instTable_.getEntry(InstId::illegal);

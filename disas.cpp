@@ -1534,6 +1534,18 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printRdRs1Rs2(*this, out, "packh", di);
       break;
 
+    case InstId::packu:
+      printRdRs1Rs2(*this, out, "packu", di);
+      break;
+
+    case InstId::packw:
+      printRdRs1Rs2(*this, out, "packw", di);
+      break;
+
+    case InstId::packuw:
+      printRdRs1Rs2(*this, out, "packuw", di);
+      break;
+
     case InstId::grev:
       printRdRs1Rs2(*this, out, "grev", di);
       break;
@@ -1598,8 +1610,8 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printShiftImm(*this, out, "bexti", di);
       break;
 
-    case InstId::bdep:
-      printRdRs1Rs2(*this, out, "bdep", di);
+    case InstId::bdecompress:
+      printRdRs1Rs2(*this, out, "bdecompres", di);
       break;
 
     case InstId::bfp:
