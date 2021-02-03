@@ -281,10 +281,10 @@ namespace WdRiscv
      rorw,
      roriw,
      rev8,  // was bswap
-     pack,
      sext_b,
      sext_h,
-     slli_uw,
+
+     pack,
      packh,
      packu,
      packw,
@@ -298,6 +298,7 @@ namespace WdRiscv
      unshfl,
      unshfli,
 
+     // zbs
      bset,
      bclr,
      binv,
@@ -327,6 +328,7 @@ namespace WdRiscv
      sh2add_uw,
      sh3add_uw,
      add_uw,
+     slli_uw,
 
      // zbr
      crc32_b,

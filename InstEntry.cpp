@@ -1500,12 +1500,6 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask },
 
-      { "pack", InstId::pack, 0x08004033, top7Funct3Low7Mask,
-	InstType::Zbe,
-	OperandType::IntReg, OperandMode::Write, rdMask,
-	OperandType::IntReg, OperandMode::Read, rs1Mask,
-	OperandType::IntReg, OperandMode::Read, rs2Mask },
-
       { "sext.b", InstId::sext_b, 0x60401013, 0xfff0707f,
         InstType::Zbb,
 	OperandType::IntReg, OperandMode::Write, rdMask,
@@ -1516,11 +1510,11 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask },
 
-      { "slli.uw", InstId::slli_uw, 0x0800101b, 0xf800707f,
-	InstType::Zba,
+      { "pack", InstId::pack, 0x08004033, top7Funct3Low7Mask,
+	InstType::Zbe,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
-	OperandType::Imm, OperandMode::None, shamtMask },
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
       { "packh", InstId::packh, 0x08007033, top7Funct3Low7Mask,
         InstType::Zbe,
@@ -1719,6 +1713,12 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "slli.uw", InstId::slli_uw, 0x0800101b, 0xf800707f,
+	InstType::Zba,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::Imm, OperandMode::None, shamtMask },
 
       // zbr
 

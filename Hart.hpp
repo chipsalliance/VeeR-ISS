@@ -1969,9 +1969,9 @@ namespace WdRiscv
     void execRorw(const DecodedInst*);
     void execRoriw(const DecodedInst*);
     void execRev8(const DecodedInst*);
-    void execPack(const DecodedInst*);
     void execSext_b(const DecodedInst*);
     void execSext_h(const DecodedInst*);
+    void execPack(const DecodedInst*);
     void execSlli_uw(const DecodedInst*);
     void execPackh(const DecodedInst*);
     void execPacku(const DecodedInst*);
@@ -1991,7 +1991,6 @@ namespace WdRiscv
     void execBclr(const DecodedInst*);
     void execBinv(const DecodedInst*);
     void execBext(const DecodedInst*);
-
     void execBseti(const DecodedInst*);
     void execBclri(const DecodedInst*);
     void execBinvi(const DecodedInst*);

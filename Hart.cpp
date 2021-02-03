@@ -5413,10 +5413,9 @@ Hart<URV>::execute(const DecodedInst* di)
      &&rorw,
      &&roriw,
      &&rev8,
-     &&pack,
      &&sext_b,
      &&sext_h,
-     &&slli_uw,
+     &&pack,
      &&packh,
      &&packu,
      &&packw,
@@ -5443,6 +5442,8 @@ Hart<URV>::execute(const DecodedInst* di)
      &&clmul,
      &&clmulh,
      &&clmulr,
+
+     // zba
      &&sh1add,
      &&sh2add,
      &&sh3add,
@@ -5450,6 +5451,7 @@ Hart<URV>::execute(const DecodedInst* di)
      &&sh2add_uw,
      &&sh3add_uw,
      &&add_uw,
+     &&slli_uw,
 
      // zbr
      &&crc32_b,
@@ -6644,10 +6646,6 @@ Hart<URV>::execute(const DecodedInst* di)
   execRev8(di);
   return;
 
- pack:
-  execPack(di);
-  return;
-
  sext_b:
   execSext_b(di);
   return;
@@ -6656,8 +6654,8 @@ Hart<URV>::execute(const DecodedInst* di)
   execSext_h(di);
   return;
 
- slli_uw:
-  execSlli_uw(di);
+ pack:
+  execPack(di);
   return;
 
  packh:
@@ -6790,6 +6788,10 @@ Hart<URV>::execute(const DecodedInst* di)
 
  add_uw:
   execAdd_uw(di);
+  return;
+
+ slli_uw:
+  execSlli_uw(di);
   return;
 
  crc32_b:
@@ -11038,25 +11040,6 @@ Hart<URV>::execRev8(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execPack(const DecodedInst* di)
-{
-  // Sext.h is a zbb pseudo-inst that maps to pack.
-  if (not isRvzbe() and not isRvzbf() and not isRvzbb())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  unsigned halfXlen = mxlen_ >> 1;
-  URV lower = (URV(intRegs_.read(di->op1())) << halfXlen) >> halfXlen;
-  URV upper = URV(intRegs_.read(di->op2())) << halfXlen;
-  URV res = upper | lower;
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
 Hart<URV>::execSext_b(const DecodedInst* di)
 {
   if (not isRvzbb())
@@ -11084,6 +11067,25 @@ Hart<URV>::execSext_h(const DecodedInst* di)
   int16_t half = intRegs_.read(di->op1());
   SRV value = half;
   intRegs_.write(di->op0(), value);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execPack(const DecodedInst* di)
+{
+  // Sext.h is a zbb pseudo-inst that maps to pack.
+  if (not isRvzbe() and not isRvzbf() and not isRvzbb())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  unsigned halfXlen = mxlen_ >> 1;
+  URV lower = (URV(intRegs_.read(di->op1())) << halfXlen) >> halfXlen;
+  URV upper = URV(intRegs_.read(di->op2())) << halfXlen;
+  URV res = upper | lower;
+  intRegs_.write(di->op0(), res);
 }
 
 
