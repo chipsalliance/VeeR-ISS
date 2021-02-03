@@ -1477,6 +1477,24 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::Imm, OperandMode::None, shamtMask },
 
+      { "rolw", InstId::rolw, 0x6000103b, top7Funct3Low7Mask,
+	InstType::Zbb,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "rorw", InstId::rorw, 0x6000503b, top7Funct3Low7Mask,
+	InstType::Zbb,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "roriw", InstId::roriw, 0x6000501b, 0xfe00707f,
+	InstType::Zbb,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::Imm, OperandMode::None, shamtMask },
+
       { "rev8", InstId::rev8, 0x69805013, 0xfff0707f,
 	InstType::Zbb,
 	OperandType::IntReg, OperandMode::Write, rdMask,

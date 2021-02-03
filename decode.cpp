@@ -1773,6 +1773,8 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	      return instTable_.getEntry(InstId::srliw);
 	    else if (iform.top7() == 0x20)
 	      return instTable_.getEntry(InstId::sraiw);
+            else if (iform.top7() == 0x30)
+	      return instTable_.getEntry(InstId::roriw);
 	  }
       }
       return instTable_.getEntry(InstId::illegal);
@@ -1990,6 +1992,11 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	  {
             if      (funct3 == 4) return instTable_.getEntry(InstId::packuw);
 	  }
+        else if (funct7 == 0x30)
+          {
+            if      (funct3 == 1) return instTable_.getEntry(InstId::rolw);
+            if      (funct3 == 5) return instTable_.getEntry(InstId::rorw);
+          }
       }
       return instTable_.getEntry(InstId::illegal);
 

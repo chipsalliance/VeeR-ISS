@@ -277,6 +277,9 @@ namespace WdRiscv
      rol,
      ror,
      rori,
+     rolw,
+     rorw,
+     roriw,
      rev8,  // was bswap
      pack,
      sext_b,

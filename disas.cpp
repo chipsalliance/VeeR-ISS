@@ -1522,6 +1522,18 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printShiftImm(*this, out, "rori", di);
       break;
 
+    case InstId::rolw:
+      printRdRs1Rs2(*this, out, "rolw", di);
+      break;
+
+    case InstId::rorw:
+      printRdRs1Rs2(*this, out, "rorw", di);
+      break;
+
+    case InstId::roriw:
+      printShiftImm(*this, out, "roriw", di);
+      break;
+
     case InstId::rev8:
       printRdRs1(*this, out, "rev8", di);
       break;

@@ -5409,6 +5409,9 @@ Hart<URV>::execute(const DecodedInst* di)
      &&rol,
      &&ror,
      &&rori,
+     &&rolw,
+     &&rorw,
+     &&roriw,
      &&rev8,
      &&pack,
      &&sext_b,
@@ -6623,6 +6626,18 @@ Hart<URV>::execute(const DecodedInst* di)
 
  rori:
   execRori(di);
+  return;
+
+ rolw:
+  execRolw(di);
+  return;
+
+ rorw:
+  execRorw(di);
+  return;
+
+ roriw:
+  execRoriw(di);
   return;
 
  rev8:
@@ -10930,6 +10945,71 @@ Hart<URV>::execRori(const DecodedInst* di)
   URV res = (v1 >> rot) | (v1 << (mxlen_ - rot));
 
   intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execRolw(const DecodedInst* di)
+{
+  if (not isRv64() and not isRvzbb() and not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV mask = shiftMask();
+  URV rot = intRegs_.read(di->op2()) & mask;  // Rotate amount
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t res32 = (v1 << rot) | (v1 >> (mxlen_ - rot));
+
+  uint64_t res64 = int32_t(res32);  // Sign extend to 64-bits.
+
+  intRegs_.write(di->op0(), res64);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execRorw(const DecodedInst* di)
+{
+  if (not isRv64() and not isRvzbb() and not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV mask = shiftMask();
+  URV rot = intRegs_.read(di->op2()) & mask;  // Rotate amount
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t res32 = (v1 >> rot) | (v1 << (mxlen_ - rot));
+
+  uint64_t res64 = int32_t(res32);  // Sign extend to 64-bits.
+
+  intRegs_.write(di->op0(), res64);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execRoriw(const DecodedInst* di)
+{
+  if (not isRv64() and not isRvzbb() and not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV rot = di->op2();
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t res32 = (v1 >> rot) | (v1 << (mxlen_ - rot));
+
+  uint64_t res64 = int32_t(res32);  // Sign extend to 64-bits.
+
+  intRegs_.write(di->op0(), res64);
 }
 
 

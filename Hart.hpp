@@ -1965,6 +1965,9 @@ namespace WdRiscv
     void execRol(const DecodedInst*);
     void execRor(const DecodedInst*);
     void execRori(const DecodedInst*);
+    void execRolw(const DecodedInst*);
+    void execRorw(const DecodedInst*);
+    void execRoriw(const DecodedInst*);
     void execRev8(const DecodedInst*);
     void execPack(const DecodedInst*);
     void execSext_b(const DecodedInst*);
