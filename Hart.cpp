@@ -11074,7 +11074,7 @@ template <typename URV>
 void
 Hart<URV>::execPack(const DecodedInst* di)
 {
-  // Sext.h is a zbb pseudo-inst that maps to pack.
+  // Zext.h is a zbb pseudo-inst that maps to pack.
   if (not isRvzbe() and not isRvzbf() and not isRvzbb())
     {
       illegalInst(di);

@@ -1441,13 +1441,13 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "max", InstId::max, 0x0a005033, top7Funct3Low7Mask,
+      { "max", InstId::max, 0x0a006033, top7Funct3Low7Mask,
 	InstType::Zbb,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "minu", InstId::minu, 0x0a006033, top7Funct3Low7Mask,
+      { "minu", InstId::minu, 0x0a005033, top7Funct3Low7Mask,
 	InstType::Zbb,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
