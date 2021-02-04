@@ -10954,7 +10954,7 @@ template <typename URV>
 void
 Hart<URV>::execRolw(const DecodedInst* di)
 {
-  if (not isRv64() and not isRvzbb() and not isRvzbp())
+  if (not isRv64() or (not isRvzbb() and not isRvzbp()))
     {
       illegalInst(di);
       return;
@@ -10976,7 +10976,7 @@ template <typename URV>
 void
 Hart<URV>::execRorw(const DecodedInst* di)
 {
-  if (not isRv64() and not isRvzbb() and not isRvzbp())
+  if (not isRv64() or (not isRvzbb() and not isRvzbp()))
     {
       illegalInst(di);
       return;
@@ -10998,7 +10998,7 @@ template <typename URV>
 void
 Hart<URV>::execRoriw(const DecodedInst* di)
 {
-  if (not isRv64() and not isRvzbb() and not isRvzbp())
+  if (not isRv64() or (not isRvzbb() and not isRvzbp()))
     {
       illegalInst(di);
       return;
@@ -11156,13 +11156,7 @@ void
 Hart<URV>::execPackw(const DecodedInst* di)
 {
   // zext.h is an alias for packw and is part of zbb.
-  if (not isRvzbb() and not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  if (not isRv64())
+  if (not isRv64() or (not isRvzbb() and not isRvzbp()))
     {
       illegalInst(di);
       return;
@@ -11179,18 +11173,11 @@ template <typename URV>
 void
 Hart<URV>::execPackuw(const DecodedInst* di)
 {
-  if (not isRvzbb() and not isRvzbp())
+  if (not isRv64() or (not isRvzbb() and not isRvzbp()))
     {
       illegalInst(di);
       return;
     }
-
-  if (not isRv64())
-    {
-      illegalInst(di);
-      return;
-    }
-
 
   unsigned halfXlen = mxlen_ >> 1;
 
@@ -12137,7 +12124,7 @@ template <typename URV>
 void
 Hart<URV>::execCrc32_d(const DecodedInst* di)
 {
-  if (not isRvzbr() or not isRv64())
+  if (not isRv64() or not isRvzbr())
     {
       illegalInst(di);
       return;
@@ -12193,7 +12180,7 @@ template <typename URV>
 void
 Hart<URV>::execCrc32c_d(const DecodedInst* di)
 {
-  if (not isRvzbr() or not isRv64())
+  if (not isRv64() or not isRvzbr())
     {
       illegalInst(di);
       return;
