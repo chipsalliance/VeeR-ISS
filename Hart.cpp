@@ -5389,6 +5389,7 @@ Hart<URV>::execute(const DecodedInst* di)
      &&c_fswsp,
      &&c_addiw,
      &&c_sdsp,
+
      &&clz,
      &&ctz,
      &&cpop,
@@ -5404,10 +5405,6 @@ Hart<URV>::execute(const DecodedInst* di)
      &&andn,
      &&orn,
      &&xnor,
-     &&slo,
-     &&sro,
-     &&sloi,
-     &&sroi,
      &&rol,
      &&ror,
      &&rori,
@@ -5433,7 +5430,16 @@ Hart<URV>::execute(const DecodedInst* di)
      &&xperm_b,
      &&xperm_h,
      &&xperm_w,
+     &&slo,
+     &&sro,
+     &&sloi,
+     &&sroi,
+     &&slow,
+     &&srow,
+     &&sloiw,
+     &&sroiw,
 
+     // zbs
      &&bset,
      &&bclr,
      &&binv,
@@ -5442,9 +5448,15 @@ Hart<URV>::execute(const DecodedInst* di)
      &&bclri,
      &&binvi,
      &&bexti,
+
+     // zbe
      &&bcompress,
      &&bdecompress,
+
+     // zbf
      &&bfp,
+
+     // zbc
      &&clmul,
      &&clmulh,
      &&clmulr,
@@ -6616,22 +6628,6 @@ Hart<URV>::execute(const DecodedInst* di)
   execXnor(di);
   return;
 
- slo:
-  execSlo(di);
-  return;
-
- sro:
-  execSro(di);
-  return;
-
- sloi:
-  execSloi(di);
-  return;
-
- sroi:
-  execSroi(di);
-  return;
-
  rol:
   execRol(di);
   return;
@@ -6730,6 +6726,38 @@ Hart<URV>::execute(const DecodedInst* di)
 
  xperm_w:
   execXperm_w(di);
+  return;
+
+ slo:
+  execSlo(di);
+  return;
+
+ sro:
+  execSro(di);
+  return;
+
+ sloi:
+  execSloi(di);
+  return;
+
+ sroi:
+  execSroi(di);
+  return;
+
+ slow:
+  execSlow(di);
+  return;
+
+ srow:
+  execSrow(di);
+  return;
+
+ sloiw:
+  execSloiw(di);
+  return;
+
+ sroiw:
+  execSroiw(di);
   return;
 
  bset:
@@ -10771,84 +10799,6 @@ Hart<URV>::execXnor(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execSlo(const DecodedInst* di)
-{
-  if (not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV mask = shiftMask();
-  URV shift = intRegs_.read(di->op2()) & mask;
-
-  URV v1 = intRegs_.read(di->op1());
-  URV res = ~((~v1) << shift);
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSro(const DecodedInst* di)
-{
-  if (not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV mask = shiftMask();
-  URV shift = intRegs_.read(di->op2()) & mask;
-
-  URV v1 = intRegs_.read(di->op1());
-  URV res = ~((~v1) >> shift);
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSloi(const DecodedInst* di)
-{
-  if (not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV imm = di->op2();
-  if (not checkShiftImmediate(di, imm))
-    return;
-
-  URV v1 = intRegs_.read(di->op1());
-  URV res = ~((~v1) << imm);
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSroi(const DecodedInst* di)
-{
-  if (not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  uint32_t imm = di->op2();
-  if (not checkShiftImmediate(di, imm))
-    return;
-
-  URV v1 = intRegs_.read(di->op1());
-  URV res = ~((~v1) >> imm);
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
 Hart<URV>::execMin(const DecodedInst* di)
 {
   if (not isRvzbb())
@@ -12067,6 +12017,168 @@ Hart<URV>::execXperm_w(const DecodedInst* di)
   uint64_t v2 = intRegs_.read(di->op2());
   uint64_t res = xperm64(v1, v2, 5);
 
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execSlo(const DecodedInst* di)
+{
+  if (not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV mask = shiftMask();
+  URV shift = intRegs_.read(di->op2()) & mask;
+
+  URV v1 = intRegs_.read(di->op1());
+  URV res = ~((~v1) << shift);
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execSro(const DecodedInst* di)
+{
+  if (not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV mask = shiftMask();
+  URV shift = intRegs_.read(di->op2()) & mask;
+
+  URV v1 = intRegs_.read(di->op1());
+  URV res = ~((~v1) >> shift);
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execSloi(const DecodedInst* di)
+{
+  if (not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV imm = di->op2();
+  if (not checkShiftImmediate(di, imm))
+    return;
+
+  URV v1 = intRegs_.read(di->op1());
+  URV res = ~((~v1) << imm);
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execSroi(const DecodedInst* di)
+{
+  if (not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t imm = di->op2();
+  if (not checkShiftImmediate(di, imm))
+    return;
+
+  URV v1 = intRegs_.read(di->op1());
+  URV res = ~((~v1) >> imm);
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execSlow(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV shift = intRegs_.read(di->op2()) & 0x1f;
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t res32 = ~((~v1) << shift);
+
+  int64_t res = int32_t(res32);   // Sign extend to 64-bits.
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execSrow(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV shift = intRegs_.read(di->op2()) & 0x1f;
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t res32 = ~((~v1) >> shift);
+
+  int64_t res = int32_t(res32);   // Sign extend to 64-bits.
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execSloiw(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t imm = di->op2();
+  if (not checkShiftImmediate(di, imm))
+    return;
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t res32 = ~((~v1) << imm);
+
+  int64_t res = int32_t(res32);   // Sign extend to 64-bits.
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execSroiw(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t imm = di->op2();
+  if (not checkShiftImmediate(di, imm))
+    return;
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t res32 = ~((~v1) >> imm);
+
+  int64_t res = int32_t(res32);   // Sign extend to 64-bits.
   intRegs_.write(di->op0(), res);
 }
 

@@ -1754,10 +1754,15 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	  }
         else if (funct3 == 1)
           {
+            if (iform.top7() == 0x10)
+              {
+                op2 = iform.fields2.shamt;
+                return instTable_.getEntry(InstId::sloiw);
+              }
 	    unsigned top5 = iform.uimmed() >> 7;
-	    unsigned amt = iform.uimmed() & 0x7f;
             if (top5 == 0x0c)
               {
+                unsigned amt = iform.uimmed() & 0x7f;
 		if (amt == 0)
 		  return instTable_.getEntry(InstId::clzw);
 		else if (amt == 1)
@@ -1771,6 +1776,8 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	    op2 = iform.fields2.shamt;
 	    if (iform.top7() == 0)
 	      return instTable_.getEntry(InstId::srliw);
+	    if (iform.top7() == 0x10)
+	      return instTable_.getEntry(InstId::sroiw);
 	    else if (iform.top7() == 0x20)
 	      return instTable_.getEntry(InstId::sraiw);
             else if (iform.top7() == 0x30)
@@ -1984,7 +1991,9 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
           }
 	else if (funct7 == 0x10)
           {
-            if      (funct3 == 2) return instTable_.getEntry(InstId::sh1add_uw);
+	    if      (funct3 == 1) return instTable_.getEntry(InstId::slow);
+            else if (funct3 == 2) return instTable_.getEntry(InstId::sh1add_uw);
+	    else if (funct3 == 5) return instTable_.getEntry(InstId::srow);
             else if (funct3 == 4) return instTable_.getEntry(InstId::sh2add_uw);
             else if (funct3 == 6) return instTable_.getEntry(InstId::sh3add_uw);
           }

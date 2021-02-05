@@ -1960,10 +1960,6 @@ namespace WdRiscv
     void execAndn(const DecodedInst*);
     void execOrn(const DecodedInst*);
     void execXnor(const DecodedInst*);
-    void execSlo(const DecodedInst*);
-    void execSro(const DecodedInst*);
-    void execSloi(const DecodedInst*);
-    void execSroi(const DecodedInst*);
     void execRol(const DecodedInst*);
     void execRor(const DecodedInst*);
     void execRori(const DecodedInst*);
@@ -1990,7 +1986,14 @@ namespace WdRiscv
     void execXperm_b(const DecodedInst*);
     void execXperm_h(const DecodedInst*);
     void execXperm_w(const DecodedInst*);
-
+    void execSlo(const DecodedInst*);
+    void execSro(const DecodedInst*);
+    void execSloi(const DecodedInst*);
+    void execSroi(const DecodedInst*);
+    void execSlow(const DecodedInst*);
+    void execSrow(const DecodedInst*);
+    void execSloiw(const DecodedInst*);
+    void execSroiw(const DecodedInst*);
 
     // Bit manipulation: zbs
     void execBset(const DecodedInst*);
