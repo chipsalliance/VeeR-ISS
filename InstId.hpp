@@ -263,6 +263,12 @@ namespace WdRiscv
      clzw,
      ctzw,
      cpopw,
+     min,
+     max,
+     minu,
+     maxu,
+     sext_b,
+     sext_h,
      andn,
      orn,
      xnor,
@@ -270,10 +276,6 @@ namespace WdRiscv
      sro,
      sloi,
      sroi,
-     min,
-     max,
-     minu,
-     maxu,
      rol,
      ror,
      rori,
@@ -281,8 +283,6 @@ namespace WdRiscv
      rorw,
      roriw,
      rev8,  // was bswap
-     sext_b,
-     sext_h,
 
      // zbp
      pack,

@@ -1951,6 +1951,12 @@ namespace WdRiscv
     void execClzw(const DecodedInst*);
     void execCtzw(const DecodedInst*);
     void execCpopw(const DecodedInst*);
+    void execMin(const DecodedInst*);
+    void execMax(const DecodedInst*);
+    void execMinu(const DecodedInst*);
+    void execMaxu(const DecodedInst*);
+    void execSext_b(const DecodedInst*);
+    void execSext_h(const DecodedInst*);
     void execAndn(const DecodedInst*);
     void execOrn(const DecodedInst*);
     void execXnor(const DecodedInst*);
@@ -1958,10 +1964,6 @@ namespace WdRiscv
     void execSro(const DecodedInst*);
     void execSloi(const DecodedInst*);
     void execSroi(const DecodedInst*);
-    void execMin(const DecodedInst*);
-    void execMax(const DecodedInst*);
-    void execMinu(const DecodedInst*);
-    void execMaxu(const DecodedInst*);
     void execRol(const DecodedInst*);
     void execRor(const DecodedInst*);
     void execRori(const DecodedInst*);
@@ -1969,8 +1971,6 @@ namespace WdRiscv
     void execRorw(const DecodedInst*);
     void execRoriw(const DecodedInst*);
     void execRev8(const DecodedInst*);
-    void execSext_b(const DecodedInst*);
-    void execSext_h(const DecodedInst*);
     void execPack(const DecodedInst*);
     void execSlli_uw(const DecodedInst*);
     void execPackh(const DecodedInst*);

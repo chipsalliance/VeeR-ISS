@@ -5395,6 +5395,12 @@ Hart<URV>::execute(const DecodedInst* di)
      &&clzw,
      &&ctzw,
      &&cpopw,
+     &&min,
+     &&max,
+     &&minu,
+     &&maxu,
+     &&sext_b,
+     &&sext_h,
      &&andn,
      &&orn,
      &&xnor,
@@ -5402,10 +5408,6 @@ Hart<URV>::execute(const DecodedInst* di)
      &&sro,
      &&sloi,
      &&sroi,
-     &&min,
-     &&max,
-     &&minu,
-     &&maxu,
      &&rol,
      &&ror,
      &&rori,
@@ -5413,8 +5415,6 @@ Hart<URV>::execute(const DecodedInst* di)
      &&rorw,
      &&roriw,
      &&rev8,
-     &&sext_b,
-     &&sext_h,
      &&pack,
      &&packh,
      &&packu,
@@ -6580,6 +6580,30 @@ Hart<URV>::execute(const DecodedInst* di)
   execCpopw(di);
   return;
 
+ min:
+  execMin(di);
+  return;
+
+ max:
+  execMax(di);
+  return;
+
+ minu:
+  execMinu(di);
+  return;
+
+ maxu:
+  execMaxu(di);
+  return;
+
+ sext_b:
+  execSext_b(di);
+  return;
+
+ sext_h:
+  execSext_h(di);
+  return;
+
  andn:
   execAndn(di);
   return;
@@ -6608,22 +6632,6 @@ Hart<URV>::execute(const DecodedInst* di)
   execSroi(di);
   return;
 
- min:
-  execMin(di);
-  return;
-
- max:
-  execMax(di);
-  return;
-
- minu:
-  execMinu(di);
-  return;
-
- maxu:
-  execMaxu(di);
-  return;
-
  rol:
   execRol(di);
   return;
@@ -6650,14 +6658,6 @@ Hart<URV>::execute(const DecodedInst* di)
 
  rev8:
   execRev8(di);
-  return;
-
- sext_b:
-  execSext_b(di);
-  return;
-
- sext_h:
-  execSext_h(di);
   return;
 
  pack:
@@ -11100,8 +11100,14 @@ template <typename URV>
 void
 Hart<URV>::execPack(const DecodedInst* di)
 {
-  // Zext.h is a zbb pseudo-inst that maps to pack.
-  if (not isRvzbe() and not isRvzbf() and not isRvzbb())
+  // Zext.h is a zbb pseudo-inst that maps to pack: pack rd, rs1, zero.
+  bool zext_h = (di->op2() == 0);
+
+  bool legal = isRvzbe() or isRvzbf();
+  if (zext_h)
+    legal = legal or isRvzbb();
+
+  if (not legal)
     {
       illegalInst(di);
       return;
@@ -11331,13 +11337,13 @@ Hart<URV>::execGorci(const DecodedInst* di)
 {
   URV shamt = di->op2();
 
-  bool zbb = (shamt == 0x7);  // orc.b is also in zbb
+  bool orc_b = (shamt == 0x7);  // orc.b is also in zbb
 
-  bool illegal = not isRvzbp();
-  if (zbb)
-    illegal = not isRvzbb() and not isRvzbp();
+  bool legal = isRvzbp();
+  if (orc_b)
+    legal = legal or isRvzbb();
 
-  if (illegal)
+  if (not legal)
     {
       illegalInst(di);
       return;

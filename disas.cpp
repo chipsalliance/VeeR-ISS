@@ -1466,6 +1466,30 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printRdRs1(*this, out, "cpopw", di);
       break;
 
+    case InstId::min:
+      printRdRs1Rs2(*this, out, "min", di);
+      break;
+
+    case InstId::max:
+      printRdRs1Rs2(*this, out, "max", di);
+      break;
+
+    case InstId::minu:
+      printRdRs1Rs2(*this, out, "minu", di);
+      break;
+
+    case InstId::maxu:
+      printRdRs1Rs2(*this, out, "maxu", di);
+      break;
+
+    case InstId::sext_b:
+      printRdRs1(*this, out, "sext.b", di);
+      break;
+
+    case InstId::sext_h:
+      printRdRs1(*this, out, "sext.h", di);
+      break;
+
     case InstId::andn:
       printRdRs1Rs2(*this, out, "andn", di);
       break;
@@ -1494,22 +1518,6 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printShiftImm(*this, out, "sroi", di);
       break;
 
-    case InstId::min:
-      printRdRs1Rs2(*this, out, "min", di);
-      break;
-
-    case InstId::max:
-      printRdRs1Rs2(*this, out, "max", di);
-      break;
-
-    case InstId::minu:
-      printRdRs1Rs2(*this, out, "minu", di);
-      break;
-
-    case InstId::maxu:
-      printRdRs1Rs2(*this, out, "maxu", di);
-      break;
-
     case InstId::rol:
       printRdRs1Rs2(*this, out, "rol", di);
       break;
@@ -1536,14 +1544,6 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
 
     case InstId::rev8:
       printRdRs1(*this, out, "rev8", di);
-      break;
-
-    case InstId::sext_b:
-      printRdRs1(*this, out, "sext.b", di);
-      break;
-
-    case InstId::sext_h:
-      printRdRs1(*this, out, "sext.h", di);
       break;
 
     case InstId::pack:

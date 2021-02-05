@@ -1393,6 +1393,40 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask },
 
+      { "min", InstId::min, 0x0a004033, top7Funct3Low7Mask,
+	InstType::Zbb,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "max", InstId::max, 0x0a006033, top7Funct3Low7Mask,
+	InstType::Zbb,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "minu", InstId::minu, 0x0a005033, top7Funct3Low7Mask,
+	InstType::Zbb,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "maxu", InstId::maxu, 0x0a007033, top7Funct3Low7Mask,
+	InstType::Zbb,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "sext.b", InstId::sext_b, 0x60401013, 0xfff0707f,
+        InstType::Zbb,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask },
+
+      { "sext.h", InstId::sext_h, 0x60501013, 0xfff0707f,
+        InstType::Zbb,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask },
+
       { "andn", InstId::andn, 0x40007033, top7Funct3Low7Mask,
 	InstType::Zbb,
 	OperandType::IntReg, OperandMode::Write, rdMask,
@@ -1435,30 +1469,6 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::Imm, OperandMode::None, shamtMask },
 
-      { "min", InstId::min, 0x0a004033, top7Funct3Low7Mask,
-	InstType::Zbb,
-	OperandType::IntReg, OperandMode::Write, rdMask,
-	OperandType::IntReg, OperandMode::Read, rs1Mask,
-	OperandType::IntReg, OperandMode::Read, rs2Mask },
-
-      { "max", InstId::max, 0x0a006033, top7Funct3Low7Mask,
-	InstType::Zbb,
-	OperandType::IntReg, OperandMode::Write, rdMask,
-	OperandType::IntReg, OperandMode::Read, rs1Mask,
-	OperandType::IntReg, OperandMode::Read, rs2Mask },
-
-      { "minu", InstId::minu, 0x0a005033, top7Funct3Low7Mask,
-	InstType::Zbb,
-	OperandType::IntReg, OperandMode::Write, rdMask,
-	OperandType::IntReg, OperandMode::Read, rs1Mask,
-	OperandType::IntReg, OperandMode::Read, rs2Mask },
-
-      { "maxu", InstId::maxu, 0x0a007033, top7Funct3Low7Mask,
-	InstType::Zbb,
-	OperandType::IntReg, OperandMode::Write, rdMask,
-	OperandType::IntReg, OperandMode::Read, rs1Mask,
-	OperandType::IntReg, OperandMode::Read, rs2Mask },
-
       { "rol", InstId::rol, 0x60001033, top7Funct3Low7Mask,
 	InstType::Zbb,
 	OperandType::IntReg, OperandMode::Write, rdMask,
@@ -1497,16 +1507,6 @@ InstTable::setupInstVec()
 
       { "rev8", InstId::rev8, 0x69805013, 0xfff0707f,
 	InstType::Zbb,
-	OperandType::IntReg, OperandMode::Write, rdMask,
-	OperandType::IntReg, OperandMode::Read, rs1Mask },
-
-      { "sext.b", InstId::sext_b, 0x60401013, 0xfff0707f,
-        InstType::Zbb,
-	OperandType::IntReg, OperandMode::Write, rdMask,
-	OperandType::IntReg, OperandMode::Read, rs1Mask },
-
-      { "sext.h", InstId::sext_h, 0x60501013, 0xfff0707f,
-        InstType::Zbb,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask },
 
