@@ -1986,6 +1986,7 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
         else if (funct7 == 4)
           {
             if      (funct3 == 0) return instTable_.getEntry(InstId::add_uw);
+            if      (funct3 == 1) return instTable_.getEntry(InstId::shflw);
             if      (funct3 == 4) return instTable_.getEntry(InstId::packw);
             if      (funct3 == 5) return instTable_.getEntry(InstId::unshflw);
           }

@@ -1570,6 +1570,10 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printRdRs1Rs2(*this, out, "shfl", di);
       break;
 
+    case InstId::shflw:
+      printRdRs1Rs2(*this, out, "shflw", di);
+      break;
+
     case InstId::shfli:
       printShiftImm(*this, out, "shfli", di);
       break;

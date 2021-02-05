@@ -1546,6 +1546,12 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
+      { "shflw", InstId::shflw, 0x800103b, top7Funct3Low7Mask,
+        InstType::Zbp,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
       { "shfli", InstId::shfli, 0x10001013, 0xf800707f,
 	InstType::Zbp,
 	OperandType::IntReg, OperandMode::Write, rdMask,

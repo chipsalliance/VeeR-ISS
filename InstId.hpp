@@ -291,6 +291,7 @@ namespace WdRiscv
      gorc,
      gorci,
      shfl,
+     shflw,
      shfli,
      unshfl,
      unshfli,

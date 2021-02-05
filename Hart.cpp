@@ -5422,6 +5422,7 @@ Hart<URV>::execute(const DecodedInst* di)
      &&gorc,
      &&gorci,
      &&shfl,
+     &&shflw,
      &&shfli,
      &&unshfl,
      &&unshfli,
@@ -6694,6 +6695,10 @@ Hart<URV>::execute(const DecodedInst* di)
 
  shfl:
   execShfl(di);
+  return;
+
+ shflw:
+  execShflw(di);
   return;
 
  shfli:
@@ -11772,6 +11777,26 @@ Hart<URV>::execShfl(const DecodedInst* di)
     }
 
   intRegs_.write(di->op0(), val);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execShflw(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  unsigned shamt = intRegs_.read(di->op2()) & 0xf;
+
+  uint32_t res32 = shuffle32(v1, shamt);
+
+  int64_t res = int32_t(res32);   // Sign extend to 64-bits.
+  intRegs_.write(di->op0(), res);
 }
 
 
