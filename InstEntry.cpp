@@ -1588,6 +1588,36 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::Imm, OperandMode::None, shamtMask },
 
+      { "unshflw", InstId::unshflw, 0x0800106b, top7Funct3Low7Mask,
+        InstType::Zbp,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "xperm.n", InstId::xperm_n, 0x28002033, top7Funct3Low7Mask,
+        InstType::Zbp,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "xperm.b", InstId::xperm_b, 0x28004033, top7Funct3Low7Mask,
+        InstType::Zbp,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "xperm.h", InstId::xperm_h, 0x28006033, top7Funct3Low7Mask,
+        InstType::Zbp,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "xerp.w", InstId::xperm_w, 0x28000033, top7Funct3Low7Mask,
+        InstType::Zbp,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
       { "bset", InstId::bset, 0x28001033, top7Funct3Low7Mask,
 	InstType::Zbs,
 	OperandType::IntReg, OperandMode::Write, rdMask,

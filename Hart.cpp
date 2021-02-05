@@ -5428,6 +5428,12 @@ Hart<URV>::execute(const DecodedInst* di)
      &&shfli,
      &&unshfl,
      &&unshfli,
+     &&unshflw,
+     &&xperm_n,
+     &&xperm_b,
+     &&xperm_h,
+     &&xperm_w,
+
      &&bset,
      &&bclr,
      &&binv,
@@ -6704,6 +6710,26 @@ Hart<URV>::execute(const DecodedInst* di)
 
  unshfli:
   execUnshfli(di);
+  return;
+
+ unshflw:
+  execUnshflw(di);
+  return;
+
+ xperm_n:
+  execXperm_n(di);
+  return;
+
+ xperm_b:
+  execXperm_b(di);
+  return;
+
+ xperm_h:
+  execXperm_h(di);
+  return;
+
+ xperm_w:
+  execXperm_w(di);
   return;
 
  bset:
@@ -11893,6 +11919,149 @@ Hart<URV>::execUnshfli(const DecodedInst* di)
     }
 
   intRegs_.write(di->op0(), val);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execUnshflw(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+
+  unsigned shamt = v2 & 15;
+  uint32_t val = unshuffle32(v1, shamt);
+
+  uint64_t res = int32_t(val);  // Sign extend to 64-bits.
+
+  intRegs_.write(di->op0(), res);
+}
+
+
+static
+uint32_t
+xperm32(uint32_t v1, uint32_t v2, unsigned log2Width)
+{
+  uint32_t res = 0;
+  uint32_t width = 1u << log2Width;
+  uint32_t mask = (1u << width) - 1;
+  for (unsigned i = 0; i < 32; i += width)
+    {
+      uint32_t pos = ((v2 >> i) & mask) << log2Width;
+      if (pos < 32)
+        res |= ((v1 >> pos) & mask) << i;
+    }
+  return res;
+}
+
+  
+static
+uint64_t
+xperm64(uint64_t v1, uint64_t v2, unsigned log2Width)
+{
+  uint64_t res = 0;
+  uint32_t width = 1u << log2Width;
+  uint64_t mask = (uint64_t(1) << width) - 1;
+  for (unsigned i = 0; i < 64; i += width)
+    {
+      uint64_t pos = ((v2 >> i) & mask) << log2Width;
+      if (pos < 32)
+        res |= ((v1 >> pos) & mask) << i;
+    }
+  return res;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execXperm_n(const DecodedInst* di)
+{
+  if (not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+  URV res = 0;
+
+  if constexpr (sizeof(URV) == 4)
+    res = xperm32(v1, v2, 2);
+  else
+    res = xperm64(v1, v2, 2);
+
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execXperm_b(const DecodedInst* di)
+{
+  if (not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+  URV res = 0;
+
+  if constexpr (sizeof(URV) == 4)
+    res = xperm32(v1, v2, 3);
+  else
+    res = xperm64(v1, v2, 3);
+
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execXperm_h(const DecodedInst* di)
+{
+  if (not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+  URV res = 0;
+
+  if constexpr (sizeof(URV) == 4)
+    res = xperm32(v1, v2, 4);
+  else
+    res = xperm64(v1, v2, 4);
+
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execXperm_w(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint64_t v1 = intRegs_.read(di->op1());
+  uint64_t v2 = intRegs_.read(di->op2());
+  uint64_t res = xperm64(v1, v2, 5);
+
+  intRegs_.write(di->op0(), res);
 }
 
 

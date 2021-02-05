@@ -284,6 +284,7 @@ namespace WdRiscv
      sext_b,
      sext_h,
 
+     // zbp
      pack,
      packh,
      packu,
@@ -297,6 +298,11 @@ namespace WdRiscv
      shfli,
      unshfl,
      unshfli,
+     unshflw,
+     xperm_n,
+     xperm_b,
+     xperm_h,
+     xperm_w,
 
      // zbs
      bset,

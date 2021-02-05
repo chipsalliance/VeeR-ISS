@@ -1985,6 +1985,12 @@ namespace WdRiscv
     void execShfli(const DecodedInst*);
     void execUnshfl(const DecodedInst*);
     void execUnshfli(const DecodedInst*);
+    void execUnshflw(const DecodedInst*);
+    void execXperm_n(const DecodedInst*);
+    void execXperm_b(const DecodedInst*);
+    void execXperm_h(const DecodedInst*);
+    void execXperm_w(const DecodedInst*);
+
 
     // Bit manipulation: zbs
     void execBset(const DecodedInst*);
