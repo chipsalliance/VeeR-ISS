@@ -11123,7 +11123,7 @@ template <typename URV>
 void
 Hart<URV>::execPacku(const DecodedInst* di)
 {
-  if (not isRvzbb() and not isRvzbp())
+  if (not isRvzbp() and not isRvzbm())
     {
       illegalInst(di);
       return;
@@ -11143,7 +11143,7 @@ void
 Hart<URV>::execPackw(const DecodedInst* di)
 {
   // zext.h is an alias for packw and is part of zbb.
-  if (not isRv64() or (not isRvzbb() and not isRvzbp()))
+  if (not isRv64() or (not isRvzbe() and not isRvzbf() and not isRvzbp()))
     {
       illegalInst(di);
       return;
@@ -11160,7 +11160,7 @@ template <typename URV>
 void
 Hart<URV>::execPackuw(const DecodedInst* di)
 {
-  if (not isRv64() or (not isRvzbb() and not isRvzbp()))
+  if (not isRv64() or not isRvzbp())
     {
       illegalInst(di);
       return;
@@ -11234,9 +11234,9 @@ Hart<URV>::execGrevi(const DecodedInst* di)
 
   bool zbb = false;  // True if variant is also a zbb instruction.
   if (isRv64())
-    zbb = shamt == 0x38 or shamt == 0x3f;  // rev8 and rev are also in zbb
+    zbb = shamt == 0x38;  // rev8 is also in zbb
   else
-    zbb = shamt == 0x18 or shamt == 0x1f;  // rev8 and rev are also in zbb
+    zbb = shamt == 0x18;  // rev8 is also in zbb
 
   bool illegal = not isRvzbp();
   if (zbb)
