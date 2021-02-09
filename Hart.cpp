@@ -11058,7 +11058,7 @@ Hart<URV>::execPack(const DecodedInst* di)
   // Zext.h is a zbb pseudo-inst that maps to pack: pack rd, rs1, zero.
   bool zext_h = (di->op2() == 0);
 
-  bool legal = isRvzbe() or isRvzbf();
+  bool legal = isRvzbe() or isRvzbf() or isRvzbm() or isRvzbp();
   if (zext_h)
     legal = legal or isRvzbb();
 
