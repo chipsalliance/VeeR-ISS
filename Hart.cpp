@@ -11058,7 +11058,8 @@ Hart<URV>::execPack(const DecodedInst* di)
   // Zext.h is a zbb pseudo-inst that maps to pack: pack rd, rs1, zero.
   bool zext_h = (di->op2() == 0);
 
-  bool legal = isRvzbe() or isRvzbf() or isRvzbm() or isRvzbp();
+  bool legal = isRvzbe() or isRvzbf() or isRvzbp();
+  legal = legal or (isRv64() and isRvzbm());
   if (zext_h)
     legal = legal or isRvzbb();
 
@@ -11123,7 +11124,8 @@ template <typename URV>
 void
 Hart<URV>::execPacku(const DecodedInst* di)
 {
-  if (not isRvzbp() and not isRvzbm())
+  bool legal = isRvzbp() or (isRv64() and isRvzbm());
+  if (not legal)
     {
       illegalInst(di);
       return;
@@ -11870,14 +11872,21 @@ template <typename URV>
 void
 Hart<URV>::execUnshfli(const DecodedInst* di)
 {
-  if (not isRvzbp())
+  URV amt = di->op2();
+
+  bool legal = isRvzbp();
+
+  // Instructions zip8 and unzip16 are aliases to unshfli for
+  // immediate values of 0x18 and 0x10 and are legal when zbm is on.
+  legal = legal or (isRvzbm() and (amt == 0x18 or amt == 0x10));
+
+  if (not legal)
     {
       illegalInst(di);
       return;
     }
 
   URV v1 = intRegs_.read(di->op1());
-  URV amt = di->op2();
   URV val = 0;
 
   if constexpr (sizeof(URV) == 4)
