@@ -5389,34 +5389,30 @@ Hart<URV>::execute(const DecodedInst* di)
      &&c_fswsp,
      &&c_addiw,
      &&c_sdsp,
+
      &&clz,
      &&ctz,
-     &&pcnt,
-     &&andn,
-     &&orn,
-     &&xnor,
-     &&slo,
-     &&sro,
-     &&sloi,
-     &&sroi,
+     &&cpop,
+     &&clzw,
+     &&ctzw,
+     &&cpopw,
      &&min,
      &&max,
      &&minu,
      &&maxu,
+     &&sext_b,
+     &&sext_h,
+     &&andn,
+     &&orn,
+     &&xnor,
      &&rol,
      &&ror,
      &&rori,
+     &&rolw,
+     &&rorw,
+     &&roriw,
      &&rev8,
-     &&rev,
      &&pack,
-     &&addwu,
-     &&subwu,
-     &&addiwu,
-     &&sext_b,
-     &&sext_h,
-     &&addu_w,
-     &&subu_w,
-     &&slliu_w,
      &&packh,
      &&packu,
      &&packw,
@@ -5426,29 +5422,55 @@ Hart<URV>::execute(const DecodedInst* di)
      &&gorc,
      &&gorci,
      &&shfl,
+     &&shflw,
      &&shfli,
      &&unshfl,
      &&unshfli,
-     &&sbset,
-     &&sbclr,
-     &&sbinv,
-     &&sbext,
-     &&sbseti,
-     &&sbclri,
-     &&sbinvi,
-     &&sbexti,
-     &&bdep,
+     &&unshflw,
+     &&xperm_n,
+     &&xperm_b,
+     &&xperm_h,
+     &&xperm_w,
+     &&slo,
+     &&sro,
+     &&sloi,
+     &&sroi,
+     &&slow,
+     &&srow,
+     &&sloiw,
+     &&sroiw,
+
+     // zbs
+     &&bset,
+     &&bclr,
+     &&binv,
      &&bext,
+     &&bseti,
+     &&bclri,
+     &&binvi,
+     &&bexti,
+
+     // zbe
+     &&bcompress,
+     &&bdecompress,
+
+     // zbf
      &&bfp,
+
+     // zbc
      &&clmul,
      &&clmulh,
      &&clmulr,
+
+     // zba
      &&sh1add,
      &&sh2add,
      &&sh3add,
-     &&sh1addu_w,
-     &&sh2addu_w,
-     &&sh3addu_w,
+     &&sh1add_uw,
+     &&sh2add_uw,
+     &&sh3add_uw,
+     &&add_uw,
+     &&slli_uw,
 
      // zbr
      &&crc32_b,
@@ -6555,36 +6577,20 @@ Hart<URV>::execute(const DecodedInst* di)
   execCtz(di);
   return;
 
- pcnt:
-  execPcnt(di);
+ cpop:
+  execCpop(di);
   return;
 
- andn:
-  execAndn(di);
+ clzw:
+  execClzw(di);
   return;
 
- orn:
-  execOrn(di);
+ ctzw:
+  execCtzw(di);
   return;
 
- xnor:
-  execXnor(di);
-  return;
-
- slo:
-  execSlo(di);
-  return;
-
- sro:
-  execSro(di);
-  return;
-
- sloi:
-  execSloi(di);
-  return;
-
- sroi:
-  execSroi(di);
+ cpopw:
+  execCpopw(di);
   return;
 
  min:
@@ -6603,6 +6609,26 @@ Hart<URV>::execute(const DecodedInst* di)
   execMaxu(di);
   return;
 
+ sext_b:
+  execSext_b(di);
+  return;
+
+ sext_h:
+  execSext_h(di);
+  return;
+
+ andn:
+  execAndn(di);
+  return;
+
+ orn:
+  execOrn(di);
+  return;
+
+ xnor:
+  execXnor(di);
+  return;
+
  rol:
   execRol(di);
   return;
@@ -6615,48 +6641,24 @@ Hart<URV>::execute(const DecodedInst* di)
   execRori(di);
   return;
 
+ rolw:
+  execRolw(di);
+  return;
+
+ rorw:
+  execRorw(di);
+  return;
+
+ roriw:
+  execRoriw(di);
+  return;
+
  rev8:
   execRev8(di);
   return;
 
- rev:
-  execRev(di);
-  return;
-
  pack:
   execPack(di);
-  return;
-
- addwu:
-  execAddwu(di);
-  return;
-
- subwu:
-  execSubwu(di);
-  return;
-
- addiwu:
-  execAddiwu(di);
-  return;
-
- sext_b:
-  execSext_b(di);
-  return;
-
- sext_h:
-  execSext_h(di);
-  return;
-
- addu_w:
-  execAddu_w(di);
-  return;
-
- subu_w:
-  execSubu_w(di);
-  return;
-
- slliu_w:
-  execSlliu_w(di);
   return;
 
  packh:
@@ -6695,6 +6697,10 @@ Hart<URV>::execute(const DecodedInst* di)
   execShfl(di);
   return;
 
+ shflw:
+  execShflw(di);
+  return;
+
  shfli:
   execShfli(di);
   return;
@@ -6707,44 +6713,96 @@ Hart<URV>::execute(const DecodedInst* di)
   execUnshfli(di);
   return;
 
- sbset:
-  execSbset(di);
+ unshflw:
+  execUnshflw(di);
   return;
 
- sbclr:
-  execSbclr(di);
+ xperm_n:
+  execXperm_n(di);
   return;
 
- sbinv:
-  execSbinv(di);
+ xperm_b:
+  execXperm_b(di);
   return;
 
- sbext:
-  execSbext(di);
+ xperm_h:
+  execXperm_h(di);
   return;
 
- sbseti:
-  execSbseti(di);
+ xperm_w:
+  execXperm_w(di);
   return;
 
- sbclri:
-  execSbclri(di);
+ slo:
+  execSlo(di);
   return;
 
- sbinvi:
-  execSbinvi(di);
+ sro:
+  execSro(di);
   return;
 
- sbexti:
-  execSbexti(di);
+ sloi:
+  execSloi(di);
   return;
 
- bdep:
-  execBdep(di);
+ sroi:
+  execSroi(di);
+  return;
+
+ slow:
+  execSlow(di);
+  return;
+
+ srow:
+  execSrow(di);
+  return;
+
+ sloiw:
+  execSloiw(di);
+  return;
+
+ sroiw:
+  execSroiw(di);
+  return;
+
+ bset:
+  execBset(di);
+  return;
+
+ bclr:
+  execBclr(di);
+  return;
+
+ binv:
+  execBinv(di);
   return;
 
  bext:
   execBext(di);
+  return;
+
+ bseti:
+  execBseti(di);
+  return;
+
+ bclri:
+  execBclri(di);
+  return;
+
+ binvi:
+  execBinvi(di);
+  return;
+
+ bexti:
+  execBexti(di);
+  return;
+
+ bcompress:
+  execBcompress(di);
+  return;
+
+ bdecompress:
+  execBdecompress(di);
   return;
 
  bfp:
@@ -6775,16 +6833,24 @@ Hart<URV>::execute(const DecodedInst* di)
   execSh3add(di);
   return;
 
- sh1addu_w:
-  execSh1addu_w(di);
+ sh1add_uw:
+  execSh1add_uw(di);
   return;
 
- sh2addu_w:
-  execSh2addu_w(di);
+ sh2add_uw:
+  execSh2add_uw(di);
   return;
 
- sh3addu_w:
-  execSh3addu_w(di);
+ sh3add_uw:
+  execSh3add_uw(di);
+  return;
+
+ add_uw:
+  execAdd_uw(di);
+  return;
+
+ slli_uw:
+  execSlli_uw(di);
   return;
 
  crc32_b:
@@ -10617,7 +10683,7 @@ Hart<URV>::execCtz(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execPcnt(const DecodedInst* di)
+Hart<URV>::execCpop(const DecodedInst* di)
 {
   if (not isRvzbb())
     {
@@ -10626,6 +10692,60 @@ Hart<URV>::execPcnt(const DecodedInst* di)
     }
 
   URV v1 = intRegs_.read(di->op1());
+  URV res = __builtin_popcount(v1);
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execClzw(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbb())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t v1 = intRegs_.read(di->op1());
+
+  if (v1 == 0)
+    v1 = 32;
+  else
+    v1 = __builtin_clz(v1);
+
+  intRegs_.write(di->op0(), v1);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execCtzw(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbb())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  v1 = __builtin_ctz(v1);
+
+  intRegs_.write(di->op0(), v1);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execCpopw(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbb())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t v1 = intRegs_.read(di->op1());
   URV res = __builtin_popcount(v1);
   intRegs_.write(di->op0(), res);
 }
@@ -10678,84 +10798,6 @@ Hart<URV>::execXnor(const DecodedInst* di)
   URV v1 = intRegs_.read(di->op1());
   URV v2 = intRegs_.read(di->op2());
   URV res = v1 ^ ~v2;
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSlo(const DecodedInst* di)
-{
-  if (not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV mask = shiftMask();
-  URV shift = intRegs_.read(di->op2()) & mask;
-
-  URV v1 = intRegs_.read(di->op1());
-  URV res = ~((~v1) << shift);
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSro(const DecodedInst* di)
-{
-  if (not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV mask = shiftMask();
-  URV shift = intRegs_.read(di->op2()) & mask;
-
-  URV v1 = intRegs_.read(di->op1());
-  URV res = ~((~v1) >> shift);
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSloi(const DecodedInst* di)
-{
-  if (not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV imm = di->op2();
-  if (not checkShiftImmediate(di, imm))
-    return;
-
-  URV v1 = intRegs_.read(di->op1());
-  URV res = ~((~v1) << imm);
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSroi(const DecodedInst* di)
-{
-  if (not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  uint32_t imm = di->op2();
-  if (not checkShiftImmediate(di, imm))
-    return;
-
-  URV v1 = intRegs_.read(di->op1());
-  URV res = ~((~v1) >> imm);
   intRegs_.write(di->op0(), res);
 }
 
@@ -10891,11 +10933,76 @@ Hart<URV>::execRori(const DecodedInst* di)
 
 template <typename URV>
 void
+Hart<URV>::execRolw(const DecodedInst* di)
+{
+  if (not isRv64() or (not isRvzbb() and not isRvzbp()))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV mask = shiftMask();
+  URV rot = intRegs_.read(di->op2()) & mask;  // Rotate amount
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t res32 = (v1 << rot) | (v1 >> (mxlen_ - rot));
+
+  uint64_t res64 = int32_t(res32);  // Sign extend to 64-bits.
+
+  intRegs_.write(di->op0(), res64);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execRorw(const DecodedInst* di)
+{
+  if (not isRv64() or (not isRvzbb() and not isRvzbp()))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV mask = shiftMask();
+  URV rot = intRegs_.read(di->op2()) & mask;  // Rotate amount
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t res32 = (v1 >> rot) | (v1 << (mxlen_ - rot));
+
+  uint64_t res64 = int32_t(res32);  // Sign extend to 64-bits.
+
+  intRegs_.write(di->op0(), res64);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execRoriw(const DecodedInst* di)
+{
+  if (not isRv64() or (not isRvzbb() and not isRvzbp()))
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV rot = di->op2();
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t res32 = (v1 >> rot) | (v1 << (mxlen_ - rot));
+
+  uint64_t res64 = int32_t(res32);  // Sign extend to 64-bits.
+
+  intRegs_.write(di->op0(), res64);
+}
+
+
+template <typename URV>
+void
 Hart<URV>::execRev8(const DecodedInst* di)
 {
   // Byte swap.
 
-  if (not isRvzbb() and not isRvzbp())
+  if (not isRvzbb())
     {
       illegalInst(di);
       return;
@@ -10909,102 +11016,6 @@ Hart<URV>::execRev8(const DecodedInst* di)
     v1 = __builtin_bswap64(v1);
 
   intRegs_.write(di->op0(), v1);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execRev(const DecodedInst* di)
-{
-  // Bit reverse.
-
-  if (not isRvzbb() and not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV v1 = intRegs_.read(di->op1());
-
-  if constexpr (sizeof(URV) == 4)
-    {
-      v1 = ((v1 & 0xaaaaaaaa) >> 1) | ((v1 & 0x55555555) << 1);
-      v1 = ((v1 & 0xcccccccc) >> 2) | ((v1 & 0x33333333) << 2);
-      v1 = ((v1 & 0xf0f0f0f0) >> 4) | ((v1 & 0x0f0f0f0f) << 4);
-      v1 = __builtin_bswap32(v1);
-    }
-  else
-    {
-      v1 = ((v1 & 0xaaaaaaaaaaaaaaaa) >> 1) | ((v1 & 0x5555555555555555) << 1);
-      v1 = ((v1 & 0xcccccccccccccccc) >> 2) | ((v1 & 0x3333333333333333) << 2);
-      v1 = ((v1 & 0xf0f0f0f0f0f0f0f0) >> 4) | ((v1 & 0x0f0f0f0f0f0f0f0f) << 4);
-      v1 = __builtin_bswap64(v1);
-    }
-
-  intRegs_.write(di->op0(), v1);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execPack(const DecodedInst* di)
-{
-  if (not isRvzbb() and not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  unsigned halfXlen = mxlen_ >> 1;
-  URV lower = (URV(intRegs_.read(di->op1())) << halfXlen) >> halfXlen;
-  URV upper = URV(intRegs_.read(di->op2())) << halfXlen;
-  URV res = upper | lower;
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execAddwu(const DecodedInst* di)
-{
-  if (not isRv64() or not isRvzbb())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV value = uint32_t(intRegs_.read(di->op1()) + intRegs_.read(di->op2()));
-  intRegs_.write(di->op0(), value);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSubwu(const DecodedInst* di)
-{
-  if (not isRv64() or not isRvzbb())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV value = uint32_t(intRegs_.read(di->op1()) - intRegs_.read(di->op2()));
-  intRegs_.write(di->op0(), value);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execAddiwu(const DecodedInst* di)
-{
-  if (not isRv64() or not isRvzbb())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV value = uint32_t(intRegs_.read(di->op1()) + di->op2As<int32_t>());
-  intRegs_.write(di->op0(), value);
 }
 
 
@@ -11042,39 +11053,35 @@ Hart<URV>::execSext_h(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execAddu_w(const DecodedInst* di)
+Hart<URV>::execPack(const DecodedInst* di)
 {
-  if (not isRv64() or not isRvzbb())
+  // Zext.h is a zbb pseudo-inst that maps to pack: pack rd, rs1, zero.
+  bool zext_h = (di->op2() == 0);
+
+  bool legal = isRvzbe() or isRvzbf() or isRvzbp();
+  legal = legal or (isRv64() and isRvzbm());
+  if (zext_h)
+    legal = legal or isRvzbb();
+
+  if (not legal)
     {
       illegalInst(di);
       return;
     }
 
-  URV value =   intRegs_.read(di->op1()) + uint32_t(intRegs_.read(di->op2()));
-  intRegs_.write(di->op0(), value);
+  unsigned halfXlen = mxlen_ >> 1;
+  URV lower = (URV(intRegs_.read(di->op1())) << halfXlen) >> halfXlen;
+  URV upper = URV(intRegs_.read(di->op2())) << halfXlen;
+  URV res = upper | lower;
+  intRegs_.write(di->op0(), res);
 }
 
 
 template <typename URV>
 void
-Hart<URV>::execSubu_w(const DecodedInst* di)
+Hart<URV>::execSlli_uw(const DecodedInst* di)
 {
-  if (not isRv64() or not isRvzbb())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV value =   intRegs_.read(di->op1()) - uint32_t(intRegs_.read(di->op2()));
-  intRegs_.write(di->op0(), value);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSlliu_w(const DecodedInst* di)
-{
-  if (not isRv64() or not isRvzbb())
+  if (not isRv64() or not isRvzba())
     {
       illegalInst(di);
       return;
@@ -11100,7 +11107,7 @@ template <typename URV>
 void
 Hart<URV>::execPackh(const DecodedInst* di)
 {
-  if (not isRvzbb() and not isRvzbp())
+  if (not isRvzbe() and not isRvzbf() and not isRvzbp())
     {
       illegalInst(di);
       return;
@@ -11117,7 +11124,8 @@ template <typename URV>
 void
 Hart<URV>::execPacku(const DecodedInst* di)
 {
-  if (not isRvzbb() and not isRvzbp())
+  bool legal = isRvzbp() or (isRv64() and isRvzbm());
+  if (not legal)
     {
       illegalInst(di);
       return;
@@ -11136,13 +11144,8 @@ template <typename URV>
 void
 Hart<URV>::execPackw(const DecodedInst* di)
 {
-  if (not isRvzbb() and not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  if (not isRv64())
+  // zext.h is an alias for packw and is part of zbb.
+  if (not isRv64() or (not isRvzbe() and not isRvzbf() and not isRvzbp()))
     {
       illegalInst(di);
       return;
@@ -11159,18 +11162,11 @@ template <typename URV>
 void
 Hart<URV>::execPackuw(const DecodedInst* di)
 {
-  if (not isRvzbb() and not isRvzbp())
+  if (not isRv64() or not isRvzbp())
     {
       illegalInst(di);
       return;
     }
-
-  if (not isRv64())
-    {
-      illegalInst(di);
-      return;
-    }
-
 
   unsigned halfXlen = mxlen_ >> 1;
 
@@ -11240,9 +11236,9 @@ Hart<URV>::execGrevi(const DecodedInst* di)
 
   bool zbb = false;  // True if variant is also a zbb instruction.
   if (isRv64())
-    zbb = shamt == 0x38 or shamt == 0x3f;  // rev8 and rev are also in zbb
+    zbb = shamt == 0x38;  // rev8 is also in zbb
   else
-    zbb = shamt == 0x18 or shamt == 0x1f;  // rev8 and rev are also in zbb
+    zbb = shamt == 0x18;  // rev8 is also in zbb
 
   bool illegal = not isRvzbp();
   if (zbb)
@@ -11298,17 +11294,13 @@ Hart<URV>::execGorci(const DecodedInst* di)
 {
   URV shamt = di->op2();
 
-  bool zbb = false;  // True if variant is also a zbb instruction.
-  if (isRv64())
-    zbb = shamt == 0x7 or shamt == 0x30;  // orc.b and orc16 are also in zbb
-  else
-    zbb = shamt == 0x7 or shamt == 0x10;  // orc.b and orc16 are also in zbb
+  bool orc_b = (shamt == 0x7);  // orc.b is also in zbb
 
-  bool illegal = not isRvzbp();
-  if (zbb)
-    illegal = not isRvzbb() and not isRvzbp();
+  bool legal = isRvzbp();
+  if (orc_b)
+    legal = legal or isRvzbb();
 
-  if (illegal)
+  if (not legal)
     {
       illegalInst(di);
       return;
@@ -11446,7 +11438,7 @@ unshuffle64(uint64_t x, unsigned shamt)
 
 template <typename URV>
 void
-Hart<URV>::execSbset(const DecodedInst* di)
+Hart<URV>::execBset(const DecodedInst* di)
 {
   if (not isRvzbs())
     {
@@ -11464,7 +11456,7 @@ Hart<URV>::execSbset(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execSbclr(const DecodedInst* di)
+Hart<URV>::execBclr(const DecodedInst* di)
 {
   if (not isRvzbs())
     {
@@ -11482,7 +11474,7 @@ Hart<URV>::execSbclr(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execSbinv(const DecodedInst* di)
+Hart<URV>::execBinv(const DecodedInst* di)
 {
   if (not isRvzbs())
     {
@@ -11494,100 +11486,6 @@ Hart<URV>::execSbinv(const DecodedInst* di)
   unsigned bitIx = intRegs_.read(di->op2()) & mask;
 
   URV value = intRegs_.read(di->op1()) ^ (URV(1) << bitIx);
-  intRegs_.write(di->op0(), value);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSbext(const DecodedInst* di)
-{
-  if (not isRvzbs())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV mask = shiftMask();
-  unsigned bitIx = intRegs_.read(di->op2()) & mask;
-
-  URV value = (intRegs_.read(di->op1()) >> bitIx) & 1;
-  intRegs_.write(di->op0(), value);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSbseti(const DecodedInst* di)
-{
-  if (not isRvzbs())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV bitIx = di->op2();
-  if (not checkShiftImmediate(di, bitIx))
-    return;
-
-  URV value = intRegs_.read(di->op1()) | (URV(1) << bitIx);
-  intRegs_.write(di->op0(), value);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSbclri(const DecodedInst* di)
-{
-  if (not isRvzbs())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV bitIx = di->op2();
-  if (not checkShiftImmediate(di, bitIx))
-    return;
-
-  URV value = intRegs_.read(di->op1()) & ~(URV(1) << bitIx);
-  intRegs_.write(di->op0(), value);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSbinvi(const DecodedInst* di)
-{
-  if (not isRvzbs())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV bitIx = di->op2();
-  if (not checkShiftImmediate(di, bitIx))
-    return;
-
-  URV value = intRegs_.read(di->op1()) ^ (URV(1) << bitIx);
-  intRegs_.write(di->op0(), value);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSbexti(const DecodedInst* di)
-{
-  if (not isRvzbs())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV bitIx = di->op2();
-  if (not checkShiftImmediate(di, bitIx))
-    return;
-
-  URV value = (intRegs_.read(di->op1()) >> bitIx) & 1;
   intRegs_.write(di->op0(), value);
 }
 
@@ -11595,6 +11493,100 @@ Hart<URV>::execSbexti(const DecodedInst* di)
 template <typename URV>
 void
 Hart<URV>::execBext(const DecodedInst* di)
+{
+  if (not isRvzbs())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV mask = shiftMask();
+  unsigned bitIx = intRegs_.read(di->op2()) & mask;
+
+  URV value = (intRegs_.read(di->op1()) >> bitIx) & 1;
+  intRegs_.write(di->op0(), value);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execBseti(const DecodedInst* di)
+{
+  if (not isRvzbs())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV bitIx = di->op2();
+  if (not checkShiftImmediate(di, bitIx))
+    return;
+
+  URV value = intRegs_.read(di->op1()) | (URV(1) << bitIx);
+  intRegs_.write(di->op0(), value);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execBclri(const DecodedInst* di)
+{
+  if (not isRvzbs())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV bitIx = di->op2();
+  if (not checkShiftImmediate(di, bitIx))
+    return;
+
+  URV value = intRegs_.read(di->op1()) & ~(URV(1) << bitIx);
+  intRegs_.write(di->op0(), value);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execBinvi(const DecodedInst* di)
+{
+  if (not isRvzbs())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV bitIx = di->op2();
+  if (not checkShiftImmediate(di, bitIx))
+    return;
+
+  URV value = intRegs_.read(di->op1()) ^ (URV(1) << bitIx);
+  intRegs_.write(di->op0(), value);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execBexti(const DecodedInst* di)
+{
+  if (not isRvzbs())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV bitIx = di->op2();
+  if (not checkShiftImmediate(di, bitIx))
+    return;
+
+  URV value = (intRegs_.read(di->op1()) >> bitIx) & 1;
+  intRegs_.write(di->op0(), value);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execBcompress(const DecodedInst* di)
 {
   if (not isRvzbe())
     {
@@ -11620,7 +11612,7 @@ Hart<URV>::execBext(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execBdep(const DecodedInst* di)
+Hart<URV>::execBdecompress(const DecodedInst* di)
 {
   if (not isRvzbe())
     {
@@ -11792,6 +11784,26 @@ Hart<URV>::execShfl(const DecodedInst* di)
 
 template <typename URV>
 void
+Hart<URV>::execShflw(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  unsigned shamt = intRegs_.read(di->op2()) & 0xf;
+
+  uint32_t res32 = shuffle32(v1, shamt);
+
+  int64_t res = int32_t(res32);   // Sign extend to 64-bits.
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
 Hart<URV>::execShfli(const DecodedInst* di)
 {
   if (not isRvzbp())
@@ -11860,14 +11872,21 @@ template <typename URV>
 void
 Hart<URV>::execUnshfli(const DecodedInst* di)
 {
-  if (not isRvzbp())
+  URV amt = di->op2();
+
+  bool legal = isRvzbp();
+
+  // Instructions zip8 and unzip16 are aliases to unshfli for
+  // immediate values of 0x18 and 0x10 and are legal when zbm is on.
+  legal = legal or (isRvzbm() and (amt == 0x18 or amt == 0x10));
+
+  if (not legal)
     {
       illegalInst(di);
       return;
     }
 
   URV v1 = intRegs_.read(di->op1());
-  URV amt = di->op2();
   URV val = 0;
 
   if constexpr (sizeof(URV) == 4)
@@ -11890,6 +11909,311 @@ Hart<URV>::execUnshfli(const DecodedInst* di)
     }
 
   intRegs_.write(di->op0(), val);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execUnshflw(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+
+  unsigned shamt = v2 & 15;
+  uint32_t val = unshuffle32(v1, shamt);
+
+  uint64_t res = int32_t(val);  // Sign extend to 64-bits.
+
+  intRegs_.write(di->op0(), res);
+}
+
+
+static
+uint32_t
+xperm32(uint32_t v1, uint32_t v2, unsigned log2Width)
+{
+  uint32_t res = 0;
+  uint32_t width = 1u << log2Width;
+  uint32_t mask = (1u << width) - 1;
+  for (unsigned i = 0; i < 32; i += width)
+    {
+      uint32_t pos = ((v2 >> i) & mask) << log2Width;
+      if (pos < 32)
+        res |= ((v1 >> pos) & mask) << i;
+    }
+  return res;
+}
+
+  
+static
+uint64_t
+xperm64(uint64_t v1, uint64_t v2, unsigned log2Width)
+{
+  uint64_t res = 0;
+  uint32_t width = 1u << log2Width;
+  uint64_t mask = (uint64_t(1) << width) - 1;
+  for (unsigned i = 0; i < 64; i += width)
+    {
+      uint64_t pos = ((v2 >> i) & mask) << log2Width;
+      if (pos < 32)
+        res |= ((v1 >> pos) & mask) << i;
+    }
+  return res;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execXperm_n(const DecodedInst* di)
+{
+  if (not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+  URV res = 0;
+
+  if constexpr (sizeof(URV) == 4)
+    res = xperm32(v1, v2, 2);
+  else
+    res = xperm64(v1, v2, 2);
+
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execXperm_b(const DecodedInst* di)
+{
+  if (not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+  URV res = 0;
+
+  if constexpr (sizeof(URV) == 4)
+    res = xperm32(v1, v2, 3);
+  else
+    res = xperm64(v1, v2, 3);
+
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execXperm_h(const DecodedInst* di)
+{
+  if (not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+  URV res = 0;
+
+  if constexpr (sizeof(URV) == 4)
+    res = xperm32(v1, v2, 4);
+  else
+    res = xperm64(v1, v2, 4);
+
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execXperm_w(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint64_t v1 = intRegs_.read(di->op1());
+  uint64_t v2 = intRegs_.read(di->op2());
+  uint64_t res = xperm64(v1, v2, 5);
+
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execSlo(const DecodedInst* di)
+{
+  if (not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV mask = shiftMask();
+  URV shift = intRegs_.read(di->op2()) & mask;
+
+  URV v1 = intRegs_.read(di->op1());
+  URV res = ~((~v1) << shift);
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execSro(const DecodedInst* di)
+{
+  if (not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV mask = shiftMask();
+  URV shift = intRegs_.read(di->op2()) & mask;
+
+  URV v1 = intRegs_.read(di->op1());
+  URV res = ~((~v1) >> shift);
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execSloi(const DecodedInst* di)
+{
+  if (not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV imm = di->op2();
+  if (not checkShiftImmediate(di, imm))
+    return;
+
+  URV v1 = intRegs_.read(di->op1());
+  URV res = ~((~v1) << imm);
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execSroi(const DecodedInst* di)
+{
+  if (not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t imm = di->op2();
+  if (not checkShiftImmediate(di, imm))
+    return;
+
+  URV v1 = intRegs_.read(di->op1());
+  URV res = ~((~v1) >> imm);
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execSlow(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV shift = intRegs_.read(di->op2()) & 0x1f;
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t res32 = ~((~v1) << shift);
+
+  int64_t res = int32_t(res32);   // Sign extend to 64-bits.
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execSrow(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV shift = intRegs_.read(di->op2()) & 0x1f;
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t res32 = ~((~v1) >> shift);
+
+  int64_t res = int32_t(res32);   // Sign extend to 64-bits.
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execSloiw(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t imm = di->op2();
+  if (not checkShiftImmediate(di, imm))
+    return;
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t res32 = ~((~v1) << imm);
+
+  int64_t res = int32_t(res32);   // Sign extend to 64-bits.
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execSroiw(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzbp())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t imm = di->op2();
+  if (not checkShiftImmediate(di, imm))
+    return;
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t res32 = ~((~v1) >> imm);
+
+  int64_t res = int32_t(res32);   // Sign extend to 64-bits.
+  intRegs_.write(di->op0(), res);
 }
 
 
@@ -11985,7 +12309,7 @@ getModeFromPmpconfigByte(uint8_t byte)
 
 template <typename URV>
 void
-Hart<URV>::execSh1addu_w(const DecodedInst* di)
+Hart<URV>::execSh1add_uw(const DecodedInst* di)
 {
   if (not isRv64() or not isRvzba())
     {
@@ -12003,7 +12327,7 @@ Hart<URV>::execSh1addu_w(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execSh2addu_w(const DecodedInst* di)
+Hart<URV>::execSh2add_uw(const DecodedInst* di)
 {
   if (not isRv64() or not isRvzba())
     {
@@ -12021,7 +12345,7 @@ Hart<URV>::execSh2addu_w(const DecodedInst* di)
 
 template <typename URV>
 void
-Hart<URV>::execSh3addu_w(const DecodedInst* di)
+Hart<URV>::execSh3add_uw(const DecodedInst* di)
 {
   if (not isRv64() or not isRvzba())
     {
@@ -12034,6 +12358,21 @@ Hart<URV>::execSh3addu_w(const DecodedInst* di)
 
   URV res = (v1 << 3) + v2;
   intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execAdd_uw(const DecodedInst* di)
+{
+  if (not isRv64() or not isRvzba())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV value = uint32_t(intRegs_.read(di->op1()) + intRegs_.read(di->op2()));
+  intRegs_.write(di->op0(), value);
 }
 
 
@@ -12106,7 +12445,7 @@ template <typename URV>
 void
 Hart<URV>::execCrc32_d(const DecodedInst* di)
 {
-  if (not isRvzbr() or not isRv64())
+  if (not isRv64() or not isRvzbr())
     {
       illegalInst(di);
       return;
@@ -12162,7 +12501,7 @@ template <typename URV>
 void
 Hart<URV>::execCrc32c_d(const DecodedInst* di)
 {
-  if (not isRvzbr() or not isRv64())
+  if (not isRv64() or not isRvzbr())
     {
       illegalInst(di);
       return;

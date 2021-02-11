@@ -1450,36 +1450,20 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printRdRs1(*this, out, "ctz", di);
       break;
 
-    case InstId::pcnt:
-      printRdRs1(*this, out, "pcnt", di);
+    case InstId::cpop:
+      printRdRs1(*this, out, "cpop", di);
       break;
 
-    case InstId::andn:
-      printRdRs1Rs2(*this, out, "andn", di);
+    case InstId::clzw:
+      printRdRs1(*this, out, "clzw", di);
       break;
 
-    case InstId::orn:
-      printRdRs1Rs2(*this, out, "orn", di);
+    case InstId::ctzw:
+      printRdRs1(*this, out, "ctzw", di);
       break;
 
-    case InstId::xnor:
-      printRdRs1Rs2(*this, out, "xnor", di);
-      break;
-
-    case InstId::slo:
-      printRdRs1Rs2(*this, out, "slo", di);
-      break;
-
-    case InstId::sro:
-      printRdRs1Rs2(*this, out, "sro", di);
-      break;
-
-    case InstId::sloi:
-      printShiftImm(*this, out, "sloi", di);
-      break;
-
-    case InstId::sroi:
-      printShiftImm(*this, out, "sroi", di);
+    case InstId::cpopw:
+      printRdRs1(*this, out, "cpopw", di);
       break;
 
     case InstId::min:
@@ -1498,6 +1482,26 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printRdRs1Rs2(*this, out, "maxu", di);
       break;
 
+    case InstId::sext_b:
+      printRdRs1(*this, out, "sext.b", di);
+      break;
+
+    case InstId::sext_h:
+      printRdRs1(*this, out, "sext.h", di);
+      break;
+
+    case InstId::andn:
+      printRdRs1Rs2(*this, out, "andn", di);
+      break;
+
+    case InstId::orn:
+      printRdRs1Rs2(*this, out, "orn", di);
+      break;
+
+    case InstId::xnor:
+      printRdRs1Rs2(*this, out, "xnor", di);
+      break;
+
     case InstId::rol:
       printRdRs1Rs2(*this, out, "rol", di);
       break;
@@ -1510,48 +1514,24 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printShiftImm(*this, out, "rori", di);
       break;
 
+    case InstId::rolw:
+      printRdRs1Rs2(*this, out, "rolw", di);
+      break;
+
+    case InstId::rorw:
+      printRdRs1Rs2(*this, out, "rorw", di);
+      break;
+
+    case InstId::roriw:
+      printShiftImm(*this, out, "roriw", di);
+      break;
+
     case InstId::rev8:
       printRdRs1(*this, out, "rev8", di);
       break;
 
-    case InstId::rev:
-      printRdRs1(*this, out, "rev", di);
-      break;
-
     case InstId::pack:
       printRdRs1Rs2(*this, out, "pack", di);
-      break;
-
-    case InstId::addwu:
-      printRdRs1Rs2(*this, out, "addwu", di);
-      break;
-
-    case InstId::subwu:
-      printRdRs1Rs2(*this, out, "subwu", di);
-      break;
-
-    case InstId::addiwu:
-      printRegRegImm12(*this, out, "addiwu", di);
-      break;
-
-    case InstId::sext_b:
-      printRdRs1(*this, out, "sext.b", di);
-      break;
-
-    case InstId::sext_h:
-      printRdRs1(*this, out, "sext.h", di);
-      break;
-
-    case InstId::addu_w:
-      printRdRs1Rs2(*this, out, "addu.w", di);
-      break;
-
-    case InstId::subu_w:
-      printRdRs1Rs2(*this, out, "subu.w", di);
-      break;
-
-    case InstId::slliu_w:
-      printShiftImm(*this, out, "slliu.w", di);
       break;
 
     case InstId::packh:
@@ -1590,6 +1570,10 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printRdRs1Rs2(*this, out, "shfl", di);
       break;
 
+    case InstId::shflw:
+      printRdRs1Rs2(*this, out, "shflw", di);
+      break;
+
     case InstId::shfli:
       printShiftImm(*this, out, "shfli", di);
       break;
@@ -1602,44 +1586,92 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printShiftImm(*this, out, "unshfli", di);
       break;
 
-    case InstId::sbset:
-      printRdRs1Rs2(*this, out, "sbset", di);
+    case InstId::unshflw:
+      printRdRs1Rs2(*this, out, "unshflw", di);
       break;
 
-    case InstId::sbclr:
-      printRdRs1Rs2(*this, out, "sbclr", di);
+    case InstId::xperm_n:
+      printRdRs1Rs2(*this, out, "xperm_n", di);
       break;
 
-    case InstId::sbinv:
-      printRdRs1Rs2(*this, out, "sbinv", di);
+    case InstId::xperm_b:
+      printRdRs1Rs2(*this, out, "xperm_b", di);
       break;
 
-    case InstId::sbext:
-      printRdRs1Rs2(*this, out, "sbext", di);
+    case InstId::xperm_h:
+      printRdRs1Rs2(*this, out, "xperm_h", di);
       break;
 
-    case InstId::sbseti:
-      printShiftImm(*this, out, "sbseti", di);
+    case InstId::xperm_w:
+      printRdRs1Rs2(*this, out, "xperm_w", di);
       break;
 
-    case InstId::sbclri:
-      printShiftImm(*this, out, "sbclri", di);
+    case InstId::slo:
+      printRdRs1Rs2(*this, out, "slo", di);
       break;
 
-    case InstId::sbinvi:
-      printShiftImm(*this, out, "sbinvi", di);
+    case InstId::sro:
+      printRdRs1Rs2(*this, out, "sro", di);
       break;
 
-    case InstId::sbexti:
-      printShiftImm(*this, out, "sbexti", di);
+    case InstId::sloi:
+      printShiftImm(*this, out, "sloi", di);
       break;
 
-    case InstId::bdep:
-      printRdRs1Rs2(*this, out, "bdep", di);
+    case InstId::sroi:
+      printShiftImm(*this, out, "sroi", di);
+      break;
+
+    case InstId::slow:
+      printRdRs1Rs2(*this, out, "slow", di);
+      break;
+
+    case InstId::srow:
+      printRdRs1Rs2(*this, out, "srow", di);
+      break;
+
+    case InstId::sloiw:
+      printShiftImm(*this, out, "sloiw", di);
+      break;
+
+    case InstId::sroiw:
+      printShiftImm(*this, out, "sroiw", di);
+      break;
+
+    case InstId::bset:
+      printRdRs1Rs2(*this, out, "bset", di);
+      break;
+
+    case InstId::bclr:
+      printRdRs1Rs2(*this, out, "bclr", di);
+      break;
+
+    case InstId::binv:
+      printRdRs1Rs2(*this, out, "binv", di);
       break;
 
     case InstId::bext:
       printRdRs1Rs2(*this, out, "bext", di);
+      break;
+
+    case InstId::bseti:
+      printShiftImm(*this, out, "bseti", di);
+      break;
+
+    case InstId::bclri:
+      printShiftImm(*this, out, "bclri", di);
+      break;
+
+    case InstId::binvi:
+      printShiftImm(*this, out, "binvi", di);
+      break;
+
+    case InstId::bexti:
+      printShiftImm(*this, out, "bexti", di);
+      break;
+
+    case InstId::bdecompress:
+      printRdRs1Rs2(*this, out, "bdecompres", di);
       break;
 
     case InstId::bfp:
@@ -1670,16 +1702,24 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printRdRs1Rs2(*this, out, "sh3add", di);
       break;
 
-    case InstId::sh1addu_w:
-      printRdRs1Rs2(*this, out, "sh1addu.w ", di);
+    case InstId::sh1add_uw:
+      printRdRs1Rs2(*this, out, "sh1add.uw ", di);
       break;
 
-    case InstId::sh2addu_w:
-      printRdRs1Rs2(*this, out, "sh2addu.w ", di);
+    case InstId::sh2add_uw:
+      printRdRs1Rs2(*this, out, "sh2add.uw ", di);
       break;
 
-    case InstId::sh3addu_w:
-      printRdRs1Rs2(*this, out, "sh3addu.w ", di);
+    case InstId::sh3add_uw:
+      printRdRs1Rs2(*this, out, "sh3add.uw ", di);
+      break;
+
+    case InstId::add_uw:
+      printRdRs1Rs2(*this, out, "addwu", di);
+      break;
+
+    case InstId::slli_uw:
+      printShiftImm(*this, out, "slli.uw", di);
       break;
 
     case InstId::crc32_b:
