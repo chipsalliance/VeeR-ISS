@@ -651,7 +651,7 @@ CsRegs<URV>::updateFcsrGroupForWrite(CsrNumber number, URV value)
           fcsrVal = (fcsrVal & ~mask) | ((value << shift) & mask);
 	  fcsr->write(fcsrVal);
 	  // recordWrite(CsrNumber::FCSR);
-          setSimulatorRoundingMode(RoundingMode(value));
+          setSimulatorRoundingMode(RoundingMode((fcsrVal & mask) >> shift));
 	}
       return;
     }
@@ -705,7 +705,7 @@ CsRegs<URV>::updateFcsrGroupForPoke(CsrNumber number, URV value)
           URV shift = URV(RoundingMode::FcsrShift);
           fcsrVal = (fcsrVal & ~mask) | ((value << shift) & mask);
 	  fcsr->poke(fcsrVal);
-          setSimulatorRoundingMode(RoundingMode(value));
+          setSimulatorRoundingMode(RoundingMode((fcsrVal & mask) >> shift));
 	}
       return;
     }
