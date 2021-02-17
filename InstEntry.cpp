@@ -150,7 +150,7 @@ InstTable::setupInstVec()
   uint32_t rs1Mask = 0x1f << 15;
   uint32_t rs2Mask = 0x1f << 20;
   uint32_t rs3Mask = 0x1f << 27;
-  uint32_t immTop20 = 0xffff << 12;  // Immidiate: top 20 bits.
+  uint32_t immTop20 = 0xfffff << 12;  // Immidiate: top 20 bits.
   uint32_t immTop12 = 0xfff << 20;   // Immidiate: top 12 bits.
   uint32_t immBeq = 0xfe000f80;
   uint32_t shamtMask = 0x01f00000;
@@ -387,12 +387,12 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "fence", InstId::fence, 0x000f, 0xf00fffff,   // FIXME: Check mask.
+      { "fence", InstId::fence, 0x000f, 0x0000707f,
 	InstType::Int,
 	OperandType::Imm, OperandMode::None, 0x0f000000,
 	OperandType::Imm, OperandMode::None, 0x00f00000 },
 
-      { "fencei", InstId::fencei, 0x100f, 0xffffffff },  // FIXME: Check mask.
+      { "fence.i", InstId::fencei, 0x100f, 0x0000707f },  // FIXME: Check mask.
 
       { "ecall", InstId::ecall, 0x00000073, 0xffffffff },
       { "ebreak", InstId::ebreak, 0x00100073, 0xffffffff },
@@ -453,7 +453,7 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::Imm, OperandMode::None, immBeq },
 
-      { "addiw", InstId::addiw, 0x001b, 0xfff0707f,
+      { "addiw", InstId::addiw, 0x001b, 0x707f,
 	InstType::Int,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
@@ -599,55 +599,55 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "amoswap.w", InstId::amoswap_w, 0x0800202f, 0xf800070f,
+      { "amoswap.w", InstId::amoswap_w, 0x0800202f, 0xf800707f,
 	InstType::Atomic,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "amoadd.w", InstId::amoadd_w, 0x0000202f, 0xf800070f,
+      { "amoadd.w", InstId::amoadd_w, 0x0000202f, 0xf800707f,
 	InstType::Atomic,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "amoxor.w", InstId::amoxor_w, 0x2000202f, 0xf800070f,
+      { "amoxor.w", InstId::amoxor_w, 0x2000202f, 0xf800707f,
 	InstType::Atomic,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "amoand.w", InstId::amoand_w, 0x6000202f, 0xf800070f,
+      { "amoand.w", InstId::amoand_w, 0x6000202f, 0xf800707f,
 	InstType::Atomic,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "amoor.w", InstId::amoor_w, 0x4000202f, 0xf800070f,
+      { "amoor.w", InstId::amoor_w, 0x4000202f, 0xf800707f,
 	InstType::Atomic,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "amomin.w", InstId::amomin_w, 0x8000202f, 0xf800070f,
+      { "amomin.w", InstId::amomin_w, 0x8000202f, 0xf800707f,
 	InstType::Atomic,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "amomax.w", InstId::amomax_w, 0xa000202f, 0xf800070f,
+      { "amomax.w", InstId::amomax_w, 0xa000202f, 0xf800707f,
 	InstType::Atomic,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "amominu.w", InstId::amominu_w, 0xc000202f, 0xf800070f,
+      { "amominu.w", InstId::amominu_w, 0xc000202f, 0xf800707f,
 	InstType::Atomic,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "amomaxu.w", InstId::amomaxu_w, 0xe000202f, 0xf800070f,
+      { "amomaxu.w", InstId::amomaxu_w, 0xe000202f, 0xf800707f,
 	InstType::Atomic,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
@@ -665,19 +665,19 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "amoswap.d", InstId::amoswap_d, 0x0800302f, 0xf800070f,
+      { "amoswap.d", InstId::amoswap_d, 0x0800302f, 0xf800707f,
 	InstType::Atomic,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "amoadd.d", InstId::amoadd_d, 0x0000302f, 0xf800070f,
+      { "amoadd.d", InstId::amoadd_d, 0x0000302f, 0xf800707f,
 	InstType::Atomic,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "amoxor.d", InstId::amoxor_d, 0x2000302f, 0xf800070f,
+      { "amoxor.d", InstId::amoxor_d, 0x2000302f, 0xf800707f,
 	InstType::Atomic,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
@@ -689,31 +689,31 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "amoor.d", InstId::amoor_d, 0x4000302f, 0xf800070f,
+      { "amoor.d", InstId::amoor_d, 0x4000302f, 0xf800707f,
 	InstType::Atomic,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "amomin.d", InstId::amomin_d, 0x8000302f, 0xf800070f,
+      { "amomin.d", InstId::amomin_d, 0x8000302f, 0xf800707f,
 	InstType::Atomic,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "amomax.d", InstId::amomax_d, 0xa000302f, 0xf800070f,
+      { "amomax.d", InstId::amomax_d, 0xa000302f, 0xf800707f,
 	InstType::Atomic,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "amominu.d", InstId::amominu_d, 0xc000302f, 0xf800070f,
+      { "amominu.d", InstId::amominu_d, 0xc000302f, 0xf800707f,
 	InstType::Atomic,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
-      { "amomaxu.d", InstId::amomaxu_d, 0xe000302f, 0xf800070f,
+      { "amomaxu.d", InstId::amomaxu_d, 0xe000302f, 0xf800707f,
 	InstType::Atomic,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
@@ -830,7 +830,7 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::FpReg, OperandMode::Read, rs1Mask },
 
-      { "fmv.x.w", InstId::fmv_x_w, 0xe0900053, 0xfff1c07f,
+      { "fmv.x.w", InstId::fmv_x_w, 0xe0000053, 0xfff0707f,
 	InstType::Fp,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::FpReg, OperandMode::Read, rs1Mask },
@@ -853,7 +853,7 @@ InstTable::setupInstVec()
 	OperandType::FpReg, OperandMode::Read, rs1Mask,
 	OperandType::FpReg, OperandMode::Read, rs2Mask },
 
-      { "fclass.s", InstId::fclass_s, 0xe0001053, 0xfff1c07f,
+      { "fclass.s", InstId::fclass_s, 0xe0001053, 0xfff0707f,
 	InstType::Fp,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::FpReg, OperandMode::Read, rs1Mask },
@@ -868,7 +868,7 @@ InstTable::setupInstVec()
 	OperandType::FpReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask },
 
-      { "fmv.w.x", InstId::fmv_w_x, 0xf0000053, 0xfff1c07f,
+      { "fmv.w.x", InstId::fmv_w_x, 0xf0000053, 0xfff0707f,
 	InstType::Fp,
 	OperandType::FpReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask },
@@ -953,13 +953,13 @@ InstTable::setupInstVec()
 	OperandType::FpReg, OperandMode::Read, rs1Mask,
 	OperandType::FpReg, OperandMode::Read, rs2Mask },
 
-      { "fdiv.d", InstId::fdiv_d, 0x1b000053, faddMask,
+      { "fdiv.d", InstId::fdiv_d, 0x1a000053, faddMask,
 	InstType::Fp,
 	OperandType::FpReg, OperandMode::Write, rdMask,
 	OperandType::FpReg, OperandMode::Read, rs1Mask,
 	OperandType::FpReg, OperandMode::Read, rs2Mask },
 
-      { "fsqrt.d", InstId::fsqrt_d, 0x5b000053, fsqrtMask,
+      { "fsqrt.d", InstId::fsqrt_d, 0x5a000053, fsqrtMask,
 	InstType::Fp,
 	OperandType::FpReg, OperandMode::Write, rdMask,
 	OperandType::FpReg, OperandMode::Read, rs1Mask },
@@ -982,13 +982,13 @@ InstTable::setupInstVec()
 	OperandType::FpReg, OperandMode::Read, rs1Mask,
 	OperandType::FpReg, OperandMode::Read, rs2Mask },
 
-      { "fmin.d", InstId::fmin_d, 0x2b000053, top7Funct3Low7Mask,
+      { "fmin.d", InstId::fmin_d, 0x2a000053, top7Funct3Low7Mask,
 	InstType::Fp,
 	OperandType::FpReg, OperandMode::Write, rdMask,
 	OperandType::FpReg, OperandMode::Read, rs1Mask,
 	OperandType::FpReg, OperandMode::Read, rs2Mask },
 
-      { "fmax.d", InstId::fmax_d, 0x2b001053, top7Funct3Low7Mask,
+      { "fmax.d", InstId::fmax_d, 0x2a001053, top7Funct3Low7Mask,
 	InstType::Fp,
 	OperandType::FpReg, OperandMode::Write, rdMask,
 	OperandType::FpReg, OperandMode::Read, rs1Mask,
@@ -1022,12 +1022,12 @@ InstTable::setupInstVec()
 	OperandType::FpReg, OperandMode::Read, rs1Mask,
 	OperandType::FpReg, OperandMode::Read, rs2Mask },
 
-      { "fclass.d", InstId::fclass_d, 0xe2001053, 0xfff1c07f,
+      { "fclass.d", InstId::fclass_d, 0xe2001053, 0xfff0707f,
 	InstType::Fp,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::FpReg, OperandMode::Read, rs1Mask },
 
-      { "fcvt.w.d", InstId::fcvt_w_d, 0xf2000053, 0xfff1c07f,
+      { "fcvt.w.d", InstId::fcvt_w_d, 0xc2000053, 0xfff1c07f,
 	InstType::Fp,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::FpReg, OperandMode::Read, rs1Mask },
@@ -1073,16 +1073,16 @@ InstTable::setupInstVec()
 	OperandType::FpReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask },
 
-      { "fmv.d.x", InstId::fmv_d_x, 0xef000053, 0xfff0707f,
+      { "fmv.d.x", InstId::fmv_d_x, 0xf2000053, 0xfff0707f,
 	InstType::Fp,
 	OperandType::FpReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask },
 
       // Privileged
-      { "mret", InstId::mret, 0x30100073, 0xffffffff, InstType::Int },
-      { "uret", InstId::uret, 0x00100073, 0xffffffff, InstType::Int },
-      { "sret", InstId::sret, 0x10100073, 0xffffffff, InstType::Int },
-      { "wfi", InstId::wfi, 0x10280073, 0xffffffff, InstType::Int },
+      { "mret", InstId::mret, 0x30200073, 0xffffffff, InstType::Int },
+      { "uret", InstId::uret, 0x00200073, 0xffffffff, InstType::Int },
+      { "sret", InstId::sret, 0x10200073, 0xffffffff, InstType::Int },
+      { "wfi", InstId::wfi, 0x10500073, 0xffffffff, InstType::Int },
 
       // Supervisor
       { "sfence.vma", InstId::sfence_vma, 0x12000073, 0xfe00707f,
@@ -1112,7 +1112,7 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, 0,
 	OperandType::Imm, OperandMode::None, 0 },
 
-      { "c.lw", InstId::c_lw, 04000, 0xe003,
+      { "c.lw", InstId::c_lw, 0x4000, 0xe003,
 	InstType::Load,
 	OperandType::IntReg, OperandMode::Write, 0,
 	OperandType::IntReg, OperandMode::Read, 0,
@@ -1166,7 +1166,7 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, 0xf80,
 	OperandType::Imm, OperandMode::None, 0x107c },
 
-      { "c.jal", InstId::c_jal, 0x0001, 0xe003,
+      { "c.jal", InstId::c_jal, 0x2001, 0xe003,
 	InstType::Branch,
 	OperandType::IntReg, OperandMode::Write, 0,
 	OperandType::Imm, OperandMode::None, 0 },
@@ -1174,10 +1174,9 @@ InstTable::setupInstVec()
       { "c.li", InstId::c_li, 0x4001, 0xe003,
 	InstType::Int,
 	OperandType::IntReg, OperandMode::Write, 0,
-	OperandType::IntReg, OperandMode::Read, 0,
 	OperandType::Imm, OperandMode::None, 0 },
 
-      { "c.addi16sp", InstId::c_addi16sp, 0x6006, 0xef83,
+      { "c.addi16sp", InstId::c_addi16sp, 0x6101, 0xef83,
 	InstType::Int,
 	OperandType::IntReg, OperandMode::Write, 0,
 	OperandType::IntReg, OperandMode::Read, 0,
@@ -1188,7 +1187,7 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Write, 0,
 	OperandType::Imm, OperandMode::None, 0 },
 
-      { "c.srli", InstId::c_srli, 0x8001, 0xec03,
+      { "c.srli", InstId::c_srli, 0x8001, 0xfc03,
 	InstType::Int,
 	OperandType::IntReg, OperandMode::Write, 0,
 	OperandType::IntReg, OperandMode::Read, 0,
@@ -1200,7 +1199,7 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, 0,
 	OperandType::Imm, OperandMode::None, 0 },
 
-      { "c.srai", InstId::c_srai, 0x8401, 0xec03,
+      { "c.srai", InstId::c_srai, 0x8401, 0x9c03,
 	InstType::Int,
 	OperandType::IntReg, OperandMode::Write, 0,
 	OperandType::IntReg, OperandMode::Read, 0,
@@ -1271,7 +1270,7 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, 0,
 	OperandType::Imm, OperandMode::None, 0 },
 
-      { "c.slli", InstId::c_slli, 0x0002, 0xe003,
+      { "c.slli", InstId::c_slli, 0x0002, 0xf003,
 	InstType::Int,
 	OperandType::IntReg, OperandMode::Write, 0,
 	OperandType::IntReg, OperandMode::Read, 0,
@@ -1331,7 +1330,7 @@ InstTable::setupInstVec()
 	InstType::Int,
 	OperandType::IntReg, OperandMode::Write, 0xf80,
 	OperandType::IntReg, OperandMode::Read, 0xf80,
-	OperandType::IntReg, OperandMode::Read, 0x7c0 },
+	OperandType::IntReg, OperandMode::Read, 0x07c },
 
       { "c.fsdsp", InstId::c_fsdsp, 0xa002, 0xe003,
 	InstType::Store,
@@ -1351,7 +1350,7 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, 0,
 	OperandType::Imm, OperandMode::None, 0 },
 
-      { "c.addiw", InstId::c_addiw, 0x0001, 0xe003,
+      { "c.addiw", InstId::c_addiw, 0x2001, 0xe003,
 	InstType::Int,
 	OperandType::IntReg, OperandMode::Write, 0,
 	OperandType::IntReg, OperandMode::Read, 0,
