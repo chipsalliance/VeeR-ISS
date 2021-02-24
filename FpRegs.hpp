@@ -154,8 +154,8 @@ namespace WdRiscv
 
   /// Model a RISCV floating point register file.
   /// FRV (floating point register value) is the register value type. For
-  /// 32-bit registers, FRV should be float. For 64-bit registers,
-  /// it should be double.
+  /// 32-bit registers, FRV must be float. For 64-bit registers,
+  /// it must be double.
   template <typename FRV>
   class FpRegs
   {

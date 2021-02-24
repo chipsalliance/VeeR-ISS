@@ -381,7 +381,7 @@ namespace WdRiscv
     bool doMatch(URV item, bool cleraBit0) const;
 
     /// Set the hit bit of this trigger. For a chained trigger, this
-    /// should be called only if all the triggers in the chain have
+    /// is to be called only if all the triggers in the chain have
     /// tripped.
     void setHit(bool flag)
     {

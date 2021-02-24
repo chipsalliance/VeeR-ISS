@@ -300,14 +300,6 @@ namespace WdRiscv
      xperm_b,
      xperm_h,
      xperm_w,
-     slo,
-     sro,
-     sloi,
-     sroi,
-     slow,
-     srow,
-     sloiw,
-     sroiw,
 
      // zbs
      bset,

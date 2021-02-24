@@ -179,7 +179,7 @@ namespace WdRiscv
 
     bool applyPerfEventAssign();
 
-    /// Reset all assosiations between events and counters.
+    /// Reset all assosiations among events and counters.
     void reset();
 
   private:

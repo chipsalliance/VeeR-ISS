@@ -101,8 +101,8 @@ namespace WdRiscv
 
   /// Model a RISCV integer register file.
   /// URV (unsigned register value) is the register value type. For
-  /// 32-bit registers, URV should be uint32_t. For 64-bit integers,
-  /// it should be uint64_t.
+  /// 32-bit registers, URV must be uint32_t. For 64-bit integers,
+  /// it must be uint64_t.
   template <typename URV>
   class IntRegs
   {
