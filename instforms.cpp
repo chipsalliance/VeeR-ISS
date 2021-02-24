@@ -402,7 +402,7 @@ IFormInst::encodeAddi(unsigned rdv, unsigned rs1v, int imm)
   fields.funct3 = 0;
   fields.rs1 = rs1v & 0x1f;
 
-  // Imm value checked above.
+  // Imm value checked in preceding code.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
   fields.imm = imm;
@@ -483,7 +483,7 @@ IFormInst::encodeLb(unsigned rdv, unsigned rs1v, int offset)
  fields.funct3 = 0;
  fields.rs1 = rs1v & 0x1f;
 
- // Offset value checked above.
+ // Offset value checked in preceding code.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
  fields.imm = offset;
@@ -747,7 +747,7 @@ IFormInst::encodeCsrrw(uint32_t rd, uint32_t rs1, uint32_t csr)
   fields.funct3 = 1;
   fields.rs1 = rs1 & 0x1f;
 
-  // Csr value checked above.
+  // Csr value checked in preceding code.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
   fields.imm = csr & 0xfff;
@@ -822,7 +822,7 @@ SFormInst::encodeSb(unsigned rs1v, unsigned rs2v, int imm)
   bits.rs1 = rs1v & 0x1f;
   bits.rs2 = rs2v & 0x1f;
 
-  // Imm value checked above.
+  // Imm value checked in preceding code.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
   bits.imm11_5 = (imm >> 5) & 0x7f;
@@ -894,7 +894,7 @@ UFormInst::encodeLui(unsigned rdv, int immed)
   bits.opcode = 0x37;
   bits.rd = rdv & 0x1f;
 
-  // Immed value checked above.
+  // Immed value checked in preceding code.
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
   bits.imm = (immed >> 12) & 0xfffff;

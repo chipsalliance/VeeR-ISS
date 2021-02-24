@@ -354,15 +354,15 @@ namespace WdRiscv
     bool whatIfSingleStep(URV programCounter, uint32_t inst,
 			  ChangeRecord& record);
 
-    /// Similar to the above method but without fetching anything from
-    /// from instruction memory (in other words, this variant will
-    /// never cause an misaligned/instruction-access-fault
+    /// Similar to the preceding method but without fetching anything
+    /// from from instruction memory (in other words, this variant
+    /// will never cause an misaligned/instruction-access-fault
     /// exception).
     bool whatIfSingleStep(uint32_t inst, ChangeRecord& record);
 
-    /// Similar to the above but without fetching register operands.
-    /// Register operand values are obtained from the given decoded
-    /// instruction object.
+    /// Similar to the preceding but without fetching register
+    /// operands. Register operand values are obtained from the given
+    /// decoded instruction object.
     bool whatIfSingStep(const DecodedInst& inst, ChangeRecord& record);
 
     /// Run until the program counter reaches the given address. Do
@@ -448,7 +448,7 @@ namespace WdRiscv
     const InstEntry& decode(uint32_t inst, uint32_t& op0, uint32_t& op1,
 			    uint32_t& op2, uint32_t& op3);
 
-    /// Similar to the above decode method but with decoded data
+    /// Similar to the precedning decode method but with decoded data
     /// placed in the given DecodedInst object.
     void decode(URV address, uint32_t inst, DecodedInst& decodedInst);
 
@@ -495,17 +495,17 @@ namespace WdRiscv
 
     /// Set val to the value of the byte at the given address
     /// returning true on success and false if address is out of
-    /// bounds. Memory is little endian. Bypass physical memory
+    /// bounds. Memory is little-endian. Bypass physical memory
     /// attribute checking if usePma is false.
     bool peekMemory(size_t addr, uint8_t& val, bool usePma) const;
 
-    /// Half-word version of the above.
+    /// Half-word version of the preceding method.
     bool peekMemory(size_t addr, uint16_t& val, bool usePma) const;
 
-    /// Word version of the above.
+    /// Word version of the preceding method.
     bool peekMemory(size_t addr, uint32_t& val, bool usePma) const;
 
-    /// Double-word version of the above.
+    /// Double-word version of the preceding method.
     bool peekMemory(size_t addr, uint64_t& val, bool usePma) const;
 
     /// Set the memory byte at the given address to the given value.
@@ -514,13 +514,13 @@ namespace WdRiscv
     /// Bypass physical memory attribute checking if usePma is false.
     bool pokeMemory(size_t addr, uint8_t val, bool usePma);
 
-    /// Half-word version of the above.
+    /// Half-word version of the preceding method.
     bool pokeMemory(size_t address, uint16_t val, bool usePma);
 
-    /// Word version of the above.
+    /// Word version of the preceding method.
     bool pokeMemory(size_t addr, uint32_t val, bool usePma);
 
-    /// Double-word version of the above.
+    /// Double-word version of the preceding method.
     bool pokeMemory(size_t addr, uint64_t val, bool usePma);
 
     /// Define value of program counter after a reset.
@@ -539,7 +539,7 @@ namespace WdRiscv
 
     /// Define address to which a write will stop the simulator. An
     /// sb, sh, or sw instruction will stop the simulator if the write
-    /// address of he instruction is identical to the given address.
+    /// address of the instruction is identical to the given address.
     void setToHostAddress(size_t address);
 
     /// Special target program symbol writing to which stops the
@@ -1046,8 +1046,8 @@ namespace WdRiscv
     void tieSharedCsrsTo(Hart<URV>& target)
     { return csRegs_.tieSharedCsrsTo(target.csRegs_); }
 
-    /// Return true if non-maskable interrupts (NMIs) should be delivered
-    /// to this hart.
+    /// Return true if non-maskable interrupts (NMIs) are enabled for
+    /// this hart.
     bool isNmiEnabled() const
     { return nmiEnabled_; }
 
@@ -1454,7 +1454,7 @@ namespace WdRiscv
 					   STORE_TYPE& storeVal,
                                            SecondaryCause& secCause, bool& forced);
 
-    /// Helper to execLr. Load type should be int32_t, or int64_t.
+    /// Helper to execLr. Load type must be int32_t, or int64_t.
     /// Return true if instruction is successful. Return false if an
     /// exception occurs or a trigger is tripped. If successful,
     /// physAddr is set to the result of the virtual to physical
@@ -1462,7 +1462,7 @@ namespace WdRiscv
     template<typename LOAD_TYPE>
     bool loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr);
 
-    /// Helper to execSc. Store type should be uint32_t, or uint64_t.
+    /// Helper to execSc. Store type must be uint32_t, or uint64_t.
     /// Return true if store is successful. Return false otherwise
     /// (exception or trigger or condition failed).
     template<typename STORE_TYPE>
@@ -1590,9 +1590,9 @@ namespace WdRiscv
     void printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
 			FILE* out, bool interrupt = false);
 
-    /// Variant of the above for cases where the trace is printed
-    /// before decode. If the instruction is not available then a zero
-    /// (illegal) should be passed.
+    /// Variant of the preceding method for cases where the trace is
+    /// printed before decode. If the instruction is not available
+    /// then a zero (illegal) value is required.
     void printInstTrace(uint32_t instruction, uint64_t tag, std::string& tmp,
 			FILE* out, bool interrupt = false);
 
@@ -1987,14 +1987,6 @@ namespace WdRiscv
     void execXperm_b(const DecodedInst*);
     void execXperm_h(const DecodedInst*);
     void execXperm_w(const DecodedInst*);
-    void execSlo(const DecodedInst*);
-    void execSro(const DecodedInst*);
-    void execSloi(const DecodedInst*);
-    void execSroi(const DecodedInst*);
-    void execSlow(const DecodedInst*);
-    void execSrow(const DecodedInst*);
-    void execSloiw(const DecodedInst*);
-    void execSroiw(const DecodedInst*);
 
     // Bit manipulation: zbs
     void execBset(const DecodedInst*);
@@ -2884,7 +2876,7 @@ namespace WdRiscv
     NmiCause nmiCause_ = NmiCause::UNKNOWN;
     bool nmiEnabled_ = true;
 
-    // These should be cleared before each instruction when triggers enabled.
+    // These must be cleared before each instruction when triggers enabled.
     bool hasException_ = 0;      // True if current inst has an exception.
     bool csrException_ = 0;      // True if there is a CSR related exception.
     bool hasInterrupt_ = 0;      // True if there is an interrupt.

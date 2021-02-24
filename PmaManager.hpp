@@ -114,7 +114,7 @@ namespace WdRiscv
 
 
   /// Physical memory attribute manager. One per memory. Shared
-  /// between cores and harts. Physical memory attributes apply to
+  /// among cores and harts. Physical memory attributes apply to
   /// word-aligned regions as small as 1 word (but are expected to be
   /// applied to a few number of large regions).
   class PmaManager

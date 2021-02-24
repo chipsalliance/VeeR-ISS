@@ -328,7 +328,7 @@ namespace WdRiscv
 
   /// Model a control and status register. The template type URV
   /// (unsigned register value) is the type of the register value. It
-  /// should be uint32_t for 32-bit implementations and uint64_t for
+  /// must be uint32_t for 32-bit implementations and uint64_t for
   /// 64-bit.
   template <typename URV>
   class Csr
@@ -383,7 +383,7 @@ namespace WdRiscv
     bool isDebug() const
     { return debug_; }
 
-    /// Return true if this register is shared between harts.
+    /// Return true if this register is shared among harts.
     bool isShared() const
     { return shared_; }
 
@@ -500,7 +500,7 @@ namespace WdRiscv
     void setIsDebug(bool flag)
     { debug_ = flag; }
 
-    /// Mark regiser as shared between harts.
+    /// Mark regiser as shared among harts.
     void setIsShared(bool flag)
     { shared_ = flag; }
 
@@ -583,7 +583,7 @@ namespace WdRiscv
     bool implemented_ = false; // True if register is implemented.
     bool defined_ = false;
     bool debug_ = false;       // True if this is a debug-mode register.
-    bool shared_ = false;      // True if this is shared between harts.
+    bool shared_ = false;      // True if this is shared among harts.
     URV initialValue_ = 0;
     PrivilegeMode initialMode_ = PrivilegeMode::Machine;
     PrivilegeMode privMode_ = PrivilegeMode::Machine;

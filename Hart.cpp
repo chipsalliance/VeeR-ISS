@@ -4036,8 +4036,8 @@ Hart<URV>::copyMemRegionConfig(const Hart<URV>& other)
 // True if keyboard interrupt (user hit control-c) pending.
 static std::atomic<bool> userStop = false;
 
-// Negation of the above. Exists for speed (obsessive compulsive
-// engineering).
+// Negation of the preceding variable. Exists for speed (obsessive
+// compulsive engineering).
 static std::atomic<bool> noUserStop = true;
 
 void
@@ -4964,8 +4964,8 @@ Hart<URV>::whatIfSingleStep(URV whatIfPc, uint32_t inst, ChangeRecord& record)
 
   // Fetch instruction. We don't care about what we fetch. Just checking
   // if there is a fetch exception.
-  uint32_t dummyInst = 0;
-  bool fetchOk = fetchInst(pc_, dummyInst);
+  uint32_t tempInst = 0;
+  bool fetchOk = fetchInst(pc_, tempInst);
 
   if (not fetchOk)
     {
@@ -5431,14 +5431,6 @@ Hart<URV>::execute(const DecodedInst* di)
      &&xperm_b,
      &&xperm_h,
      &&xperm_w,
-     &&slo,
-     &&sro,
-     &&sloi,
-     &&sroi,
-     &&slow,
-     &&srow,
-     &&sloiw,
-     &&sroiw,
 
      // zbs
      &&bset,
@@ -6731,38 +6723,6 @@ Hart<URV>::execute(const DecodedInst* di)
 
  xperm_w:
   execXperm_w(di);
-  return;
-
- slo:
-  execSlo(di);
-  return;
-
- sro:
-  execSro(di);
-  return;
-
- sloi:
-  execSloi(di);
-  return;
-
- sroi:
-  execSroi(di);
-  return;
-
- slow:
-  execSlow(di);
-  return;
-
- srow:
-  execSrow(di);
-  return;
-
- sloiw:
-  execSloiw(di);
-  return;
-
- sroiw:
-  execSroiw(di);
   return;
 
  bset:
@@ -8289,13 +8249,13 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
   bool forcedFail = false;
   if (accessSize == 4)
     {
-      uint32_t dummy = 0;
-      cause = determineStoreException(rs1, addr, addr, dummy, secCause, forcedFail);
+      uint32_t storeVal = 0;
+      cause = determineStoreException(rs1, addr, addr, storeVal, secCause, forcedFail);
     }
   else
     {
-      uint64_t dummy = 0;
-      cause = determineStoreException(rs1, addr, addr, dummy, secCause, forcedFail);
+      uint64_t storeVal = 0;
+      cause = determineStoreException(rs1, addr, addr, storeVal, secCause, forcedFail);
     }
 
   // Address must be word aligned for word access and double-word
@@ -12051,168 +12011,6 @@ Hart<URV>::execXperm_w(const DecodedInst* di)
   uint64_t v2 = intRegs_.read(di->op2());
   uint64_t res = xperm64(v1, v2, 5);
 
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSlo(const DecodedInst* di)
-{
-  if (not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV mask = shiftMask();
-  URV shift = intRegs_.read(di->op2()) & mask;
-
-  URV v1 = intRegs_.read(di->op1());
-  URV res = ~((~v1) << shift);
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSro(const DecodedInst* di)
-{
-  if (not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV mask = shiftMask();
-  URV shift = intRegs_.read(di->op2()) & mask;
-
-  URV v1 = intRegs_.read(di->op1());
-  URV res = ~((~v1) >> shift);
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSloi(const DecodedInst* di)
-{
-  if (not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV imm = di->op2();
-  if (not checkShiftImmediate(di, imm))
-    return;
-
-  URV v1 = intRegs_.read(di->op1());
-  URV res = ~((~v1) << imm);
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSroi(const DecodedInst* di)
-{
-  if (not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  uint32_t imm = di->op2();
-  if (not checkShiftImmediate(di, imm))
-    return;
-
-  URV v1 = intRegs_.read(di->op1());
-  URV res = ~((~v1) >> imm);
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSlow(const DecodedInst* di)
-{
-  if (not isRv64() or not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV shift = intRegs_.read(di->op2()) & 0x1f;
-
-  uint32_t v1 = intRegs_.read(di->op1());
-  uint32_t res32 = ~((~v1) << shift);
-
-  int64_t res = int32_t(res32);   // Sign extend to 64-bits.
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSrow(const DecodedInst* di)
-{
-  if (not isRv64() or not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  URV shift = intRegs_.read(di->op2()) & 0x1f;
-
-  uint32_t v1 = intRegs_.read(di->op1());
-  uint32_t res32 = ~((~v1) >> shift);
-
-  int64_t res = int32_t(res32);   // Sign extend to 64-bits.
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSloiw(const DecodedInst* di)
-{
-  if (not isRv64() or not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  uint32_t imm = di->op2();
-  if (not checkShiftImmediate(di, imm))
-    return;
-
-  uint32_t v1 = intRegs_.read(di->op1());
-  uint32_t res32 = ~((~v1) << imm);
-
-  int64_t res = int32_t(res32);   // Sign extend to 64-bits.
-  intRegs_.write(di->op0(), res);
-}
-
-
-template <typename URV>
-void
-Hart<URV>::execSroiw(const DecodedInst* di)
-{
-  if (not isRv64() or not isRvzbp())
-    {
-      illegalInst(di);
-      return;
-    }
-
-  uint32_t imm = di->op2();
-  if (not checkShiftImmediate(di, imm))
-    return;
-
-  uint32_t v1 = intRegs_.read(di->op1());
-  uint32_t res32 = ~((~v1) >> imm);
-
-  int64_t res = int32_t(res32);   // Sign extend to 64-bits.
   intRegs_.write(di->op0(), res);
 }
 
