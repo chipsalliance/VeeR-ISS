@@ -9215,20 +9215,20 @@ Hart<URV>::execSh(const DecodedInst* di)
 }
 
 
+template<typename URV>
+void
+Hart<URV>::execMul(const DecodedInst* di)
+{
+  SRV a = intRegs_.read(di->op1());
+  SRV b = intRegs_.read(di->op2());
+
+  SRV c = a * b;
+  intRegs_.write(di->op0(), c);
+}
+
+
 namespace WdRiscv
 {
-
-  template<>
-  void
-  Hart<uint32_t>::execMul(const DecodedInst* di)
-  {
-    int32_t a = intRegs_.read(di->op1());
-    int32_t b = intRegs_.read(di->op2());
-
-    int32_t c = a * b;
-    intRegs_.write(di->op0(), c);
-  }
-
 
   template<>
   void
@@ -9266,18 +9266,6 @@ namespace WdRiscv
     uint32_t high = static_cast<uint32_t>(c >> 32);
 
     intRegs_.write(di->op0(), high);
-  }
-
-
-  template<>
-  void
-  Hart<uint64_t>::execMul(const DecodedInst* di)
-  {
-    Int128 a = int64_t(intRegs_.read(di->op1()));  // sign extend to 64-bit
-    Int128 b = int64_t(intRegs_.read(di->op2()));
-
-    int64_t c = static_cast<int64_t>(a * b);
-    intRegs_.write(di->op0(), c);
   }
 
 
