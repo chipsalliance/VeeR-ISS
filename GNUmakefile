@@ -47,6 +47,14 @@ ifeq (mingw,$(findstring mingw,$(shell $(CXX) -v 2>&1 | grep Target | cut -d' ' 
 EXTRA_LIBS += -lws2_32
 endif
 
+ifdef SOFT_FLOAT
+override CPPFLAGS += -I$(PWD)/softfloat/source/include
+override CPPFLAGS += -DSOFT_FLOAT
+soft_float_build := $(wildcard $(PWD)/softfloat/build/RISCV-GCC)
+soft_float_lib := $(soft_float_build)/softfloat.a
+endif
+
+
 # Add External Library location paths here
 LINK_DIRS := $(addprefix -L,$(BOOST_LIB_DIR))
 
@@ -95,7 +103,8 @@ $(BUILD_DIR)/%.c.o:  %.c
 
 # Main target.(only linking)
 $(BUILD_DIR)/$(PROJECT): $(BUILD_DIR)/whisper.cpp.o \
-                         $(BUILD_DIR)/librvcore.a
+                         $(BUILD_DIR)/librvcore.a \
+			 $(soft_float_lib)
 	$(CXX) -o $@ $^ $(LINK_DIRS) $(LINK_LIBS)
 
 # List of all CPP sources needed for librvcore.a
@@ -127,6 +136,9 @@ OBJS := $(RVCORE_SRCS:%=$(BUILD_DIR)/%.o) $(SRCS_C:%=$(BUILD_DIR)/%.o)
 
 $(BUILD_DIR)/librvcore.a: $(OBJS)
 	$(AR) cr $@ $^
+
+$(soft_float_lib):
+	$(MAKE) -C $(soft_float_build)
 
 install: $(BUILD_DIR)/$(PROJECT)
 	@if test "." -ef "$(INSTALL_DIR)" -o "" == "$(INSTALL_DIR)" ; \
