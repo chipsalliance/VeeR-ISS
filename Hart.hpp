@@ -2818,6 +2818,11 @@ namespace WdRiscv
     // Load snapshot of registers (PC, integer, floating point, CSR) into file
     bool loadSnapshotRegs(const std::string& path);
 
+    // Set the program counter to the given value after clearing the
+    // least significant bit.
+    void setPc(URV value)
+    { pc_ = value & pcMask_; }
+
   private:
 
     unsigned hartIx_ = 0;        // Hardware thread id within cluster.
@@ -2855,6 +2860,7 @@ namespace WdRiscv
     URV currPc_ = 0;             // Addr instr being executed (pc_ before fetch).
     URV resetPc_ = 0;            // Pc to use on reset.
     URV stopAddr_ = 0;           // Pc at which to stop the simulator.
+    URV pcMask_ = ~URV(1);       // Values are anded with this before being assigned to the program counter.
     bool stopAddrValid_ = false; // True if stopAddr_ is valid.
 
     URV toHost_ = 0;             // Writing to this stops the simulator.
