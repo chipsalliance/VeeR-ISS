@@ -328,7 +328,8 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
       // A value of 0b11 (io/cacheable) for the ith region is invalid:
       // Make it 0b10 (io/non-cacheable).
       URV mask = 0b11;
-      for (unsigned i = 0; i < sizeof(URV)*8; i += 2)
+      unsigned xlen = rv32_ ? 32 : 64;
+      for (unsigned i = 0; i < xlen; i += 2)
 	{
 	  if ((value & mask) == mask)
 	    value = (value & ~mask) | (0b10 << i);
@@ -517,7 +518,7 @@ CsRegs<URV>::configMachineModePerfCounters(unsigned numCounters)
                         shared))
 	errors++;
 
-      if constexpr (sizeof(URV) == 4)
+      if (rv32_)
          {
 	   csrNum = CsrNumber(i + unsigned(CsrNumber::MHPMCOUNTER3H));
 	   if (not configCsr(csrNum, true, resetValue, mask, pokeMask,
@@ -568,7 +569,7 @@ CsRegs<URV>::configUserModePerfCounters(unsigned numCounters)
                         shared))
 	errors++;
 
-      if constexpr (sizeof(URV) == 4)
+      if (rv32_)
          {
 	   csrNum = CsrNumber(i + unsigned(CsrNumber::HPMCOUNTER3H));
 	   if (not configCsr(csrNum, true, resetValue, mask, pokeMask,
@@ -863,10 +864,10 @@ CsRegs<URV>::defineMachineRegs()
   //                                V               E   E E
   URV mask = 0b0'00000000'1'1'1'1'1'1'11'11'11'00'1'1'0'1'0'1'0'1'0;
   URV val = 0;
-  if constexpr (sizeof(URV) == 8)
+  if (not rv32_)
     {
-      mask |= (URV(0b0000) << 32);  // Mask for SXL and UXL (currently not writable).
-      val |= (URV(0b1010) << 32);   // Value of SXL and UXL : sxlen=uxlen=64
+      mask |= uint64_t(0b0000) << 32;  // Mask for SXL and UXL (currently not writable).
+      val |= uint64_t(0b1010) << 32;   // Value of SXL and UXL : sxlen=uxlen=64
     }
   URV pokeMask = mask | (URV(1) << (sizeof(URV)*8 - 1));  // Make SD pokable.
 
@@ -912,12 +913,12 @@ CsRegs<URV>::defineMachineRegs()
 
   // Physical memory protection. PMPCFG1 and PMPCFG3 are present only
   // in 32-bit implementations.
-  URV cfgMask = 0x9f9f9f9f;
-  if constexpr (sizeof(URV) == 8)
+  uint64_t cfgMask = 0x9f9f9f9f;
+  if (not rv32_)
     cfgMask = 0x9f9f9f9f9f9f9f9fL;
   defineCsr("pmpcfg0",   Csrn::PMPCFG0,   !mand, imp, 0, cfgMask, cfgMask);
   defineCsr("pmpcfg2",   Csrn::PMPCFG2,   !mand, imp, 0, cfgMask, cfgMask);
-  if (sizeof(URV) == 4)
+  if (rv32_)
     {
       defineCsr("pmpcfg1",   Csrn::PMPCFG1,   !mand, imp, 0, cfgMask, cfgMask);
       defineCsr("pmpcfg3",   Csrn::PMPCFG3,   !mand, imp, 0, cfgMask, cfgMask);
@@ -928,8 +929,8 @@ CsRegs<URV>::defineMachineRegs()
       defineCsr("pmpcfg3",   Csrn::PMPCFG3,   !mand, !imp, 0, cfgMask, cfgMask);
     }
 
-  URV pmpMask = 0xffffffff;
-  if constexpr (sizeof(URV) == 8)
+  uint64_t pmpMask = 0xffffffff;
+  if (not rv32_)
     pmpMask = 0x003f'ffff'ffff'ffffL; // Top 10 bits are zeros
 
   defineCsr("pmpaddr0",  Csrn::PMPADDR0,  !mand, imp, 0, pmpMask, pmpMask);
@@ -1013,7 +1014,7 @@ CsRegs<URV>::tiePerfCounters(std::vector<uint64_t>& counters)
   // counterparts, we tie them as well regardless of whether or not
   // they are configured.
 
-  if constexpr (sizeof(URV) == 4)
+  if (rv32_)
     {
       // Tie each mhpmcounter CSR value to the least significant 4
       // bytes of the corresponding counters_ entry. Tie each
@@ -1077,8 +1078,8 @@ CsRegs<URV>::defineSupervisorRegs()
 
   // Only bits sie, spie, upie, ube, spp, fs, xs, sum, mxr, uxl (rv64) and sd of
   // sstatus are writeable.  The non-writeable bits read zero.
-  URV mask = 0x800de162;
-  if constexpr (sizeof(URV) == 8)
+  uint64_t mask = 0x800de162;
+  if (not rv32_)
     mask = 0x80000003000de162L;
   defineCsr("sstatus",    Csrn::SSTATUS,    !mand, !imp, 0, mask, mask);
 
@@ -1214,7 +1215,7 @@ CsRegs<URV>::defineDebugRegs()
 
   // Set intitial values of fields of data1.
   data1Val.mcontrol_.type_ = unsigned(TriggerType::AddrData);
-  data1Val.mcontrol_.maskMax_ = 8*sizeof(URV) - 1;  // 31 or 63.
+  data1Val.mcontrol_.maskMax_ = rv32_ ? 31 : 63;
 
   // Values, write-masks, and poke-masks of the three components of
   // the triggres.
@@ -1273,9 +1274,9 @@ CsRegs<URV>::defineVectorRegs()
   defineCsr("VCSR",   CsrNumber::VCSR,   !mand, !imp, 0, 7, 7);  // 3 bits
   defineCsr("vl",     CsrNumber::VL,     !mand, !imp, 0, 0, 0);
 
-  URV mask = 0x800000ff;
-  if constexpr (sizeof(URV) == 8)
-     mask = 0x80000000000000ffL;
+  uint64_t mask = 0x800000ff;
+  if (not rv32_)
+    mask = 0x80000000000000ffL;
   defineCsr("vtype",  CsrNumber::VTYPE,  !mand, !imp, 0, mask, mask);
 
   defineCsr("vlenb",  CsrNumber::VLENB,  !mand, !imp, 0, 0, 0);
@@ -1422,7 +1423,8 @@ CsRegs<URV>::poke(CsrNumber number, URV value)
       // A value of 0b11 (io/cacheable) for the ith region is invalid:
       // Make it 0b10 (io/non-cacheable).
       URV mask = 0b11;
-      for (unsigned i = 0; i < sizeof(URV)*8; i += 2)
+      unsigned xlen = rv32_ ? 32 : 64;
+      for (unsigned i = 0; i < xlen; i += 2)
 	{
 	  if ((value & mask) == mask)
 	    value = (value & ~mask) | (0b10 << i);
@@ -1612,7 +1614,7 @@ CsRegs<URV>::adjustPmpValue(CsrNumber csrn, URV value) const
       // A field is NAPOT
       if (pmpG_ >= 2)
         {
-          unsigned width = 8*sizeof(URV);
+          unsigned width = rv32_ ? 32 : 64;
           URV mask = ~URV(0) >> (width - pmpG_ + 1);
           value = value | mask; // Set to 1 least sig G-1 bits
         }
