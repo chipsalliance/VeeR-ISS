@@ -246,11 +246,12 @@ namespace WdRiscv
 
     /// Configure given trigger with given reset values, write and
     /// poke masks. Return true on success and false on failure.
-    bool configTrigger(unsigned trigger, URV val1, URV val2, URV val3,
-		       URV wm1, URV wm2, URV wm3,
-		       URV pm1, URV pm2, URV pm3)
+    bool configTrigger(unsigned trigger,
+                       uint64_t rv1, uint64_t rv2, uint64_t rv3,
+		       uint64_t wm1, uint64_t wm2, uint64_t wm3,
+		       uint64_t pm1, uint64_t pm2, uint64_t pm3)
     {
-      return csRegs_.configTrigger(trigger, val1, val2, val3,
+      return csRegs_.configTrigger(trigger, rv1, rv2, rv3,
 				   wm1, wm2, wm3, pm1, pm2, pm3);
     }
 

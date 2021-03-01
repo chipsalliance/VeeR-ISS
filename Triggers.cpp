@@ -307,18 +307,19 @@ Triggers<URV>::icountTriggerHit(PrivilegeMode mode, bool interruptEnabled)
 
 template <typename URV>
 bool
-Triggers<URV>::config(unsigned trigger, URV reset1, URV reset2, URV reset3,
-		      URV wm1, URV wm2, URV wm3,
-		      URV pm1, URV pm2, URV pm3)
+Triggers<URV>::config(unsigned trigger,
+                      uint64_t rv1, uint64_t rv2, uint64_t rv3,
+		      uint64_t wm1, uint64_t wm2, uint64_t wm3,
+		      uint64_t pm1, uint64_t pm2, uint64_t pm3)
 {
   if (trigger <= triggers_.size())
     triggers_.resize(trigger + 1);
 
-  triggers_.at(trigger).configData1(reset1, wm1, pm1);
-  triggers_.at(trigger).configData2(reset2, wm2, pm2);
-  triggers_.at(trigger).configData3(reset3, wm3, pm3);
+  triggers_.at(trigger).configData1(rv1, wm1, pm1);
+  triggers_.at(trigger).configData2(rv2, wm2, pm2);
+  triggers_.at(trigger).configData3(rv3, wm3, pm3);
 
-  triggers_.at(trigger).writeData2(true, reset2);  // Define compare mask.
+  triggers_.at(trigger).writeData2(true, rv2);  // Define compare mask.
 
   defineChainBounds();
 
