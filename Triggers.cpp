@@ -499,7 +499,7 @@ bool
 Trigger<URV>::matchLdStAddr(URV address, TriggerTiming timing, bool isLoad,
                             PrivilegeMode mode) const
 {
-  if (TriggerType(data1_.data1_.type_) != TriggerType::AddrData)
+  if (not data1_.isAddrData())
     return false;  // Not an address trigger.
 
   const Mcontrol<URV>& ctl = data1_.mcontrol_;
@@ -533,7 +533,7 @@ bool
 Trigger<URV>::matchLdStData(URV value, TriggerTiming timing, bool isLoad,
                             PrivilegeMode mode) const
 {
-  if (TriggerType(data1_.data1_.type_) != TriggerType::AddrData)
+  if (not data1_.isAddrData())
     return false;  // Not an address trigger.
 
   const Mcontrol<URV>& ctl = data1_.mcontrol_;
@@ -615,7 +615,7 @@ bool
 Trigger<URV>::matchInstAddr(URV address, TriggerTiming timing,
                             PrivilegeMode mode) const
 {
-  if (TriggerType(data1_.data1_.type_) != TriggerType::AddrData)
+  if (not data1_.isAddrData())
     return false;  // Not an address trigger.
 
   const Mcontrol<URV>& ctl = data1_.mcontrol_;
@@ -647,7 +647,7 @@ bool
 Trigger<URV>::matchInstOpcode(URV opcode, TriggerTiming timing,
                               PrivilegeMode mode) const
 {
-  if (TriggerType(data1_.data1_.type_) != TriggerType::AddrData)
+  if (not data1_.isAddrData())
     return false;  // Not an address trigger.
 
   const Mcontrol<URV>& ctl = data1_.mcontrol_;

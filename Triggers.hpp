@@ -101,17 +101,7 @@ namespace WdRiscv
   } __attribute__((packed));
 
 
-  /// Bit fields of generic tdata trigger register view.
-  template <typename URV>
-  struct GenericData1
-  {
-    URV data_         : 8*sizeof(URV) - 5;
-    unsigned dmode_   : 1;
-    unsigned type_    : 4;
-  } __attribute__((packed));
-
-
-  /// TDATA1 trigger register
+  /// TDATA1 trigger register value
   template <typename URV>
   union Data1Bits
   {
@@ -119,8 +109,12 @@ namespace WdRiscv
       value_(value)
     { }
 
+    TriggerType type() const { return TriggerType(mcontrol_.type_); }
+
+    bool isAddrData() const  { return type() == TriggerType::AddrData; }
+    bool isInstCount() const { return type() == TriggerType::InstCount; }
+
     URV value_ = 0;
-    GenericData1<URV> data1_;
     Mcontrol<URV> mcontrol_;
     Icount<URV> icount_;
   };
@@ -185,7 +179,7 @@ namespace WdRiscv
       data1_.value_ = (x & mask) | (data1_.value_ & ~mask);
       modifiedT1_ = true;
 
-      if (TriggerType(data1_.mcontrol_.type_) == TriggerType::AddrData)
+      if (data1_.isAddrData())
 	{
 	  // If load-data is not enabled, then turn it off when
 	  // attempted. If exec-opcode is not enabled, then turn it
@@ -208,7 +202,7 @@ namespace WdRiscv
 	  if (data1_.mcontrol_.dmode_ == 0)
 	    data1_.mcontrol_.action_ = 0;
 	}
-      else if (TriggerType(data1_.mcontrol_.type_) == TriggerType::InstCount)
+      else if (data1_.isInstCount())
 	{
 	  if (data1_.icount_.dmode_ == 0)
 	    data1_.icount_.action_ = 0;
@@ -289,9 +283,9 @@ namespace WdRiscv
     /// Return true if this trigger is enabled.
     bool isEnabled() const
     {
-      if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
+      if (data1_.isAddrData())
 	return data1_.mcontrol_.m_ or data1_.mcontrol_.s_ or data1_.mcontrol_.u_;
-      if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
+      if (data1_.isInstCount())
 	return data1_.icount_.m_ or data1_.icount_.s_ or data1_.icount_.u_;
       return false;
     }
@@ -299,9 +293,9 @@ namespace WdRiscv
     /// Return true if trigger is writable only in debug mode.
     bool isDebugModeOnly() const
     {
-      if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
+      if (data1_.isAddrData())
 	return Mode(data1_.mcontrol_.dmode_) == Mode::D;
-      if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
+      if (data1_.isInstCount())
 	return Mode(data1_.icount_.dmode_) == Mode::D;
       return true;
     }
@@ -309,7 +303,7 @@ namespace WdRiscv
     /// Return true if this is an instruction (execute) trigger.
     bool isInst() const
     {
-      return (TriggerType(data1_.data1_.type_) == TriggerType::AddrData and
+      return (data1_.isAddrData() and
 	      data1_.mcontrol_.execute_);
     }
 
@@ -317,9 +311,9 @@ namespace WdRiscv
     /// mode on a hit.
     bool isEnterDebugOnHit() const
     {
-      if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
+      if (data1_.isAddrData())
 	return Action(data1_.mcontrol_.action_) == Action::EnterDebug;
-      if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
+      if (data1_.isInstCount())
 	return Action(data1_.icount_.action_) == Action::EnterDebug;
       return false;
     }
@@ -353,7 +347,7 @@ namespace WdRiscv
     /// false otherwise.
     bool instCountdown(PrivilegeMode mode)
     {
-      if (TriggerType(data1_.data1_.type_) != TriggerType::InstCount)
+      if (not data1_.isInstCount())
 	return false;  // Not an icount trigger.
       Icount<URV>& icount = data1_.icount_;
 
@@ -385,14 +379,14 @@ namespace WdRiscv
     /// tripped.
     void setHit(bool flag)
     {
-      if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
+      if (data1_.isAddrData())
 	{
           if (not modifiedT1_)
             prevData1_ = data1_.value_;
 	  data1_.mcontrol_.hit_ = flag;
 	  modifiedT1_ = true;
 	}
-      if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
+      if (data1_.isInstCount())
 	{
           if (not modifiedT1_)
             prevData1_ = data1_.value_;
@@ -404,9 +398,9 @@ namespace WdRiscv
     /// Return the hit bit of this trigger.
     bool getHit() const
     {
-      if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
+      if (data1_.isAddrData())
 	return data1_.mcontrol_.hit_;
-      if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
+      if (data1_.isInstCount())
 	return data1_.icount_.hit_;
       return false;
     }
@@ -415,7 +409,7 @@ namespace WdRiscv
     /// no chain bit.
     bool getChain() const
     {
-      if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
+      if (data1_.isAddrData())
 	return data1_.mcontrol_.chain_;
       return false;
     }
@@ -423,7 +417,7 @@ namespace WdRiscv
     /// Return the timing of this trigger.
     TriggerTiming getTiming() const
     {
-      if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
+      if (data1_.isAddrData())
 	return TriggerTiming(data1_.mcontrol_.timing_);
       return TriggerTiming::After;  // icount has "after" timing.
     }
@@ -439,9 +433,9 @@ namespace WdRiscv
     /// Return the action fields of the trigger.
     Action getAction() const
     {
-      if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
+      if (data1_.isAddrData())
 	return Action(data1_.mcontrol_.action_);
-      if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
+      if (data1_.isInstCount())
 	return Action(data1_.icount_.action_);
       return Action::RaiseBreak;
     }
