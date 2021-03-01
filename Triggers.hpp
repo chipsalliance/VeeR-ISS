@@ -54,7 +54,7 @@ namespace WdRiscv
       unsigned hit_     : 1;
       // URV               : 8*sizeof(URV) - 32;  // zero
       unsigned maskMax_ : 6;
-      unsigned dmode_   : 1;
+      unsigned dmode_   : 1;   // Trigger writable only in debug mode.
       unsigned type_    : 4;
   };
 
@@ -79,7 +79,7 @@ namespace WdRiscv
     unsigned hit_     : 1;
     unsigned          : 32;  // 8*sizeof(URV) - 32;
     unsigned maskMax_ : 6;
-    unsigned dmode_   : 1;
+    unsigned dmode_   : 1;   // Trigger writable only in debug mode.
     unsigned type_    : 4;
   };
 
@@ -96,7 +96,7 @@ namespace WdRiscv
     unsigned count_   : 14;
     unsigned hit_     : 1;
     URV               : 8*sizeof(URV) - 30;
-    unsigned dmode_   : 1;
+    unsigned dmode_   : 1;   // Trigger writable only in debug mode.
     unsigned type_    : 4;
   } __attribute__((packed));
 
@@ -114,6 +114,9 @@ namespace WdRiscv
     bool isAddrData() const  { return type() == TriggerType::AddrData; }
     bool isInstCount() const { return type() == TriggerType::InstCount; }
 
+    /// Return true if trigger is writable only in debug mode.
+    bool dmodeOnly() const   { return mcontrol_.dmode_; }
+
     URV value_ = 0;
     Mcontrol<URV> mcontrol_;
     Icount<URV> icount_;
@@ -130,8 +133,6 @@ namespace WdRiscv
   public:
 
     friend class Triggers<URV>;
-
-    enum class Mode { DM, D };  // Modes allowed to write trigger registers.
 
     enum class Select { MatchAddress, MatchData };
 
@@ -198,13 +199,14 @@ namespace WdRiscv
                 }
 	    }
 
-	  // ECHX1: Clearing dmode bit clears action field.
-	  if (data1_.mcontrol_.dmode_ == 0)
+	  // EHX1: Clearing dmode bit clears action field.
+	  if (not data1_.dmodeOnly())
 	    data1_.mcontrol_.action_ = 0;
 	}
       else if (data1_.isInstCount())
 	{
-	  if (data1_.icount_.dmode_ == 0)
+	  // EHX1: Clearing dmode bit clears action field.
+	  if (not data1_.dmodeOnly())
 	    data1_.icount_.action_ = 0;
 	}
 
@@ -294,9 +296,9 @@ namespace WdRiscv
     bool isDebugModeOnly() const
     {
       if (data1_.isAddrData())
-	return Mode(data1_.mcontrol_.dmode_) == Mode::D;
+	return data1_.mcontrol_.dmode_;
       if (data1_.isInstCount())
-	return Mode(data1_.icount_.dmode_) == Mode::D;
+	return data1_.icount_.dmode_;
       return true;
     }
 
