@@ -340,7 +340,8 @@ Triggers<URV>::reset()
 
 template <typename URV>
 bool
-Triggers<URV>::peek(URV trigger, URV& data1, URV& data2, URV& data3) const
+Triggers<URV>::peek(unsigned trigger, uint64_t& data1, uint64_t& data2,
+                    uint64_t& data3) const
 {
   if (trigger >= triggers_.size())
     return false;
@@ -351,9 +352,10 @@ Triggers<URV>::peek(URV trigger, URV& data1, URV& data2, URV& data3) const
 
 template <typename URV>
 bool
-Triggers<URV>::peek(URV trigger, URV& data1, URV& data2, URV& data3,
-		    URV& wm1, URV& wm2, URV& wm3,
-		    URV& pm1, URV& pm2, URV& pm3) const
+Triggers<URV>::peek(unsigned trigger,
+                    uint64_t& data1, uint64_t& data2, uint64_t& data3,
+		    uint64_t& wm1, uint64_t& wm2, uint64_t& wm3,
+		    uint64_t& pm1, uint64_t& pm2, uint64_t& pm3) const
 {
   if (trigger >= triggers_.size())
     return false;

@@ -281,8 +281,8 @@ peekAllTriggers(Hart<URV>& hart)
       URV maxTrigger = tselWm;
       for (URV trigger = 0; trigger <= maxTrigger; ++trigger)
 	{
-	  URV v1(0), v2(0), v3(0), wm1(0), wm2(0), wm3(0);
-	  URV pm1(0), pm2(0), pm3(0);
+	  uint64_t v1(0), v2(0), v3(0), wm1(0), wm2(0), wm3(0);
+	  uint64_t pm1(0), pm2(0), pm3(0);
 
 	  if (hart.peekTrigger(trigger, v1, v2, v3, wm1, wm2, wm3,
 			       pm1, pm2, pm3))
@@ -476,7 +476,7 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
       URV trigger = 0;
       if (not parseCmdLineNumber("trigger-number", addrStr, trigger))
 	return false;
-      URV v1(0), v2(0), v3(0);
+      uint64_t v1(0), v2(0), v3(0);
       if (hart.peekTrigger(trigger, v1, v2, v3))
 	{
 	  std::cout << (boost::format(hexForm) % v1) << ' '

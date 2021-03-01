@@ -3320,7 +3320,7 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
   // Process trigger register diffs.
   for (unsigned trigger : triggers)
     {
-      URV data1(0), data2(0), data3(0);
+      uint64_t data1(0), data2(0), data3(0);
       if (not peekTrigger(trigger, data1, data2, data3))
 	continue;
 

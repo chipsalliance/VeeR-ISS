@@ -511,7 +511,7 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
   // Collect changes associated with trigger register.
   for (unsigned trigger : triggers)
     {
-      URV data1(0), data2(0), data3(0);
+      uint64_t data1(0), data2(0), data3(0);
       if (not hart.peekTrigger(trigger, data1, data2, data3))
 	continue;
 

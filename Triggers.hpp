@@ -494,15 +494,15 @@ namespace WdRiscv
       end = chainEnd_;
     }
 
-    bool peek(URV& data1, URV& data2, URV& data3) const
+    bool peek(uint64_t& data1, uint64_t& data2, uint64_t& data3) const
     {
       data1 = data1_.value_; data2 = data2_; data3 = data3_;
       return true;
     }
 
-    bool peek(URV& data1, URV& data2, URV& data3,
-	      URV& wm1, URV& wm2, URV& wm3,
-	      URV& pm1, URV& pm2, URV& pm3) const
+    bool peek(uint64_t& data1, uint64_t& data2, uint64_t& data3,
+	      uint64_t& wm1, uint64_t& wm2, uint64_t& wm3,
+	      uint64_t& pm1, uint64_t& pm2, uint64_t& pm3) const
     {
       bool ok = peek(data1, data2, data3);
       wm1 = data1WriteMask_; wm2 = data2WriteMask_; wm3 = data3WriteMask_;
@@ -661,14 +661,16 @@ namespace WdRiscv
     /// Get the values of the three components of the given debug
     /// trigger. Return true on success and false if trigger is out of
     /// bounds.
-    bool peek(URV trigger, URV& data1, URV& data2, URV& data3) const;
+    bool peek(unsigned trigger, uint64_t& data1, uint64_t& data2,
+              uint64_t& data3) const;
 
     /// Get the values of the three components of the given debug
     /// trigger as well as the components write and poke masks. Return
     /// true on success and false if trigger is out of bounds.
-    bool peek(URV trigger, URV& data1, URV& data2, URV& data3,
-	      URV& wm1, URV& wm2, URV& wm3,
-	      URV& pm1, URV& pm2, URV& pm3) const;
+    bool peek(unsigned trigger,
+              uint64_t& data1, uint64_t& data2, uint64_t& data3,
+	      uint64_t& wm1, uint64_t& wm2, uint64_t& wm3,
+	      uint64_t& pm1, uint64_t& pm2, uint64_t& pm3) const;
 
     /// Set the values of the three components of the given debug
     /// trigger. Return true on success and false if trigger is out of
