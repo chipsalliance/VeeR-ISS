@@ -943,11 +943,9 @@ namespace WdRiscv
     }
 
     /// Set the current integer-register/CSR width.
-    void setXlen(unsigned xlen)
+    void turnOn32BitMode(bool flag)
     {
-      assert(xlen == 32 or xlen == 64);
-      assert(xlen <= 4*sizeof(URV));
-      xlen_ = xlen;
+      rv32_ = flag;
     }
 
     /// Return the byte of the PMPCFG register associated with the
@@ -1076,7 +1074,7 @@ namespace WdRiscv
 
   private:
 
-    unsigned xlen_ = 8*sizeof(URV);
+    bool rv32_ = sizeof(URV) == 4;
     std::vector< Csr<URV> > regs_;
     std::unordered_map<std::string, CsrNumber> nameToNumber_;
 

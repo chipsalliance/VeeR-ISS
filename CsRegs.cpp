@@ -1557,7 +1557,6 @@ CsRegs<URV>::pokeTdata(CsrNumber number, URV value)
 }
 
 
-
 template <typename URV>
 unsigned
 CsRegs<URV>::getPmpConfigByteFromPmpAddr(CsrNumber csrn) const
@@ -1573,7 +1572,7 @@ CsRegs<URV>::getPmpConfigByteFromPmpAddr(CsrNumber csrn) const
   // Identify byte within config register.
   unsigned byteIx = pmpIx % 4;
 
-  if (xlen_ == 64)
+  if (not rv32_)
     {
       cfgOffset = (cfgOffset / 2) * 2;  // 0 or 2
       byteIx = pmpIx % 8;
@@ -1587,7 +1586,6 @@ CsRegs<URV>::getPmpConfigByteFromPmpAddr(CsrNumber csrn) const
 
   return 0;
 }
-
 
 
 template <typename URV>
