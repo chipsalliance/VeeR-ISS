@@ -295,10 +295,8 @@ namespace WdRiscv
     /// Return true if trigger is writable only in debug mode.
     bool isDebugModeOnly() const
     {
-      if (data1_.isAddrData())
-	return data1_.mcontrol_.dmode_;
-      if (data1_.isInstCount())
-	return data1_.icount_.dmode_;
+      if (data1_.isAddrData() or data1_.isInstCount())
+	return data1_.dmodeOnly();
       return true;
     }
 
