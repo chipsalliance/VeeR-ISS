@@ -253,7 +253,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 626;
+  unsigned subversion = 627;
 
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
@@ -1385,6 +1385,9 @@ batchRun(System<URV>& system, FILE* traceFile, bool waitAll)
   std::atomic<unsigned> finished = 0;  // Count of finished threads. 
 
   auto threadFunc = [&traceFile, &result, &finished] (Hart<URV>* hart) {
+                      // In multi-hart system, wait till hart is started by hart0.
+                      while (not hart->isStarted())
+                        ;
 		      bool r = hart->run(traceFile);
 		      result = result and r;
                       finished++;

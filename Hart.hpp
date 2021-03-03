@@ -21,6 +21,7 @@
 #include <unordered_set>
 #include <type_traits>
 #include <functional>
+#include <atomic>
 #include "InstId.hpp"
 #include "InstEntry.hpp"
 #include "IntRegs.hpp"
@@ -1030,7 +1031,7 @@ namespace WdRiscv
     /// exists, then each remaining hart must be explicitly started by
     /// hart 0 by writing to the corresponding bit in that CSR. This
     /// is special for WD.
-    bool isStarted() const
+    bool isStarted()
     { return hartStarted_; }
 
     /// Mark this hart as started.
@@ -2829,7 +2830,7 @@ namespace WdRiscv
   private:
 
     unsigned hartIx_ = 0;        // Hardware thread id within cluster.
-    bool hartStarted_ = true;    // True if hart is running. WD special.
+    std::atomic<bool> hartStarted_ = true;    // True if hart is running. WD special.
     Memory& memory_;
     IntRegs<URV> intRegs_;       // Integer register file.
     CsRegs<URV> csRegs_;         // Control and status registers.
