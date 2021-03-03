@@ -1383,14 +1383,18 @@ batchRun(System<URV>& system, FILE* traceFile, bool waitAll)
 
   std::atomic<bool> result = true;
   std::atomic<unsigned> finished = 0;  // Count of finished threads. 
+  std::atomic<bool> hart0Done = false;
 
-  auto threadFunc = [&traceFile, &result, &finished] (Hart<URV>* hart) {
+  auto threadFunc = [&traceFile, &result, &finished, &hart0Done] (Hart<URV>* hart) {
                       // In multi-hart system, wait till hart is started by hart0.
                       while (not hart->isStarted())
-                        ;
+                        if (hart0Done)
+                          return;  // We are not going to be started.
 		      bool r = hart->run(traceFile);
 		      result = result and r;
                       finished++;
+                      if (hart->sysHartIndex() == 0)
+                        hart0Done = true;
 		    };
 
   for (unsigned i = 0; i < system.hartCount(); ++i)

@@ -4120,8 +4120,6 @@ template <typename URV>
 bool
 Hart<URV>::logStop(const CoreException& ce, uint64_t counter, FILE* traceFile)
 {
-  std::lock_guard<std::mutex> guard(printInstTraceMutex);
-
   bool success = false;
   bool isRetired = false;
 
@@ -4153,14 +4151,18 @@ Hart<URV>::logStop(const CoreException& ce, uint64_t counter, FILE* traceFile)
 
   using std::cerr;
 
-  cerr << std::dec;
-  if (ce.type() == CoreException::Stop)
-    cerr << (success? "Successful " : "Error: Failed ")
-         << "stop: " << ce.what() << ": " << ce.value() << "\n";
-  else if (ce.type() == CoreException::Exit)
-    cerr << "Target program exited with code " << ce.value() << '\n';
-  else
-    cerr << "Stopped -- unexpected exception\n";
+  {
+    std::lock_guard<std::mutex> guard(printInstTraceMutex);
+
+    cerr << std::dec;
+    if (ce.type() == CoreException::Stop)
+      cerr << (success? "Successful " : "Error: Failed ")
+           << "stop: " << ce.what() << ": " << ce.value() << "\n";
+    else if (ce.type() == CoreException::Exit)
+      cerr << "Target program exited with code " << ce.value() << '\n';
+    else
+      cerr << "Stopped -- unexpected exception\n";
+  }
 
   return success;
 }
