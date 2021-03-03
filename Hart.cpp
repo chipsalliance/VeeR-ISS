@@ -3195,7 +3195,6 @@ formatFpInstTrace<uint64_t>(FILE* out, uint64_t tag, unsigned hartId, uint64_t c
 
 
 static std::mutex printInstTraceMutex;
-static std::mutex stderrMutex;
 
 template <typename URV>
 void
@@ -4102,7 +4101,7 @@ private:
 static void
 reportInstsPerSec(uint64_t instCount, double elapsed, bool userStop)
 {
-  std::lock_guard<std::mutex> guard(stderrMutex);
+  std::lock_guard<std::mutex> guard(printInstTraceMutex);
 
   std::cout.flush();
 
@@ -4121,7 +4120,7 @@ template <typename URV>
 bool
 Hart<URV>::logStop(const CoreException& ce, uint64_t counter, FILE* traceFile)
 {
-  std::lock_guard<std::mutex> guard(stderrMutex);
+  std::lock_guard<std::mutex> guard(printInstTraceMutex);
 
   bool success = false;
   bool isRetired = false;
