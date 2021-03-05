@@ -9124,6 +9124,18 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
     }
   else
     {
+      // DCCM unmapped
+      if (misal)
+        {
+          size_t lba = addr + stSize - 1;  // Last byte address
+          if (isAddrInDccm(addr) != isAddrInDccm(lba) or
+              isAddrMemMapped(addr) != isAddrMemMapped(lba))
+            {
+              secCause = SecondaryCause::STORE_ACC_LOCAL_UNMAPPED;
+              return ExceptionCause::STORE_ACC_FAULT;
+            }
+        }
+
       // DCCM unmapped or out of MPU windows. Invalid PIC access handled later.
       writeOk = memory_.checkWrite(addr, storeVal);
       if (not writeOk and not isAddrMemMapped(addr))
