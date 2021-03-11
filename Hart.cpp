@@ -364,8 +364,8 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
 
   loadQueue_.clear();
 
-  pc_ = resetPc_;
-  currPc_ = resetPc_;
+  setPc(resetPc_);
+  currPc_ = pc_;
 
   // Enable extensions if corresponding bits are set in the MISA CSR.
   processExtensions();
@@ -752,8 +752,7 @@ Hart<URV>::execBeq(const DecodedInst* di)
   URV v1 = intRegs_.read(di->op0()),  v2 = intRegs_.read(di->op1());
   if (v1 != v2)
     return;
-  pc_ = currPc_ + di->op2As<SRV>();
-  pc_ = (pc_ >> 1) << 1;  // Clear least sig bit.
+  setPc(currPc_ + di->op2As<SRV>());
   lastBranchTaken_ = true;
 }
 
@@ -766,8 +765,7 @@ Hart<URV>::execBne(const DecodedInst* di)
   URV v1 = intRegs_.read(di->op0()),  v2 = intRegs_.read(di->op1());
   if (v1 == v2)
     return;
-  pc_ = currPc_ + di->op2As<SRV>();
-  pc_ = (pc_ >> 1) << 1;  // Clear least sig bit.
+  setPc(currPc_ + di->op2As<SRV>());
   lastBranchTaken_ = true;
 }
 
@@ -2686,7 +2684,7 @@ Hart<URV>::initiateTrap(bool interrupt, URV cause, URV pcToSave, URV info,
   if (tvecMode == 1 and interrupt)
     base = base + 4*cause;
 
-  pc_ = base;
+  setPc(base);
 
   // Change privilege mode.
   privMode_ = nextMode;
@@ -2763,7 +2761,7 @@ Hart<URV>::undelegatedInterrupt(URV cause, URV pcToSave, URV nextPc)
       recordCsrWrite(CsrNumber::DCSR);
     }
 
-  pc_ = (nextPc >> 1) << 1;  // Clear least sig bit
+  setPc(nextPc);
 }
 
 
@@ -2975,7 +2973,7 @@ template <typename URV>
 void
 Hart<URV>::pokePc(URV address)
 {
-  pc_ = (address >> 1) << 1; // Clear least sig big
+  setPc(address);
 }
 
 
@@ -3197,7 +3195,6 @@ formatFpInstTrace<uint64_t>(FILE* out, uint64_t tag, unsigned hartId, uint64_t c
 
 
 static std::mutex printInstTraceMutex;
-static std::mutex stderrMutex;
 
 template <typename URV>
 void
@@ -3322,7 +3319,7 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
   // Process trigger register diffs.
   for (unsigned trigger : triggers)
     {
-      URV data1(0), data2(0), data3(0);
+      uint64_t data1(0), data2(0), data3(0);
       if (not peekTrigger(trigger, data1, data2, data3))
 	continue;
 
@@ -3427,7 +3424,7 @@ Hart<URV>::undoForTrigger()
       fpRegs_.clearLastWrittenReg();
     }
 
-  pc_ = currPc_;
+  setPc(currPc_);
 }
 
 
@@ -4104,7 +4101,7 @@ private:
 static void
 reportInstsPerSec(uint64_t instCount, double elapsed, bool userStop)
 {
-  std::lock_guard<std::mutex> guard(stderrMutex);
+  std::lock_guard<std::mutex> guard(printInstTraceMutex);
 
   std::cout.flush();
 
@@ -4123,8 +4120,6 @@ template <typename URV>
 bool
 Hart<URV>::logStop(const CoreException& ce, uint64_t counter, FILE* traceFile)
 {
-  std::lock_guard<std::mutex> guard(stderrMutex);
-
   bool success = false;
   bool isRetired = false;
 
@@ -4156,14 +4151,18 @@ Hart<URV>::logStop(const CoreException& ce, uint64_t counter, FILE* traceFile)
 
   using std::cerr;
 
-  cerr << std::dec;
-  if (ce.type() == CoreException::Stop)
-    cerr << (success? "Successful " : "Error: Failed ")
-         << "stop: " << ce.what() << ": " << ce.value() << "\n";
-  else if (ce.type() == CoreException::Exit)
-    cerr << "Target program exited with code " << ce.value() << '\n';
-  else
-    cerr << "Stopped -- unexpected exception\n";
+  {
+    std::lock_guard<std::mutex> guard(printInstTraceMutex);
+
+    cerr << std::dec;
+    if (ce.type() == CoreException::Stop)
+      cerr << (success? "Successful " : "Error: Failed ")
+           << "stop: " << ce.what() << ": " << ce.value() << "\n";
+    else if (ce.type() == CoreException::Exit)
+      cerr << "Target program exited with code " << ce.value() << '\n';
+    else
+      cerr << "Stopped -- unexpected exception\n";
+  }
 
   return success;
 }
@@ -4957,7 +4956,7 @@ bool
 Hart<URV>::whatIfSingleStep(URV whatIfPc, uint32_t inst, ChangeRecord& record)
 {
   URV prevPc = pc_;
-  pc_ = whatIfPc;
+  setPc(whatIfPc);
 
   // Note: triggers not yet supported.
   triggerTripped_ = false;
@@ -4975,7 +4974,7 @@ Hart<URV>::whatIfSingleStep(URV whatIfPc, uint32_t inst, ChangeRecord& record)
 
   bool res = whatIfSingleStep(inst, record);
 
-  pc_ = prevPc;
+  setPc(prevPc);
   return res;
 }
 
@@ -4988,7 +4987,8 @@ Hart<URV>::whatIfSingStep(const DecodedInst& di, ChangeRecord& record)
   uint64_t prevExceptionCount = exceptionCount_;
   URV prevPc  = pc_, prevCurrPc = currPc_;
 
-  currPc_ = pc_ = di.address();
+  setPc(di.address());
+  currPc_ = pc_;
 
   // Note: triggers not yet supported.
   triggerTripped_ = false;
@@ -5083,7 +5083,7 @@ Hart<URV>::whatIfSingStep(const DecodedInst& di, ChangeRecord& record)
 	}
     }
 
-  pc_ = prevPc;
+  setPc(prevPc);
   currPc_ = prevCurrPc;
 
   return result;
@@ -5097,7 +5097,7 @@ Hart<URV>::collectAndUndoWhatIfChanges(URV prevPc, ChangeRecord& record)
   record.clear();
 
   record.newPc = pc_;
-  pc_ = prevPc;
+  setPc(prevPc);
 
   unsigned regIx = 0;
   URV oldValue = 0;
@@ -7959,8 +7959,7 @@ Hart<URV>::execBlt(const DecodedInst* di)
   SRV v1 = intRegs_.read(di->op0()),  v2 = intRegs_.read(di->op1());
   if (v1 < v2)
     {
-      pc_ = currPc_ + di->op2As<SRV>();
-      pc_ = (pc_ >> 1) << 1;  // Clear least sig bit.
+      setPc(currPc_ + di->op2As<SRV>());
       lastBranchTaken_ = true;
     }
 }
@@ -7973,8 +7972,7 @@ Hart<URV>::execBltu(const DecodedInst* di)
   URV v1 = intRegs_.read(di->op0()),  v2 = intRegs_.read(di->op1());
   if (v1 < v2)
     {
-      pc_ = currPc_ + di->op2As<SRV>();
-      pc_ = (pc_ >> 1) << 1;  // Clear least sig bit.
+      setPc(currPc_ + di->op2As<SRV>());
       lastBranchTaken_ = true;
     }
 }
@@ -7987,8 +7985,7 @@ Hart<URV>::execBge(const DecodedInst* di)
   SRV v1 = intRegs_.read(di->op0()),  v2 = intRegs_.read(di->op1());
   if (v1 >= v2)
     {
-      pc_ = currPc_ + di->op2As<SRV>();
-      pc_ = (pc_ >> 1) << 1;  // Clear least sig bit.
+      setPc(currPc_ + di->op2As<SRV>());
       lastBranchTaken_ = true;
     }
 }
@@ -8001,8 +7998,7 @@ Hart<URV>::execBgeu(const DecodedInst* di)
   URV v1 = intRegs_.read(di->op0()),  v2 = intRegs_.read(di->op1());
   if (v1 >= v2)
     {
-      pc_ = currPc_ + di->op2As<SRV>();
-      pc_ = (pc_ >> 1) << 1;  // Clear least sig bit.
+      setPc(currPc_ + di->op2As<SRV>());
       lastBranchTaken_ = true;
     }
 }
@@ -8013,8 +8009,7 @@ void
 Hart<URV>::execJalr(const DecodedInst* di)
 {
   URV temp = pc_;  // pc has the address of the instruction after jalr
-  pc_ = intRegs_.read(di->op1()) + di->op2As<SRV>();
-  pc_ = (pc_ >> 1) << 1;  // Clear least sig bit.
+  setPc(intRegs_.read(di->op1()) + di->op2As<SRV>());
   intRegs_.write(di->op0(), temp);
   lastBranchTaken_ = true;
 }
@@ -8025,8 +8020,7 @@ void
 Hart<URV>::execJal(const DecodedInst* di)
 {
   intRegs_.write(di->op0(), pc_);
-  pc_ = currPc_ + SRV(int32_t(di->op1()));
-  pc_ = (pc_ >> 1) << 1;  // Clear least sig bit.
+  setPc(currPc_ + SRV(int32_t(di->op1())));
   lastBranchTaken_ = true;
 }
 
@@ -8424,7 +8418,7 @@ Hart<URV>::execEbreak(const DecodedInst*)
 
   if (enableGdb_)
     {
-      pc_ = currPc_;
+      setPc(currPc_);
       handleExceptionForGdb(*this, gdbInputFd_);
       return;
     }
@@ -8540,7 +8534,7 @@ Hart<URV>::execMret(const DecodedInst* di)
   URV epc;
   if (not csRegs_.read(CsrNumber::MEPC, privMode_, epc))
     illegalInst(di);
-  pc_ = (epc >> 1) << 1;  // Restore pc clearing least sig bit.
+  setPc(epc);
       
   // Update privilege mode.
   privMode_ = savedMode;
@@ -8611,7 +8605,7 @@ Hart<URV>::execSret(const DecodedInst* di)
       illegalInst(di);
       return;
     }
-  pc_ = (epc >> 1) << 1;  // Restore pc clearing least sig bit.
+  setPc(epc);
 
   // Update privilege mode.
   privMode_ = savedMode;
@@ -8666,7 +8660,7 @@ Hart<URV>::execUret(const DecodedInst* di)
       illegalInst(di);
       return;
     }
-  pc_ = (epc >> 1) << 1;  // Restore pc clearing least sig bit.
+  setPc(epc);
 }
 
 
@@ -9130,6 +9124,18 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
     }
   else
     {
+      // DCCM unmapped
+      if (misal)
+        {
+          size_t lba = addr + stSize - 1;  // Last byte address
+          if (isAddrInDccm(addr) != isAddrInDccm(lba) or
+              isAddrMemMapped(addr) != isAddrMemMapped(lba))
+            {
+              secCause = SecondaryCause::STORE_ACC_LOCAL_UNMAPPED;
+              return ExceptionCause::STORE_ACC_FAULT;
+            }
+        }
+
       // DCCM unmapped or out of MPU windows. Invalid PIC access handled later.
       writeOk = memory_.checkWrite(addr, storeVal);
       if (not writeOk and not isAddrMemMapped(addr))
@@ -9222,20 +9228,20 @@ Hart<URV>::execSh(const DecodedInst* di)
 }
 
 
+template<typename URV>
+void
+Hart<URV>::execMul(const DecodedInst* di)
+{
+  SRV a = intRegs_.read(di->op1());
+  SRV b = intRegs_.read(di->op2());
+
+  SRV c = a * b;
+  intRegs_.write(di->op0(), c);
+}
+
+
 namespace WdRiscv
 {
-
-  template<>
-  void
-  Hart<uint32_t>::execMul(const DecodedInst* di)
-  {
-    int32_t a = intRegs_.read(di->op1());
-    int32_t b = intRegs_.read(di->op2());
-
-    int32_t c = a * b;
-    intRegs_.write(di->op0(), c);
-  }
-
 
   template<>
   void
@@ -9273,18 +9279,6 @@ namespace WdRiscv
     uint32_t high = static_cast<uint32_t>(c >> 32);
 
     intRegs_.write(di->op0(), high);
-  }
-
-
-  template<>
-  void
-  Hart<uint64_t>::execMul(const DecodedInst* di)
-  {
-    Int128 a = int64_t(intRegs_.read(di->op1()));  // sign extend to 64-bit
-    Int128 b = int64_t(intRegs_.read(di->op2()));
-
-    int64_t c = static_cast<int64_t>(a * b);
-    intRegs_.write(di->op0(), c);
   }
 
 

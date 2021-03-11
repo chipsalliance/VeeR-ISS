@@ -707,15 +707,17 @@ namespace WdRiscv
     /// Get the values of the three components of the given debug
     /// trigger. Return true on success and false if trigger is out of
     /// bounds.
-    bool peekTrigger(URV trigger, URV& data1, URV& data2, URV& data3) const
+    bool peekTrigger(unsigned trigger, uint64_t& data1, uint64_t& data2,
+                     uint64_t& data3) const
     { return triggers_.peek(trigger, data1, data2, data3); }
 
     /// Get the values of the three components of the given debug
     /// trigger as well as the components write and poke masks. Return
     /// true on success and false if trigger is out of bounds.
-    bool peekTrigger(URV trigger, URV& data1, URV& data2, URV& data3,
-		     URV& wm1, URV& wm2, URV& wm3,
-		     URV& pm1, URV& pm2, URV& pm3) const
+    bool peekTrigger(unsigned trigger,
+                     uint64_t& data1, uint64_t& data2, uint64_t& data3,
+		     uint64_t& wm1, uint64_t& wm2, uint64_t& wm3,
+		     uint64_t& pm1, uint64_t& pm2, uint64_t& pm3) const
     { return triggers_.peek(trigger, data1, data2, data3, wm1, wm2, wm3,
 			    pm1, pm2, pm3); }
 
@@ -941,11 +943,9 @@ namespace WdRiscv
     }
 
     /// Set the current integer-register/CSR width.
-    void setXlen(unsigned xlen)
+    void turnOn32BitMode(bool flag)
     {
-      assert(xlen == 32 or xlen == 64);
-      assert(xlen <= 4*sizeof(URV));
-      xlen_ = xlen;
+      rv32_ = flag;
     }
 
     /// Return the byte of the PMPCFG register associated with the
@@ -971,11 +971,12 @@ namespace WdRiscv
 
     /// Configure given trigger with given reset values, write and
     /// poke masks. Return true on success and false on failure.
-    bool configTrigger(unsigned trigger, URV val1, URV val2, URV val3,
-		       URV wm1, URV wm2, URV wm3,
-		       URV pm1, URV pm2, URV pm3)
+    bool configTrigger(unsigned trigger,
+                       uint64_t rv1, uint64_t rv2, uint64_t rv3,
+		       uint64_t wm1, uint64_t wm2, uint64_t wm3,
+		       uint64_t pm1, uint64_t pm2, uint64_t pm3)
     {
-      return triggers_.config(trigger, val1, val2, val3,
+      return triggers_.config(trigger, rv1, rv2, rv3,
 			      wm1, wm2, wm3, pm1, pm2, pm3);
     }
 
@@ -1073,7 +1074,7 @@ namespace WdRiscv
 
   private:
 
-    unsigned xlen_ = 8*sizeof(URV);
+    bool rv32_ = sizeof(URV) == 4;
     std::vector< Csr<URV> > regs_;
     std::unordered_map<std::string, CsrNumber> nameToNumber_;
 

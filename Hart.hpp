@@ -21,6 +21,7 @@
 #include <unordered_set>
 #include <type_traits>
 #include <functional>
+#include <atomic>
 #include "InstId.hpp"
 #include "InstEntry.hpp"
 #include "IntRegs.hpp"
@@ -246,11 +247,12 @@ namespace WdRiscv
 
     /// Configure given trigger with given reset values, write and
     /// poke masks. Return true on success and false on failure.
-    bool configTrigger(unsigned trigger, URV val1, URV val2, URV val3,
-		       URV wm1, URV wm2, URV wm3,
-		       URV pm1, URV pm2, URV pm3)
+    bool configTrigger(unsigned trigger,
+                       uint64_t rv1, uint64_t rv2, uint64_t rv3,
+		       uint64_t wm1, uint64_t wm2, uint64_t wm3,
+		       uint64_t pm1, uint64_t pm2, uint64_t pm3)
     {
-      return csRegs_.configTrigger(trigger, val1, val2, val3,
+      return csRegs_.configTrigger(trigger, rv1, rv2, rv3,
 				   wm1, wm2, wm3, pm1, pm2, pm3);
     }
 
@@ -303,15 +305,17 @@ namespace WdRiscv
     /// Get the values of the three components of the given debug
     /// trigger. Return true on success and false if trigger is out of
     /// bounds.
-    bool peekTrigger(URV trigger, URV& data1, URV& data2, URV& data3) const
+    bool peekTrigger(unsigned trigger, uint64_t& data1, uint64_t& data2,
+                     uint64_t& data3) const
     { return csRegs_.peekTrigger(trigger, data1, data2, data3); }
 
     /// Get the values of the three components of the given debug
     /// trigger as well as the components write and poke masks. Return
     /// true on success and false if trigger is out of bounds.
-    bool peekTrigger(URV trigger, URV& val1, URV& val2, URV& val3,
-		     URV& wm1, URV& wm2, URV& wm3,
-		     URV& pm1, URV& pm2, URV& pm3) const
+    bool peekTrigger(unsigned trigger,
+                     uint64_t& val1, uint64_t& val2, uint64_t& val3,
+		     uint64_t& wm1, uint64_t& wm2, uint64_t& wm3,
+		     uint64_t& pm1, uint64_t& pm2, uint64_t& pm3) const
     { return csRegs_.peekTrigger(trigger, val1, val2, val3, wm1, wm2, wm3,
 				 pm1, pm2, pm3); }
 
@@ -1027,7 +1031,7 @@ namespace WdRiscv
     /// exists, then each remaining hart must be explicitly started by
     /// hart 0 by writing to the corresponding bit in that CSR. This
     /// is special for WD.
-    bool isStarted() const
+    bool isStarted()
     { return hartStarted_; }
 
     /// Mark this hart as started.
@@ -2818,10 +2822,15 @@ namespace WdRiscv
     // Load snapshot of registers (PC, integer, floating point, CSR) into file
     bool loadSnapshotRegs(const std::string& path);
 
+    // Set the program counter to the given value after clearing the
+    // least significant bit.
+    void setPc(URV value)
+    { pc_ = value & pcMask_; }
+
   private:
 
     unsigned hartIx_ = 0;        // Hardware thread id within cluster.
-    bool hartStarted_ = true;    // True if hart is running. WD special.
+    std::atomic<bool> hartStarted_ = true;    // True if hart is running. WD special.
     Memory& memory_;
     IntRegs<URV> intRegs_;       // Integer register file.
     CsRegs<URV> csRegs_;         // Control and status registers.
@@ -2855,6 +2864,7 @@ namespace WdRiscv
     URV currPc_ = 0;             // Addr instr being executed (pc_ before fetch).
     URV resetPc_ = 0;            // Pc to use on reset.
     URV stopAddr_ = 0;           // Pc at which to stop the simulator.
+    URV pcMask_ = ~URV(1);       // Values are anded with this before being assigned to the program counter.
     bool stopAddrValid_ = false; // True if stopAddr_ is valid.
 
     URV toHost_ = 0;             // Writing to this stops the simulator.
@@ -2965,7 +2975,7 @@ namespace WdRiscv
 
     bool enableWideLdSt_ = false;   // True if wide (64-bit) ld/st enabled.
     bool wideLdSt_ = false;         // True if executing wide ld/st instrution.
-    bool enableBbarrier_ = true;
+    bool enableBbarrier_ = false;
 
     int gdbInputFd_ = -1;  // Input file descriptor when running in gdb mode.
 

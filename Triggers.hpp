@@ -54,7 +54,7 @@ namespace WdRiscv
       unsigned hit_     : 1;
       // URV               : 8*sizeof(URV) - 32;  // zero
       unsigned maskMax_ : 6;
-      unsigned dmode_   : 1;
+      unsigned dmode_   : 1;   // Trigger writable only in debug mode.
       unsigned type_    : 4;
   };
 
@@ -79,7 +79,7 @@ namespace WdRiscv
     unsigned hit_     : 1;
     unsigned          : 32;  // 8*sizeof(URV) - 32;
     unsigned maskMax_ : 6;
-    unsigned dmode_   : 1;
+    unsigned dmode_   : 1;   // Trigger writable only in debug mode.
     unsigned type_    : 4;
   };
 
@@ -96,22 +96,12 @@ namespace WdRiscv
     unsigned count_   : 14;
     unsigned hit_     : 1;
     URV               : 8*sizeof(URV) - 30;
-    unsigned dmode_   : 1;
+    unsigned dmode_   : 1;   // Trigger writable only in debug mode.
     unsigned type_    : 4;
   } __attribute__((packed));
 
 
-  /// Bit fields of generic tdata trigger register view.
-  template <typename URV>
-  struct GenericData1
-  {
-    URV data_         : 8*sizeof(URV) - 5;
-    unsigned dmode_   : 1;
-    unsigned type_    : 4;
-  } __attribute__((packed));
-
-
-  /// TDATA1 trigger register
+  /// TDATA1 trigger register value
   template <typename URV>
   union Data1Bits
   {
@@ -119,8 +109,15 @@ namespace WdRiscv
       value_(value)
     { }
 
+    TriggerType type() const { return TriggerType(mcontrol_.type_); }
+
+    bool isAddrData() const  { return type() == TriggerType::AddrData; }
+    bool isInstCount() const { return type() == TriggerType::InstCount; }
+
+    /// Return true if trigger is writable only in debug mode.
+    bool dmodeOnly() const   { return mcontrol_.dmode_; }
+
     URV value_ = 0;
-    GenericData1<URV> data1_;
     Mcontrol<URV> mcontrol_;
     Icount<URV> icount_;
   };
@@ -136,8 +133,6 @@ namespace WdRiscv
   public:
 
     friend class Triggers<URV>;
-
-    enum class Mode { DM, D };  // Modes allowed to write trigger registers.
 
     enum class Select { MatchAddress, MatchData };
 
@@ -185,7 +180,7 @@ namespace WdRiscv
       data1_.value_ = (x & mask) | (data1_.value_ & ~mask);
       modifiedT1_ = true;
 
-      if (TriggerType(data1_.mcontrol_.type_) == TriggerType::AddrData)
+      if (data1_.isAddrData())
 	{
 	  // If load-data is not enabled, then turn it off when
 	  // attempted. If exec-opcode is not enabled, then turn it
@@ -204,13 +199,14 @@ namespace WdRiscv
                 }
 	    }
 
-	  // ECHX1: Clearing dmode bit clears action field.
-	  if (data1_.mcontrol_.dmode_ == 0)
+	  // EHX1: Clearing dmode bit clears action field.
+	  if (not data1_.dmodeOnly())
 	    data1_.mcontrol_.action_ = 0;
 	}
-      else if (TriggerType(data1_.mcontrol_.type_) == TriggerType::InstCount)
+      else if (data1_.isInstCount())
 	{
-	  if (data1_.icount_.dmode_ == 0)
+	  // EHX1: Clearing dmode bit clears action field.
+	  if (not data1_.dmodeOnly())
 	    data1_.icount_.action_ = 0;
 	}
 
@@ -289,9 +285,9 @@ namespace WdRiscv
     /// Return true if this trigger is enabled.
     bool isEnabled() const
     {
-      if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
+      if (data1_.isAddrData())
 	return data1_.mcontrol_.m_ or data1_.mcontrol_.s_ or data1_.mcontrol_.u_;
-      if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
+      if (data1_.isInstCount())
 	return data1_.icount_.m_ or data1_.icount_.s_ or data1_.icount_.u_;
       return false;
     }
@@ -299,17 +295,15 @@ namespace WdRiscv
     /// Return true if trigger is writable only in debug mode.
     bool isDebugModeOnly() const
     {
-      if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
-	return Mode(data1_.mcontrol_.dmode_) == Mode::D;
-      if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
-	return Mode(data1_.icount_.dmode_) == Mode::D;
+      if (data1_.isAddrData() or data1_.isInstCount())
+	return data1_.dmodeOnly();
       return true;
     }
 
     /// Return true if this is an instruction (execute) trigger.
     bool isInst() const
     {
-      return (TriggerType(data1_.data1_.type_) == TriggerType::AddrData and
+      return (data1_.isAddrData() and
 	      data1_.mcontrol_.execute_);
     }
 
@@ -317,9 +311,9 @@ namespace WdRiscv
     /// mode on a hit.
     bool isEnterDebugOnHit() const
     {
-      if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
+      if (data1_.isAddrData())
 	return Action(data1_.mcontrol_.action_) == Action::EnterDebug;
-      if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
+      if (data1_.isInstCount())
 	return Action(data1_.icount_.action_) == Action::EnterDebug;
       return false;
     }
@@ -353,7 +347,7 @@ namespace WdRiscv
     /// false otherwise.
     bool instCountdown(PrivilegeMode mode)
     {
-      if (TriggerType(data1_.data1_.type_) != TriggerType::InstCount)
+      if (not data1_.isInstCount())
 	return false;  // Not an icount trigger.
       Icount<URV>& icount = data1_.icount_;
 
@@ -385,14 +379,14 @@ namespace WdRiscv
     /// tripped.
     void setHit(bool flag)
     {
-      if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
+      if (data1_.isAddrData())
 	{
           if (not modifiedT1_)
             prevData1_ = data1_.value_;
 	  data1_.mcontrol_.hit_ = flag;
 	  modifiedT1_ = true;
 	}
-      if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
+      if (data1_.isInstCount())
 	{
           if (not modifiedT1_)
             prevData1_ = data1_.value_;
@@ -404,9 +398,9 @@ namespace WdRiscv
     /// Return the hit bit of this trigger.
     bool getHit() const
     {
-      if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
+      if (data1_.isAddrData())
 	return data1_.mcontrol_.hit_;
-      if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
+      if (data1_.isInstCount())
 	return data1_.icount_.hit_;
       return false;
     }
@@ -415,7 +409,7 @@ namespace WdRiscv
     /// no chain bit.
     bool getChain() const
     {
-      if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
+      if (data1_.isAddrData())
 	return data1_.mcontrol_.chain_;
       return false;
     }
@@ -423,7 +417,7 @@ namespace WdRiscv
     /// Return the timing of this trigger.
     TriggerTiming getTiming() const
     {
-      if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
+      if (data1_.isAddrData())
 	return TriggerTiming(data1_.mcontrol_.timing_);
       return TriggerTiming::After;  // icount has "after" timing.
     }
@@ -439,9 +433,9 @@ namespace WdRiscv
     /// Return the action fields of the trigger.
     Action getAction() const
     {
-      if (TriggerType(data1_.data1_.type_) == TriggerType::AddrData)
+      if (data1_.isAddrData())
 	return Action(data1_.mcontrol_.action_);
-      if (TriggerType(data1_.data1_.type_) == TriggerType::InstCount)
+      if (data1_.isInstCount())
 	return Action(data1_.icount_.action_);
       return Action::RaiseBreak;
     }
@@ -500,15 +494,15 @@ namespace WdRiscv
       end = chainEnd_;
     }
 
-    bool peek(URV& data1, URV& data2, URV& data3) const
+    bool peek(uint64_t& data1, uint64_t& data2, uint64_t& data3) const
     {
       data1 = data1_.value_; data2 = data2_; data3 = data3_;
       return true;
     }
 
-    bool peek(URV& data1, URV& data2, URV& data3,
-	      URV& wm1, URV& wm2, URV& wm3,
-	      URV& pm1, URV& pm2, URV& pm3) const
+    bool peek(uint64_t& data1, uint64_t& data2, uint64_t& data3,
+	      uint64_t& wm1, uint64_t& wm2, uint64_t& wm3,
+	      uint64_t& pm1, uint64_t& pm2, uint64_t& pm3) const
     {
       bool ok = peek(data1, data2, data3);
       wm1 = data1WriteMask_; wm2 = data2WriteMask_; wm3 = data3WriteMask_;
@@ -660,21 +654,23 @@ namespace WdRiscv
 
     /// Configure given trigger with given reset values, write masks and
     /// and poke masks.
-    bool config(unsigned trigger, URV val1, URV val2, URV val3,
-		URV wm1, URV wm2, URV wm3,
-		URV pm1, URV pm2, URV pm3);
+    bool config(unsigned trigger, uint64_t rv1, uint64_t rv2, uint64_t rv3,
+		uint64_t wm1, uint64_t wm2, uint64_t wm3,
+		uint64_t pm1, uint64_t pm2, uint64_t pm3);
 
     /// Get the values of the three components of the given debug
     /// trigger. Return true on success and false if trigger is out of
     /// bounds.
-    bool peek(URV trigger, URV& data1, URV& data2, URV& data3) const;
+    bool peek(unsigned trigger, uint64_t& data1, uint64_t& data2,
+              uint64_t& data3) const;
 
     /// Get the values of the three components of the given debug
     /// trigger as well as the components write and poke masks. Return
     /// true on success and false if trigger is out of bounds.
-    bool peek(URV trigger, URV& data1, URV& data2, URV& data3,
-	      URV& wm1, URV& wm2, URV& wm3,
-	      URV& pm1, URV& pm2, URV& pm3) const;
+    bool peek(unsigned trigger,
+              uint64_t& data1, uint64_t& data2, uint64_t& data3,
+	      uint64_t& wm1, uint64_t& wm2, uint64_t& wm3,
+	      uint64_t& pm1, uint64_t& pm2, uint64_t& pm3) const;
 
     /// Set the values of the three components of the given debug
     /// trigger. Return true on success and false if trigger is out of
