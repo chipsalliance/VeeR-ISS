@@ -2975,7 +2975,7 @@ namespace WdRiscv
 
     bool enableWideLdSt_ = false;   // True if wide (64-bit) ld/st enabled.
     bool wideLdSt_ = false;         // True if executing wide ld/st instrution.
-    bool enableBbarrier_ = true;
+    bool enableBbarrier_ = false;
 
     int gdbInputFd_ = -1;  // Input file descriptor when running in gdb mode.
 
