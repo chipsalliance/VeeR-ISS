@@ -394,7 +394,7 @@ inline
 bool
 Hart<URV>::checkRoundingModeSp(const DecodedInst* di)
 {
-if (not isFpLegal())
+  if (not isFpLegal())
     {
       illegalInst(di);
       return false;
@@ -889,7 +889,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnjx_s(const DecodedInst* di)
 {
-if (not isFpLegal())
+  if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -947,7 +947,7 @@ template <typename URV>
 void
 Hart<URV>::execFmin_s(const DecodedInst* di)
 {
-if (not isFpLegal())
+  if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -982,7 +982,7 @@ template <typename URV>
 void
 Hart<URV>::execFmax_s(const DecodedInst* di)
 {
-if (not isFpLegal())
+  if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -1132,7 +1132,7 @@ template <typename URV>
 void
 Hart<URV>::execFmv_x_w(const DecodedInst* di)
 {
-if (not isFpLegal())
+  if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -1152,7 +1152,7 @@ template <typename URV>
 void
 Hart<URV>::execFeq_s(const DecodedInst* di)
 {
-if (not isFpLegal())
+  if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -1166,7 +1166,10 @@ if (not isFpLegal())
   if (std::isnan(f1) or std::isnan(f2))
     {
       if (issnan(f1) or issnan(f2))
-	setFcsrFlags(FpFlags::Invalid);
+        {
+          setFcsrFlags(FpFlags::Invalid);
+          markFsDirty();
+        }
     }
   else
     res = (f1 == f2)? 1 : 0;
@@ -1179,7 +1182,7 @@ template <typename URV>
 void
 Hart<URV>::execFlt_s(const DecodedInst* di)
 {
-if (not isFpLegal())
+  if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -1191,7 +1194,10 @@ if (not isFpLegal())
   URV res = 0;
 
   if (std::isnan(f1) or std::isnan(f2))
-    setFcsrFlags(FpFlags::Invalid);
+    {
+      setFcsrFlags(FpFlags::Invalid);
+      markFsDirty();
+    }
   else
     res = (f1 < f2)? 1 : 0;
     
@@ -1203,7 +1209,7 @@ template <typename URV>
 void
 Hart<URV>::execFle_s(const DecodedInst* di)
 {
-if (not isFpLegal())
+  if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -1215,7 +1221,10 @@ if (not isFpLegal())
   URV res = 0;
 
   if (std::isnan(f1) or std::isnan(f2))
-    setFcsrFlags(FpFlags::Invalid);
+    {
+      setFcsrFlags(FpFlags::Invalid);
+      markFsDirty();
+    }
   else
     res = (f1 <= f2)? 1 : 0;
 
@@ -1244,7 +1253,7 @@ template <typename URV>
 void
 Hart<URV>::execFclass_s(const DecodedInst* di)
 {
-if (not isFpLegal())
+  if (not isFpLegal())
     {
       illegalInst(di);
       return;
@@ -2123,7 +2132,10 @@ Hart<URV>::execFle_d(const DecodedInst* di)
   URV res = 0;
 
   if (std::isnan(d1) or std::isnan(d2))
-    setFcsrFlags(FpFlags::Invalid);
+    {
+      setFcsrFlags(FpFlags::Invalid);
+      markFsDirty();
+    }
   else
     res = (d1 <= d2)? 1 : 0;
 
@@ -2147,7 +2159,10 @@ Hart<URV>::execFlt_d(const DecodedInst* di)
   URV res = 0;
 
   if (std::isnan(d1) or std::isnan(d2))
-    setFcsrFlags(FpFlags::Invalid);
+    {
+      setFcsrFlags(FpFlags::Invalid);
+      markFsDirty();
+    }
   else
     res = (d1 < d2)? 1 : 0;
 
@@ -2173,7 +2188,10 @@ Hart<URV>::execFeq_d(const DecodedInst* di)
   if (std::isnan(d1) or std::isnan(d2))
     {
       if (issnan(d1) or issnan(d2))
-	setFcsrFlags(FpFlags::Invalid);
+        {
+          setFcsrFlags(FpFlags::Invalid);
+          markFsDirty();
+        }
     }
   else
     res = (d1 == d2)? 1 : 0;
