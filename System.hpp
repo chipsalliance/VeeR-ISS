@@ -17,7 +17,7 @@
 
 #include <memory>               // For shared_ptr
 #include <functional>
-#include <Memory.hpp>
+#include "Memory.hpp"
 
 
 namespace WdRiscv
