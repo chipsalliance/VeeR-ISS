@@ -1235,7 +1235,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::c_fld:
-      printFpLdSt(*this, out, "fld", di);
+      printFpLdSt(*this, out, "c.fld", di);
       break;
 
     case InstId::c_lq:
@@ -1379,7 +1379,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::c_fldsp:
-      out << "c.ldsp   " << intRegName(di.op0()) << ", 0x" << std::hex
+      out << "c.fldsp   " << fpRegName(di.op0()) << ", 0x" << std::hex
 	  << di.op2As<int32_t>() << std::dec;
       break;
 
@@ -1419,7 +1419,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::c_fsdsp:
-      out << "c.sdsp   " << fpRegName(di.op0())
+      out << "c.fsdsp   " << fpRegName(di.op0())
 	  << ", 0x" << std::hex << di.op2As<int32_t>() << std::dec;
       break;
 
