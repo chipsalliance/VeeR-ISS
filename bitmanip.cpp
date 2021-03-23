@@ -61,8 +61,13 @@ Hart<URV>::execCpop(const DecodedInst* di)
     }
 
   URV v1 = intRegs_.read(di->op1());
-  URV res = __builtin_popcount(v1);
-  intRegs_.write(di->op0(), res);
+
+  if constexpr (sizeof(URV) == 4)
+    v1 = __builtin_popcount(v1);
+  else
+    v1 = __builtin_popcountl(v1);
+
+  intRegs_.write(di->op0(), v1);
 }
 
 
