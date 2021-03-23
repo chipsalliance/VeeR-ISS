@@ -16,7 +16,7 @@
 #pragma once
 
 #include <memory>               // For shared_ptr
-#include <Memory.hpp>
+#include "Memory.hpp"
 
 
 namespace WdRiscv
