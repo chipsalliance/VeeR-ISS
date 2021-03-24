@@ -1184,14 +1184,15 @@ Hart<URV>::execBfp(const DecodedInst* di)
   URV v1 = intRegs_.read(di->op1());
   URV v2 = intRegs_.read(di->op2());
 
-  unsigned off = (v2 >> 16) & shiftMask();
-  unsigned len = (v2 >> 24) & 0xf;
-  if (len == 0)
-    len = 16;
+  URV cfg = v2 >> (mxlen_ / 2);
+  if ((cfg >> 30) == 2)
+    cfg = cfg >> 16;
 
-  URV mask = (URV(1) << len) - 1;
-  mask = (mask << off) | (mask >> (mxlen_ - off));
-  URV data = (v2 << off) | (v2 >> (mxlen_ - off));
+  unsigned len = (cfg >> 8) & (mxlen_ / 2 - 1);
+  unsigned off = cfg & (mxlen_ - 1);
+  URV mask = ~(~URV(0) << len);
+  mask = mask << off;
+  URV data = v2 << off;
 
   URV res = (data & mask) | (v1 & ~mask);
   intRegs_.write(di->op0(), res);
@@ -1208,19 +1209,21 @@ Hart<URV>::execBfpw(const DecodedInst* di)
       return;
     }
 
-  URV v1 = intRegs_.read(di->op1());
+  URV v1 = uint32_t(intRegs_.read(di->op1()));  // Clear top 32 bits of op1
   URV v2 = intRegs_.read(di->op2());
 
-  unsigned off = (v2 >> 16) & shiftMask();
-  unsigned len = (v2 >> 24) & 0xf;
-  if (len == 0)
-    len = 32;
+  URV cfg = v2 >> (mxlen_ / 2);
+  if ((cfg >> 30) == 2)
+    cfg = cfg >> 16;
 
-  URV mask = (URV(1) << len) - 1;
-  mask = (mask << off) | (mask >> (mxlen_ - off));
-  URV data = (v2 << off) | (v2 >> (mxlen_ - off));
+  unsigned len = (cfg >> 8) & (mxlen_ / 2 - 1);
+  unsigned off = cfg & (mxlen_ - 1);
+  URV mask = ~(~URV(0) << len);
+  mask = mask << off;
+  URV data = v2 << off;
 
   URV res = (data & mask) | (v1 & ~mask);
+  res = SRV(int32_t(res));  // Sign extend lower 32 bits to 64 bits.
   intRegs_.write(di->op0(), res);
 }
 
