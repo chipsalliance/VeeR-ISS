@@ -1979,8 +1979,12 @@ namespace WdRiscv
     void execPackuw(const DecodedInst*);
     void execGrev(const DecodedInst*);
     void execGrevi(const DecodedInst*);
+    void execGrevw(const DecodedInst*);
+    void execGreviw(const DecodedInst*);
     void execGorc(const DecodedInst*);
     void execGorci(const DecodedInst*);
+    void execGorcw(const DecodedInst*);
+    void execGorciw(const DecodedInst*);
     void execShfl(const DecodedInst*);
     void execShflw(const DecodedInst*);
     void execShfli(const DecodedInst*);

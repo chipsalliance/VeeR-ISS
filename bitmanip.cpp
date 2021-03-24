@@ -664,6 +664,77 @@ Hart<URV>::execGrevi(const DecodedInst* di)
 
 template <typename URV>
 void
+Hart<URV>::execGrevw(const DecodedInst* di)
+{
+  if (not isRvzbp() or not isRv64())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+
+  unsigned shamt = v2 & 31;
+  if (shamt & 1)
+    v1 = ((v1 & 0x55555555) << 1)  | ((v1 & 0xaaaaaaaa) >> 1);
+  if (shamt & 2)
+    v1 = ((v1 & 0x33333333) << 2)  | ((v1 & 0xcccccccc) >> 2);
+  if (shamt & 4)
+    v1 = ((v1 & 0x0f0f0f0f) << 4)  | ((v1 & 0xf0f0f0f0) >> 4);
+  if (shamt & 8)
+    v1 = ((v1 & 0x00ff00ff) << 8)  | ((v1 & 0xff00ff00) >> 8);
+  if (shamt & 16)
+    v1 = ((v1 & 0x0000ffff) << 16) | ((v1 & 0xffff0000) >> 16);
+
+  intRegs_.write(di->op0(), v1);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execGreviw(const DecodedInst* di)
+{
+  URV shamt = di->op2();
+
+  bool zbb = false;  // True if variant is also a zbb instruction.
+  if (isRv64())
+    zbb = shamt == 0x38;  // rev8 is also in zbb
+  else
+    zbb = shamt == 0x18;  // rev8 is also in zbb
+
+  bool illegal = not isRvzbp();
+  if (zbb)
+    illegal = not isRvzbb() and not isRvzbp();
+
+  if (illegal)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  if (not checkShiftImmediate(di, shamt))
+    return;
+
+  URV v1 = intRegs_.read(di->op1());
+
+  if (shamt & 1)
+    v1 = ((v1 & 0x55555555) << 1)  | ((v1 & 0xaaaaaaaa) >> 1);
+  if (shamt & 2)
+    v1 = ((v1 & 0x33333333) << 2)  | ((v1 & 0xcccccccc) >> 2);
+  if (shamt & 4)
+    v1 = ((v1 & 0x0f0f0f0f) << 4)  | ((v1 & 0xf0f0f0f0) >> 4);
+  if (shamt & 8)
+    v1 = ((v1 & 0x00ff00ff) << 8)  | ((v1 & 0xff00ff00) >> 8);
+  if (shamt & 16)
+    v1 = ((v1 & 0x0000ffff) << 16) | ((v1 & 0xffff0000) >> 16);
+
+  intRegs_.write(di->op0(), v1);
+}
+
+
+template <typename URV>
+void
 Hart<URV>::execGorci(const DecodedInst* di)
 {
   URV shamt = di->op2();
@@ -713,6 +784,44 @@ Hart<URV>::execGorci(const DecodedInst* di)
       if (shamt & 32)
         v1 |= ((v1 & 0xffffffff00000000) >> 32) | ((v1 & 0x00000000ffffffff) << 32);
     }
+
+  intRegs_.write(di->op0(), v1);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execGorciw(const DecodedInst* di)
+{
+  URV shamt = di->op2();
+
+  bool orc_b = (shamt == 0x7);  // orc.b is also in zbb
+
+  bool legal = isRvzbp() and isRv64();
+  if (orc_b)
+    legal = legal or isRvzbb();
+
+  if (not legal)
+    {
+      illegalInst(di);
+      return;
+    }
+
+  if (not checkShiftImmediate(di, shamt))
+    return;
+
+  URV v1 = intRegs_.read(di->op1());
+
+  if (shamt & 1)
+    v1 |= ((v1 & 0xaaaaaaaa) >>  1) | ((v1 & 0x55555555) <<  1);
+  if (shamt & 2)
+    v1 |= ((v1 & 0xcccccccc) >>  2) | ((v1 & 0x33333333) <<  2);
+  if (shamt & 4)
+    v1 |= ((v1 & 0xf0f0f0f0) >>  4) | ((v1 & 0x0f0f0f0f) <<  4);
+  if (shamt & 8)
+    v1 |= ((v1 & 0xff00ff00) >>  8) | ((v1 & 0x00ff00ff) <<  8);
+  if (shamt & 16)
+    v1 |= ((v1 & 0xffff0000) >> 16) | ((v1 & 0x0000ffff) << 16);
 
   intRegs_.write(di->op0(), v1);
 }
@@ -1157,6 +1266,34 @@ Hart<URV>::execGorc(const DecodedInst* di)
       if (shamt & 32)
         v1 |= ((v1 & 0xffffffff00000000) >> 32) | ((v1 & 0x00000000ffffffff) << 32);
     }
+
+  intRegs_.write(di->op0(), v1);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execGorcw(const DecodedInst* di)
+{
+  if (not isRvzbp() or not isRv64())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV v1 = intRegs_.read(di->op1());
+  uint32_t shamt = intRegs_.read(di->op2()) & 0x1f;
+
+  if (shamt & 1)
+    v1 |= ((v1 & 0xaaaaaaaa) >>  1) | ((v1 & 0x55555555) <<  1);
+  if (shamt & 2)
+    v1 |= ((v1 & 0xcccccccc) >>  2) | ((v1 & 0x33333333) <<  2);
+  if (shamt & 4)
+    v1 |= ((v1 & 0xf0f0f0f0) >>  4) | ((v1 & 0x0f0f0f0f) <<  4);
+  if (shamt & 8)
+    v1 |= ((v1 & 0xff00ff00) >>  8) | ((v1 & 0x00ff00ff) <<  8);
+  if (shamt & 16)
+    v1 |= ((v1 & 0xffff0000) >> 16) | ((v1 & 0x0000ffff) << 16);
 
   intRegs_.write(di->op0(), v1);
 }

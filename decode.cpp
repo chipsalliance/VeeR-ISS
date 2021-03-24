@@ -1706,8 +1706,6 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	      return instTable_.getEntry(InstId::rori);
             if (top5 == 0xd)
               return instTable_.getEntry(InstId::grevi);
-            if (top5 == 0xd)
-              return instTable_.getEntry(InstId::grevi);
 	  }
 	else if (funct3 == 6)  return instTable_.getEntry(InstId::ori);
 	else if (funct3 == 7)  return instTable_.getEntry(InstId::andi);
@@ -1760,10 +1758,14 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	    op2 = iform.fields2.shamt;
 	    if (iform.top7() == 0)
 	      return instTable_.getEntry(InstId::srliw);
+            else if (iform.top7() == 0x14)
+              return instTable_.getEntry(InstId::gorciw);
 	    else if (iform.top7() == 0x20)
 	      return instTable_.getEntry(InstId::sraiw);
             else if (iform.top7() == 0x30)
 	      return instTable_.getEntry(InstId::roriw);
+            else if (iform.top7() == 0x34)
+              return instTable_.getEntry(InstId::greviw);
 	  }
       }
       return instTable_.getEntry(InstId::illegal);
@@ -1977,6 +1979,10 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
             else if (funct3 == 4) return instTable_.getEntry(InstId::sh2add_uw);
             else if (funct3 == 6) return instTable_.getEntry(InstId::sh3add_uw);
           }
+	else if (funct7 == 0x14)
+          {
+            if      (funct3 == 5) return instTable_.getEntry(InstId::gorcw);
+          }
 	else if (funct7 == 0x20)
 	  {
 	    if      (funct3 == 0)  return instTable_.getEntry(InstId::subw);
@@ -1992,6 +1998,10 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
           {
             if      (funct3 == 1) return instTable_.getEntry(InstId::rolw);
             if      (funct3 == 5) return instTable_.getEntry(InstId::rorw);
+          }
+	else if (funct7 == 0x34)
+          {
+            if      (funct3 == 5) return instTable_.getEntry(InstId::grevw);
           }
       }
       return instTable_.getEntry(InstId::illegal);
