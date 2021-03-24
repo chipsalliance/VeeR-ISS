@@ -1012,6 +1012,58 @@ Hart<URV>::execBdecompress(const DecodedInst* di)
 
 template <typename URV>
 void
+Hart<URV>::execBcompressw(const DecodedInst* di)
+{
+  if (not isRvzbe())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+
+  URV res = 0;
+  for (unsigned i = 0, j = 0; i < mxlen_; ++i)
+    if ((v2 >> i) & 1)
+      {
+        if ((v1 >> i) & 1)
+          res |= URV(1) << j;
+        ++j;
+      }
+
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execBdecompressw(const DecodedInst* di)
+{
+  if (not isRvzbe())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+
+  URV res = 0;
+  for (unsigned i = 0, j = 0; i < mxlen_; ++i)
+    if ((v2 >> i) & 1)
+      {
+        if ((v1 >> j) & 1)
+          res |= URV(1) << i;
+        j++;
+      }
+
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
 Hart<URV>::execBfp(const DecodedInst* di)
 {
   if (not isRvzbf())
@@ -1035,7 +1087,34 @@ Hart<URV>::execBfp(const DecodedInst* di)
   URV res = (data & mask) | (v1 & ~mask);
   intRegs_.write(di->op0(), res);
 }
-    
+
+
+template <typename URV>
+void
+Hart<URV>::execBfpw(const DecodedInst* di)
+{
+  if (not isRvzbf() or not isRv64())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  URV v1 = intRegs_.read(di->op1());
+  URV v2 = intRegs_.read(di->op2());
+
+  unsigned off = (v2 >> 16) & shiftMask();
+  unsigned len = (v2 >> 24) & 0xf;
+  if (len == 0)
+    len = 32;
+
+  URV mask = (URV(1) << len) - 1;
+  mask = (mask << off) | (mask >> (mxlen_ - off));
+  URV data = (v2 << off) | (v2 >> (mxlen_ - off));
+
+  URV res = (data & mask) | (v1 & ~mask);
+  intRegs_.write(di->op0(), res);
+}
+
 
 template <typename URV>
 void

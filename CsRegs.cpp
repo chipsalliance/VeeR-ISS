@@ -969,7 +969,8 @@ CsRegs<URV>::defineMachineRegs()
       // High register counterpart of mhpmcounter.
       name += "h";
       csrNum = CsrNumber(unsigned(CsrNumber::MHPMCOUNTER3H) + i - 3);
-      defineCsr(name, csrNum, mand, imp, 0, rom, rom);
+      bool hmand = rv32_;  // high counters mandatory only in rv32
+      defineCsr(name, csrNum, hmand, imp, 0, rom, rom);
 
       csrNum = CsrNumber(unsigned(CsrNumber::MHPMEVENT3) + i - 3);
       name = "mhpmevent" + std::to_string(i);

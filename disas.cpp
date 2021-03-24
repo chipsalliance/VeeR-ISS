@@ -15,6 +15,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <cstring>
 #include "Hart.hpp"
 #include "instforms.hpp"
 
@@ -54,6 +55,8 @@ printRdRs1Rs2(const Hart<URV>& hart, std::ostream& stream, const char* inst,
 
   // Print instruction in a 9 character field.
   stream << std::left << std::setw(9) << inst;
+  if (strlen(inst) >= 9)
+    stream << ' ';
 
   stream << hart.intRegName(rd) << ", " << hart.intRegName(rs1) << ", "
 	 << hart.intRegName(rs2);
@@ -1638,12 +1641,28 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       printShiftImm(*this, out, "bexti", di);
       break;
 
+    case InstId::bcompress:
+      printRdRs1Rs2(*this, out, "bcompress", di);
+      break;
+
     case InstId::bdecompress:
-      printRdRs1Rs2(*this, out, "bdecompres", di);
+      printRdRs1Rs2(*this, out, "bdecompress", di);
+      break;
+
+    case InstId::bcompressw:
+      printRdRs1Rs2(*this, out, "bcompresss", di);
+      break;
+
+    case InstId::bdecompressw:
+      printRdRs1Rs2(*this, out, "bdecompressw", di);
       break;
 
     case InstId::bfp:
       printRdRs1Rs2(*this, out, "bfp", di);
+      break;
+
+    case InstId::bfpw:
+      printRdRs1Rs2(*this, out, "bfpw", di);
       break;
 
     case InstId::clmul:

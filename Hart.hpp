@@ -2004,8 +2004,11 @@ namespace WdRiscv
 
     void execBcompress(const DecodedInst*);
     void execBdecompress(const DecodedInst*);
+    void execBcompressw(const DecodedInst*);
+    void execBdecompressw(const DecodedInst*);
 
     void execBfp(const DecodedInst*);
+    void execBfpw(const DecodedInst*);
 
     void execClmul(const DecodedInst*);
     void execClmulh(const DecodedInst*);

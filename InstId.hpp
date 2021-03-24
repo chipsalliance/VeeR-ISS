@@ -314,9 +314,12 @@ namespace WdRiscv
      // zbe
      bcompress,    // was bext
      bdecompress,  // Was bdep
+     bcompressw,
+     bdecompressw,
 
      // zbf
      bfp,
+     bfpw,
 
      // zbc
      clmul,

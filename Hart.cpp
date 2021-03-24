@@ -5445,9 +5445,12 @@ Hart<URV>::execute(const DecodedInst* di)
      // zbe
      &&bcompress,
      &&bdecompress,
+     &&bcompressw,
+     &&bdecompressw,
 
      // zbf
      &&bfp,
+     &&bfpw,
 
      // zbc
      &&clmul,
@@ -6765,8 +6768,20 @@ Hart<URV>::execute(const DecodedInst* di)
   execBdecompress(di);
   return;
 
+ bcompressw:
+  execBcompressw(di);
+  return;
+
+ bdecompressw:
+  execBdecompressw(di);
+  return;
+
  bfp:
   execBfp(di);
+  return;
+
+ bfpw:
+  execBfpw(di);
   return;
 
  clmul:

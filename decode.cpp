@@ -1744,11 +1744,7 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
                 op2 = op2 & 0x3f;
                 return instTable_.getEntry(InstId::slli_uw);
               }
-	  }
-        else if (funct3 == 1)
-          {
-	    unsigned top5 = iform.uimmed() >> 7;
-            if (top5 == 0x0c)
+            if (iform.top5() == 0x0c)
               {
                 unsigned amt = iform.uimmed() & 0x7f;
 		if (amt == 0)
@@ -1973,6 +1969,7 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
             if      (funct3 == 1) return instTable_.getEntry(InstId::shflw);
             if      (funct3 == 4) return instTable_.getEntry(InstId::packw);
             if      (funct3 == 5) return instTable_.getEntry(InstId::unshflw);
+            if      (funct3 == 6) return instTable_.getEntry(InstId::bcompressw);
           }
 	else if (funct7 == 0x10)
           {
@@ -1988,6 +1985,8 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	else if (funct7 == 0x24)
 	  {
             if      (funct3 == 4) return instTable_.getEntry(InstId::packuw);
+            if      (funct3 == 6) return instTable_.getEntry(InstId::bdecompressw);
+            if      (funct3 == 7) return instTable_.getEntry(InstId::bfpw);
 	  }
         else if (funct7 == 0x30)
           {

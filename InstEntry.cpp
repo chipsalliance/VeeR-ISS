@@ -1659,7 +1659,25 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
+      { "bcompressw", InstId::bcompressw, 0x0800603b, top7Funct3Low7Mask,
+	InstType::Zbe,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "bdecompressw", InstId::bdecompressw, 0x4800603b, top7Funct3Low7Mask,
+	InstType::Zbe,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
       { "bfp", InstId::bfp, 0x08007033, top7Funct3Low7Mask,
+	InstType::Zbf,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+	OperandType::IntReg, OperandMode::Read, rs2Mask },
+
+      { "bfpw", InstId::bfpw, 0x4800703b, top7Funct3Low7Mask,
 	InstType::Zbf,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
