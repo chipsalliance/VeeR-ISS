@@ -5419,8 +5419,12 @@ Hart<URV>::execute(const DecodedInst* di)
      &&packuw,
      &&grev,
      &&grevi,
+     &&grevw,
+     &&greviw,
      &&gorc,
      &&gorci,
+     &&gorcw,
+     &&gorciw,
      &&shfl,
      &&shflw,
      &&shfli,
@@ -5445,9 +5449,12 @@ Hart<URV>::execute(const DecodedInst* di)
      // zbe
      &&bcompress,
      &&bdecompress,
+     &&bcompressw,
+     &&bdecompressw,
 
      // zbf
      &&bfp,
+     &&bfpw,
 
      // zbc
      &&clmul,
@@ -6677,12 +6684,28 @@ Hart<URV>::execute(const DecodedInst* di)
   execGrevi(di);
   return;
 
+ grevw:
+  execGrevw(di);
+  return;
+
+ greviw:
+  execGreviw(di);
+  return;
+
  gorc:
   execGorc(di);
   return;
 
  gorci:
   execGorci(di);
+  return;
+
+ gorcw:
+  execGorcw(di);
+  return;
+
+ gorciw:
+  execGorciw(di);
   return;
 
  shfl:
@@ -6765,8 +6788,20 @@ Hart<URV>::execute(const DecodedInst* di)
   execBdecompress(di);
   return;
 
+ bcompressw:
+  execBcompressw(di);
+  return;
+
+ bdecompressw:
+  execBdecompressw(di);
+  return;
+
  bfp:
   execBfp(di);
+  return;
+
+ bfpw:
+  execBfpw(di);
   return;
 
  clmul:

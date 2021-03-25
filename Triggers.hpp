@@ -56,7 +56,7 @@ namespace WdRiscv
       unsigned maskMax_ : 6;
       unsigned dmode_   : 1;   // Trigger writable only in debug mode.
       unsigned type_    : 4;
-  };
+  } __attribute__((packed));
 
 
   /// Bit fields of mcontrol trigger register view. 64-bit version.
@@ -81,7 +81,7 @@ namespace WdRiscv
     unsigned maskMax_ : 6;
     unsigned dmode_   : 1;   // Trigger writable only in debug mode.
     unsigned type_    : 4;
-  };
+  } __attribute__((packed));
 
 
   // Bit fields for Icount trigger register view.
