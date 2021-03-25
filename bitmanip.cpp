@@ -472,7 +472,7 @@ Hart<URV>::execSlli_uw(const DecodedInst* di)
   uint32_t word = int32_t(intRegs_.read(di->op1()));
   word <<= amount;
 
-  URV value = word;
+  int64_t value = int32_t(word);  // Sign extend.
   intRegs_.write(di->op0(), value);
 }
 
@@ -673,7 +673,7 @@ Hart<URV>::execGrevw(const DecodedInst* di)
     }
 
   URV v1 = intRegs_.read(di->op1());
-  URV v2 = intRegs_.read(di->op2());
+  uint32_t v2 = intRegs_.read(di->op2());
 
   unsigned shamt = v2 & 31;
   if (shamt & 1)
@@ -687,7 +687,9 @@ Hart<URV>::execGrevw(const DecodedInst* di)
   if (shamt & 16)
     v1 = ((v1 & 0x0000ffff) << 16) | ((v1 & 0xffff0000) >> 16);
 
-  intRegs_.write(di->op0(), v1);
+  int64_t res = int32_t(v2);  // Sign extend 32-bit to 64-bit.
+
+  intRegs_.write(di->op0(), res);
 }
 
 
@@ -716,7 +718,7 @@ Hart<URV>::execGreviw(const DecodedInst* di)
   if (not checkShiftImmediate(di, shamt))
     return;
 
-  URV v1 = intRegs_.read(di->op1());
+  unsigned v1 = intRegs_.read(di->op1());
 
   if (shamt & 1)
     v1 = ((v1 & 0x55555555) << 1)  | ((v1 & 0xaaaaaaaa) >> 1);
@@ -729,7 +731,9 @@ Hart<URV>::execGreviw(const DecodedInst* di)
   if (shamt & 16)
     v1 = ((v1 & 0x0000ffff) << 16) | ((v1 & 0xffff0000) >> 16);
 
-  intRegs_.write(di->op0(), v1);
+  int64_t res = int32_t(v1);  // Sign extend 32-bit to 64-bit.
+
+  intRegs_.write(di->op0(), res);
 }
 
 
@@ -810,7 +814,7 @@ Hart<URV>::execGorciw(const DecodedInst* di)
   if (not checkShiftImmediate(di, shamt))
     return;
 
-  URV v1 = intRegs_.read(di->op1());
+  uint32_t v1 = intRegs_.read(di->op1());
 
   if (shamt & 1)
     v1 |= ((v1 & 0xaaaaaaaa) >>  1) | ((v1 & 0x55555555) <<  1);
@@ -823,7 +827,8 @@ Hart<URV>::execGorciw(const DecodedInst* di)
   if (shamt & 16)
     v1 |= ((v1 & 0xffff0000) >> 16) | ((v1 & 0x0000ffff) << 16);
 
-  intRegs_.write(di->op0(), v1);
+  int64_t res = int32_t(v1);  // Sign extend 32-bit result to 64-bits.
+  intRegs_.write(di->op0(), res);
 }
 
 
@@ -1130,10 +1135,10 @@ Hart<URV>::execBcompressw(const DecodedInst* di)
     }
 
   URV v1 = intRegs_.read(di->op1());
-  URV v2 = intRegs_.read(di->op2());
+  uint32_t v2 = intRegs_.read(di->op2());
 
-  URV res = 0;
-  for (unsigned i = 0, j = 0; i < mxlen_; ++i)
+  uint32_t res = 0;
+  for (unsigned i = 0, j = 0; i < 32; ++i)
     if ((v2 >> i) & 1)
       {
         if ((v1 >> i) & 1)
@@ -1141,7 +1146,8 @@ Hart<URV>::execBcompressw(const DecodedInst* di)
         ++j;
       }
 
-  intRegs_.write(di->op0(), res);
+  int64_t val = int32_t(res);  // sign extend
+  intRegs_.write(di->op0(), val);
 }
 
 
@@ -1156,10 +1162,10 @@ Hart<URV>::execBdecompressw(const DecodedInst* di)
     }
 
   URV v1 = intRegs_.read(di->op1());
-  URV v2 = intRegs_.read(di->op2());
+  uint32_t v2 = intRegs_.read(di->op2());
 
-  URV res = 0;
-  for (unsigned i = 0, j = 0; i < mxlen_; ++i)
+  uint32_t res = 0;
+  for (unsigned i = 0, j = 0; i < 32; ++i)
     if ((v2 >> i) & 1)
       {
         if ((v1 >> j) & 1)
@@ -1167,7 +1173,8 @@ Hart<URV>::execBdecompressw(const DecodedInst* di)
         j++;
       }
 
-  intRegs_.write(di->op0(), res);
+  int64_t val = int32_t(res);  // sign extend.
+  intRegs_.write(di->op0(), val);
 }
 
 
@@ -1284,7 +1291,7 @@ Hart<URV>::execGorcw(const DecodedInst* di)
       return;
     }
 
-  URV v1 = intRegs_.read(di->op1());
+  URV v1 = uint32_t(intRegs_.read(di->op1()));  // Clear most sig 32 bits
   uint32_t shamt = intRegs_.read(di->op2()) & 0x1f;
 
   if (shamt & 1)
@@ -1298,6 +1305,7 @@ Hart<URV>::execGorcw(const DecodedInst* di)
   if (shamt & 16)
     v1 |= ((v1 & 0xffff0000) >> 16) | ((v1 & 0x0000ffff) << 16);
 
+  v1 = SRV(int32_t(v1));  // Sign extend least sig 32-bits to 64-bits.
   intRegs_.write(di->op0(), v1);
 }
 
