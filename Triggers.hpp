@@ -55,7 +55,7 @@ namespace WdRiscv
       // URV               : 8*sizeof(URV) - 32;  // zero
       unsigned maskMax_ : 6;
       unsigned dmode_   : 1;   // Trigger writable only in debug mode.
-b      unsigned type_    : 4;
+      unsigned type_    : 4;
   } __attribute__((packed));
 
 
