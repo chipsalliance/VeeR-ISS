@@ -1197,6 +1197,7 @@ Hart<URV>::execBfp(const DecodedInst* di)
 
   unsigned len = (cfg >> 8) & (mxlen_ / 2 - 1);
   unsigned off = cfg & (mxlen_ - 1);
+  len = len ? len : mxlen_ / 2;
   URV mask = ~(~URV(0) << len);
   mask = mask << off;
   URV data = v2 << off;
@@ -1225,6 +1226,7 @@ Hart<URV>::execBfpw(const DecodedInst* di)
 
   unsigned len = (cfg >> 8) & (mxlen_ / 2 - 1);
   unsigned off = cfg & (mxlen_ - 1);
+  len = len ? len : 16;
   URV mask = ~(~URV(0) << len);
   mask = mask << off;
   URV data = v2 << off;
