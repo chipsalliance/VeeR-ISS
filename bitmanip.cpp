@@ -1226,7 +1226,7 @@ Hart<URV>::execBfpw(const DecodedInst* di)
 
   unsigned len = (cfg >> 8) & (mxlen_ / 2 - 1);
   unsigned off = cfg & (mxlen_ - 1);
-  len = len ? len : 16;
+  len = len ? len : mxlen_ / 2;
   URV mask = ~(~URV(0) << len);
   mask = mask << off;
   URV data = v2 << off;
@@ -1564,7 +1564,7 @@ xperm64(uint64_t v1, uint64_t v2, unsigned log2Width)
   for (unsigned i = 0; i < 64; i += width)
     {
       uint64_t pos = ((v2 >> i) & mask) << log2Width;
-      if (pos < 32)
+      if (pos < 64)
         res |= ((v1 >> pos) & mask) << i;
     }
   return res;
