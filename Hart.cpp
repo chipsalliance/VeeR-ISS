@@ -343,6 +343,153 @@ Hart<URV>::processExtensions()
 }
 
 
+static
+Pmp::Mode
+getModeFromPmpconfigByte(uint8_t byte)
+{
+  unsigned m = 0;
+
+  if (byte & 1) m = Pmp::Read  | m;
+  if (byte & 2) m = Pmp::Write | m;
+  if (byte & 4) m = Pmp::Exec  | m;
+
+  return Pmp::Mode(m);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::updateMemoryProtection()
+{
+  pmpManager_.reset();
+
+  const unsigned count = 16;
+  unsigned impCount = 0;  // Count of implemented PMP registers
+
+  // Process the pmp entries in reverse order (since they are supposed to
+  // be checked in first to last priority). Apply memory protection to
+  // the range defined by each entry allowing lower numbered entries to
+  // over-ride higher numberd ones.
+  unsigned pmpG = csRegs_.getPmpG();
+  unsigned num = unsigned(CsrNumber::PMPADDR15);
+  for (unsigned ix = 0; ix < count; ++ix, --num)
+    {
+      unsigned pmpIx = count - ix - 1;
+      CsrNumber csrn = CsrNumber(num);
+      if (not csRegs_.isImplemented(csrn))
+        continue;
+      impCount++;
+
+      unsigned config = csRegs_.getPmpConfigByteFromPmpAddr(csrn);
+      Pmp::Type type = Pmp::Type((config >> 3) & 3);
+      bool lock = config & 0x80;
+
+      Pmp::Mode mode = getModeFromPmpconfigByte(config);
+      if (type == Pmp::Type::Off)
+        continue;   // Entry is off.
+
+      URV pmpVal = 0;
+      if (not peekCsr(csrn, pmpVal))
+        continue;  // Unimplemented PMPADDR reg. Should not happen.
+
+      if (type == Pmp::Type::Tor)    // Top of range
+        {
+          uint64_t low = 0;
+          if (pmpIx > 0)
+            {
+              URV prevVal = 0;
+              CsrNumber lowerCsrn = CsrNumber(num - 1);
+              peekCsr(lowerCsrn, prevVal);
+              low = prevVal;
+              low = (low >> pmpG) << pmpG;  // Clear least sig G bits.
+              low = low << 2;
+            }
+              
+          uint64_t high = pmpVal;
+          high = (high >> pmpG) << pmpG;
+          high = high << 2;
+          if (low < high)
+            pmpManager_.setMode(low, high - 1, type, mode, pmpIx, lock);
+          continue;
+        }
+
+      uint64_t sizeM1 = 3;     // Size minus 1
+      uint64_t napot = pmpVal;  // Naturally aligned power of 2.
+      if (type == Pmp::Type::Napot)  // Naturally algined power of 2.
+        {
+          unsigned rzi = 0;  // Righmost-zero-bit index in pmpval.
+          if (pmpVal == URV(-1))
+            {
+              // Handle special case where pmpVal is set to maximum value
+              napot = 0;
+              rzi = mxlen_;
+            }
+          else
+            {
+              rzi = __builtin_ctzl(~pmpVal); // rightmost-zero-bit ix.
+              napot = (napot >> rzi) << rzi; // Clear bits below rightmost zero bit.
+            }
+
+          // Avoid overflow when computing 2 to the power 64 or
+          // higher. This is incorrect but should work in practice
+          // where the physical address space is 64-bit wide or less.
+          if (rzi + 3 >= 64)
+            sizeM1 = -1L;
+          else
+            sizeM1 = (uint64_t(1) << (rzi + 3)) - 1;
+        }
+      else
+        assert(type == Pmp::Type::Na4);
+
+      uint64_t low = napot;
+      low = (low >> pmpG) << pmpG;
+      low = low << 2;
+      uint64_t high = low + sizeM1;
+      pmpManager_.setMode(low, high, type, mode, pmpIx, lock);
+    }
+
+  pmpEnabled_ = impCount > 0;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::updateAddressTranslation()
+{
+  if (not isRvs())
+    return;
+
+  URV value = 0;
+  if (not peekCsr(CsrNumber::SATP, value))
+    return;
+
+  uint32_t prevAsid = virtMem_.addressSpace();
+
+  URV mode = 0, asid = 0, ppn = 0;
+  if constexpr (sizeof(URV) == 4)
+    {
+      mode = value >> 31;
+      asid = (value >> 22) & 0x1ff;
+      ppn = value & 0x3fffff;  // Least sig 22 bits
+    }
+  else
+    {
+      mode = value >> 60;
+      if ((mode >= 1 and mode <= 7) or mode >= 12)
+        mode = 0;  // 1-7 and 12-15 are reserved in version 1.12 of sepc.
+      asid = (value >> 44) & 0xffff;
+      ppn = value & 0xfffffffffffll;  // Least sig 44 bits
+    }
+
+  virtMem_.setMode(VirtMem::Mode(mode));
+  virtMem_.setAddressSpace(asid);
+  virtMem_.setPageTableRootPage(ppn);
+
+  if (asid != prevAsid)
+    invalidateDecodeCache();
+}
+
+
 template <typename URV>
 void
 Hart<URV>::reset(bool resetMemoryMappedRegs)
