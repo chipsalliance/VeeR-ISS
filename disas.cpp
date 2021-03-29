@@ -86,7 +86,7 @@ printFp3(const Hart<URV>& hart, std::ostream& stream, const char* inst,
 {
   stream << std::left << std::setw(9) << inst << hart.fpRegName(di.op0())
 	 << ", " << hart.fpRegName(di.op1())
-	 << ", " << hart.fpRegName(di.op3());
+	 << ", " << hart.fpRegName(di.op2());
 }
 
 
