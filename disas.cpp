@@ -1718,7 +1718,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::add_uw:
-      printRdRs1Rs2(*this, out, "addwu", di);
+      printRdRs1Rs2(*this, out, "add.uw", di);
       break;
 
     case InstId::slli_uw:
