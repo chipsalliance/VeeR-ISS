@@ -467,16 +467,15 @@ Hart<URV>::execSlli_uw(const DecodedInst* di)
 
   uint32_t amount(di->op2());
 
-  if (amount > 0x1f)
+  if (amount > 0x3f)
     {
-      illegalInst(di);   // Bits 5 and 6 of immediate must be zero.
+      illegalInst(di);   // Bits 6 of immediate must be zero.
       return;
     }
 
-  uint32_t word = int32_t(intRegs_.read(di->op1()));
-  word <<= amount;
+  URV v1 = uint32_t(intRegs_.read(di->op1()));
+  URV value = v1 << amount;
 
-  int64_t value = int32_t(word);  // Sign extend.
   intRegs_.write(di->op0(), value);
 }
 
@@ -1820,7 +1819,10 @@ Hart<URV>::execAdd_uw(const DecodedInst* di)
       return;
     }
 
-  URV value = uint32_t(intRegs_.read(di->op1()) + intRegs_.read(di->op2()));
+  URV v1 = uint32_t(intRegs_.read(di->op1()));
+  URV v2 = intRegs_.read(di->op2());
+
+  URV value = v1 + v2;
   intRegs_.write(di->op0(), value);
 }
 
