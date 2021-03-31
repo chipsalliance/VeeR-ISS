@@ -361,6 +361,9 @@ namespace WdRiscv
      fsl,
      fsr,
      fsri,
+     fslw,
+     fsrw,
+     fsriw,
 
      // Custom instructions
      load64,

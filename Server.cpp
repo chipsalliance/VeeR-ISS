@@ -818,10 +818,10 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
 	    case Peek:
 	      peekCommand(msg, reply);
 	      if (commandLog)
-		fprintf(commandLog, "hart=%d peek %c %s # ts=%s\n", hartId,
+		fprintf(commandLog, "hart=%d peek %c %s # ts=%s tag=%s\n", hartId,
 			msg.resource,
 			(boost::format(hexForm) % msg.address).str().c_str(),
-			timeStamp.c_str());
+			timeStamp.c_str(), msg.tag);
 	      break;
 
 	    case Step:

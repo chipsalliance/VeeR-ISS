@@ -16,10 +16,10 @@ Hart<URV>::execClz(const DecodedInst* di)
   URV v1 = intRegs_.read(di->op1());
 
   if (v1 == 0)
-    v1 = 8*sizeof(URV);
+    v1 = mxlen_;
   else
     {
-      if constexpr (sizeof(URV) == 4)
+      if (mxlen_ == 32)
         v1 = __builtin_clz(v1);
       else
         v1 = __builtin_clzl(v1);
@@ -41,7 +41,7 @@ Hart<URV>::execCtz(const DecodedInst* di)
 
   URV v1 = intRegs_.read(di->op1());
 
-  if constexpr (sizeof(URV) == 4)
+  if (mxlen_ == 32)
     v1 = __builtin_ctz(v1);
   else
     v1 = __builtin_ctzl(v1);
@@ -62,7 +62,7 @@ Hart<URV>::execCpop(const DecodedInst* di)
 
   URV v1 = intRegs_.read(di->op1());
 
-  if constexpr (sizeof(URV) == 4)
+  if (mxlen_ == 32)
     v1 = __builtin_popcount(v1);
   else
     v1 = __builtin_popcountl(v1);
@@ -258,7 +258,7 @@ Hart<URV>::execRol(const DecodedInst* di)
   URV rot = intRegs_.read(di->op2()) & mask;  // Rotate amount
 
   URV v1 = intRegs_.read(di->op1());
-  URV res = (v1 << rot) | (v1 >> (mxlen_ - rot));
+  URV res = (v1 << rot) | (v1 >> ((mxlen_ - rot) & mask));
 
   intRegs_.write(di->op0(), res);
 }
@@ -278,7 +278,7 @@ Hart<URV>::execRor(const DecodedInst* di)
   URV rot = intRegs_.read(di->op2()) & mask;  // Rotate amount
 
   URV v1 = intRegs_.read(di->op1());
-  URV res = (v1 >> rot) | (v1 << (mxlen_ - rot));
+  URV res = (v1 >> rot) | (v1 << ((mxlen_ - rot) & mask));
 
   intRegs_.write(di->op0(), res);
 }
@@ -299,7 +299,7 @@ Hart<URV>::execRori(const DecodedInst* di)
     return;
 
   URV v1 = intRegs_.read(di->op1());
-  URV res = (v1 >> rot) | (v1 << (mxlen_ - rot));
+  URV res = (v1 >> rot) | (v1 << ((mxlen_ - rot) & shiftMask()));
 
   intRegs_.write(di->op0(), res);
 }
@@ -315,11 +315,12 @@ Hart<URV>::execRolw(const DecodedInst* di)
       return;
     }
 
-  URV mask = shiftMask();
-  URV rot = intRegs_.read(di->op2()) & mask;  // Rotate amount
+  unsigned len = 32;
+  unsigned mask = len - 1;
+  unsigned rot = intRegs_.read(di->op2()) & mask;  // Rotate amount
 
   uint32_t v1 = intRegs_.read(di->op1());
-  uint32_t res32 = (v1 << rot) | (v1 >> (mxlen_ - rot));
+  uint32_t res32 = (v1 << rot) | (v1 >> ((len - rot) & mask));
 
   uint64_t res64 = int32_t(res32);  // Sign extend to 64-bits.
 
@@ -337,11 +338,12 @@ Hart<URV>::execRorw(const DecodedInst* di)
       return;
     }
 
-  URV mask = shiftMask();
-  URV rot = intRegs_.read(di->op2()) & mask;  // Rotate amount
+  unsigned len = 32;
+  unsigned mask = len - 1;
+  unsigned rot = intRegs_.read(di->op2()) & mask;  // Rotate amount
 
   uint32_t v1 = intRegs_.read(di->op1());
-  uint32_t res32 = (v1 >> rot) | (v1 << (mxlen_ - rot));
+  uint32_t res32 = (v1 >> rot) | (v1 << ((len - rot) & mask));
 
   uint64_t res64 = int32_t(res32);  // Sign extend to 64-bits.
 
@@ -359,10 +361,12 @@ Hart<URV>::execRoriw(const DecodedInst* di)
       return;
     }
 
-  URV rot = di->op2();
+  unsigned len = 32;
+  unsigned mask = len - 1;
+  unsigned rot = di->op2();
 
   uint32_t v1 = intRegs_.read(di->op1());
-  uint32_t res32 = (v1 >> rot) | (v1 << (mxlen_ - rot));
+  uint32_t res32 = (v1 >> rot) | (v1 << ((len - rot) & mask));
 
   uint64_t res64 = int32_t(res32);  // Sign extend to 64-bits.
 
@@ -384,7 +388,7 @@ Hart<URV>::execRev8(const DecodedInst* di)
 
   URV v1 = intRegs_.read(di->op1());
 
-  if constexpr (sizeof(URV) == 4)
+  if (mxlen_ == 32)
     v1 = __builtin_bswap32(v1);
   else
     v1 = __builtin_bswap64(v1);
@@ -444,8 +448,8 @@ Hart<URV>::execPack(const DecodedInst* di)
     }
 
   unsigned halfXlen = mxlen_ >> 1;
-  URV lower = (URV(intRegs_.read(di->op1())) << halfXlen) >> halfXlen;
-  URV upper = URV(intRegs_.read(di->op2())) << halfXlen;
+  URV lower = (intRegs_.read(di->op1()) << halfXlen) >> halfXlen;
+  URV upper = intRegs_.read(di->op2()) << halfXlen;
   URV res = upper | lower;
   intRegs_.write(di->op0(), res);
 }
@@ -463,16 +467,15 @@ Hart<URV>::execSlli_uw(const DecodedInst* di)
 
   uint32_t amount(di->op2());
 
-  if (amount > 0x1f)
+  if (amount > 0x3f)
     {
-      illegalInst(di);   // Bits 5 and 6 of immediate must be zero.
+      illegalInst(di);   // Bits 6 of immediate must be zero.
       return;
     }
 
-  uint32_t word = int32_t(intRegs_.read(di->op1()));
-  word <<= amount;
+  URV v1 = uint32_t(intRegs_.read(di->op1()));
+  URV value = v1 << amount;
 
-  int64_t value = int32_t(word);  // Sign extend.
   intRegs_.write(di->op0(), value);
 }
 
@@ -525,10 +528,15 @@ Hart<URV>::execPackw(const DecodedInst* di)
       return;
     }
 
-  URV lower = intRegs_.read(di->op1()) & 0xffff;
-  URV upper = (intRegs_.read(di->op2()) & 0xffff) << 16;
-  URV value = lower | upper;
-  intRegs_.write(di->op0(), value);
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t v2 = intRegs_.read(di->op2());
+
+  uint32_t lower = (v1 << 16) >> 16;
+  uint32_t upper = v2 << 16;
+  uint32_t value = lower | upper;
+
+  int64_t res = int32_t(value);  // Sign extend.
+  intRegs_.write(di->op0(), res);
 }
 
 
@@ -542,15 +550,15 @@ Hart<URV>::execPackuw(const DecodedInst* di)
       return;
     }
 
-  unsigned halfXlen = mxlen_ >> 1;
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t v2 = intRegs_.read(di->op2());
 
-  URV lower = (intRegs_.read(di->op1()) >> halfXlen);
-  URV upper = (intRegs_.read(di->op2()) >> halfXlen);
+  uint32_t lower = v1 >> 16;
+  uint32_t upper = (v2 << 16) >> 16;
+  uint32_t value = lower | upper;
 
-  lower = lower & 0xffff;
-  upper = (upper & 0xffff) << 16;
-  URV value = lower | upper;
-  intRegs_.write(di->op0(), value);
+  int64_t res = int32_t(value);  // sign extend.
+  intRegs_.write(di->op0(), res);
 }
 
 
@@ -567,7 +575,7 @@ Hart<URV>::execGrev(const DecodedInst* di)
   URV v1 = intRegs_.read(di->op1());
   URV v2 = intRegs_.read(di->op2());
 
-  if constexpr (sizeof(URV) == 4)
+  if (mxlen_ == 32)
     {
       unsigned shamt = v2 & 31;
       if (shamt & 1)
@@ -629,7 +637,7 @@ Hart<URV>::execGrevi(const DecodedInst* di)
 
   URV v1 = intRegs_.read(di->op1());
 
-  if constexpr (sizeof(URV) == 4)
+  if (mxlen_ == 32)
     {
       if (shamt & 1)
         v1 = ((v1 & 0x55555555) << 1)  | ((v1 & 0xaaaaaaaa) >> 1);
@@ -760,7 +768,7 @@ Hart<URV>::execGorci(const DecodedInst* di)
 
   URV v1 = intRegs_.read(di->op1());
 
-  if constexpr (sizeof(URV) == 4)
+  if (mxlen_ == 32)
     {
       if (shamt & 1)
         v1 |= ((v1 & 0xaaaaaaaa) >>  1) | ((v1 & 0x55555555) <<  1);
@@ -772,8 +780,12 @@ Hart<URV>::execGorci(const DecodedInst* di)
         v1 |= ((v1 & 0xff00ff00) >>  8) | ((v1 & 0x00ff00ff) <<  8);
       if (shamt & 16)
         v1 |= ((v1 & 0xffff0000) >> 16) | ((v1 & 0x0000ffff) << 16);
+
+      intRegs_.write(di->op0(), v1);
+      return;
     }
-  else
+
+  if constexpr (sizeof(URV) == 8)
     {
       if (shamt & 1)
         v1 |= ((v1 & 0xaaaaaaaaaaaaaaaa) >>  1) | ((v1 & 0x5555555555555555) <<  1);
@@ -787,9 +799,11 @@ Hart<URV>::execGorci(const DecodedInst* di)
         v1 |= ((v1 & 0xffff0000ffff0000) >> 16) | ((v1 & 0x0000ffff0000ffff) << 16);
       if (shamt & 32)
         v1 |= ((v1 & 0xffffffff00000000) >> 32) | ((v1 & 0x00000000ffffffff) << 32);
-    }
 
-  intRegs_.write(di->op0(), v1);
+      intRegs_.write(di->op0(), v1);
+    }
+  else
+    assert(0 and "mxlen is 64 in rv32");
 }
 
 
@@ -1134,7 +1148,7 @@ Hart<URV>::execBcompressw(const DecodedInst* di)
       return;
     }
 
-  URV v1 = intRegs_.read(di->op1());
+  uint32_t v1 = intRegs_.read(di->op1());
   uint32_t v2 = intRegs_.read(di->op2());
 
   uint32_t res = 0;
@@ -1161,7 +1175,7 @@ Hart<URV>::execBdecompressw(const DecodedInst* di)
       return;
     }
 
-  URV v1 = intRegs_.read(di->op1());
+  uint32_t v1 = intRegs_.read(di->op1());
   uint32_t v2 = intRegs_.read(di->op2());
 
   uint32_t res = 0;
@@ -1217,22 +1231,23 @@ Hart<URV>::execBfpw(const DecodedInst* di)
       return;
     }
 
-  URV v1 = uint32_t(intRegs_.read(di->op1()));  // Clear top 32 bits of op1
-  URV v2 = intRegs_.read(di->op2());
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t v2 = intRegs_.read(di->op2());
 
-  URV cfg = v2 >> (mxlen_ / 2);
+  uint32_t cfg = v2 >> 16;
   if ((cfg >> 30) == 2)
     cfg = cfg >> 16;
 
-  unsigned len = (cfg >> 8) & (mxlen_ / 2 - 1);
-  unsigned off = cfg & (mxlen_ - 1);
-  len = len ? len : mxlen_ / 2;
-  URV mask = ~(~URV(0) << len);
+  unsigned xlen = 32;
+  uint32_t len = (cfg >> 8) & (xlen / 2 - 1);
+  uint32_t off = cfg & (xlen - 1);
+  len = len ? len : xlen / 2;
+  uint32_t mask = ~(~uint32_t(0) << len);
   mask = mask << off;
-  URV data = v2 << off;
+  uint32_t data = v2 << off;
 
-  URV res = (data & mask) | (v1 & ~mask);
-  res = SRV(int32_t(res));  // Sign extend lower 32 bits to 64 bits.
+  uint32_t value = (data & mask) | (v1 & ~mask);
+  int64_t res = int32_t(value);  // Sign extend.
   intRegs_.write(di->op0(), res);
 }
 
@@ -1251,7 +1266,7 @@ Hart<URV>::execGorc(const DecodedInst* di)
   uint32_t mask = mxlen_ - 1;  // 0x1f in rv32 and 0x3f in rv64
   uint32_t shamt = intRegs_.read(di->op2()) & mask;
 
-  if constexpr (sizeof(URV) == 4)
+  if (mxlen_ == 32)
     {
       if (shamt & 1)
         v1 |= ((v1 & 0xaaaaaaaa) >>  1) | ((v1 & 0x55555555) <<  1);
@@ -1263,8 +1278,12 @@ Hart<URV>::execGorc(const DecodedInst* di)
       v1 |= ((v1 & 0xff00ff00) >>  8) | ((v1 & 0x00ff00ff) <<  8);
       if (shamt & 16)
         v1 |= ((v1 & 0xffff0000) >> 16) | ((v1 & 0x0000ffff) << 16);
+
+      intRegs_.write(di->op0(), v1);
+      return;
     }
-  else
+
+  if constexpr (sizeof(URV) == 8)
     {
       if (shamt & 1)
         v1 |= ((v1 & 0xaaaaaaaaaaaaaaaa) >>  1) | ((v1 & 0x5555555555555555) <<  1);
@@ -1278,9 +1297,11 @@ Hart<URV>::execGorc(const DecodedInst* di)
         v1 |= ((v1 & 0xffff0000ffff0000) >> 16) | ((v1 & 0x0000ffff0000ffff) << 16);
       if (shamt & 32)
         v1 |= ((v1 & 0xffffffff00000000) >> 32) | ((v1 & 0x00000000ffffffff) << 32);
-    }
 
-  intRegs_.write(di->op0(), v1);
+      intRegs_.write(di->op0(), v1);
+    }
+  else
+    assert(0 and "mxlen is 64 in rv32");
 }
 
 
@@ -1371,7 +1392,7 @@ Hart<URV>::execShfl(const DecodedInst* di)
   URV v2 = intRegs_.read(di->op2());
   URV val = 0;
 
-  if constexpr (sizeof(URV) == 4)
+  if (mxlen_ == 32)
     {
       unsigned shamt = v2 & 15;
       val = shuffle32(v1, shamt);
@@ -1420,7 +1441,7 @@ Hart<URV>::execShfli(const DecodedInst* di)
   URV amt = di->op2();
   URV val = 0;
 
-  if constexpr (sizeof(URV) == 4)
+  if (mxlen_ == 32)
     {
       if (amt > 15)
         {
@@ -1457,7 +1478,7 @@ Hart<URV>::execUnshfl(const DecodedInst* di)
   URV v2 = intRegs_.read(di->op2());
   URV val = 0;
 
-  if constexpr (sizeof(URV) == 4)
+  if (mxlen_ == 32)
     {
       unsigned shamt = v2 & 15;
       val = unshuffle32(v1, shamt);
@@ -1493,7 +1514,7 @@ Hart<URV>::execUnshfli(const DecodedInst* di)
   URV v1 = intRegs_.read(di->op1());
   URV val = 0;
 
-  if constexpr (sizeof(URV) == 4)
+  if (mxlen_ == 32)
     {
       if (amt > 15)
         {
@@ -1586,7 +1607,7 @@ Hart<URV>::execXperm_n(const DecodedInst* di)
   URV v2 = intRegs_.read(di->op2());
   URV res = 0;
 
-  if constexpr (sizeof(URV) == 4)
+  if (mxlen_ == 32)
     res = xperm32(v1, v2, 2);
   else
     res = xperm64(v1, v2, 2);
@@ -1609,7 +1630,7 @@ Hart<URV>::execXperm_b(const DecodedInst* di)
   URV v2 = intRegs_.read(di->op2());
   URV res = 0;
 
-  if constexpr (sizeof(URV) == 4)
+  if (mxlen_ == 32)
     res = xperm32(v1, v2, 3);
   else
     res = xperm64(v1, v2, 3);
@@ -1632,7 +1653,7 @@ Hart<URV>::execXperm_h(const DecodedInst* di)
   URV v2 = intRegs_.read(di->op2());
   URV res = 0;
 
-  if constexpr (sizeof(URV) == 4)
+  if (mxlen_ == 32)
     res = xperm32(v1, v2, 4);
   else
     res = xperm64(v1, v2, 4);
@@ -1799,7 +1820,10 @@ Hart<URV>::execAdd_uw(const DecodedInst* di)
       return;
     }
 
-  URV value = uint32_t(intRegs_.read(di->op1()) + intRegs_.read(di->op2()));
+  URV v1 = uint32_t(intRegs_.read(di->op1()));
+  URV v2 = intRegs_.read(di->op2());
+
+  URV value = v1 + v2;
   intRegs_.write(di->op0(), value);
 }
 
@@ -2155,6 +2179,105 @@ Hart<URV>::execFsri(const DecodedInst* di)
     }
 
   URV res = shamt ? (aa >> shamt) | (bb << (mxlen_ - shamt)) : aa;
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execFslw(const DecodedInst* di)
+{
+  if (not isRvzbt() or not isRv64())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t v2 = intRegs_.read(di->op2());
+  uint32_t v3 = intRegs_.read(di->op3());
+
+  uint32_t len = 32;
+
+  unsigned shamt = v2 & (2*len - 1);
+
+  URV aa = v1, bb = v3;
+
+  if (shamt >= len)
+    {
+      shamt -= len;
+      aa = v3;
+      bb = v1;
+    }
+
+  uint32_t val = shamt ? (aa << shamt) | (bb >> (len - shamt)) : aa;
+
+  int64_t res = int32_t(val);  // sign extend
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execFsrw(const DecodedInst* di)
+{
+  if (not isRvzbt() or not isRv64())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t v2 = intRegs_.read(di->op2());
+  uint32_t v3 = intRegs_.read(di->op3());
+
+  uint32_t len = 32;
+
+  unsigned shamt = v2 & (2*len - 1);
+
+  URV aa = v1, bb = v3;
+
+  if (shamt >= len)
+    {
+      shamt -= len;
+      aa = v3;
+      bb = v1;
+    }
+
+  uint32_t val = shamt ? (aa >> shamt) | (bb << (len - shamt)) : aa;
+
+  int64_t res = int32_t(val);  // sign extend
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execFsriw(const DecodedInst* di)
+{
+  if (not isRvzbt() or not isRv64())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t aa = intRegs_.read(di->op1());
+  uint32_t bb = intRegs_.read(di->op2());
+  uint32_t imm = intRegs_.read(di->op3());
+
+  unsigned len = 32;
+
+  unsigned shamt = imm & (2*len - 1);
+
+  if (shamt >= len)
+    {
+      shamt -= len;
+      std::swap(aa, bb);
+    }
+
+  uint32_t val = shamt ? (aa >> shamt) | (bb << (len - shamt)) : aa;
+
+  int64_t res = int32_t(val);  // sign extend
   intRegs_.write(di->op0(), res);
 }
 
