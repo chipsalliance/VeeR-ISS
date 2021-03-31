@@ -1136,9 +1136,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::fcvt_d_s:
-      out << "fcvt.d.s "  << fpRegName(di.op0()) << ", "
-	  << fpRegName(di.op1()) << ", "
-	  << roundingModeString(di.roundingMode());
+      out << "fcvt.d.s "  << fpRegName(di.op0()) << ", " << fpRegName(di.op1());
       break;
 
     case InstId::feq_d:
@@ -1178,8 +1176,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::fcvt_d_wu:
-      out << "fcvt.d.wu " << fpRegName(di.op0()) << ", " << intRegName(di.op1())
-	  << roundingModeString(di.roundingMode());
+      out << "fcvt.d.wu " << fpRegName(di.op0()) << ", " << intRegName(di.op1());
       break;
 
     case InstId::fcvt_l_d:
@@ -1787,6 +1784,18 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
 
     case InstId::fsri:
       printRdRs1Rs3Imm(*this, out, "fsri", di);
+      break;
+
+    case InstId::fslw:
+      printRdRs1Rs3Rs2(*this, out, "fslw", di);
+      break;
+
+    case InstId::fsrw:
+      printRdRs1Rs3Rs2(*this, out, "fsrw", di);
+      break;
+
+    case InstId::fsriw:
+      printRdRs1Rs3Imm(*this, out, "fsriw", di);
       break;
 
     case InstId::load64:

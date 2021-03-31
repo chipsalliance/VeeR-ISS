@@ -1872,6 +1872,30 @@ InstTable::setupInstVec()
         OperandType::IntReg, OperandMode::Read, 0x03f000000
       },
 
+      { "fslw", InstId::fslw, 0x0400103b, 0x0600707f,
+        InstType::Zbt,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+        OperandType::IntReg, OperandMode::Read, rs2Mask,
+        OperandType::IntReg, OperandMode::Read, rs3Mask
+      },
+
+      { "fsrw", InstId::fsrw, 0x0400503b, 0x0600707f,
+        InstType::Zbt,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+        OperandType::IntReg, OperandMode::Read, rs2Mask,
+        OperandType::IntReg, OperandMode::Read, rs3Mask
+      },
+
+      { "fsriw", InstId::fsriw, 0x0400501b, 0x0600707f,
+        InstType::Zbt,
+	OperandType::IntReg, OperandMode::Write, rdMask,
+	OperandType::IntReg, OperandMode::Read, rs1Mask,
+        OperandType::IntReg, OperandMode::Read, rs3Mask,
+        OperandType::IntReg, OperandMode::Read, 0x03f000000
+      },
+
       // Custom instruction.
       { "load64", InstId::load64, 0x300b, funct3Low7Mask,
 	InstType::Load,

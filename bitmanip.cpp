@@ -2183,5 +2183,104 @@ Hart<URV>::execFsri(const DecodedInst* di)
 }
 
 
+template <typename URV>
+void
+Hart<URV>::execFslw(const DecodedInst* di)
+{
+  if (not isRvzbt() or not isRv64())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t v2 = intRegs_.read(di->op2());
+  uint32_t v3 = intRegs_.read(di->op3());
+
+  uint32_t len = 32;
+
+  unsigned shamt = v2 & (2*len - 1);
+
+  URV aa = v1, bb = v3;
+
+  if (shamt >= len)
+    {
+      shamt -= len;
+      aa = v3;
+      bb = v1;
+    }
+
+  uint32_t val = shamt ? (aa << shamt) | (bb >> (len - shamt)) : aa;
+
+  int64_t res = int32_t(val);  // sign extend
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execFsrw(const DecodedInst* di)
+{
+  if (not isRvzbt() or not isRv64())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t v1 = intRegs_.read(di->op1());
+  uint32_t v2 = intRegs_.read(di->op2());
+  uint32_t v3 = intRegs_.read(di->op3());
+
+  uint32_t len = 32;
+
+  unsigned shamt = v2 & (2*len - 1);
+
+  URV aa = v1, bb = v3;
+
+  if (shamt >= len)
+    {
+      shamt -= len;
+      aa = v3;
+      bb = v1;
+    }
+
+  uint32_t val = shamt ? (aa >> shamt) | (bb << (len - shamt)) : aa;
+
+  int64_t res = int32_t(val);  // sign extend
+  intRegs_.write(di->op0(), res);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::execFsriw(const DecodedInst* di)
+{
+  if (not isRvzbt() or not isRv64())
+    {
+      illegalInst(di);
+      return;
+    }
+
+  uint32_t aa = intRegs_.read(di->op1());
+  uint32_t bb = intRegs_.read(di->op2());
+  uint32_t imm = intRegs_.read(di->op3());
+
+  unsigned len = 32;
+
+  unsigned shamt = imm & (2*len - 1);
+
+  if (shamt >= len)
+    {
+      shamt -= len;
+      std::swap(aa, bb);
+    }
+
+  uint32_t val = shamt ? (aa >> shamt) | (bb << (len - shamt)) : aa;
+
+  int64_t res = int32_t(val);  // sign extend
+  intRegs_.write(di->op0(), res);
+}
+
+
 template class WdRiscv::Hart<uint32_t>;
 template class WdRiscv::Hart<uint64_t>;

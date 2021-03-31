@@ -2044,6 +2044,9 @@ namespace WdRiscv
     void execFsl(const DecodedInst*);
     void execFsr(const DecodedInst*);
     void execFsri(const DecodedInst*);
+    void execFslw(const DecodedInst*);
+    void execFsrw(const DecodedInst*);
+    void execFsriw(const DecodedInst*);
 
     // Custom insts
     void execLoad64(const DecodedInst*);

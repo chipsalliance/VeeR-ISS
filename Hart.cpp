@@ -5639,6 +5639,9 @@ Hart<URV>::execute(const DecodedInst* di)
      &&fsl,
      &&fsr,
      &&fsri,
+     &&fslw,
+     &&fsrw,
+     &&fsriw,
 
      // Custom
      &&load64,
@@ -7057,6 +7060,18 @@ Hart<URV>::execute(const DecodedInst* di)
 
  fsri:
   execFsri(di);
+  return;
+
+ fslw:
+  execFslw(di);
+  return;
+
+ fsrw:
+  execFsrw(di);
+  return;
+
+ fsriw:
+  execFsriw(di);
   return;
 
  load64:
