@@ -554,7 +554,7 @@ Hart<URV>::execPackuw(const DecodedInst* di)
   uint32_t v2 = intRegs_.read(di->op2());
 
   uint32_t lower = v1 >> 16;
-  uint32_t upper = (v2 << 16) >> 16;
+  uint32_t upper = (v2 >> 16) << 16;
   uint32_t value = lower | upper;
 
   int64_t res = int32_t(value);  // sign extend.
