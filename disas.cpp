@@ -1663,7 +1663,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::bcompressw:
-      printRdRs1Rs2(*this, out, "bcompresss", di);
+      printRdRs1Rs2(*this, out, "bcompressw", di);
       break;
 
     case InstId::bdecompressw:

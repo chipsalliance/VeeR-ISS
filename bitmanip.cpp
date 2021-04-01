@@ -554,7 +554,7 @@ Hart<URV>::execPackuw(const DecodedInst* di)
   uint32_t v2 = intRegs_.read(di->op2());
 
   uint32_t lower = v1 >> 16;
-  uint32_t upper = (v2 << 16) >> 16;
+  uint32_t upper = (v2 >> 16) << 16;
   uint32_t value = lower | upper;
 
   int64_t res = int32_t(value);  // sign extend.
@@ -695,7 +695,7 @@ Hart<URV>::execGrevw(const DecodedInst* di)
   if (shamt & 16)
     v1 = ((v1 & 0x0000ffff) << 16) | ((v1 & 0xffff0000) >> 16);
 
-  int64_t res = int32_t(v2);  // Sign extend 32-bit to 64-bit.
+  int64_t res = int32_t(v1);  // Sign extend 32-bit to 64-bit.
 
   intRegs_.write(di->op0(), res);
 }
