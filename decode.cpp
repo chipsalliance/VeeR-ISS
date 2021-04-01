@@ -1741,7 +1741,7 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
               {
                 op3 = iform.immed() >> 7;
                 op2 = iform.immed() & 0x1f;
-                return instTable_.getEntry(InstId::srliw);
+                return instTable_.getEntry(InstId::fsriw);
               }
 
 	    op2 = iform.fields2.shamt;
