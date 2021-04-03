@@ -76,7 +76,11 @@ Hart<URV>::resetFloat()
     }
 
   if (isRvf() or isRvd())
-    fpRegs_.reset(isRvd());
+    {
+      unsigned flen = isRvd()? 64 : 32;
+      fpRegs_.setFlen(flen);
+      fpRegs_.reset(isRvd());
+    }
 
   #ifdef SOFT_FLOAT
 
@@ -1657,7 +1661,7 @@ Hart<URV>::execFld(const DecodedInst* di)
 
       UDU udu;
       udu.u = val64;
-      fpRegs_.write(di->op0(), udu.d);
+      fpRegs_.writeDouble(di->op0(), udu.d);
 
       markFsDirty();
       return;
@@ -1687,7 +1691,7 @@ Hart<URV>::execFsd(const DecodedInst* di)
 
   URV base = intRegs_.read(rs1);
   URV addr = base + di->op2As<SRV>();
-  double val = fpRegs_.read(rs2);
+  double val = fpRegs_.readDouble(rs2);
 
   union UDU  // Unsigned double union: reinterpret bits as unsigned or double
   {
@@ -1709,16 +1713,16 @@ Hart<URV>::execFmadd_d(const DecodedInst* di)
   if (not checkRoundingModeDp(di))
     return;
 
-  double f1 = fpRegs_.read(di->op1());
-  double f2 = fpRegs_.read(di->op2());
-  double f3 = fpRegs_.read(di->op3());
+  double f1 = fpRegs_.readDouble(di->op1());
+  double f2 = fpRegs_.readDouble(di->op2());
+  double f3 = fpRegs_.readDouble(di->op3());
 
   bool invalid = false;
   double res = fusedMultiplyAdd(f1, f2, f3, invalid);
   if (std::isnan(res))
     res = std::numeric_limits<double>::quiet_NaN();
 
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, invalid);
 
@@ -1733,9 +1737,9 @@ Hart<URV>::execFmsub_d(const DecodedInst* di)
   if (not checkRoundingModeDp(di))
     return;
 
-  double f1 = fpRegs_.read(di->op1());
-  double f2 = fpRegs_.read(di->op2());
-  double f3 = -fpRegs_.read(di->op3());
+  double f1 = fpRegs_.readDouble(di->op1());
+  double f2 = fpRegs_.readDouble(di->op2());
+  double f3 = -fpRegs_.readDouble(di->op3());
 
   bool invalid = false;
   double res = fusedMultiplyAdd(f1, f2, f3, invalid);
@@ -1743,7 +1747,7 @@ Hart<URV>::execFmsub_d(const DecodedInst* di)
   if (std::isnan(res))
     res = std::numeric_limits<double>::quiet_NaN();
 
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, invalid);
 
@@ -1758,16 +1762,16 @@ Hart<URV>::execFnmsub_d(const DecodedInst* di)
   if (not checkRoundingModeDp(di))
     return;
 
-  double f1 = -fpRegs_.read(di->op1());
-  double f2 = fpRegs_.read(di->op2());
-  double f3 = fpRegs_.read(di->op3());
+  double f1 = -fpRegs_.readDouble(di->op1());
+  double f2 = fpRegs_.readDouble(di->op2());
+  double f3 = fpRegs_.readDouble(di->op3());
 
   bool invalid = false;
   double res = fusedMultiplyAdd(f1, f2, f3, invalid);
   if (std::isnan(res))
     res = std::numeric_limits<double>::quiet_NaN();
 
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, invalid);
 
@@ -1784,16 +1788,16 @@ Hart<URV>::execFnmadd_d(const DecodedInst* di)
 
   // we want -(f[op1] * f[op2]) - f[op3]
 
-  double f1 = -fpRegs_.read(di->op1());
-  double f2 = fpRegs_.read(di->op2());
-  double f3 = -fpRegs_.read(di->op3());
+  double f1 = -fpRegs_.readDouble(di->op1());
+  double f2 = fpRegs_.readDouble(di->op2());
+  double f3 = -fpRegs_.readDouble(di->op3());
 
   bool invalid = false;
   double res = fusedMultiplyAdd(f1, f2, f3, invalid);
   if (std::isnan(res))
     res = std::numeric_limits<double>::quiet_NaN();
 
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, invalid);
 
@@ -1808,8 +1812,8 @@ Hart<URV>::execFadd_d(const DecodedInst* di)
   if (not checkRoundingModeDp(di))
     return;
 
-  double d1 = fpRegs_.read(di->op1());
-  double d2 = fpRegs_.read(di->op2());
+  double d1 = fpRegs_.readDouble(di->op1());
+  double d2 = fpRegs_.readDouble(di->op2());
 
 #ifdef SOFT_FLOAT
   double res = f64ToDouble(f64_add(doubleToF64(d1), doubleToF64(d2)));
@@ -1820,7 +1824,7 @@ Hart<URV>::execFadd_d(const DecodedInst* di)
   if (std::isnan(res))
     res = std::numeric_limits<double>::quiet_NaN();
 
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
 
@@ -1835,8 +1839,8 @@ Hart<URV>::execFsub_d(const DecodedInst* di)
   if (not checkRoundingModeDp(di))
     return;
 
-  double d1 = fpRegs_.read(di->op1());
-  double d2 = fpRegs_.read(di->op2());
+  double d1 = fpRegs_.readDouble(di->op1());
+  double d2 = fpRegs_.readDouble(di->op2());
 
 #ifdef SOFT_FLOAT
   double res = f64ToDouble(f64_sub(doubleToF64(d1), doubleToF64(d2)));
@@ -1847,7 +1851,7 @@ Hart<URV>::execFsub_d(const DecodedInst* di)
   if (std::isnan(res))
     res = std::numeric_limits<double>::quiet_NaN();
 
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
 
@@ -1862,8 +1866,8 @@ Hart<URV>::execFmul_d(const DecodedInst* di)
   if (not checkRoundingModeDp(di))
     return;
 
-  double d1 = fpRegs_.read(di->op1());
-  double d2 = fpRegs_.read(di->op2());
+  double d1 = fpRegs_.readDouble(di->op1());
+  double d2 = fpRegs_.readDouble(di->op2());
 
 #ifdef SOFT_FLOAT
   double res = f64ToDouble(f64_mul(doubleToF64(d1), doubleToF64(d2)));
@@ -1874,7 +1878,7 @@ Hart<URV>::execFmul_d(const DecodedInst* di)
   if (std::isnan(res))
     res = std::numeric_limits<double>::quiet_NaN();
 
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
 
@@ -1889,8 +1893,8 @@ Hart<URV>::execFdiv_d(const DecodedInst* di)
   if (not checkRoundingModeDp(di))
     return;
 
-  double d1 = fpRegs_.read(di->op1());
-  double d2 = fpRegs_.read(di->op2());
+  double d1 = fpRegs_.readDouble(di->op1());
+  double d2 = fpRegs_.readDouble(di->op2());
 
 #ifdef SOFT_FLOAT
   double res = f64ToDouble(f64_div(doubleToF64(d1), doubleToF64(d2)));
@@ -1901,7 +1905,7 @@ Hart<URV>::execFdiv_d(const DecodedInst* di)
   if (std::isnan(res))
     res = std::numeric_limits<double>::quiet_NaN();
 
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
 
@@ -1919,10 +1923,10 @@ Hart<URV>::execFsgnj_d(const DecodedInst* di)
       return;
     }
 
-  double d1 = fpRegs_.read(di->op1());
-  double d2 = fpRegs_.read(di->op2());
+  double d1 = fpRegs_.readDouble(di->op1());
+  double d2 = fpRegs_.readDouble(di->op2());
   double res = copysign(d1, d2);  // Magnitude of rs1 and sign of rs2
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   markFsDirty();
 }
@@ -1938,11 +1942,11 @@ Hart<URV>::execFsgnjn_d(const DecodedInst* di)
       return;
     }
 
-  double d1 = fpRegs_.read(di->op1());
-  double d2 = fpRegs_.read(di->op2());
+  double d1 = fpRegs_.readDouble(di->op1());
+  double d2 = fpRegs_.readDouble(di->op2());
   double res = copysign(d1, d2);  // Magnitude of rs1 and sign of rs2
   res = -res;  // Magnitude of rs1 and negative the sign of rs2
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   markFsDirty();
 }
@@ -1958,8 +1962,8 @@ Hart<URV>::execFsgnjx_d(const DecodedInst* di)
       return;
     }
 
-  double d1 = fpRegs_.read(di->op1());
-  double d2 = fpRegs_.read(di->op2());
+  double d1 = fpRegs_.readDouble(di->op1());
+  double d2 = fpRegs_.readDouble(di->op2());
 
   int sign1 = (std::signbit(d1) == 0) ? 0 : 1;
   int sign2 = (std::signbit(d2) == 0) ? 0 : 1;
@@ -1968,7 +1972,7 @@ Hart<URV>::execFsgnjx_d(const DecodedInst* di)
   double x = sign? -1 : 1;
 
   double res = copysign(d1, x);  // Magnitude of rs1 and sign of x
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   markFsDirty();
 }
@@ -1984,8 +1988,8 @@ Hart<URV>::execFmin_d(const DecodedInst* di)
       return;
     }
 
-  double in1 = fpRegs_.read(di->op1());
-  double in2 = fpRegs_.read(di->op2());
+  double in1 = fpRegs_.readDouble(di->op1());
+  double in2 = fpRegs_.readDouble(di->op2());
   double res = 0;
 
   bool isNan1 = std::isnan(in1), isNan2 = std::isnan(in2);
@@ -2003,7 +2007,7 @@ Hart<URV>::execFmin_d(const DecodedInst* di)
   else if (std::signbit(in1) != std::signbit(in2) and in1 == in2)
     res = std::copysign(res, -1.0);  // Make sure min(-0, +0) is -0.
 
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   markFsDirty();
 }
@@ -2019,8 +2023,8 @@ Hart<URV>::execFmax_d(const DecodedInst* di)
       return;
     }
 
-  double in1 = fpRegs_.read(di->op1());
-  double in2 = fpRegs_.read(di->op2());
+  double in1 = fpRegs_.readDouble(di->op1());
+  double in2 = fpRegs_.readDouble(di->op2());
   double res = 0;
 
   bool isNan1 = std::isnan(in1), isNan2 = std::isnan(in2);
@@ -2038,7 +2042,7 @@ Hart<URV>::execFmax_d(const DecodedInst* di)
   else if (std::signbit(in1) != std::signbit(in2) and in1 == in2)
     res = std::copysign(res, 1.0);  // Make sure max(-0, +0) is +0.
 
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   markFsDirty();
 }
@@ -2056,7 +2060,7 @@ Hart<URV>::execFcvt_d_s(const DecodedInst* di)
   if (std::isnan(res))
     res = std::numeric_limits<double>::quiet_NaN();
 
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
 
@@ -2071,7 +2075,7 @@ Hart<URV>::execFcvt_s_d(const DecodedInst* di)
   if (not checkRoundingModeDp(di))
     return;
 
-  double d1 = fpRegs_.read(di->op1());
+  double d1 = fpRegs_.readDouble(di->op1());
 
 #ifdef SOFT_FLOAT
   float res = f32ToFloat(f64_to_f32(doubleToF64(d1)));
@@ -2097,7 +2101,7 @@ Hart<URV>::execFsqrt_d(const DecodedInst* di)
   if (not checkRoundingModeDp(di))
     return;
 
-  double d1 = fpRegs_.read(di->op1());
+  double d1 = fpRegs_.readDouble(di->op1());
 
 #ifdef SOFT_FLOAT
   double res = f64ToDouble(f64_sqrt(doubleToF64(d1)));
@@ -2108,7 +2112,7 @@ Hart<URV>::execFsqrt_d(const DecodedInst* di)
   if (std::isnan(res))
     res = std::numeric_limits<double>::quiet_NaN();
 
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
 
@@ -2126,8 +2130,8 @@ Hart<URV>::execFle_d(const DecodedInst* di)
       return;
     }
 
-  double d1 = fpRegs_.read(di->op1());
-  double d2 = fpRegs_.read(di->op2());
+  double d1 = fpRegs_.readDouble(di->op1());
+  double d2 = fpRegs_.readDouble(di->op2());
 
   URV res = 0;
 
@@ -2153,8 +2157,8 @@ Hart<URV>::execFlt_d(const DecodedInst* di)
       return;
     }
 
-  double d1 = fpRegs_.read(di->op1());
-  double d2 = fpRegs_.read(di->op2());
+  double d1 = fpRegs_.readDouble(di->op1());
+  double d2 = fpRegs_.readDouble(di->op2());
 
   URV res = 0;
 
@@ -2180,8 +2184,8 @@ Hart<URV>::execFeq_d(const DecodedInst* di)
       return;
     }
 
-  double d1 = fpRegs_.read(di->op1());
-  double d2 = fpRegs_.read(di->op2());
+  double d1 = fpRegs_.readDouble(di->op1());
+  double d2 = fpRegs_.readDouble(di->op2());
 
   URV res = 0;
 
@@ -2207,7 +2211,7 @@ Hart<URV>::execFcvt_w_d(const DecodedInst* di)
   if (not checkRoundingModeDp(di))
     return;
 
-  double d1 = fpRegs_.read(di->op1());
+  double d1 = fpRegs_.readDouble(di->op1());
   SRV result = 0;
   bool valid = false;
 
@@ -2256,7 +2260,7 @@ Hart<URV>::execFcvt_wu_d(const DecodedInst* di)
   if (not checkRoundingModeDp(di))
     return;
 
-  double d1 = fpRegs_.read(di->op1());
+  double d1 = fpRegs_.readDouble(di->op1());
   SRV result = 0;
 
 #ifdef SOFT_FLOAT
@@ -2325,7 +2329,7 @@ Hart<URV>::execFcvt_d_w(const DecodedInst* di)
 
   int32_t i1 = intRegs_.read(di->op1());
   double res = i1;
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
 
@@ -2342,7 +2346,7 @@ Hart<URV>::execFcvt_d_wu(const DecodedInst* di)
 
   uint32_t i1 = intRegs_.read(di->op1());
   double res = i1;
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
 
@@ -2360,7 +2364,7 @@ Hart<URV>::execFclass_d(const DecodedInst* di)
       return;
     }
 
-  double d1 = fpRegs_.read(di->op1());
+  double d1 = fpRegs_.readDouble(di->op1());
   URV result = 0;
 
   bool pos = not std::signbit(d1);
@@ -2428,7 +2432,7 @@ Hart<uint64_t>::execFcvt_l_d(const DecodedInst* di)
   if (not checkRoundingModeDp(di))
     return;
 
-  double f1 = fpRegs_.read(di->op1());
+  double f1 = fpRegs_.readDouble(di->op1());
   SRV result = 0;
   bool valid = false;
 
@@ -2491,7 +2495,7 @@ Hart<uint64_t>::execFcvt_lu_d(const DecodedInst* di)
   if (not checkRoundingModeDp(di))
     return;
 
-  double f1 = fpRegs_.read(di->op1());
+  double f1 = fpRegs_.readDouble(di->op1());
   uint64_t result = 0;
 
 #ifdef SOFT_FLOAT
@@ -2582,7 +2586,7 @@ Hart<URV>::execFcvt_d_l(const DecodedInst* di)
 
   SRV i1 = intRegs_.read(di->op1());
   double res = double(i1);
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
 
@@ -2605,7 +2609,7 @@ Hart<URV>::execFcvt_d_lu(const DecodedInst* di)
 
   URV i1 = intRegs_.read(di->op1());
   double res = double(i1);
-  fpRegs_.write(di->op0(), res);
+  fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
 
@@ -2634,7 +2638,7 @@ Hart<URV>::execFmv_d_x(const DecodedInst* di)
   UDU udu;
   udu.u = u1;
 
-  fpRegs_.write(di->op0(), udu.d);
+  fpRegs_.writeDouble(di->op0(), udu.d);
 
   markFsDirty();
 }
