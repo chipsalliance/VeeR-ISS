@@ -18,8 +18,7 @@
 using namespace WdRiscv;
 
 
-template <typename FRV>
-FpRegs<FRV>::FpRegs(unsigned regCount)
+FpRegs::FpRegs(unsigned regCount)
   : regs_(regCount, 0)
 {
   numberToName_.resize(32);
@@ -44,9 +43,8 @@ FpRegs<FRV>::FpRegs(unsigned regCount)
 }
 
 
-template <typename FRV>
 bool
-FpRegs<FRV>::findReg(const std::string& name, unsigned& ix) const
+FpRegs::findReg(const std::string& name, unsigned& ix) const
 {
   const auto iter = nameToNumber_.find(name);
   if (iter == nameToNumber_.end())
@@ -55,7 +53,3 @@ FpRegs<FRV>::findReg(const std::string& name, unsigned& ix) const
   ix = iter->second;
   return true;
 }
-
-
-template class WdRiscv::FpRegs<float>;
-template class WdRiscv::FpRegs<double>;

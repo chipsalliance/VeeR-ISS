@@ -2844,7 +2844,7 @@ namespace WdRiscv
     Memory& memory_;
     IntRegs<URV> intRegs_;       // Integer register file.
     CsRegs<URV> csRegs_;         // Control and status registers.
-    FpRegs<double> fpRegs_;      // Floating point registers.
+    FpRegs fpRegs_;              // Floating point registers.
     VecRegs vecRegs_;            // Vector register file.
 
     Syscall<URV> syscall_;
