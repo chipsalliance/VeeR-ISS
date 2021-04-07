@@ -423,7 +423,9 @@ The MISA register is read only. It is not possible to change XLEN at
 run time by writing to the MISA register.
 
 The "round to nearest break tie to max magnitude" rounding mode is not
-implemented.
+implemented unless you compile with the softfloat library: "make
+SOFT_FLOAT=1" in which case simulation of floating point instructions
+slows down significantly.
 
 Only extensions A, C, D, F, I, M, S and U are supported.
 
