@@ -8457,21 +8457,6 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
   if (amoInDccmOnly_ and not isAddrInDccm(addr))
     fail = true;
 
-  // Temporary: Check if not cachable. FIX: this should be part of
-  // physical memory attributes.
-#if 0
-  if (not fail and not isAddrInDccm(addr))
-    {
-      unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
-      URV mracVal = 0;
-      if (csRegs_.read(CsrNumber::MRAC, PrivilegeMode::Machine, mracVal))
-        {
-          unsigned bit = (mracVal >> (region*2)) & 1;
-          fail = bit == 0;
-        }
-    }
-#endif
-
   if (fail)
     {
       // AMO secondary cause has priority over ECC.
@@ -10089,6 +10074,12 @@ template <typename URV>
 void
 Hart<URV>::execLr_w(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
   lrCount_++;
@@ -10198,6 +10189,12 @@ template <typename URV>
 void
 Hart<URV>::execSc_w(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
   uint32_t rs1 = di->op1();
@@ -10230,6 +10227,12 @@ template <typename URV>
 void
 Hart<URV>::execAmoadd_w(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
@@ -10259,6 +10262,12 @@ template <typename URV>
 void
 Hart<URV>::execAmoswap_w(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
@@ -10288,6 +10297,12 @@ template <typename URV>
 void
 Hart<URV>::execAmoxor_w(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
@@ -10317,6 +10332,12 @@ template <typename URV>
 void
 Hart<URV>::execAmoor_w(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
@@ -10346,6 +10367,12 @@ template <typename URV>
 void
 Hart<URV>::execAmoand_w(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
@@ -10375,6 +10402,12 @@ template <typename URV>
 void
 Hart<URV>::execAmomin_w(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
@@ -10405,6 +10438,12 @@ template <typename URV>
 void
 Hart<URV>::execAmominu_w(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
@@ -10436,6 +10475,12 @@ template <typename URV>
 void
 Hart<URV>::execAmomax_w(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
@@ -10466,6 +10511,12 @@ template <typename URV>
 void
 Hart<URV>::execAmomaxu_w(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
@@ -10499,6 +10550,12 @@ template <typename URV>
 void
 Hart<URV>::execLr_d(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
   lrCount_++;
@@ -10514,6 +10571,12 @@ template <typename URV>
 void
 Hart<URV>::execSc_d(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
   uint32_t rs1 = di->op1();
@@ -10546,6 +10609,12 @@ template <typename URV>
 void
 Hart<URV>::execAmoadd_d(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
@@ -10573,6 +10642,12 @@ template <typename URV>
 void
 Hart<URV>::execAmoswap_d(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
@@ -10600,6 +10675,12 @@ template <typename URV>
 void
 Hart<URV>::execAmoxor_d(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
@@ -10627,6 +10708,12 @@ template <typename URV>
 void
 Hart<URV>::execAmoor_d(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
@@ -10654,6 +10741,12 @@ template <typename URV>
 void
 Hart<URV>::execAmoand_d(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
@@ -10681,6 +10774,12 @@ template <typename URV>
 void
 Hart<URV>::execAmomin_d(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
@@ -10708,6 +10807,12 @@ template <typename URV>
 void
 Hart<URV>::execAmominu_d(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
@@ -10735,6 +10840,12 @@ template <typename URV>
 void
 Hart<URV>::execAmomax_d(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
@@ -10762,6 +10873,12 @@ template <typename URV>
 void
 Hart<URV>::execAmomaxu_d(const DecodedInst* di)
 {
+  if (not isRva())
+    {
+      illegalInst(di);
+      return;
+    }
+
   // Lock mutex to serialize AMO instructions. Unlock automatically on
   // exit from this scope.
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
