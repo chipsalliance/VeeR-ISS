@@ -308,6 +308,32 @@ peekAllTriggers(Hart<URV>& hart)
 
 
 template <typename URV>
+static
+bool
+peekMemory(Hart<URV>& hart, uint64_t addr0, uint64_t addr1, std::ostream& out)
+{
+  auto hexForm = getHexForm<URV>(); // Format string for printing a hex val
+
+  uint32_t word = 0;
+  bool usePma = false;
+
+  for (uint64_t addr = addr0; addr <= addr1; addr += 4)
+    {
+      if (not hart.peekMemory(addr, word, usePma))
+        {
+          std::cerr << "Peek memory address out of bounds: 0x"
+                    << std::hex << addr << std::dec << '\n';
+          return false;
+        }
+      out << (boost::format(hexForm) % addr) << ": ";
+      out << (boost::format("0x%08x") % word) << std::endl;
+    }
+
+  return true;
+}
+
+
+template <typename URV>
 bool
 Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
 			      const std::vector<std::string>& tokens)
@@ -365,28 +391,27 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
 
   if (resource == "m")
     {
-      size_t addr0 = 0;
+      uint64_t addr0 = 0;
       if (not parseCmdLineNumber("memory-address", addrStr, addr0))
 	return false;
 
-      size_t addr1 = addr0;
-      if (tokens.size() == 4)
+      uint64_t addr1 = addr0;
+      if (tokens.size() >= 4)
 	if (not parseCmdLineNumber("memory-address", tokens.at(3), addr1))
 	  return false;
 
-      uint32_t word = 0;
-      for (size_t addr = addr0; addr <= addr1; addr += 4)
-	{
-          bool usePma = false;
-	  if (not hart.peekMemory(addr, word, usePma))
-	    {
-	      std::cerr << "Memory address out of bounds: " << addrStr << '\n';
-	      return false;
-	    }
-	  std::cout << (boost::format(hexForm) % addr) << ": ";
-	  std::cout << (boost::format("0x%08x") % word) << std::endl;
-	}
-      return true;
+      if (tokens.size() >= 5)
+        {
+          std::ofstream out(tokens.at(4));
+          if (not out)
+            {
+              std::cerr << "Failed to open " << tokens.at(4) << " for write of peek command output\n";
+              return false;
+            }
+          return peekMemory(hart, addr0, addr1, out);
+        }
+
+      return peekMemory(hart, addr0, addr1, std::cout);
     }
 
   if (resource == "r")
@@ -1096,8 +1121,10 @@ printInteractiveHelp()
   cout << "peek <res> <addr>\n";
   cout << "  Print value of resource res (one of r, f, c, m) and address addr.\n";
   cout << "  For memory (m) up to 2 addresses may be provided to define a range\n";
-  cout << "  of memory locations to be printed.\n";
-  cout << "  examples: peek r x1   peek c mtval   peek m 0x4096\n\n";
+  cout << "  of memory locations to be printed; also, an optional filename after\n";
+  cout << "  the two addresses writes the command output to that file.\n";
+  cout << "  examples: peek r x1   peek c mtval   peek m 0x4096\n";
+  cout << "            peek m 0x10 0x40 out\n\n";
   cout << "peek pc\n";
   cout << "  Print value of the program counter.\n\n";
   cout << "peek all\n";
@@ -1200,13 +1227,15 @@ Interactive<URV>::helpCommand(const std::vector<std::string>& tokens)
 	   << "  Addr stands for a register number, register name or memory\n"
 	   << "  address. If resource is memory (m), then an additional address\n"
 	   << "  may be provided to define a range of memory locations to be\n"
-	   << "  display.  Examples\n"
+	   << "  display and an optional filename after 2nd address may be\n"
+           << "  provided to write memory contents to a file.  Examples\n"
 	   << "    peek pc\n"
 	   << "    peek r t0\n"
 	   << "    peek r x12\n"
 	   << "    peek c mtval\n"
 	   << "    peek m 0x80000000\n"
-	   << "    peek m 0x80000000 0x80000010\n";
+	   << "    peek m 0x80000000 0x80000010\n"
+      	   << "    peek m 0x80000000 0x80000010 out\n";
       return;
     }
 

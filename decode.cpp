@@ -46,9 +46,6 @@ const InstEntry&
 Hart<URV>::decodeFp(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 		    uint32_t& op3)
 {
-  if (not isRvf())
-    return instTable_.getEntry(InstId::illegal);  
-
   RFormInst rform(inst);
 
   op0 = rform.bits.rd, op1 = rform.bits.rs1, op2 = rform.bits.rs2;
@@ -59,9 +56,6 @@ Hart<URV>::decodeFp(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 
   if (f7 & 1)
     {
-      if (not isRvd())
-	return instTable_.getEntry(InstId::illegal);  
-
       if (f7 == 1)              return instTable_.getEntry(InstId::fadd_d);
       if (f7 == 5)              return instTable_.getEntry(InstId::fsub_d);
       if (f7 == 9)              return instTable_.getEntry(InstId::fmul_d);
@@ -1773,9 +1767,6 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 
     l11:  // 01011  R-form atomics
       {
-        if (not isRva())
-          return instTable_.getEntry(InstId::illegal);
-
         RFormInst rf(inst);
         uint32_t top5 = rf.top5(), f3 = rf.bits.funct3;
         op0 = rf.bits.rd; op1 = rf.bits.rs1; op2 = rf.bits.rs2;
