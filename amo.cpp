@@ -328,7 +328,7 @@ Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
       return false;
     }
 
-  if (not memory_.hasLr(hartIx_, addr))
+  if (not memory_.hasLr(hartIx_, addr, sizeof(storeVal)))
     return false;
 
   if (memory_.write(hartIx_, addr, storeVal))
@@ -714,7 +714,7 @@ template <typename URV>
 void
 Hart<URV>::execLr_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -735,7 +735,7 @@ template <typename URV>
 void
 Hart<URV>::execSc_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -773,7 +773,7 @@ template <typename URV>
 void
 Hart<URV>::execAmoadd_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -806,7 +806,7 @@ template <typename URV>
 void
 Hart<URV>::execAmoswap_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -839,7 +839,7 @@ template <typename URV>
 void
 Hart<URV>::execAmoxor_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -872,7 +872,7 @@ template <typename URV>
 void
 Hart<URV>::execAmoor_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -905,7 +905,7 @@ template <typename URV>
 void
 Hart<URV>::execAmoand_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -938,7 +938,7 @@ template <typename URV>
 void
 Hart<URV>::execAmomin_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -971,7 +971,7 @@ template <typename URV>
 void
 Hart<URV>::execAmominu_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -1004,7 +1004,7 @@ template <typename URV>
 void
 Hart<URV>::execAmomax_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -1037,7 +1037,7 @@ template <typename URV>
 void
 Hart<URV>::execAmomaxu_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
