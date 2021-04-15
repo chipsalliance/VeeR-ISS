@@ -953,8 +953,11 @@ CsRegs<URV>::defineMachineRegs()
   // Machine Counter/Timers.
   defineCsr("mcycle",    Csrn::MCYCLE,    mand, imp, 0, wam, wam);
   defineCsr("minstret",  Csrn::MINSTRET,  mand, imp, 0, wam, wam);
-  defineCsr("mcycleh",   Csrn::MCYCLEH,   mand, imp, 0, wam, wam);
-  defineCsr("minstreth", Csrn::MINSTRETH, mand, imp, 0, wam, wam);
+  if (rv32_)
+    {
+      defineCsr("mcycleh",   Csrn::MCYCLEH,   mand, imp, 0, wam, wam);
+      defineCsr("minstreth", Csrn::MINSTRETH, mand, imp, 0, wam, wam);
+    }
 
   // Define mhpmcounter3/mhpmcounter3h to mhpmcounter31/mhpmcounter31h
   // as write-anything/read-zero (user can change that in the config
@@ -966,11 +969,14 @@ CsRegs<URV>::defineMachineRegs()
       std::string name = "mhpmcounter" + std::to_string(i);
       defineCsr(name, csrNum, mand, imp, 0, rom, rom);
 
-      // High register counterpart of mhpmcounter.
-      name += "h";
-      csrNum = CsrNumber(unsigned(CsrNumber::MHPMCOUNTER3H) + i - 3);
-      bool hmand = rv32_;  // high counters mandatory only in rv32
-      defineCsr(name, csrNum, hmand, imp, 0, rom, rom);
+      if (rv32_)
+        {
+          // High register counterpart of mhpmcounter.
+          name += "h";
+          csrNum = CsrNumber(unsigned(CsrNumber::MHPMCOUNTER3H) + i - 3);
+          bool hmand = rv32_;  // high counters mandatory only in rv32
+          defineCsr(name, csrNum, hmand, imp, 0, rom, rom);
+        }
 
       csrNum = CsrNumber(unsigned(CsrNumber::MHPMEVENT3) + i - 3);
       name = "mhpmevent" + std::to_string(i);
