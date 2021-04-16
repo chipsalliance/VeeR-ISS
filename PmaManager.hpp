@@ -34,8 +34,7 @@ namespace WdRiscv
       {
        None = 0, Read = 1, Write = 2, Exec = 4,
        Idempotent = 8, Atomic = 16, Iccm = 32,
-       Dccm = 64, MemMapped = 128, Cached = 256,
-       Aligned = 1024,
+       Dccm = 64, MemMapped = 128,
        ReadWrite = Read | Write,
        Mapped = Exec | Read | Write,
        Default = Mapped | Idempotent | Atomic
@@ -69,9 +68,6 @@ namespace WdRiscv
     bool isIdempotent() const
     { return attrib_ & Idempotent; }
 
-    /// Return true if in cacheable region.
-    bool isCacheable() const     { return attrib_ & Attrib::Cached; }
-
     /// Return true if in readable (ld instructions allowed) region.
     bool isRead() const
     { return attrib_ & (Read | MemMapped); }
@@ -84,17 +80,9 @@ namespace WdRiscv
     bool isExec() const
     { return attrib_ & Exec; }
 
-    /// Return true in region where access must be aligned.
-    bool isAligned() const
-    { return attrib_ & Aligned; }
-
     /// Return true in region where atomic instructions are allowed.
     bool isAtomic() const
     { return attrib_ & Atomic; }
-
-    /// Return true in cached region.
-    bool isCached() const
-    { return attrib_ & Cached; }
 
     /// Return true if this object has the same attributes as the
     /// given object.
@@ -108,9 +96,9 @@ namespace WdRiscv
 
   private:
 
-    uint16_t attrib_ = 0;
-    bool word_ = false;     // True if word granularity otherwise page.
-  };
+    unsigned attrib_ : 8;
+    bool word_       : 8;     // True if word granularity otherwise page.
+  } __attribute__((packed));
 
 
   /// Physical memory attribute manager. One per memory. Shared
