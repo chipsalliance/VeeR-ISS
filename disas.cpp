@@ -1271,7 +1271,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::c_sd:
-      printFpLdSt(*this, out, "c.sd", di);
+      printLdSt(*this, out, "c.sd", di);
       break;
 
     case InstId::c_addi:
