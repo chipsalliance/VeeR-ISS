@@ -2328,7 +2328,13 @@ Hart<URV>::execFcvt_d_w(const DecodedInst* di)
     return;
 
   int32_t i1 = intRegs_.read(di->op1());
+
+#ifdef SOFT_FLOAT
+  double res = f64ToDouble(i64_to_f64(i1));
+#else
   double res = i1;
+#endif
+
   fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
@@ -2345,7 +2351,13 @@ Hart<URV>::execFcvt_d_wu(const DecodedInst* di)
     return;
 
   uint32_t i1 = intRegs_.read(di->op1());
+
+#ifdef SOFT_FLOAT
+  double res = f64ToDouble(ui64_to_f64(i1));
+#else                           
   double res = i1;
+#endif
+
   fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
@@ -2585,7 +2597,13 @@ Hart<URV>::execFcvt_d_l(const DecodedInst* di)
     return;
 
   SRV i1 = intRegs_.read(di->op1());
+
+#ifdef SOFT_FLOAT
+  double res = f64ToDouble(i64_to_f64(i1));
+#else
   double res = double(i1);
+#endif
+
   fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
@@ -2608,7 +2626,13 @@ Hart<URV>::execFcvt_d_lu(const DecodedInst* di)
     return;
 
   URV i1 = intRegs_.read(di->op1());
+
+#ifdef SOFT_FLOAT
+  double res = f64ToDouble(ui64_to_f64(i1));
+#else
   double res = double(i1);
+#endif
+
   fpRegs_.writeDouble(di->op0(), res);
 
   updateAccruedFpBits(res, false /*invalid*/);
