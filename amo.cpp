@@ -300,6 +300,13 @@ Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
   auto cause = determineStoreException(rs1, virtAddr, addr, storeVal, secCause,
                                        forcedFail);
 
+  if (cause == ExceptionCause::STORE_ADDR_MISAL and
+      misalAtomicCauseAccessFault_)
+    {
+      cause = ExceptionCause::STORE_ACC_FAULT;
+      secCause = SecondaryCause::STORE_ACC_AMO;
+    }
+
   bool fail = misal or (amoInDccmOnly_ and not isAddrInDccm(addr));
 
   if (fail)
