@@ -45,6 +45,13 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
       cause = determineStoreException(rs1, addr, addr, storeVal, secCause, forcedFail);
     }
 
+  if (cause == ExceptionCause::STORE_ADDR_MISAL and
+      misalAtomicCauseAccessFault_)
+    {
+      cause = ExceptionCause::STORE_ACC_FAULT;
+      secCause = SecondaryCause::STORE_ACC_AMO;
+    }
+
   // Address must be word aligned for word access and double-word
   // aligned for double-word access.
   bool fail = (addr & mask) != 0;
