@@ -1107,6 +1107,16 @@ HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
         errors++;
     }
 
+  tag = "enable_per_mode_counter_control";
+  if (config_ -> count(tag))
+    {
+      bool flag = true;
+      if (getJsonBoolean(tag, config_ ->at(tag), flag))
+        hart.enablePerModeCounterControl(flag);
+      else
+        errors++;
+    }
+
   // Enable zbb.
   tag = "enable_zbmini";
   if (config_ -> count(tag))
@@ -1757,16 +1767,6 @@ HartConfig::finalizeCsrConfig(System<URV>& system) const
 
   // Define callback to react to write/poke to mcountinhibit CSR.
   defineMcountinhibitSideEffects(system);
-
-  // If micbaddr is defined (elx2s), then enable per-mode performance
-  // counter control.
-  for (unsigned i = 0; i < system.hartCount(); ++i)
-    {
-      auto hart = system.ithHart(i);
-      auto csrPtr = hart->findCsr("mpicbaddr");
-      if (csrPtr)
-        hart->enablePerModeCounterControl(true);
-    }
 
   return true;
 }
