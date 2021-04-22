@@ -239,7 +239,7 @@ namespace WdRiscv
     std::unordered_map<uint64_t, Pma> wordPmas_; // Map word index to pma.
     uint64_t memSize_;
     uint64_t sectionSize_ = 32*1024;
-    unsigned sectionShift_ = 17;
+    unsigned sectionShift_ = 15;
 
     uint64_t memMappedBase_ = 0;
     uint64_t memMappedSize_ = 0;

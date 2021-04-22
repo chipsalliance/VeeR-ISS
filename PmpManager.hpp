@@ -23,8 +23,12 @@ namespace WdRiscv
 {
 
   /// Physical memory protection. An instance of this is usually
-  /// associated with a memory page. For sub-page attribution, an
-  /// instance is associated with a word-aligned memory word.
+  /// associated with a section of the address space. The address
+  /// space is evenly divided into contiguous, equally sized sections,
+  /// aligned to the section size.
+  /// For sub-section protection, an instance is associated with a
+  /// word-aligned memory word. To reduce footprint of the PmaMgr
+  /// object, we typically use a section size of 8 or more pages.
   class Pmp
   {
   public:
@@ -111,7 +115,7 @@ namespace WdRiscv
 
     /// Constructor. Mark all memory as no access to user/supervisor
     /// (machine mode does access since it is not checked).
-    PmpManager(uint64_t memorySize, uint64_t pageSize);
+    PmpManager(uint64_t memorySize, uint64_t sectionSize = 32*1024);
 
     /// Destructor.
     ~PmpManager();
@@ -123,18 +127,13 @@ namespace WdRiscv
     /// Return the physical memory protection object (pmp) associated
     /// with the word-aligned word designated by the given
     /// address. Return a no-access object if the given address is out
-    /// of memory range. Internally we associate a pmp object with
-    /// each page of a region where the first/last address is aligned
-    /// with the first/last address of a page. For a region where the
-    /// first/last address is not page-aligned we associate a pmp
-    /// object with each word before/after the first/last page aligned
-    /// address.
+    /// of memory range.
     Pmp getPmp(uint64_t addr) const
     {
-      uint64_t ix = getPageIx(addr);
-      if (ix >= pagePmps_.size())
+      uint64_t ix = getSectionIx(addr);
+      if (ix >= sectionPmps_.size())
         return Pmp();
-      Pmp pmp = pagePmps_[ix];
+      Pmp pmp = sectionPmps_[ix];
       if (pmp.word_)
         {
           addr = (addr >> 2);  // Get word index.
@@ -147,10 +146,10 @@ namespace WdRiscv
     /// each PMP entry.
     inline Pmp accessPmp(uint64_t addr) const
     {
-      uint64_t ix = getPageIx(addr);
-      if (ix >= pagePmps_.size())
+      uint64_t ix = getSectionIx(addr);
+      if (ix >= sectionPmps_.size())
         return Pmp();
-      Pmp pmp = pagePmps_[ix];
+      Pmp pmp = sectionPmps_[ix];
       if (pmp.word_)
         {
           addr = (addr >> 2);  // Get word index.
@@ -166,9 +165,9 @@ namespace WdRiscv
     void setMode(uint64_t addr0, uint64_t addr1, Pmp::Type type, Pmp::Mode mode,
                  unsigned pmpIx, bool locked);
 
-    /// Return start address of page containing given address.
-    uint64_t getPageStartAddr(uint64_t addr) const
-    { return (addr >> pageShift_) << pageShift_; }
+    /// Return start address of section containing given address.
+    uint64_t getSectionStartAddr(uint64_t addr) const
+    { return (addr >> sectionShift_) << sectionShift_; }
 
     /// Print statistics on the given stream.
     bool printStats(std::ostream& out) const;
@@ -178,36 +177,43 @@ namespace WdRiscv
 
   private:
 
-    /// Fracture attribute of page overlapping given address into word
-    /// attributes.
+    /// Internally, for a user specified region, we associate a pmp
+    /// object with each section of that region where the first/last
+    /// address is aligned with the first/last address of a
+    /// section. For a region where the first/last address is not
+    /// section-aligned we associate a pmp object with each word
+    /// before/after the first/last section aligned address.
+
+    /// Fracture attribute of section overlapping given address into
+    /// word attributes.
     void fracture(uint64_t addr)
     {
-      uint64_t pageIx = getPageIx(addr);
-      if (pageIx > pagePmps_.size())
+      uint64_t sectionIx = getSectionIx(addr);
+      if (sectionIx > sectionPmps_.size())
         return;
 
-      Pmp pmp = pagePmps_.at(pageIx);
+      Pmp pmp = sectionPmps_.at(sectionIx);
       if (pmp.word_)
         return;
       pmp.word_= true;
-      pagePmps_.at(pageIx) = pmp;
+      sectionPmps_.at(sectionIx) = pmp;
 
-      uint64_t words = pageSize_ / 4;
-      uint64_t wordIx = (pageIx*pageSize_) >> 2;
+      uint64_t words = sectionSize_ / 4;
+      uint64_t wordIx = (sectionIx*sectionSize_) >> 2;
       for (uint64_t i = 0; i < words; ++i, wordIx++)
         wordPmps_[wordIx] = pmp;
     }
 
-    uint64_t getPageIx(uint64_t addr) const
-    { return addr >> pageShift_; }
+    uint64_t getSectionIx(uint64_t addr) const
+    { return addr >> sectionShift_; }
 
   private:
 
-    std::vector<Pmp> pagePmps_;
+    std::vector<Pmp> sectionPmps_;
     std::unordered_map<uint64_t, Pmp> wordPmps_; // Map word index to pmp.
     uint64_t memSize_;
-    uint64_t pageSize_ = 4*1024;
-    unsigned pageShift_ = 12;
+    uint64_t sectionSize_ = 32*1024;
+    unsigned sectionShift_ = 15;
     mutable std::vector<uint64_t> accessCount_;  // PMP entry access count.
     mutable std::vector<uint64_t> typeCount_;  // PMP type access count.
   };
