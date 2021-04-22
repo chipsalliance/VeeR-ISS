@@ -1787,7 +1787,6 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
           }
         else if (f3 == 3)
           {
-            if (not isRv64()) return instTable_.getEntry(InstId::illegal);
             if (top5 == 0)    return instTable_.getEntry(InstId::amoadd_d);
             if (top5 == 1)    return instTable_.getEntry(InstId::amoswap_d);
             if (top5 == 2)    return instTable_.getEntry(InstId::lr_d);

@@ -20,23 +20,23 @@
 using namespace WdRiscv;
 
 
-PmaManager::PmaManager(uint64_t memSize, uint64_t pageSize)
-  : memSize_(memSize), pageSize_(pageSize)
+PmaManager::PmaManager(uint64_t memSize, uint64_t sectionSize)
+  : memSize_(memSize), sectionSize_(sectionSize)
 {
-  assert(memSize >= pageSize);
-  assert(pageSize >= 64);
+  assert(memSize >= sectionSize);
+  assert(sectionSize >= 64);
 
-  uint64_t logPageSize = static_cast<uint64_t>(std::log2(pageSize_));
-  uint64_t p2PageSize = uint64_t(1) << logPageSize;
-  assert(p2PageSize == pageSize_);
-  pageShift_ = logPageSize;
+  uint64_t logSectionSize = static_cast<uint64_t>(std::log2(sectionSize_));
+  uint64_t p2SectionSize = uint64_t(1) << logSectionSize;
+  assert(p2SectionSize == sectionSize_);
+  sectionShift_ = logSectionSize;
 
-  uint64_t pageCount = memSize_ / pageSize_;
-  assert(pageCount * pageSize_ == memSize_);
+  uint64_t sectionCount = memSize_ / sectionSize_;
+  assert(sectionCount * sectionSize_ == memSize_);
 
   // Whole memory is intially set for instruction/data/atomic access.
   // No iccm/dccm/mmr/io.
-  pagePmas_.resize(pageCount, Pma::Default);
+  sectionPmas_.resize(sectionCount, Pma::Default);
 }
 
 
@@ -50,15 +50,15 @@ PmaManager::enable(uint64_t a0, uint64_t a1, Pma::Attrib attrib)
 
   while (a0 <= a1)
     {
-      uint64_t p0 = getPageStartAddr(a0);
-      uint64_t p1 = getPageStartAddr(a1);
-      bool doWord = (a0 != p0) or (p0 == p1 and (a1 - a0 + 4 != pageSize_));
+      uint64_t p0 = getSectionStartAddr(a0);
+      uint64_t p1 = getSectionStartAddr(a1);
+      bool doWord = (a0 != p0) or (p0 == p1 and (a1 - a0 + 4 != sectionSize_));
       Pma pma = getPma(a0);
       doWord = doWord or pma.word_;
       if (doWord)
         {
           fracture(a0);
-          uint64_t last = std::min(a1, p0 + pageSize_ - 4);
+          uint64_t last = std::min(a1, p0 + sectionSize_ - 4);
           for ( ; a0 <= last; a0 += 4)
             {
               pma = getPma(a0);
@@ -69,9 +69,9 @@ PmaManager::enable(uint64_t a0, uint64_t a1, Pma::Attrib attrib)
       else
         {
           pma.attrib_ = pma.attrib_ | mask;
-          uint64_t pageIx = getPageIx(p0);
-          pagePmas_[pageIx] = pma;
-          a0 += pageSize_;
+          uint64_t sectionIx = getSectionIx(p0);
+          sectionPmas_[sectionIx] = pma;
+          a0 += sectionSize_;
         }
     }
 }
@@ -87,15 +87,15 @@ PmaManager::disable(uint64_t a0, uint64_t a1, Pma::Attrib attrib)
 
   while (a0 <= a1)
     {
-      uint64_t p0 = getPageStartAddr(a0);
-      uint64_t p1 = getPageStartAddr(a1);
-      bool doWord = (a0 != p0) or (p0 == p1 and (a1 - a0 + 4 != pageSize_));
+      uint64_t p0 = getSectionStartAddr(a0);
+      uint64_t p1 = getSectionStartAddr(a1);
+      bool doWord = (a0 != p0) or (p0 == p1 and (a1 - a0 + 4 != sectionSize_));
       Pma pma = getPma(a0);
       doWord = doWord or pma.word_;
       if (doWord)
         {
           fracture(a0);
-          uint64_t last = std::min(a1, p0 + pageSize_ - 4);
+          uint64_t last = std::min(a1, p0 + sectionSize_ - 4);
           for ( ; a0 <= last; a0 += 4)
             {
               pma = getPma(a0);
@@ -106,9 +106,9 @@ PmaManager::disable(uint64_t a0, uint64_t a1, Pma::Attrib attrib)
       else
         {
           pma.attrib_ = pma.attrib_ & mask;
-          uint64_t pageIx = getPageIx(p0);
-          pagePmas_[pageIx] = pma;
-          a0 += pageSize_;
+          uint64_t sectionIx = getSectionIx(p0);
+          sectionPmas_[sectionIx] = pma;
+          a0 += sectionSize_;
         }
     }
 }
@@ -122,9 +122,9 @@ PmaManager::setAttribute(uint64_t a0, uint64_t a1, Pma::Attrib attrib)
 
   while (a0 <= a1)
     {
-      uint64_t p0 = getPageStartAddr(a0);
-      uint64_t p1 = getPageStartAddr(a1);
-      bool doWord = (a0 != p0) or (p0 == p1 and (a1 - a0 + 4 != pageSize_));
+      uint64_t p0 = getSectionStartAddr(a0);
+      uint64_t p1 = getSectionStartAddr(a1);
+      bool doWord = (a0 != p0) or (p0 == p1 and (a1 - a0 + 4 != sectionSize_));
       Pma pma = getPma(a0);
       doWord = doWord or pma.word_;
       if (doWord)
@@ -132,15 +132,15 @@ PmaManager::setAttribute(uint64_t a0, uint64_t a1, Pma::Attrib attrib)
           fracture(a0);
           Pma pma(attrib);
           pma.word_ = true;
-          uint64_t last = std::min(a1, p0 + pageSize_ - 4);
+          uint64_t last = std::min(a1, p0 + sectionSize_ - 4);
           for ( ; a0 <= last; a0 += 4)
             wordPmas_[a0>>2] = pma;
         }
       else
         {
-          uint64_t pageIx = getPageIx(p0);
-          pagePmas_[pageIx] = Pma(attrib);
-          a0 += pageSize_;
+          uint64_t sectionIx = getSectionIx(p0);
+          sectionPmas_[sectionIx] = Pma(attrib);
+          a0 += sectionSize_;
         }
     }
 }
@@ -267,14 +267,14 @@ PmaManager::changeMemMappedBase(uint64_t newBase)
 void
 PmaManager::fracture(uint64_t addr)
 {
-  uint64_t pageIx = getPageIx(addr);
-  Pma pma = pagePmas_.at(pageIx);
+  uint64_t sectionIx = getSectionIx(addr);
+  Pma pma = sectionPmas_.at(sectionIx);
   if (pma.word_)
     return;
   pma.word_= true;
 
-  uint64_t words = pageSize_ / 4;
-  uint64_t wordIx = (pageIx*pageSize_) >> 2;
+  uint64_t words = sectionSize_ / 4;
+  uint64_t wordIx = (sectionIx*sectionSize_) >> 2;
   for (uint64_t i = 0; i < words; ++i, wordIx++)
     wordPmas_[wordIx] = pma;
 }

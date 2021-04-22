@@ -92,7 +92,7 @@ template <typename URV>
 Hart<URV>::Hart(unsigned hartIx, Memory& memory)
   : hartIx_(hartIx), memory_(memory), intRegs_(32),
     fpRegs_(32), vecRegs_(), syscall_(*this),
-    pmpManager_(memory.size(), memory.pageSize()),
+    pmpManager_(memory.size()),
     virtMem_(hartIx, memory, memory.pageSize(), pmpManager_, 16 /* FIX: TLB size*/)
 {
   regionHasLocalMem_.resize(16);
@@ -2212,7 +2212,7 @@ Hart<URV>::defineIccm(size_t addr, size_t size)
   bool ok = memory_.defineIccm(addr, size, trim);
   if (ok and trim)
     {
-      size_t region = addr/regionSize();
+      size_t region = memory_.getRegionIndex(addr);
       regionHasLocalMem_.at(region) = true;
       regionHasLocalInstMem_.at(region) = true;
     }
@@ -2229,7 +2229,7 @@ Hart<URV>::defineDccm(size_t addr, size_t size)
   bool ok = memory_.defineDccm(addr, size, trim);
   if (ok and trim)
     {
-      size_t region = addr/regionSize();
+      size_t region = memory_.getRegionIndex(addr);
       regionHasLocalMem_.at(region) = true;
       regionHasLocalDataMem_.at(region) = true;
       regionHasDccm_.at(region) = true;
@@ -2250,7 +2250,7 @@ Hart<URV>::defineMemoryMappedRegisterArea(size_t addr, size_t size)
   bool ok = memory_.defineMemoryMappedRegisterArea(addr, size, trim);
   if (ok and trim)
     {
-      size_t region = addr / memory_.regionSize();
+      size_t region = memory_.getRegionIndex(addr);
       regionHasLocalMem_.at(region) = true;
       regionHasLocalDataMem_.at(region) = true;
       regionHasMemMappedRegs_.at(region) = true;
@@ -2283,7 +2283,7 @@ Hart<URV>::configMemoryFetch(const std::vector< std::pair<URV,URV> >& windows)
   for (size_t start = 0; start < memSize; start += regSize)
     {
       size_t end = std::min(start + regSize, memSize);
-      size_t region = start / regSize;
+      size_t region = memory_.getRegionIndex(start);
       if (not regionHasLocalInstMem_.at(region))
         {
           Pma::Attrib attr = Pma::Attrib(Pma::Exec);
@@ -2312,7 +2312,7 @@ Hart<URV>::configMemoryFetch(const std::vector< std::pair<URV,URV> >& windows)
       // accessible.
       while (addr < end)
         {
-          size_t region = addr / regSize;
+          size_t region = memory_.getRegionIndex(addr);
           if (regionHasLocalInstMem_.at(region))
             {
               addr += regSize;
@@ -2348,7 +2348,7 @@ Hart<URV>::configMemoryDataAccess(const std::vector< std::pair<URV,URV> >& windo
   for (size_t start = 0; start < memSize; start += regSize)
     {
       size_t end = std::min(start + regSize, memSize);
-      size_t region = start / regSize;
+      size_t region = memory_.getRegionIndex(start);
       if (not regionHasLocalDataMem_.at(region))
         {
           Pma::Attrib attr = Pma::Attrib(Pma::Read | Pma::Write);
@@ -2378,7 +2378,7 @@ Hart<URV>::configMemoryDataAccess(const std::vector< std::pair<URV,URV> >& windo
       // as accessible.
       while (addr < end)
         {
-          size_t region = addr / regSize;
+          size_t region = memory_.getRegionIndex(addr);
           if (regionHasLocalDataMem_.at(region))
             {
               addr += regSize;

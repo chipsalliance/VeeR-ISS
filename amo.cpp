@@ -45,6 +45,13 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
       cause = determineStoreException(rs1, addr, addr, storeVal, secCause, forcedFail);
     }
 
+  if (cause == ExceptionCause::STORE_ADDR_MISAL and
+      misalAtomicCauseAccessFault_)
+    {
+      cause = ExceptionCause::STORE_ACC_FAULT;
+      secCause = SecondaryCause::STORE_ACC_AMO;
+    }
+
   // Address must be word aligned for word access and double-word
   // aligned for double-word access.
   bool fail = (addr & mask) != 0;
@@ -300,6 +307,13 @@ Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
   auto cause = determineStoreException(rs1, virtAddr, addr, storeVal, secCause,
                                        forcedFail);
 
+  if (cause == ExceptionCause::STORE_ADDR_MISAL and
+      misalAtomicCauseAccessFault_)
+    {
+      cause = ExceptionCause::STORE_ACC_FAULT;
+      secCause = SecondaryCause::STORE_ACC_AMO;
+    }
+
   bool fail = misal or (amoInDccmOnly_ and not isAddrInDccm(addr));
 
   if (fail)
@@ -328,7 +342,7 @@ Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
       return false;
     }
 
-  if (not memory_.hasLr(hartIx_, addr))
+  if (not memory_.hasLr(hartIx_, addr, sizeof(storeVal)))
     return false;
 
   if (memory_.write(hartIx_, addr, storeVal))
@@ -714,7 +728,7 @@ template <typename URV>
 void
 Hart<URV>::execLr_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -735,7 +749,7 @@ template <typename URV>
 void
 Hart<URV>::execSc_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -773,7 +787,7 @@ template <typename URV>
 void
 Hart<URV>::execAmoadd_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -806,7 +820,7 @@ template <typename URV>
 void
 Hart<URV>::execAmoswap_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -839,7 +853,7 @@ template <typename URV>
 void
 Hart<URV>::execAmoxor_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -872,7 +886,7 @@ template <typename URV>
 void
 Hart<URV>::execAmoor_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -905,7 +919,7 @@ template <typename URV>
 void
 Hart<URV>::execAmoand_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -938,7 +952,7 @@ template <typename URV>
 void
 Hart<URV>::execAmomin_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -971,7 +985,7 @@ template <typename URV>
 void
 Hart<URV>::execAmominu_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -1004,7 +1018,7 @@ template <typename URV>
 void
 Hart<URV>::execAmomax_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;
@@ -1037,7 +1051,7 @@ template <typename URV>
 void
 Hart<URV>::execAmomaxu_d(const DecodedInst* di)
 {
-  if (not isRva())
+  if (not isRva() or not isRv64())
     {
       illegalInst(di);
       return;

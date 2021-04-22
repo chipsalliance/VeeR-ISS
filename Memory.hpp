@@ -711,11 +711,11 @@ namespace WdRiscv
     }
 
     /// Return true if given hart has a valid LR reservation for the
-    /// given address.
-    bool hasLr(unsigned sysHartIx, size_t addr) const
+    /// given address and size.
+    bool hasLr(unsigned sysHartIx, uint64_t addr, unsigned size) const
     {
       auto& res = reservations_.at(sysHartIx);
-      return res.valid_ and res.addr_ == addr;
+      return res.valid_ and res.addr_ == addr and res.size_ == size;
     }
 
     /// Load contents of given ELF segment into memory.

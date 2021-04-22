@@ -21,9 +21,13 @@
 namespace WdRiscv
 {
 
-  /// Physical memory attribute. An instance of this is usually
-  /// associated with a memory page. For sub-page attribution, an
-  /// instance is associated with a word-aligned memory word.
+  /// Physical memory attribute. An instance of this is typically
+  /// associated with a section of the address space. The address
+  /// space is evenly divided into contiguous, equally sized sections,
+  /// aligned to the section size.
+  /// For sub-section attribution, an instance is associated with a
+  /// word-aligned memory word. To reduce footprint of the PmaMgr
+  /// object, we typically use a section size of 8 or more pages.
   class Pma
   {
   public:
@@ -34,8 +38,7 @@ namespace WdRiscv
       {
        None = 0, Read = 1, Write = 2, Exec = 4,
        Idempotent = 8, Atomic = 16, Iccm = 32,
-       Dccm = 64, MemMapped = 128, Cached = 256,
-       Aligned = 1024,
+       Dccm = 64, MemMapped = 128,
        ReadWrite = Read | Write,
        Mapped = Exec | Read | Write,
        Default = Mapped | Idempotent | Atomic
@@ -69,9 +72,6 @@ namespace WdRiscv
     bool isIdempotent() const
     { return attrib_ & Idempotent; }
 
-    /// Return true if in cacheable region.
-    bool isCacheable() const     { return attrib_ & Attrib::Cached; }
-
     /// Return true if in readable (ld instructions allowed) region.
     bool isRead() const
     { return attrib_ & (Read | MemMapped); }
@@ -84,17 +84,9 @@ namespace WdRiscv
     bool isExec() const
     { return attrib_ & Exec; }
 
-    /// Return true in region where access must be aligned.
-    bool isAligned() const
-    { return attrib_ & Aligned; }
-
     /// Return true in region where atomic instructions are allowed.
     bool isAtomic() const
     { return attrib_ & Atomic; }
-
-    /// Return true in cached region.
-    bool isCached() const
-    { return attrib_ & Cached; }
 
     /// Return true if this object has the same attributes as the
     /// given object.
@@ -108,9 +100,9 @@ namespace WdRiscv
 
   private:
 
-    uint16_t attrib_ = 0;
-    bool word_ = false;     // True if word granularity otherwise page.
-  };
+    unsigned attrib_ : 8;
+    bool word_       : 8;     // True if word granularity otherwise section.
+  } __attribute__((packed));
 
 
   /// Physical memory attribute manager. One per memory. Shared
@@ -123,22 +115,18 @@ namespace WdRiscv
 
     friend class Memory;
 
-    PmaManager(uint64_t memorySize, uint64_t pageSize);
+    PmaManager(uint64_t memorySize, uint64_t sectionSize = 32*1024);
 
     /// Return the physical memory attribute associated with the
     /// word-aligned word designated by the given address. Return an
     /// unmapped attribute if the given address is out of memory
-    /// range. Internally we associate a pma object with each page of
-    /// a regions where the first/last address is aligned with the
-    /// first/last address of a page. For a region where the first/last
-    /// address is not page-aligned we associate a pma object with
-    /// each word before/after the first/last page aligned address.
+    /// range.
     Pma getPma(uint64_t addr) const
     {
-      uint64_t ix = getPageIx(addr);
-      if (ix >= pagePmas_.size())
+      uint64_t ix = getSectionIx(addr);
+      if (ix >= sectionPmas_.size())
         return Pma();
-      Pma pma = pagePmas_[ix];
+      Pma pma = sectionPmas_[ix];
       if (pma.word_)
         {
           addr = (addr >> 2);  // Get word index.
@@ -158,10 +146,6 @@ namespace WdRiscv
     /// Set attribute of word-aligned words overlapping given region.
     void setAttribute(uint64_t addr0, uint64_t addr1, Pma::Attrib attrib);
 
-    /// Return start address of page containing given address.
-    uint64_t getPageStartAddr(uint64_t addr) const
-    { return (addr >> pageShift_) << pageShift_; }
-
     /// Associate a mask with the word-aligned word at the given address.
     void setMemMappedMask(uint64_t addr, uint32_t mask);
 
@@ -170,8 +154,8 @@ namespace WdRiscv
     /// with given address.
     uint32_t getMemMappedMask(uint64_t addr) const;
 
-    /// Return true if page of given address is in data closed coupled
-    /// memory.
+    /// Return true if the word-algined word containing given address
+    /// is in data closed coupled memory.
     bool isAddrInDccm(size_t addr) const
     { Pma pma = getPma(addr); return pma.isDccm(); }
 
@@ -186,6 +170,13 @@ namespace WdRiscv
     bool changeMemMappedBase(uint64_t newBase);
 
   protected:
+
+    /// Internally, for a user specified region, we associate a pma
+    /// object with each section of that region where the first/last
+    /// address is aligned with the first/last address of a
+    /// section. For a region where the first/last address is not
+    /// section-aligned we associate a pma object with each word
+    /// before/after the first/last section aligned address.
 
     /// Reset (to zero) all memory mapped registers.
     void resetMemMapped()
@@ -228,23 +219,27 @@ namespace WdRiscv
     /// vlaue unmodified.
     bool writeRegisterByte(uint64_t addr, uint8_t value);
 
+    /// Return start address of section containing given address.
+    uint64_t getSectionStartAddr(uint64_t addr) const
+    { return (addr >> sectionShift_) << sectionShift_; }
+
   private:
 
-    /// Fracture attribute of page overlapping given address into word
+    /// Fracture attribute of section overlapping given address into word
     /// attributes.
     void fracture(uint64_t addr);
 
-    /// Return the page number corresponding to the given address.
-    uint64_t getPageIx(uint64_t addr) const
-    { return addr >> pageShift_; }
+    /// Return the section number corresponding to the given address.
+    uint64_t getSectionIx(uint64_t addr) const
+    { return addr >> sectionShift_; }
 
   private:
 
-    std::vector<Pma> pagePmas_;
+    std::vector<Pma> sectionPmas_;
     std::unordered_map<uint64_t, Pma> wordPmas_; // Map word index to pma.
     uint64_t memSize_;
-    uint64_t pageSize_ = 4*1024;
-    unsigned pageShift_ = 12;
+    uint64_t sectionSize_ = 32*1024;
+    unsigned sectionShift_ = 15;
 
     uint64_t memMappedBase_ = 0;
     uint64_t memMappedSize_ = 0;
