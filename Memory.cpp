@@ -31,7 +31,7 @@ using namespace WdRiscv;
 
 Memory::Memory(size_t size, size_t pageSize, size_t regionSize)
   : size_(size), data_(nullptr), pageSize_(pageSize), reservations_(1),
-    lastWriteData_(1), pmaMgr_(size, pageSize)
+    lastWriteData_(1), pmaMgr_(size)
 { 
   assert(size >= pageSize);
   assert(regionSize >= pageSize);
