@@ -99,10 +99,10 @@ namespace WdRiscv
   } __attribute__((packed));
 
 
-  /// Physical memory protection manager. One per hart.  Physical
-  /// memory attributes apply to word-aligned regions as small as 1
-  /// word (but are expected to be applied to a few number of large
-  /// regions).
+  /// Physical memory protection manager. One per hart.  rotection
+  /// applies to word-aligned regions as small as 1 word but are
+  /// expected to be applied to a small number (less than or equal 16)
+  /// of large regions.
   class PmpManager
   {
   public:
