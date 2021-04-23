@@ -1715,7 +1715,7 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	      }
             if (iform.top5() == 1)
               {
-                op2 = op2 & 0x3f;
+                op2 = op2 & 0x7f;
                 return instTable_.getEntry(InstId::slli_uw);
               }
             if (iform.top5() == 0x0c)
