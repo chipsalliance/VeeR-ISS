@@ -50,9 +50,9 @@ Uint128::operator /= (const Uint128& x)
 
   SelfType y = *this;  // Dividend
 
-  uint8_t* remLow = (uint8_t*) &rem;  // Least sig byte of rem
-  uint8_t* resultLow = (uint8_t*) &result;  // Least sig byte of result
-  uint8_t* yHigh = ((uint8_t*) &y) + sizeof(y) - 1; // Most sig byte of dividend
+  uint8_t* remLow = reinterpret_cast<uint8_t*> (&rem);  // Least sig byte of rem
+  uint8_t* resultLow = reinterpret_cast<uint8_t*> (&result);  // Least sig byte of result
+  uint8_t* yHigh = (reinterpret_cast<uint8_t*> (&y)) + sizeof(y) - 1; // Most sig byte of dividend
 
   for (unsigned i = 0; i < n; ++i)
     {
@@ -81,9 +81,9 @@ Uint128::operator %= (const Uint128& x)
 
   SelfType y = *this;  // Dividend
 
-  uint8_t* remLow = (uint8_t*) &rem;  // Least sig byte of rem
-  uint8_t* resultLow = (uint8_t*) &result;  // Least sig byte of result
-  uint8_t* yHigh = ((uint8_t*) &y) + sizeof(y) - 1; // Most sig byte of dividend
+  uint8_t* remLow = reinterpret_cast<uint8_t*> (&rem);  // Least sig byte of rem
+  uint8_t* resultLow = reinterpret_cast<uint8_t*> (&result);  // Least sig byte of result
+  uint8_t* yHigh = (reinterpret_cast<uint8_t*> (&y)) + sizeof(y) - 1; // Most sig byte of dividend
 
   for (unsigned i = 0; i < n; ++i)
     {
@@ -398,9 +398,9 @@ Uint256::operator /= (const Uint256& x)
 
   SelfType y = *this;  // Dividend
 
-  uint8_t* remLow = (uint8_t*) &rem;  // Least sig byte of rem
-  uint8_t* resultLow = (uint8_t*) &result;  // Least sig byte of result
-  uint8_t* yHigh = ((uint8_t*) &y) + sizeof(y) - 1; // Most sig byte of dividend
+  uint8_t* remLow = reinterpret_cast<uint8_t*> (&rem);  // Least sig byte of rem
+  uint8_t* resultLow = reinterpret_cast<uint8_t*> (&result);  // Least sig byte of result
+  uint8_t* yHigh = (reinterpret_cast<uint8_t*> (&y)) + sizeof(y) - 1; // Most sig byte of dividend
 
   for (unsigned i = 0; i < n; ++i)
     {
@@ -429,9 +429,9 @@ Uint256::operator %= (const Uint256& x)
 
   SelfType y = *this;  // Dividend
 
-  uint8_t* remLow = (uint8_t*) &rem;  // Least sig byte of rem
-  uint8_t* resultLow = (uint8_t*) &result;  // Least sig byte of result
-  uint8_t* yHigh = ((uint8_t*) &y) + sizeof(y) - 1; // Most sig byte of dividend
+  uint8_t* remLow = reinterpret_cast<uint8_t*> (&rem);  // Least sig byte of rem
+  uint8_t* resultLow = reinterpret_cast<uint8_t*> (&result);  // Least sig byte of result
+  uint8_t* yHigh = (reinterpret_cast<uint8_t*> (&y)) + sizeof(y) - 1; // Most sig byte of dividend
 
   for (unsigned i = 0; i < n; ++i)
     {
@@ -746,9 +746,9 @@ Uint512::operator /= (const Uint512& x)
 
   SelfType y = *this;  // Dividend
 
-  uint8_t* remLow = (uint8_t*) &rem;  // Least sig byte of rem
-  uint8_t* resultLow = (uint8_t*) &result;  // Least sig byte of result
-  uint8_t* yHigh = ((uint8_t*) &y) + sizeof(y) - 1; // Most sig byte of dividend
+  uint8_t* remLow = reinterpret_cast<uint8_t*> (&rem);  // Least sig byte of rem
+  uint8_t* resultLow = reinterpret_cast<uint8_t*> (&result);  // Least sig byte of result
+  uint8_t* yHigh = (reinterpret_cast<uint8_t*> (&y)) + sizeof(y) - 1; // Most sig byte of dividend
 
   for (unsigned i = 0; i < n; ++i)
     {
@@ -777,9 +777,9 @@ Uint512::operator %= (const Uint512& x)
 
   SelfType y = *this;  // Dividend
 
-  uint8_t* remLow = (uint8_t*) &rem;  // Least sig byte of rem
-  uint8_t* resultLow = (uint8_t*) &result;  // Least sig byte of result
-  uint8_t* yHigh = ((uint8_t*) &y) + sizeof(y) - 1; // Most sig byte of dividend
+  uint8_t* remLow = reinterpret_cast<uint8_t*> (&rem);  // Least sig byte of rem
+  uint8_t* resultLow = reinterpret_cast<uint8_t*> (&result);  // Least sig byte of result
+  uint8_t* yHigh = (reinterpret_cast<uint8_t*> (&y)) + sizeof(y) - 1; // Most sig byte of dividend
 
   for (unsigned i = 0; i < n; ++i)
     {
@@ -1094,9 +1094,9 @@ Uint1024::operator /= (const Uint1024& x)
 
   SelfType y = *this;  // Dividend
 
-  uint8_t* remLow = (uint8_t*) &rem;  // Least sig byte of rem
-  uint8_t* resultLow = (uint8_t*) &result;  // Least sig byte of result
-  uint8_t* yHigh = ((uint8_t*) &y) + sizeof(y) - 1; // Most sig byte of dividend
+  uint8_t* remLow = reinterpret_cast<uint8_t*> (&rem);  // Least sig byte of rem
+  uint8_t* resultLow = reinterpret_cast<uint8_t*> (&result);  // Least sig byte of result
+  uint8_t* yHigh = (reinterpret_cast<uint8_t*> (&y)) + sizeof(y) - 1; // Most sig byte of dividend
 
   for (unsigned i = 0; i < n; ++i)
     {
@@ -1125,9 +1125,9 @@ Uint1024::operator %= (const Uint1024& x)
 
   SelfType y = *this;  // Dividend
 
-  uint8_t* remLow = (uint8_t*) &rem;  // Least sig byte of rem
-  uint8_t* resultLow = (uint8_t*) &result;  // Least sig byte of result
-  uint8_t* yHigh = ((uint8_t*) &y) + sizeof(y) - 1; // Most sig byte of dividend
+  uint8_t* remLow = reinterpret_cast<uint8_t*> (&rem);  // Least sig byte of rem
+  uint8_t* resultLow = reinterpret_cast<uint8_t*> (&result);  // Least sig byte of result
+  uint8_t* yHigh = (reinterpret_cast<uint8_t*> (&y)) + sizeof(y) - 1; // Most sig byte of dividend
 
   for (unsigned i = 0; i < n; ++i)
     {

@@ -179,8 +179,7 @@ namespace WdRiscv
     /// that value without the box.
     uint64_t readBitsUnboxed(unsigned i) const
     {
-      FpUnion u;
-      u.dp = regs_.at(i);
+      FpUnion u{regs_.at(i)};
       if (nanBox_ and u.sp.pad == ~uint32_t(0))
         u.sp.pad = 0;
 
@@ -192,8 +191,7 @@ namespace WdRiscv
     /// unbox it (return the 64-bit NaN).
     uint64_t readBitsRaw(unsigned i) const
     {
-      FpUnion u;
-      u.dp = regs_.at(i);
+      FpUnion u {regs_.at(i)};
       if (flen_ == 32)
         u.sp.pad = 0;
       return u.i64;
@@ -202,7 +200,8 @@ namespace WdRiscv
     /// Set FP register i to the given value.
     void pokeBits(unsigned i, uint64_t val)
     {
-      *((uint64_t*) &regs_.at(i)) = val;
+      FpUnion fpu(val);
+      regs_.at(i) = fpu.dp;
     }
 
     /// Set value of ith register to the given value.
@@ -318,6 +317,8 @@ namespace WdRiscv
     // Single precision number with a 32-bit padding.
     struct SpPad
     {
+      SpPad(float x)  : sp(x), pad(0) { }
+
       float sp;
       uint32_t pad;
     };
@@ -325,6 +326,10 @@ namespace WdRiscv
     // Union of double and single precision numbers used for NAN boxing.
     union FpUnion
     {
+      FpUnion(double x)   : dp(x)  { }
+      FpUnion(uint64_t x) : i64(x) { }
+      FpUnion(float x)    : sp(x)  { }
+
       SpPad sp;
       double dp;
       uint64_t i64;
@@ -347,8 +352,7 @@ namespace WdRiscv
   float
   FpRegs::readSingle(unsigned i) const
   {
-    FpUnion u;
-    u.dp = regs_.at(i);
+    FpUnion u{regs_.at(i)};
     if (not nanBox_)
       return u.sp.sp;
 
@@ -363,9 +367,7 @@ namespace WdRiscv
   void
   FpRegs::writeSingle(unsigned i, float x)
   {
-    FpUnion u;
-    u.sp.sp = x;
-    u.sp.pad = 0;
+    FpUnion u{x};
     if (nanBox_)
       u.sp.pad = ~uint32_t(0);  // Nan box: Bit pattern for negative quiet NAN.
     writeDouble(i, u.dp);

@@ -272,6 +272,7 @@ PmaManager::fracture(uint64_t addr)
   if (pma.word_)
     return;
   pma.word_= true;
+  sectionPmas_.at(sectionIx) = pma;
 
   uint64_t words = sectionSize_ / 4;
   uint64_t wordIx = (sectionIx*sectionSize_) >> 2;

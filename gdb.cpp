@@ -612,7 +612,7 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
                         bool usePma = false; // Ignore physical memory attributes.
 			hart.peekMemory(addr++, byte, usePma);
                         byteToHexChars(byte, high, low);
-                        reply.write((char*) &high, 1);
+                        reply.write(reinterpret_cast<char*> (&high), 1);
                         reply.write((char*) &low, 1);
 		      }
 		  }

@@ -4678,7 +4678,7 @@ Hart<URV>::openTcpForGdb()
     }
 #endif
 
-  if (bind(gdbFd, (sockaddr*) &address, addrlen) < 0)
+  if (bind(gdbFd, reinterpret_cast<sockaddr*>(&address), addrlen) < 0)
     {
       std::cerr << "Failed to bind gdb socket\n";
       return false;

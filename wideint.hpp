@@ -229,16 +229,16 @@ namespace WdRiscv
 
     SelfType& operator += (const SelfType& x)
     {
-      UnsignedType* a = (UnsignedType*) this;
-      UnsignedType* b = (UnsignedType*) &x;
+      UnsignedType* a = reinterpret_cast<UnsignedType*> (this);
+      const UnsignedType* b = reinterpret_cast<const UnsignedType*> (&x);
       *a += *b;
       return *this;
     }
 
     SelfType& operator -= (const SelfType& x)
     {
-      UnsignedType* a = (UnsignedType*) this;
-      UnsignedType* b = (UnsignedType*) &x;
+      UnsignedType* a = reinterpret_cast<UnsignedType*> (this);
+      const UnsignedType* b = reinterpret_cast<const UnsignedType*> (&x);
       *a -= *b;
       return *this;
     }
@@ -528,16 +528,16 @@ namespace WdRiscv
 
     SelfType& operator += (const SelfType& x)
     {
-      UnsignedType* a = (UnsignedType*) this;
-      UnsignedType* b = (UnsignedType*) &x;
+      UnsignedType* a = reinterpret_cast<UnsignedType*> (this);
+      const UnsignedType* b = reinterpret_cast<const UnsignedType*> (&x);
       *a += *b;
       return *this;
     }
 
     SelfType& operator -= (const SelfType& x)
     {
-      UnsignedType* a = (UnsignedType*) this;
-      UnsignedType* b = (UnsignedType*) &x;
+      UnsignedType* a = reinterpret_cast<UnsignedType*> (this);
+      const UnsignedType* b = reinterpret_cast<const UnsignedType*> (&x);
       *a -= *b;
       return *this;
     }
@@ -837,16 +837,16 @@ namespace WdRiscv
 
     SelfType& operator += (const SelfType& x)
     {
-      UnsignedType* a = (UnsignedType*) this;
-      UnsignedType* b = (UnsignedType*) &x;
+      UnsignedType* a = reinterpret_cast<UnsignedType*> (this);
+      const UnsignedType* b = reinterpret_cast<const UnsignedType*> (&x);
       *a += *b;
       return *this;
     }
 
     SelfType& operator -= (const SelfType& x)
     {
-      UnsignedType* a = (UnsignedType*) this;
-      UnsignedType* b = (UnsignedType*) &x;
+      UnsignedType* a = reinterpret_cast<UnsignedType*> (this);
+      const UnsignedType* b = reinterpret_cast<const UnsignedType*> (&x);
       *a -= *b;
       return *this;
     }
@@ -1156,16 +1156,16 @@ namespace WdRiscv
 
     SelfType& operator += (const SelfType& x)
     {
-      UnsignedType* a = (UnsignedType*) this;
-      UnsignedType* b = (UnsignedType*) &x;
+      UnsignedType* a = reinterpret_cast<UnsignedType*> (this);
+      const UnsignedType* b = reinterpret_cast<const UnsignedType*> (&x);
       *a += *b;
       return *this;
     }
 
     SelfType& operator -= (const SelfType& x)
     {
-      UnsignedType* a = (UnsignedType*) this;
-      UnsignedType* b = (UnsignedType*) &x;
+      UnsignedType* a = reinterpret_cast<UnsignedType*> (this);
+      const UnsignedType* b = reinterpret_cast<const UnsignedType*> (&x);
       *a -= *b;
       return *this;
     }

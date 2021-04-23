@@ -64,43 +64,43 @@ deserializeMessage(const char buffer[], size_t bufferLen,
   assert (bufferLen >= sizeof(msg));
 
   const char* p = buffer;
-  uint32_t x = ntohl(*((uint32_t*)p));
+  uint32_t x = ntohl(* reinterpret_cast<const uint32_t*> (p));
   msg.hart = x;
   p += sizeof(x);
 
-  x = ntohl(*((uint32_t*)p));
+  x = ntohl(* reinterpret_cast<const uint32_t*> (p));
   msg.type = x;
   p += sizeof(x);
 
-  x = ntohl(*((uint32_t*)p));
+  x = ntohl(* reinterpret_cast<const uint32_t*> (p));
   msg.resource = x;
   p += sizeof(x);
 
-  x = ntohl(*((uint32_t*)p));
+  x = ntohl(* reinterpret_cast<const uint32_t*> (p));
   msg.flags = x;
   p += sizeof(x);
 
-  uint32_t part = ntohl(*((uint32_t*)p));
+  uint32_t part = ntohl(* reinterpret_cast<const uint32_t*> (p));
   msg.rank = uint64_t(part) << 32;
   p += sizeof(part);
 
-  part = ntohl(*(uint32_t*)p);
+  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
   msg.rank |= part;
   p += sizeof(part);
 
-  part = ntohl(*((uint32_t*)p));
+  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
   msg.address = uint64_t(part) << 32;
   p += sizeof(part);
 
-  part = ntohl(*((uint32_t*)p));
+  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
   msg.address |= part;
   p += sizeof(part);
 
-  part = ntohl(*((uint32_t*)p));
+  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
   msg.value = uint64_t(part) << 32;
   p += sizeof(part);
 
-  part = ntohl(*((uint32_t*)p));
+  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
   msg.value |= part;
   p += sizeof(part);
 
