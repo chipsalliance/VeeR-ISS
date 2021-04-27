@@ -1282,6 +1282,67 @@ printSignedHisto(const char* tag, const std::vector<uint64_t>& histo,
 }
 
 
+enum class FpKinds { PosInf, NegInf, PosNormal, NegNormal, PosSubnormal, NegSubnormal,
+                     PosZero, NegZero, QuietNan, SignalingNan };
+
+
+static
+void
+printFpHisto(const char* tag, const std::vector<uint64_t>& histo, FILE* file)
+{
+  for (unsigned i = 0; i <= unsigned(FpKinds::SignalingNan); ++i)
+    {
+      FpKinds kind = FpKinds(i);
+      uint64_t freq = histo.at(i);
+      if (not freq)
+        continue;
+
+      switch (kind)
+        {
+        case FpKinds::PosInf:
+          fprintf(file, "    %s pos_inf       %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::NegInf:
+          fprintf(file, "    %s neg_inf       %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::PosNormal:
+          fprintf(file, "    %s pos_normal    %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::NegNormal:
+          fprintf(file, "    %s neg_normal    %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::PosSubnormal:
+          fprintf(file, "    %s pos_subnormal %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::NegSubnormal:
+          fprintf(file, "    %s neg_subnormal %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::PosZero:
+          fprintf(file, "    %s pos_zero      %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::NegZero:
+          fprintf(file, "    %s neg_zero      %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::QuietNan:
+          fprintf(file, "    %s quiet_nan     %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::SignalingNan:
+          fprintf(file, "    %s signaling_nan %" PRId64 "\n", tag, freq);
+          break;
+        }
+    }
+}
+
+
 template <typename URV>
 void
 Hart<URV>::reportInstructionFrequency(FILE* file) const
@@ -1303,13 +1364,12 @@ Hart<URV>::reportInstructionFrequency(FILE* file) const
     indices.at(i) = i;
   std::sort(indices.begin(), indices.end(), CompareFreq(instProfileVec_));
 
-  for (size_t i = 0; i < indices.size(); ++i)
+  for (auto profIx : indices)
     {
-      size_t ix = indices.at(i);
-      InstId id = InstId(ix);
+      InstId id = InstId(profIx);
 
       const InstEntry& entry = instTable_.getEntry(id);
-      const InstProfile& prof = instProfileVec_.at(ix);
+      const InstProfile& prof = instProfileVec_.at(profIx);
       uint64_t freq = prof.freq_;
       if (not freq)
 	continue;
@@ -1319,54 +1379,54 @@ Hart<URV>::reportInstructionFrequency(FILE* file) const
       auto regCount = intRegCount();
 
       uint64_t count = 0;
-      for (auto n : prof.rd_) count += n;
+      for (auto n : prof.destRegFreq_) count += n;
       if (count)
 	{
 	  fprintf(file, "  +rd");
 	  for (unsigned i = 0; i < regCount; ++i)
-	    if (prof.rd_.at(i))
-	      fprintf(file, " %d:%" PRId64, i, prof.rd_.at(i));
+	    if (prof.destRegFreq_.at(i))
+	      fprintf(file, " %d:%" PRId64, i, prof.destRegFreq_.at(i));
 	  fprintf(file, "\n");
 	}
 
-      uint64_t count1 = 0;
-      for (auto n : prof.rs1_) count1 += n;
-      if (count1)
-	{
-	  fprintf(file, "  +rs1");
-	  for (unsigned i = 0; i < regCount; ++i)
-	    if (prof.rs1_.at(i))
-	      fprintf(file, " %d:%" PRId64, i, prof.rs1_.at(i));
-	  fprintf(file, "\n");
+      unsigned srcIx = 0;
+      
+      for (unsigned opIx = 0; opIx < entry.operandCount(); ++opIx)
+        {
+          if (entry.ithOperandMode(opIx) == OperandMode::Read and
+              (entry.ithOperandType(opIx) == OperandType::IntReg or
+               entry.ithOperandType(opIx) == OperandType::FpReg))
+            {
+              uint64_t count = 0;
+              for (auto n : prof.srcRegFreq_.at(srcIx))
+                count += n;
+              if (count)
+                {
+                  const auto& regFreq = prof.srcRegFreq_.at(srcIx);
+                  fprintf(file, "  +rs%d", srcIx + 1);
+                  for (unsigned i = 0; i < regCount; ++i)
+                    if (regFreq.at(i))
+                      fprintf(file, " %d:%" PRId64, i, regFreq.at(i));
+                  fprintf(file, "\n");
 
-	  const auto& histo = prof.rs1Histo_;
-	  if (entry.isUnsigned())
-	    printUnsignedHisto("+hist1", histo, file);
-	  else
-	    printSignedHisto("+hist1", histo, file);
-	}
+                  const auto& histo = prof.srcHisto_.at(srcIx);
+                  std::string tag = std::string("+hist") + std::to_string(srcIx + 1);
+                  if (entry.ithOperandType(opIx) == OperandType::FpReg)
+                    printFpHisto(tag.c_str(), histo, file);
+                  else if (entry.isUnsigned())
+                    printUnsignedHisto(tag.c_str(), histo, file);
+                  else
+                    printSignedHisto(tag.c_str(), histo, file);
+                }
 
-      uint64_t count2 = 0;
-      for (auto n : prof.rs2_) count2 += n;
-      if (count2)
-	{
-	  fprintf(file, "  +rs2");
-	  for (unsigned i = 0; i < regCount; ++i)
-	    if (prof.rs2_.at(i))
-	      fprintf(file, " %d:%" PRId64, i, prof.rs2_.at(i));
-	  fprintf(file, "\n");
-
-	  const auto& histo = prof.rs2Histo_;
-	  if (entry.isUnsigned())
-	    printUnsignedHisto("+hist2", histo, file);
-	  else
-	    printSignedHisto("+hist2", histo, file);
+              srcIx++;
+            }
 	}
 
       if (prof.hasImm_)
 	{
 	  fprintf(file, "  +imm  min:%d max:%d\n", prof.minImm_, prof.maxImm_);
-	  printSignedHisto("+hist ", prof.immHisto_, file);
+	  printSignedHisto("+hist ", prof.srcHisto_.back(), file);
 	}
 
       if (prof.user_)
@@ -3619,6 +3679,50 @@ addToUnsignedHistogram(std::vector<uint64_t>& histo, uint64_t val)
 }
 
 
+extern bool
+mostSignificantFractionBit(float x);
+
+
+extern bool
+mostSignificantFractionBit(double x);
+
+
+template <typename FP_TYPE>
+void
+addToFpHistogram(std::vector<uint64_t>& histo, FP_TYPE val)
+{
+  bool pos = not std::signbit(val);
+  int type = std::fpclassify(val);
+
+  if (type == FP_INFINITE)
+    {
+      FpKinds kind = pos? FpKinds::PosInf : FpKinds::NegInf;
+      histo.at(unsigned(kind))++;
+    }
+  else if (type == FP_NORMAL)
+    {
+      FpKinds kind = pos? FpKinds::PosNormal : FpKinds::NegNormal;
+      histo.at(unsigned(kind))++;
+    }
+  else if (type == FP_SUBNORMAL)
+    {
+      FpKinds kind = pos? FpKinds::PosSubnormal : FpKinds::NegSubnormal;
+      histo.at(unsigned(kind))++;
+    }
+  else if (type == FP_ZERO)
+    {
+      FpKinds kind = pos? FpKinds::PosZero : FpKinds::NegZero;
+      histo.at(unsigned(kind))++;
+    }
+  else if (type == FP_NAN)
+    {
+      bool quiet = mostSignificantFractionBit(val);
+      FpKinds kind = quiet? FpKinds::QuietNan : FpKinds::SignalingNan;
+      histo.at(unsigned(kind))++;
+    }
+}
+
+
 /// Return true if given hart is in debug mode and the stop count bit of
 /// the DSCR register is set.
 template <typename URV>
@@ -3832,106 +3936,97 @@ Hart<URV>::accumulateInstructionStats(const DecodedInst& di)
   else if (lastPriv_ == PrivilegeMode::Machine)
     prof.machine_++;
 
-  bool hasRd = false;
-
-  unsigned rs1 = 0, rs2 = 0;
-  bool hasRs1 = false, hasRs2 = false;
-
-  if (info.ithOperandType(0) == OperandType::IntReg)
-    {
-      hasRd = info.isIthOperandWrite(0);
-      if (hasRd)
-	prof.rd_.at(di.op0())++;
-      else
-	{
-	  rs1 = di.op0();
-	  prof.rs1_.at(rs1)++;
-	  hasRs1 = true;
-	}
-    }
-
-  bool hasImm = false;  // True if instruction has an immediate operand.
-  int32_t imm = 0;     // Value of immediate operand.
-
-  if (info.ithOperandType(1) == OperandType::IntReg)
-    {
-      if (hasRd)
-	{
-	  rs1 = di.op1();
-	  prof.rs1_.at(rs1)++;
-	  hasRs1 = true;
-	}
-      else
-	{
-	  rs2 = di.op1();
-	  prof.rs2_.at(rs2)++;
-	  hasRs2 = true;
-	}
-    }
-  else if (info.ithOperandType(1) == OperandType::Imm)
-    {
-      hasImm = true;
-      imm = di.op1();
-    }
-
-  if (info.ithOperandType(2) == OperandType::IntReg)
-    {
-      if (hasRd)
-	{
-	  rs2 = di.op2();
-	  prof.rs2_.at(rs2)++;
-	  hasRs2 = true;
-	}
-      else
-	assert(0);
-    }
-  else if (info.ithOperandType(2) == OperandType::Imm)
-    {
-      hasImm = true;
-      imm = di.op2();
-    }
-
-  if (hasImm)
-    {
-      prof.hasImm_ = true;
-
-      if (prof.freq_ == 1)
-	{
-	  prof.minImm_ = prof.maxImm_ = imm;
-	}
-      else
-	{
-	  prof.minImm_ = std::min(prof.minImm_, imm);
-	  prof.maxImm_ = std::max(prof.maxImm_, imm);
-	}
-      addToSignedHistogram(prof.immHisto_, imm);
-    }
+  unsigned opIx = 0;  // Operand index
 
   unsigned rd = unsigned(intRegCount() + 1);
-  URV rdOrigVal = 0;
-  intRegs_.getLastWrittenReg(rd, rdOrigVal);
+  OperandType rdType = OperandType::None;
+  URV rdOrigVal = 0;   // Integer destination register value.
 
-  if (hasRs1)
+  uint64_t frdOrigVal = 0;  // Floating point destination register value.
+
+  if (info.isIthOperandWrite(0))
     {
-      URV val1 = intRegs_.read(rs1);
-      if (rs1 == rd)
-	val1 = rdOrigVal;
-      if (info.isUnsigned())
-	addToUnsignedHistogram(prof.rs1Histo_, val1);
-      else
-	addToSignedHistogram(prof.rs1Histo_, SRV(val1));
+      rdType = info.ithOperandType(0);
+      if (rdType == OperandType::IntReg or rdType == OperandType::FpReg)
+        {
+          prof.destRegFreq_.at(di.op0())++;
+          opIx++;
+          if (rdType == OperandType::IntReg)
+            {
+              intRegs_.getLastWrittenReg(rd, rdOrigVal);
+              assert(rd == di.op0());
+            }
+          else
+            {
+              fpRegs_.getLastWrittenReg(rd, frdOrigVal);
+              assert(rd == di.op0());
+            }
+        }
     }
 
-  if (hasRs2)
+  unsigned maxOperand = 4;  // At most 4 operands (including immediate).
+  unsigned srcIx = 0;  // Processed source operand rank.
+
+  for (unsigned i = opIx; i < maxOperand; ++i)
     {
-      URV val2 = intRegs_.read(rs2);
-      if (rs2 == rd)
-	val2 = rdOrigVal;
-      if (info.isUnsigned())
-	addToUnsignedHistogram(prof.rs2Histo_, val2);
-      else
-	addToSignedHistogram(prof.rs2Histo_, SRV(val2));
+      if (info.ithOperandType(i) == OperandType::IntReg)
+        {
+	  uint32_t regIx = di.ithOperand(i);
+	  prof.srcRegFreq_.at(srcIx).at(regIx)++;
+
+          URV val = intRegs_.read(regIx);
+          if (regIx == rd and rdType == OperandType::IntReg)
+            val = rdOrigVal;
+          if (info.isUnsigned())
+            addToUnsignedHistogram(prof.srcHisto_.at(srcIx), val);
+          else
+            addToSignedHistogram(prof.srcHisto_.at(srcIx), SRV(val));
+
+          srcIx++;
+	}
+      else if (info.ithOperandType(i) == OperandType::FpReg)
+        {
+	  uint32_t regIx = di.ithOperand(i);
+	  prof.srcRegFreq_.at(srcIx).at(regIx)++;
+
+          uint64_t val = fpRegs_.readBitsRaw(regIx);
+          if (regIx == rd and rdType == OperandType::FpReg)
+            val = frdOrigVal;
+          bool sp = fpRegs_.isNanBoxed(val) or not isRvd();
+          if (sp)
+            {
+              FpRegs::FpUnion u{val};
+              float spVal = u.sp.sp;
+              addToFpHistogram(prof.srcHisto_.at(srcIx), spVal);
+            }
+          else
+            {
+              FpRegs::FpUnion u{val};
+              double dpVal = u.dp;
+              addToFpHistogram(prof.srcHisto_.at(srcIx), dpVal);
+            }
+
+          srcIx++;
+        }
+      else if (info.ithOperandType(i) == OperandType::Imm)
+        {
+          int32_t imm = di.ithOperand(i);
+          prof.hasImm_ = true;
+          if (prof.freq_ == 1)
+            {
+              prof.minImm_ = prof.maxImm_ = imm;
+            }
+          else
+            {
+              prof.minImm_ = std::min(prof.minImm_, imm);
+              prof.maxImm_ = std::max(prof.maxImm_, imm);
+            }
+          addToSignedHistogram(prof.srcHisto_.back(), imm);
+        }
     }
+
+  if (prof.hasImm_)
+    assert(srcIx + 1 < maxOperand);
 }
 
 
@@ -8013,12 +8108,14 @@ Hart<URV>::enableInstructionFrequency(bool b)
       auto regCount = intRegCount();
       for (auto& inst : instProfileVec_)
 	{
-	  inst.rd_.resize(regCount);
-	  inst.rs1_.resize(regCount);
-	  inst.rs2_.resize(regCount);
-	  inst.rs1Histo_.resize(13);  // FIX: avoid magic 13
-	  inst.rs2Histo_.resize(13);  // FIX: avoid magic 13
-	  inst.immHisto_.resize(13);  // FIX: avoid magic 13
+	  inst.destRegFreq_.resize(regCount);
+          inst.srcRegFreq_.resize(3);  // Up to 3 source operands
+          for (auto& vec : inst.srcRegFreq_)
+            vec.resize(regCount);
+
+          inst.srcHisto_.resize(3);  // Up to 3 source historgrams
+          for (auto& vec : inst.srcHisto_)
+            vec.resize(13);  // FIX: avoid magic 13
 	}
     }
 }
