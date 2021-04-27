@@ -1170,15 +1170,13 @@ Hart<URV>::execFeq_s(const DecodedInst* di)
   if (std::isnan(f1) or std::isnan(f2))
     {
       if (issnan(f1) or issnan(f2))
-        {
-          setFcsrFlags(FpFlags::Invalid);
-          markFsDirty();
-        }
+        setFcsrFlags(FpFlags::Invalid);
     }
   else
     res = (f1 == f2)? 1 : 0;
 
   intRegs_.write(di->op0(), res);
+  markFsDirty();
 }
 
 
@@ -1198,14 +1196,12 @@ Hart<URV>::execFlt_s(const DecodedInst* di)
   URV res = 0;
 
   if (std::isnan(f1) or std::isnan(f2))
-    {
-      setFcsrFlags(FpFlags::Invalid);
-      markFsDirty();
-    }
+    setFcsrFlags(FpFlags::Invalid);
   else
     res = (f1 < f2)? 1 : 0;
     
   intRegs_.write(di->op0(), res);
+  markFsDirty();
 }
 
 
@@ -1225,14 +1221,12 @@ Hart<URV>::execFle_s(const DecodedInst* di)
   URV res = 0;
 
   if (std::isnan(f1) or std::isnan(f2))
-    {
-      setFcsrFlags(FpFlags::Invalid);
-      markFsDirty();
-    }
+    setFcsrFlags(FpFlags::Invalid);
   else
     res = (f1 <= f2)? 1 : 0;
 
   intRegs_.write(di->op0(), res);
+  markFsDirty();
 }
 
 
@@ -2142,14 +2136,12 @@ Hart<URV>::execFle_d(const DecodedInst* di)
   URV res = 0;
 
   if (std::isnan(d1) or std::isnan(d2))
-    {
-      setFcsrFlags(FpFlags::Invalid);
-      markFsDirty();
-    }
+    setFcsrFlags(FpFlags::Invalid);
   else
     res = (d1 <= d2)? 1 : 0;
 
   intRegs_.write(di->op0(), res);
+  markFsDirty();
 }
 
 
@@ -2169,14 +2161,12 @@ Hart<URV>::execFlt_d(const DecodedInst* di)
   URV res = 0;
 
   if (std::isnan(d1) or std::isnan(d2))
-    {
-      setFcsrFlags(FpFlags::Invalid);
-      markFsDirty();
-    }
+    setFcsrFlags(FpFlags::Invalid);
   else
     res = (d1 < d2)? 1 : 0;
 
   intRegs_.write(di->op0(), res);
+  markFsDirty();
 }
 
 
@@ -2198,15 +2188,13 @@ Hart<URV>::execFeq_d(const DecodedInst* di)
   if (std::isnan(d1) or std::isnan(d2))
     {
       if (issnan(d1) or issnan(d2))
-        {
-          setFcsrFlags(FpFlags::Invalid);
-          markFsDirty();
-        }
+        setFcsrFlags(FpFlags::Invalid);
     }
   else
     res = (d1 == d2)? 1 : 0;
 
   intRegs_.write(di->op0(), res);
+  markFsDirty();
 }
 
 
