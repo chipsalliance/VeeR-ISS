@@ -370,85 +370,109 @@ Hart<URV>::updateMemoryProtection()
   // be checked in first to last priority). Apply memory protection to
   // the range defined by each entry allowing lower numbered entries to
   // over-ride higher numberd ones.
-  unsigned pmpG = csRegs_.getPmpG();
-  unsigned num = unsigned(CsrNumber::PMPADDR15);
-  for (unsigned ix = 0; ix < count; ++ix, --num)
+  for (unsigned ix = 0; ix < count; ++ix)
     {
       unsigned pmpIx = count - ix - 1;
-      CsrNumber csrn = CsrNumber(num);
-      if (not csRegs_.isImplemented(csrn))
-        continue;
-      impCount++;
 
-      unsigned config = csRegs_.getPmpConfigByteFromPmpAddr(csrn);
-      Pmp::Type type = Pmp::Type((config >> 3) & 3);
-      bool lock = config & 0x80;
+      uint64_t low = 0, high = 0;
+      Pmp::Type type = Pmp::Type::Off;
+      Pmp::Mode mode = Pmp::Mode::None;
+      bool locked = false;
 
-      Pmp::Mode mode = getModeFromPmpconfigByte(config);
-      if (type == Pmp::Type::Off)
-        continue;   // Entry is off.
-
-      URV pmpVal = 0;
-      if (not peekCsr(csrn, pmpVal))
-        continue;  // Unimplemented PMPADDR reg. Should not happen.
-
-      if (type == Pmp::Type::Tor)    // Top of range
+      if (unpackMemoryProtection(pmpIx, type, mode, locked, low, high))
         {
-          uint64_t low = 0;
-          if (pmpIx > 0)
-            {
-              URV prevVal = 0;
-              CsrNumber lowerCsrn = CsrNumber(num - 1);
-              peekCsr(lowerCsrn, prevVal);
-              low = prevVal;
-              low = (low >> pmpG) << pmpG;  // Clear least sig G bits.
-              low = low << 2;
-            }
-              
-          uint64_t high = pmpVal;
-          high = (high >> pmpG) << pmpG;
-          high = high << 2;
-          if (low < high)
-            pmpManager_.setMode(low, high - 1, type, mode, pmpIx, lock);
-          continue;
+          impCount++;
+          if (type != Pmp::Type::Off)
+            pmpManager_.setMode(low, high, type, mode, pmpIx, locked);
         }
-
-      uint64_t sizeM1 = 3;     // Size minus 1
-      uint64_t napot = pmpVal;  // Naturally aligned power of 2.
-      if (type == Pmp::Type::Napot)  // Naturally algined power of 2.
-        {
-          unsigned rzi = 0;  // Righmost-zero-bit index in pmpval.
-          if (pmpVal == URV(-1))
-            {
-              // Handle special case where pmpVal is set to maximum value
-              napot = 0;
-              rzi = mxlen_;
-            }
-          else
-            {
-              rzi = __builtin_ctzl(~pmpVal); // rightmost-zero-bit ix.
-              napot = (napot >> rzi) << rzi; // Clear bits below rightmost zero bit.
-            }
-
-          // Avoid overflow when computing 2 to the power 64 or
-          // higher. This is incorrect but should work in practice
-          // where the physical address space is 64-bit wide or less.
-          if (rzi + 3 >= 64)
-            sizeM1 = -1L;
-          else
-            sizeM1 = (uint64_t(1) << (rzi + 3)) - 1;
-        }
-      else
-        assert(type == Pmp::Type::Na4);
-
-      uint64_t low = napot;
-      low = (low >> pmpG) << pmpG;
-      low = low << 2;
-      uint64_t high = low + sizeM1;
-      pmpManager_.setMode(low, high, type, mode, pmpIx, lock);
     }
 
   pmpEnabled_ = impCount > 0;
+}
+
+
+template <typename URV>
+bool
+Hart<URV>::unpackMemoryProtection(unsigned entryIx, Pmp::Type& type,
+                                  Pmp::Mode& mode, bool& locked,
+                                  uint64_t& low, uint64_t& high) const
+{
+  low = high = 0;
+  type = Pmp::Type::Off;
+  mode = Pmp::Mode::None;
+  locked = false;
+
+  if (entryIx >= 16)
+    return false;
+  
+  CsrNumber csrn = CsrNumber(unsigned(CsrNumber::PMPADDR0) + entryIx);
+
+  unsigned config = csRegs_.getPmpConfigByteFromPmpAddr(csrn);
+  type = Pmp::Type((config >> 3) & 3);
+  locked = config & 0x80;
+  mode = getModeFromPmpconfigByte(config);
+
+  if (type == Pmp::Type::Off)
+    return true;   // Entry is off.
+
+  URV pmpVal = 0;
+  if (not peekCsr(csrn, pmpVal))
+    return false;   // Unimplemented PMPADDR reg.  Should not happen.
+
+  unsigned pmpG = csRegs_.getPmpG();
+
+  if (type == Pmp::Type::Tor)    // Top of range
+    {
+      if (entryIx > 0)
+        {
+          URV prevVal = 0;
+          CsrNumber lowerCsrn = CsrNumber(unsigned(csrn) - 1);
+          peekCsr(lowerCsrn, prevVal);
+          low = prevVal;
+          low = (low >> pmpG) << pmpG;  // Clear least sig G bits.
+          low = low << 2;
+        }
+              
+      high = pmpVal;
+      high = (high >> pmpG) << pmpG;
+      high = high << 2;
+      high = high - 1;
+      return true;
+    }
+
+  uint64_t sizeM1 = 3;     // Size minus 1
+  uint64_t napot = pmpVal;  // Naturally aligned power of 2.
+  if (type == Pmp::Type::Napot)  // Naturally algined power of 2.
+    {
+      unsigned rzi = 0;  // Righmost-zero-bit index in pmpval.
+      if (pmpVal == URV(-1))
+        {
+          // Handle special case where pmpVal is set to maximum value
+          napot = 0;
+          rzi = mxlen_;
+        }
+      else
+        {
+          rzi = __builtin_ctzl(~pmpVal); // rightmost-zero-bit ix.
+          napot = (napot >> rzi) << rzi; // Clear bits below rightmost zero bit.
+        }
+
+      // Avoid overflow when computing 2 to the power 64 or
+      // higher. This is incorrect but should work in practice where
+      // the physical address space is 64-bit wide or less.
+      if (rzi + 3 >= 64)
+        sizeM1 = -1L;
+      else
+        sizeM1 = (uint64_t(1) << (rzi + 3)) - 1;
+    }
+  else
+    assert(type == Pmp::Type::Na4);
+
+  low = napot;
+  low = (low >> pmpG) << pmpG;
+  low = low << 2;
+  high = low + sizeM1;
+  return true;
 }
 
 

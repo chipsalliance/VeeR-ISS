@@ -133,3 +133,31 @@ PmpManager::printStats(const std::string& path) const
 
   return printStats(out);
 }
+
+
+std::string
+Pmp::toString(Pmp::Type type)
+{
+  switch (type)
+    {
+    case Pmp::Type::Off:   return "off";
+    case Pmp::Type::Tor:   return "tor";
+    case Pmp::Type::Na4:   return "na4";
+    case Pmp::Type::Napot: return "napot";
+    default:               return "?";
+    }
+  return "";
+}
+
+
+std::string
+Pmp::toString(Pmp::Mode mode)
+{
+  std::string result;
+
+  result += (mode & Mode::Read)  ? "r" : "-";
+  result += (mode & Mode::Write) ? "w" : "-";
+  result += (mode & Mode::Exec)  ? "x" : "-";
+
+  return result;
+}

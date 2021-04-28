@@ -1051,7 +1051,7 @@ namespace WdRiscv
     { pmpG_ = value; }
 
     /// Return the physical memory protection G parameter. See setPmpG.
-    unsigned getPmpG()
+    unsigned getPmpG() const
     { return pmpG_; }
 
     /// Enable user mode.

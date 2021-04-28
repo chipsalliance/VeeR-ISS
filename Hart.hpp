@@ -1236,6 +1236,17 @@ namespace WdRiscv
     void enableBusBarrier(bool flag)
     { enableBbarrier_ = flag; }
 
+    /// Unpack the memory protection information defined by the given
+    /// physical memory protection entry (entry 0 corresponds to
+    /// PMPADDR0, ... 15 o PMPADDR15). Return true on success setting
+    /// type, mode, locked, low and high to the corresponding values
+    /// associated with the entry. If entry mode is off the low and
+    /// hight will be set to zero. Return false on failure (entry
+    /// index out of bounds or corresponding CSR not implemented).
+    bool unpackMemoryProtection(unsigned entryIx, Pmp::Type& type,
+                                Pmp::Mode& mode, bool& locked,
+                                uint64_t& low, uint64_t& high) const;
+
   protected:
 
     /// Helper to reset: reset floating point related structures.

@@ -16,6 +16,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <string>
 #include <unordered_map>
 #include "CsRegs.hpp"
 
@@ -84,6 +85,13 @@ namespace WdRiscv
     /// of the given object.
     bool operator!= (const Pmp& other) const
     { return mode_ != other.pmpIx_ or pmpIx_ != other.pmpIx_; }
+
+    /// Return string representation of the given PMP type.
+    static std::string toString(Type t);
+
+    /// Return string representation of the given PMP mode.
+    static std::string toString(Mode m);
+      
 
   protected:
 
