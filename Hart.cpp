@@ -3511,7 +3511,7 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
 
   for (CsrNumber csr : csrs)
     {
-      if (not csRegs_.read(csr, PrivilegeMode::Machine, value))
+      if (not csRegs_.peek(csr, value))
 	continue;
 
       if (csr >= CsrNumber::TDATA1 and csr <= CsrNumber::TDATA3)
