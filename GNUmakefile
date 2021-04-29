@@ -54,6 +54,10 @@ soft_float_build := $(wildcard $(PWD)/softfloat/build/RISCV-GCC)
 soft_float_lib := $(soft_float_build)/softfloat.a
 endif
 
+ifdef MEM_CALLBACKS
+override CPPFLAGS += -DMEM_CALLBACKS
+endif
+
 
 # Add External Library location paths here
 LINK_DIRS := $(addprefix -L,$(BOOST_LIB_DIR))
@@ -115,7 +119,7 @@ RVCORE_SRCS := IntRegs.cpp CsRegs.cpp FpRegs.cpp instforms.cpp \
 	    Syscall.cpp PmaManager.cpp DecodedInst.cpp snapshot.cpp \
 	    PmpManager.cpp VirtMem.cpp Core.cpp System.cpp Cache.cpp \
 	    Tlb.cpp VecRegs.cpp vector.cpp wideint.cpp float.cpp bitmanip.cpp \
-	    amo.cpp
+	    amo.cpp SparseMem.cpp
 
 # List of All CPP Sources for the project
 SRCS_CXX += $(RVCORE_SRCS) whisper.cpp
