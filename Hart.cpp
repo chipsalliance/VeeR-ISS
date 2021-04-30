@@ -1874,7 +1874,12 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
       if (not isReadable)
         {
           secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
-          if (regionHasLocalDataMem_.at(region))
+          if (addr + ldSize > memory_.size())
+            {
+              secCause = SecondaryCause::LOAD_ACC_OUT_OF_BOUNDS;
+              return ExceptionCause::LOAD_ACC_FAULT;
+            }
+          else if (regionHasLocalDataMem_.at(region))
             {
               if (not isAddrMemMapped(addr))
                 {
@@ -9313,7 +9318,9 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
       if (not writeOk and not isAddrMemMapped(addr))
         {
           secCause = SecondaryCause::STORE_ACC_MEM_PROTECTION;
-          if (regionHasLocalDataMem_.at(region))
+          if (addr + stSize > memory_.size())
+            secCause = SecondaryCause::STORE_ACC_OUT_OF_BOUNDS;
+          else if (regionHasLocalDataMem_.at(region))
             secCause = SecondaryCause::STORE_ACC_LOCAL_UNMAPPED;
           return ExceptionCause::STORE_ACC_FAULT;
         }
