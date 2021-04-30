@@ -131,7 +131,7 @@ namespace WdRiscv
       STORE_ACC_PRECISE = 9,
       STORE_ACC_STACK_CHECK = 0xa,
 
-      MAX_CAUSE = STORE_ACC_STACK_CHECK
+      MAX_CAUSE = INST_OUT_OF_BOUNDS
     };
 
 
