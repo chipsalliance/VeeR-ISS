@@ -119,6 +119,7 @@ Memory::loadHexFile(const std::string& fileName)
     }
 
   size_t addr = 0, errors = 0, unmappedCount = 0;
+  size_t oob = 0; // Out of bounds addresses
 
   std::string line;
 
@@ -149,7 +150,7 @@ Memory::loadHexFile(const std::string& fileName)
 	}
 
       std::istringstream iss(line);
-      uint32_t value;
+      uint32_t value = 0;
       while (iss)
 	{
 	  iss >> std::hex >> value;
@@ -186,11 +187,11 @@ Memory::loadHexFile(const std::string& fileName)
 	    }
 	  else
 	    {
-	      std::cerr << "File " << fileName << ", Line " << lineNum << ": "
-			<< "Address out of bounds: " << std::hex << addr
-			<< '\n' << std::dec;
-	      errors++;
-	      break;
+              if (not oob)
+                std::cerr << "File " << fileName << ", Line " << lineNum << ": "
+                          << "Warning: Address out of bounds: "
+                          << std::hex << addr << '\n' << std::dec;
+	      oob++;
 	    }
 	  if (iss.eof())
 	    break;
@@ -203,6 +204,10 @@ Memory::loadHexFile(const std::string& fileName)
 	  errors++;
 	}
     }
+
+  if (oob > 1)
+    std::cerr << "File " << fileName << ": Warning: File contained "
+              << oob << " out of bounds addresses.\n";
 
   // In case writing ELF data modified last-written-data associated
   // with each hart.

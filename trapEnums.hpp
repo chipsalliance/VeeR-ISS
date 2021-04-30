@@ -93,18 +93,19 @@ namespace WdRiscv
       INST_MEM_PROTECTION = 3,
       INST_PMP = 8,
       INST_PRECISE = 9,  // precise bus error
+      INST_OUT_OF_BOUNDS = 0xb,
 
       // Cause = BREAKP
-      BREAKP = 2,
       TRIGGER_HIT = 1,
+      BREAKP = 2,
 
       // Cause = LOAD_ADDR_MISAL
-      LOAD_MISAL_REGION_CROSS = 2,
       LOAD_MISAL_IO = 1,
+      LOAD_MISAL_REGION_CROSS = 2,
 
       // Cause = LOAD_ACC_FAULT
-      LOAD_ACC_LOCAL_UNMAPPED = 2,
       LOAD_ACC_DOUBLE_ECC = 1,
+      LOAD_ACC_LOCAL_UNMAPPED = 2,
       LOAD_ACC_STACK_CHECK = 0xa,
       LOAD_ACC_MEM_PROTECTION = 3,
       LOAD_ACC_64BIT = 4,
@@ -115,13 +116,12 @@ namespace WdRiscv
       LOAD_ACC_PRECISE = 9,  // precise bus error
 
       // Cause = STORE_ADDR_MISAL
-      STORE_MISAL_REGION_CROSS = 0x2,
       STORE_MISAL_IO = 1,
+      STORE_MISAL_REGION_CROSS = 0x2,
 
       // Cause = STORE_ACC_FAULT
-      STORE_ACC_LOCAL_UNMAPPED = 2,
       STORE_ACC_DOUBLE_ECC = 1,
-      STORE_ACC_STACK_CHECK = 0xa,
+      STORE_ACC_LOCAL_UNMAPPED = 2,
       STORE_ACC_MEM_PROTECTION = 3,
       STORE_ACC_64BIT = 4,
       STORE_ACC_REGION_PREDICTION = 5,
@@ -129,6 +129,7 @@ namespace WdRiscv
       STORE_ACC_AMO = 7,
       STORE_ACC_PMP = 8,
       STORE_ACC_PRECISE = 9,
+      STORE_ACC_STACK_CHECK = 0xa,
 
       MAX_CAUSE = STORE_ACC_STACK_CHECK
     };
