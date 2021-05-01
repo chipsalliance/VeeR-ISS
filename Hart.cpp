@@ -3538,21 +3538,14 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
   std::vector<unsigned> triggers;
   csRegs_.getLastWrittenRegs(csrs, triggers);
 
-  std::vector<bool> tdataChanged(3);
-
   std::map<URV, URV> csrMap; // Map csr-number to its value.
 
   for (CsrNumber csr : csrs)
     {
       if (not csRegs_.peek(csr, value))
 	continue;
-
       if (csr >= CsrNumber::TDATA1 and csr <= CsrNumber::TDATA3)
-	{
-	  size_t ix = size_t(csr) - size_t(CsrNumber::TDATA1);
-	  tdataChanged.at(ix) = true;
-	  continue; // Debug triggers printed separately below
-	}
+        continue; // Debug trigger values collected below.
       csrMap[URV(csr)] = value;
     }
 
