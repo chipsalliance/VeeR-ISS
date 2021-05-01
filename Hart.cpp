@@ -3538,18 +3538,22 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
   std::vector<unsigned> triggers;
   csRegs_.getLastWrittenRegs(csrs, triggers);
 
-  std::map<URV, URV> csrMap; // Map csr-number to its value.
+  typedef std::pair<URV, URV> CVP;  // CSR-value pair
+  std::vector< CVP > cvps; // CSR-value pairs
+  cvps.reserve(csrs.size() + triggers.size());
 
+  // Collect non-trigger CSRs and their values.
   for (CsrNumber csr : csrs)
     {
       if (not csRegs_.peek(csr, value))
 	continue;
       if (csr >= CsrNumber::TDATA1 and csr <= CsrNumber::TDATA3)
         continue; // Debug trigger values collected below.
-      csrMap[URV(csr)] = value;
+      cvps.push_back(CVP(URV(csr), value));
     }
 
-  // Process trigger register diffs.
+  // Collect trigger CSRs and their values. A synthetic CSR number
+  // is used encoding the trigger number and the trigger component.
   for (unsigned trigger : triggers)
     {
       uint64_t data1(0), data2(0), data3(0);
@@ -3563,27 +3567,31 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
       if (t1)
 	{
 	  URV ecsr = (trigger << 16) | URV(CsrNumber::TDATA1);
-	  csrMap[ecsr] = data1;
+          cvps.push_back(CVP(ecsr, data1));
 	}
 
       if (t2)
         {
 	  URV ecsr = (trigger << 16) | URV(CsrNumber::TDATA2);
-	  csrMap[ecsr] = data2;
+          cvps.push_back(CVP(ecsr, data2));
 	}
 
       if (t3)
 	{
 	  URV ecsr = (trigger << 16) | URV(CsrNumber::TDATA3);
-	  csrMap[ecsr] = data3;
+          cvps.push_back(CVP(ecsr, data3));
 	}
     }
 
-  for (const auto& [key, val] : csrMap)
+  // Sort by CSR number.
+  std::sort(cvps.begin(), cvps.end(), [] (const CVP& a, const CVP& b) {
+      return a.first < b.first; });
+
+  for (const auto& cvp : cvps)
     {
       if (pending) fprintf(out, "  +\n");
       formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'c',
-			   key, val, tmp.c_str());
+			   cvp.first, cvp.second, tmp.c_str());
       pending = true;
     }
 
