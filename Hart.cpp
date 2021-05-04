@@ -2625,7 +2625,9 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
       // succeeded. Problem must be in 2nd half of instruction.
       auto secCause = SecondaryCause::INST_MEM_PROTECTION;
       size_t region = memory_.getRegionIndex(addr);
-      if (regionHasLocalInstMem_.at(region))
+      if (addr + 2 > memory_.size())
+        secCause = SecondaryCause::INST_OUT_OF_BOUNDS;
+      else if (regionHasLocalInstMem_.at(region))
         secCause = SecondaryCause::INST_LOCAL_UNMAPPED;
       initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr + 2,
                         secCause);
@@ -5038,7 +5040,7 @@ void
 Hart<URV>::loadQueueCommit(const DecodedInst& di)
 {
   const InstEntry* entry = di.instEntry();
-  if (entry->isLoad())
+  if (entry->isLoad() or entry->isAtomic())
     return;   // Load instruction sources handled in the load methods.
 
   if (entry->isIthOperandIntRegSource(0))

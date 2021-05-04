@@ -78,7 +78,7 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
 
 template <typename URV>
 bool
-Hart<URV>::amoLoad32(uint32_t rs1, URV& value)
+Hart<URV>::amoLoad32(uint32_t rd, uint32_t rs1, uint32_t rs2, URV& value)
 {
   URV virtAddr = intRegs_.read(rs1);
 
@@ -86,7 +86,10 @@ Hart<URV>::amoLoad32(uint32_t rs1, URV& value)
   ldStAddrValid_ = true;  // For reporting load addr in trace-mode.
 
   if (loadQueueEnabled_)
-    removeFromLoadQueue(rs1, false);
+    {
+      removeFromLoadQueue(rs1, false);
+      removeFromLoadQueue(rs2, false);
+    }
 
   if (hasActiveTrigger())
     {
@@ -113,6 +116,10 @@ Hart<URV>::amoLoad32(uint32_t rs1, URV& value)
   if (memory_.read(addr, uval))
     {
       value = SRV(int32_t(uval)); // Sign extend.
+
+      URV prevRdVal = peekIntReg(rd);
+      putInLoadQueue(4 /*ldSize*/, addr, rd, prevRdVal);
+
       return true;  // Success.
     }
 
@@ -124,7 +131,7 @@ Hart<URV>::amoLoad32(uint32_t rs1, URV& value)
 
 template <typename URV>
 bool
-Hart<URV>::amoLoad64(uint32_t rs1, URV& value)
+Hart<URV>::amoLoad64(uint32_t rd, uint32_t rs1, uint32_t rs2, URV& value)
 {
   URV virtAddr = intRegs_.read(rs1);
 
@@ -132,7 +139,10 @@ Hart<URV>::amoLoad64(uint32_t rs1, URV& value)
   ldStAddrValid_ = true;  // For reporting load addr in trace-mode.
 
   if (loadQueueEnabled_)
-    removeFromLoadQueue(rs1, false);
+    {
+      removeFromLoadQueue(rs1, false);
+      removeFromLoadQueue(rs2, false);
+    }
 
   if (hasActiveTrigger())
     {
@@ -158,6 +168,10 @@ Hart<URV>::amoLoad64(uint32_t rs1, URV& value)
   if (memory_.read(addr, uval))
     {
       value = SRV(int64_t(uval)); // Sign extend.
+
+      URV prevRdVal = peekIntReg(rd);
+      putInLoadQueue(8 /*ldSize*/, addr, rd, prevRdVal);
+
       return true;  // Success.
     }
 
@@ -375,10 +389,13 @@ Hart<URV>::execSc_w(const DecodedInst* di)
 
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
-  uint32_t rs1 = di->op1();
+  uint32_t rd = di->op0(), rs1 = di->op1();
   URV value = intRegs_.read(di->op2());
   URV addr = intRegs_.read(rs1);
   scCount_++;
+
+  if (loadQueueEnabled_)
+    removeFromLoadQueue(rs1, false);
 
   uint64_t prevCount = exceptionCount_;
 
@@ -387,15 +404,22 @@ Hart<URV>::execSc_w(const DecodedInst* di)
 
   if (ok)
     {
+      if (loadQueueEnabled_)
+        putInLoadQueue(4 /* size*/, addr, rd, peekIntReg(rd));
+
       memory_.invalidateOtherHartLr(hartIx_, addr, 4);
-      intRegs_.write(di->op0(), 0); // success
+      intRegs_.write(rd, 0); // success
       scSuccess_++;
+
       return;
     }
 
   // If exception or trigger tripped then rd is not modified.
   if (triggerTripped_ or exceptionCount_ != prevCount)
     return;
+
+  if (loadQueueEnabled_)
+    putInLoadQueue(4 /* size*/, addr, rd, peekIntReg(rd));
 
   intRegs_.write(di->op0(), 1);  // fail
 }
@@ -416,8 +440,8 @@ Hart<URV>::execAmoadd_w(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad32(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad32(rd, rs1, rs2, loadedValue);
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
@@ -425,13 +449,13 @@ Hart<URV>::execAmoadd_w(const DecodedInst* di)
       // Sign extend least significant word of register value.
       SRV rdVal = SRV(int32_t(loadedValue));
 
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
       URV result = rs2Val + rdVal;
 
       bool storeOk = store<uint32_t>(rs1, addr, addr, uint32_t(result));
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(rd, rdVal);
     }
 }
 
@@ -451,8 +475,8 @@ Hart<URV>::execAmoswap_w(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad32(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad32(rd, rs1, rs2, loadedValue);
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
@@ -460,13 +484,13 @@ Hart<URV>::execAmoswap_w(const DecodedInst* di)
       // Sign extend least significant word of register value.
       SRV rdVal = SRV(int32_t(loadedValue));
 
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
       URV result = rs2Val;
 
       bool storeOk = store<uint32_t>(rs1, addr, addr, uint32_t(result));
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(rd, rdVal);
     }
 }
 
@@ -486,8 +510,8 @@ Hart<URV>::execAmoxor_w(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad32(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad32(rd, rs1, rs2, loadedValue);
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
@@ -495,13 +519,13 @@ Hart<URV>::execAmoxor_w(const DecodedInst* di)
       // Sign extend least significant word of register value.
       SRV rdVal = SRV(int32_t(loadedValue));
 
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
       URV result = rs2Val ^ rdVal;
 
       bool storeOk = store<uint32_t>(rs1, addr, addr, uint32_t(result));
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(rd, rdVal);
     }
 }
 
@@ -521,8 +545,8 @@ Hart<URV>::execAmoor_w(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad32(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad32(rd, rs1, rs2, loadedValue);
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
@@ -530,13 +554,13 @@ Hart<URV>::execAmoor_w(const DecodedInst* di)
       // Sign extend least significant word of register value.
       SRV rdVal = SRV(int32_t(loadedValue));
 
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
       URV result = rs2Val | rdVal;
 
       bool storeOk = store<uint32_t>(rs1, addr, addr, uint32_t(result));
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(rd, rdVal);
     }
 }
 
@@ -556,8 +580,8 @@ Hart<URV>::execAmoand_w(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad32(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad32(rd, rs1, rs2, loadedValue);
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
@@ -565,13 +589,13 @@ Hart<URV>::execAmoand_w(const DecodedInst* di)
       // Sign extend least significant word of register value.
       SRV rdVal = SRV(int32_t(loadedValue));
 
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
       URV result = rs2Val & rdVal;
 
       bool storeOk = store<uint32_t>(rs1, addr, addr, uint32_t(result));
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(rd, rdVal);
     }
 }
 
@@ -591,13 +615,13 @@ Hart<URV>::execAmomin_w(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad32(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad32(rd, rs1, rs2, loadedValue);
 
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
 
       int32_t w1 = int32_t(rs2Val);
       int32_t w2 = int32_t(loadedValue);
@@ -607,7 +631,7 @@ Hart<URV>::execAmomin_w(const DecodedInst* di)
       bool storeOk = store<uint32_t>(rs1, addr, addr, uint32_t(result));
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), loadedValue);
+	intRegs_.write(rd, loadedValue);
     }
 }
 
@@ -627,14 +651,14 @@ Hart<URV>::execAmominu_w(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad32(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad32(rd, rs1, rs2, loadedValue);
 
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
 
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
 
       uint32_t w1 = uint32_t(rs2Val);
       uint32_t w2 = uint32_t(loadedValue);
@@ -644,7 +668,7 @@ Hart<URV>::execAmominu_w(const DecodedInst* di)
       bool storeOk = store<uint32_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), loadedValue);
+	intRegs_.write(rd, loadedValue);
     }
 }
 
@@ -664,13 +688,13 @@ Hart<URV>::execAmomax_w(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad32(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad32(rd, rs1, rs2, loadedValue);
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
 
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
 
       int32_t w1 = int32_t(rs2Val);
       int32_t w2 = int32_t(loadedValue);
@@ -680,7 +704,7 @@ Hart<URV>::execAmomax_w(const DecodedInst* di)
       bool storeOk = store<uint32_t>(rs1, addr, addr, uint32_t(result));
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), loadedValue);
+	intRegs_.write(rd, loadedValue);
     }
 }
 
@@ -700,8 +724,8 @@ Hart<URV>::execAmomaxu_w(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad32(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad32(rd, rs1, rs2, loadedValue);
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
@@ -709,7 +733,7 @@ Hart<URV>::execAmomaxu_w(const DecodedInst* di)
       // Sign extend least significant word of register value.
       SRV rdVal = SRV(int32_t(loadedValue));
 
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
 
       uint32_t w1 = uint32_t(rs2Val);
       uint32_t w2 = uint32_t(rdVal);
@@ -719,7 +743,7 @@ Hart<URV>::execAmomaxu_w(const DecodedInst* di)
       bool storeOk = store<uint32_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(rd, rdVal);
     }
 }
 
@@ -757,10 +781,13 @@ Hart<URV>::execSc_d(const DecodedInst* di)
 
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
-  uint32_t rs1 = di->op1();
+  uint32_t rd = di->op0(), rs1 = di->op1();
   URV value = intRegs_.read(di->op2());
   URV addr = intRegs_.read(rs1);
   scCount_++;
+
+  if (loadQueueEnabled_)
+    removeFromLoadQueue(rs1, false);
 
   uint64_t prevCount = exceptionCount_;
 
@@ -769,15 +796,22 @@ Hart<URV>::execSc_d(const DecodedInst* di)
 
   if (ok)
     {
+      if (loadQueueEnabled_)
+        putInLoadQueue(8 /* size*/, addr, rd, peekIntReg(rd));
+
       memory_.invalidateOtherHartLr(hartIx_, addr, 8);
-      intRegs_.write(di->op0(), 0); // success
+      intRegs_.write(rd, 0); // success
       scSuccess_++;
+
       return;
     }
 
   // If exception or trigger tripped then rd is not modified.
   if (triggerTripped_ or exceptionCount_ != prevCount)
     return;
+
+  if (loadQueueEnabled_)
+    putInLoadQueue(8 /* size*/, addr, rd, peekIntReg(rd));
 
   intRegs_.write(di->op0(), 1);  // fail
 }
@@ -798,20 +832,20 @@ Hart<URV>::execAmoadd_d(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad64(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad64(rd, rs1, rs2, loadedValue);
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
 
       URV rdVal = loadedValue;
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
       URV result = rs2Val + rdVal;
 
       bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(rd, rdVal);
     }
 }
 
@@ -831,20 +865,20 @@ Hart<URV>::execAmoswap_d(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad64(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad64(rd, rs1, rs2, loadedValue);
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
 
       URV rdVal = loadedValue;
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
       URV result = rs2Val;
 
       bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(rd, rdVal);
     }
 }
 
@@ -864,20 +898,20 @@ Hart<URV>::execAmoxor_d(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad64(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad64(rd, rs1, rs2, loadedValue);
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
 
       URV rdVal = loadedValue;
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
       URV result = rs2Val ^ rdVal;
 
       bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(rd, rdVal);
     }
 }
 
@@ -897,20 +931,20 @@ Hart<URV>::execAmoor_d(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad64(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad64(rd, rs1, rs2, loadedValue);
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
 
       URV rdVal = loadedValue;
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
       URV result = rs2Val | rdVal;
 
       bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(rd, rdVal);
     }
 }
 
@@ -930,20 +964,20 @@ Hart<URV>::execAmoand_d(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad64(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad64(rd, rs1, rs2, loadedValue);
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
 
       URV rdVal = loadedValue;
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
       URV result = rs2Val & rdVal;
 
       bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(rd, rdVal);
     }
 }
 
@@ -963,20 +997,20 @@ Hart<URV>::execAmomin_d(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad64(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad64(rd, rs1, rs2, loadedValue);
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
 
       URV rdVal = loadedValue;
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
       URV result = (SRV(rs2Val) < SRV(rdVal))? rs2Val : rdVal;
 
       bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(rd, rdVal);
     }
 }
 
@@ -996,20 +1030,20 @@ Hart<URV>::execAmominu_d(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad64(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad64(rd, rs1, rs2, loadedValue);
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
 
       URV rdVal = loadedValue;
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
       URV result = (rs2Val < rdVal)? rs2Val : rdVal;
 
       bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(rd, rdVal);
     }
 }
 
@@ -1029,20 +1063,20 @@ Hart<URV>::execAmomax_d(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad64(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad64(rd, rs1, rs2, loadedValue);
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
 
       URV rdVal = loadedValue;
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
       URV result = (SRV(rs2Val) > SRV(rdVal))? rs2Val : rdVal;
 
       bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(rd, rdVal);
     }
 }
 
@@ -1062,20 +1096,20 @@ Hart<URV>::execAmomaxu_d(const DecodedInst* di)
   std::lock_guard<std::mutex> lock(memory_.amoMutex_);
 
   URV loadedValue = 0;
-  uint32_t rs1 = di->op1();
-  bool loadOk = amoLoad64(rs1, loadedValue);
+  uint32_t rd = di->op0(), rs1 = di->op1(), rs2 = di->op2();
+  bool loadOk = amoLoad64(rd, rs1, rs2, loadedValue);
   if (loadOk)
     {
       URV addr = intRegs_.read(rs1);
 
       URV rdVal = loadedValue;
-      URV rs2Val = intRegs_.read(di->op2());
+      URV rs2Val = intRegs_.read(rs2);
       URV result = (rs2Val > rdVal)? rs2Val : rdVal;
 
       bool storeOk = store<uint64_t>(rs1, addr, addr, result);
 
       if (storeOk and not triggerTripped_)
-	intRegs_.write(di->op0(), rdVal);
+	intRegs_.write(rd, rdVal);
     }
 }
 
