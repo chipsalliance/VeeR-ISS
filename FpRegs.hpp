@@ -186,6 +186,16 @@ namespace WdRiscv
       return u.i64;
     }
 
+    /// Return true if given value represents a nan-boxed single
+    /// precision value.
+    bool isNanBoxed(uint64_t value) const
+    {
+      if (not nanBox_)
+        return false;
+      FpUnion u{value};
+      return u.sp.pad == ~uint32_t(0);
+    }
+
     /// Return the bit pattern of the ith register as an unsigned
     /// integer. If the register contains a nan-boxed value, do not
     /// unbox it (return the 64-bit NaN).

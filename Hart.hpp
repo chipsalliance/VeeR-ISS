@@ -1236,6 +1236,17 @@ namespace WdRiscv
     void enableBusBarrier(bool flag)
     { enableBbarrier_ = flag; }
 
+    /// Unpack the memory protection information defined by the given
+    /// physical memory protection entry (entry 0 corresponds to
+    /// PMPADDR0, ... 15 o PMPADDR15). Return true on success setting
+    /// type, mode, locked, low and high to the corresponding values
+    /// associated with the entry. If entry mode is off the low and
+    /// hight will be set to zero. Return false on failure (entry
+    /// index out of bounds or corresponding CSR not implemented).
+    bool unpackMemoryProtection(unsigned entryIx, Pmp::Type& type,
+                                Pmp::Mode& mode, bool& locked,
+                                uint64_t& low, uint64_t& high) const;
+
   protected:
 
     /// Helper to reset: reset floating point related structures.
@@ -1700,13 +1711,13 @@ namespace WdRiscv
     /// if a trigger tripped or an exception took place in which case
     /// val is not modified. The loaded word is sign extended to fill
     /// the URV value (this is relevant for rv64).
-    bool amoLoad32(uint32_t rs1, URV& val);
+    bool amoLoad32(uint32_t rd, uint32_t rs1, uint32_t rs2, URV& val);
 
     /// Do the load value part of a double-word-sized AMO
     /// instruction. Return true on success putting the loaded value
     /// in val. Return false if a trigger tripped or an exception took
     /// place in which case val is not modified.
-    bool amoLoad64(uint32_t rs1, URV& val);
+    bool amoLoad64(uint32_t rd, uint32_t rs1, uint32_t rs2, URV& val);
 
     /// Invalidate cache entries overlapping the bytes written by a
     /// store.

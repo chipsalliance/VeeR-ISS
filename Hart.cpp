@@ -370,85 +370,109 @@ Hart<URV>::updateMemoryProtection()
   // be checked in first to last priority). Apply memory protection to
   // the range defined by each entry allowing lower numbered entries to
   // over-ride higher numberd ones.
-  unsigned pmpG = csRegs_.getPmpG();
-  unsigned num = unsigned(CsrNumber::PMPADDR15);
-  for (unsigned ix = 0; ix < count; ++ix, --num)
+  for (unsigned ix = 0; ix < count; ++ix)
     {
       unsigned pmpIx = count - ix - 1;
-      CsrNumber csrn = CsrNumber(num);
-      if (not csRegs_.isImplemented(csrn))
-        continue;
-      impCount++;
 
-      unsigned config = csRegs_.getPmpConfigByteFromPmpAddr(csrn);
-      Pmp::Type type = Pmp::Type((config >> 3) & 3);
-      bool lock = config & 0x80;
+      uint64_t low = 0, high = 0;
+      Pmp::Type type = Pmp::Type::Off;
+      Pmp::Mode mode = Pmp::Mode::None;
+      bool locked = false;
 
-      Pmp::Mode mode = getModeFromPmpconfigByte(config);
-      if (type == Pmp::Type::Off)
-        continue;   // Entry is off.
-
-      URV pmpVal = 0;
-      if (not peekCsr(csrn, pmpVal))
-        continue;  // Unimplemented PMPADDR reg. Should not happen.
-
-      if (type == Pmp::Type::Tor)    // Top of range
+      if (unpackMemoryProtection(pmpIx, type, mode, locked, low, high))
         {
-          uint64_t low = 0;
-          if (pmpIx > 0)
-            {
-              URV prevVal = 0;
-              CsrNumber lowerCsrn = CsrNumber(num - 1);
-              peekCsr(lowerCsrn, prevVal);
-              low = prevVal;
-              low = (low >> pmpG) << pmpG;  // Clear least sig G bits.
-              low = low << 2;
-            }
-              
-          uint64_t high = pmpVal;
-          high = (high >> pmpG) << pmpG;
-          high = high << 2;
-          if (low < high)
-            pmpManager_.setMode(low, high - 1, type, mode, pmpIx, lock);
-          continue;
+          impCount++;
+          if (type != Pmp::Type::Off)
+            pmpManager_.setMode(low, high, type, mode, pmpIx, locked);
         }
-
-      uint64_t sizeM1 = 3;     // Size minus 1
-      uint64_t napot = pmpVal;  // Naturally aligned power of 2.
-      if (type == Pmp::Type::Napot)  // Naturally algined power of 2.
-        {
-          unsigned rzi = 0;  // Righmost-zero-bit index in pmpval.
-          if (pmpVal == URV(-1))
-            {
-              // Handle special case where pmpVal is set to maximum value
-              napot = 0;
-              rzi = mxlen_;
-            }
-          else
-            {
-              rzi = __builtin_ctzl(~pmpVal); // rightmost-zero-bit ix.
-              napot = (napot >> rzi) << rzi; // Clear bits below rightmost zero bit.
-            }
-
-          // Avoid overflow when computing 2 to the power 64 or
-          // higher. This is incorrect but should work in practice
-          // where the physical address space is 64-bit wide or less.
-          if (rzi + 3 >= 64)
-            sizeM1 = -1L;
-          else
-            sizeM1 = (uint64_t(1) << (rzi + 3)) - 1;
-        }
-      else
-        assert(type == Pmp::Type::Na4);
-
-      uint64_t low = napot;
-      low = (low >> pmpG) << pmpG;
-      low = low << 2;
-      uint64_t high = low + sizeM1;
-      pmpManager_.setMode(low, high, type, mode, pmpIx, lock);
     }
 
   pmpEnabled_ = impCount > 0;
+}
+
+
+template <typename URV>
+bool
+Hart<URV>::unpackMemoryProtection(unsigned entryIx, Pmp::Type& type,
+                                  Pmp::Mode& mode, bool& locked,
+                                  uint64_t& low, uint64_t& high) const
+{
+  low = high = 0;
+  type = Pmp::Type::Off;
+  mode = Pmp::Mode::None;
+  locked = false;
+
+  if (entryIx >= 16)
+    return false;
+  
+  CsrNumber csrn = CsrNumber(unsigned(CsrNumber::PMPADDR0) + entryIx);
+
+  unsigned config = csRegs_.getPmpConfigByteFromPmpAddr(csrn);
+  type = Pmp::Type((config >> 3) & 3);
+  locked = config & 0x80;
+  mode = getModeFromPmpconfigByte(config);
+
+  if (type == Pmp::Type::Off)
+    return true;   // Entry is off.
+
+  URV pmpVal = 0;
+  if (not peekCsr(csrn, pmpVal))
+    return false;   // Unimplemented PMPADDR reg.  Should not happen.
+
+  unsigned pmpG = csRegs_.getPmpG();
+
+  if (type == Pmp::Type::Tor)    // Top of range
+    {
+      if (entryIx > 0)
+        {
+          URV prevVal = 0;
+          CsrNumber lowerCsrn = CsrNumber(unsigned(csrn) - 1);
+          peekCsr(lowerCsrn, prevVal);
+          low = prevVal;
+          low = (low >> pmpG) << pmpG;  // Clear least sig G bits.
+          low = low << 2;
+        }
+              
+      high = pmpVal;
+      high = (high >> pmpG) << pmpG;
+      high = high << 2;
+      high = high - 1;
+      return true;
+    }
+
+  uint64_t sizeM1 = 3;     // Size minus 1
+  uint64_t napot = pmpVal;  // Naturally aligned power of 2.
+  if (type == Pmp::Type::Napot)  // Naturally algined power of 2.
+    {
+      unsigned rzi = 0;  // Righmost-zero-bit index in pmpval.
+      if (pmpVal == URV(-1))
+        {
+          // Handle special case where pmpVal is set to maximum value
+          napot = 0;
+          rzi = mxlen_;
+        }
+      else
+        {
+          rzi = __builtin_ctzl(~pmpVal); // rightmost-zero-bit ix.
+          napot = (napot >> rzi) << rzi; // Clear bits below rightmost zero bit.
+        }
+
+      // Avoid overflow when computing 2 to the power 64 or
+      // higher. This is incorrect but should work in practice where
+      // the physical address space is 64-bit wide or less.
+      if (rzi + 3 >= 64)
+        sizeM1 = -1L;
+      else
+        sizeM1 = (uint64_t(1) << (rzi + 3)) - 1;
+    }
+  else
+    assert(type == Pmp::Type::Na4);
+
+  low = napot;
+  low = (low >> pmpG) << pmpG;
+  low = low << 2;
+  high = low + sizeM1;
+  return true;
 }
 
 
@@ -1282,6 +1306,67 @@ printSignedHisto(const char* tag, const std::vector<uint64_t>& histo,
 }
 
 
+enum class FpKinds { PosInf, NegInf, PosNormal, NegNormal, PosSubnormal, NegSubnormal,
+                     PosZero, NegZero, QuietNan, SignalingNan };
+
+
+static
+void
+printFpHisto(const char* tag, const std::vector<uint64_t>& histo, FILE* file)
+{
+  for (unsigned i = 0; i <= unsigned(FpKinds::SignalingNan); ++i)
+    {
+      FpKinds kind = FpKinds(i);
+      uint64_t freq = histo.at(i);
+      if (not freq)
+        continue;
+
+      switch (kind)
+        {
+        case FpKinds::PosInf:
+          fprintf(file, "    %s pos_inf       %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::NegInf:
+          fprintf(file, "    %s neg_inf       %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::PosNormal:
+          fprintf(file, "    %s pos_normal    %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::NegNormal:
+          fprintf(file, "    %s neg_normal    %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::PosSubnormal:
+          fprintf(file, "    %s pos_subnormal %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::NegSubnormal:
+          fprintf(file, "    %s neg_subnormal %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::PosZero:
+          fprintf(file, "    %s pos_zero      %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::NegZero:
+          fprintf(file, "    %s neg_zero      %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::QuietNan:
+          fprintf(file, "    %s quiet_nan     %" PRId64 "\n", tag, freq);
+          break;
+
+        case FpKinds::SignalingNan:
+          fprintf(file, "    %s signaling_nan %" PRId64 "\n", tag, freq);
+          break;
+        }
+    }
+}
+
+
 template <typename URV>
 void
 Hart<URV>::reportInstructionFrequency(FILE* file) const
@@ -1303,13 +1388,12 @@ Hart<URV>::reportInstructionFrequency(FILE* file) const
     indices.at(i) = i;
   std::sort(indices.begin(), indices.end(), CompareFreq(instProfileVec_));
 
-  for (size_t i = 0; i < indices.size(); ++i)
+  for (auto profIx : indices)
     {
-      size_t ix = indices.at(i);
-      InstId id = InstId(ix);
+      InstId id = InstId(profIx);
 
       const InstEntry& entry = instTable_.getEntry(id);
-      const InstProfile& prof = instProfileVec_.at(ix);
+      const InstProfile& prof = instProfileVec_.at(profIx);
       uint64_t freq = prof.freq_;
       if (not freq)
 	continue;
@@ -1319,54 +1403,54 @@ Hart<URV>::reportInstructionFrequency(FILE* file) const
       auto regCount = intRegCount();
 
       uint64_t count = 0;
-      for (auto n : prof.rd_) count += n;
+      for (auto n : prof.destRegFreq_) count += n;
       if (count)
 	{
 	  fprintf(file, "  +rd");
 	  for (unsigned i = 0; i < regCount; ++i)
-	    if (prof.rd_.at(i))
-	      fprintf(file, " %d:%" PRId64, i, prof.rd_.at(i));
+	    if (prof.destRegFreq_.at(i))
+	      fprintf(file, " %d:%" PRId64, i, prof.destRegFreq_.at(i));
 	  fprintf(file, "\n");
 	}
 
-      uint64_t count1 = 0;
-      for (auto n : prof.rs1_) count1 += n;
-      if (count1)
-	{
-	  fprintf(file, "  +rs1");
-	  for (unsigned i = 0; i < regCount; ++i)
-	    if (prof.rs1_.at(i))
-	      fprintf(file, " %d:%" PRId64, i, prof.rs1_.at(i));
-	  fprintf(file, "\n");
+      unsigned srcIx = 0;
+      
+      for (unsigned opIx = 0; opIx < entry.operandCount(); ++opIx)
+        {
+          if (entry.ithOperandMode(opIx) == OperandMode::Read and
+              (entry.ithOperandType(opIx) == OperandType::IntReg or
+               entry.ithOperandType(opIx) == OperandType::FpReg))
+            {
+              uint64_t count = 0;
+              for (auto n : prof.srcRegFreq_.at(srcIx))
+                count += n;
+              if (count)
+                {
+                  const auto& regFreq = prof.srcRegFreq_.at(srcIx);
+                  fprintf(file, "  +rs%d", srcIx + 1);
+                  for (unsigned i = 0; i < regCount; ++i)
+                    if (regFreq.at(i))
+                      fprintf(file, " %d:%" PRId64, i, regFreq.at(i));
+                  fprintf(file, "\n");
 
-	  const auto& histo = prof.rs1Histo_;
-	  if (entry.isUnsigned())
-	    printUnsignedHisto("+hist1", histo, file);
-	  else
-	    printSignedHisto("+hist1", histo, file);
-	}
+                  const auto& histo = prof.srcHisto_.at(srcIx);
+                  std::string tag = std::string("+hist") + std::to_string(srcIx + 1);
+                  if (entry.ithOperandType(opIx) == OperandType::FpReg)
+                    printFpHisto(tag.c_str(), histo, file);
+                  else if (entry.isUnsigned())
+                    printUnsignedHisto(tag.c_str(), histo, file);
+                  else
+                    printSignedHisto(tag.c_str(), histo, file);
+                }
 
-      uint64_t count2 = 0;
-      for (auto n : prof.rs2_) count2 += n;
-      if (count2)
-	{
-	  fprintf(file, "  +rs2");
-	  for (unsigned i = 0; i < regCount; ++i)
-	    if (prof.rs2_.at(i))
-	      fprintf(file, " %d:%" PRId64, i, prof.rs2_.at(i));
-	  fprintf(file, "\n");
-
-	  const auto& histo = prof.rs2Histo_;
-	  if (entry.isUnsigned())
-	    printUnsignedHisto("+hist2", histo, file);
-	  else
-	    printSignedHisto("+hist2", histo, file);
+              srcIx++;
+            }
 	}
 
       if (prof.hasImm_)
 	{
 	  fprintf(file, "  +imm  min:%d max:%d\n", prof.minImm_, prof.maxImm_);
-	  printSignedHisto("+hist ", prof.immHisto_, file);
+	  printSignedHisto("+hist ", prof.srcHisto_.back(), file);
 	}
 
       if (prof.user_)
@@ -1790,7 +1874,12 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
       if (not isReadable)
         {
           secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
-          if (regionHasLocalDataMem_.at(region))
+          if (addr + ldSize > memory_.size())
+            {
+              secCause = SecondaryCause::LOAD_ACC_OUT_OF_BOUNDS;
+              return ExceptionCause::LOAD_ACC_FAULT;
+            }
+          else if (regionHasLocalDataMem_.at(region))
             {
               if (not isAddrMemMapped(addr))
                 {
@@ -2453,7 +2542,9 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
 
           auto secCause = SecondaryCause::INST_MEM_PROTECTION;
           size_t region = memory_.getRegionIndex(addr);
-          if (regionHasLocalInstMem_.at(region))
+          if (addr + 4 > memory_.size())
+            secCause = SecondaryCause::INST_OUT_OF_BOUNDS;
+          else if (regionHasLocalInstMem_.at(region))
             secCause = SecondaryCause::INST_LOCAL_UNMAPPED;
           initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr,
                             secCause);
@@ -2484,7 +2575,9 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
         return false;
       auto secCause = SecondaryCause::INST_MEM_PROTECTION;
       size_t region = memory_.getRegionIndex(addr);
-      if (regionHasLocalInstMem_.at(region))
+      if (addr + 2 > memory_.size())
+        secCause = SecondaryCause::INST_OUT_OF_BOUNDS;
+      else if (regionHasLocalInstMem_.at(region))
 	secCause = SecondaryCause::INST_LOCAL_UNMAPPED;
       initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr, secCause);
       return false;
@@ -2532,7 +2625,9 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
       // succeeded. Problem must be in 2nd half of instruction.
       auto secCause = SecondaryCause::INST_MEM_PROTECTION;
       size_t region = memory_.getRegionIndex(addr);
-      if (regionHasLocalInstMem_.at(region))
+      if (addr + 2 > memory_.size())
+        secCause = SecondaryCause::INST_OUT_OF_BOUNDS;
+      else if (regionHasLocalInstMem_.at(region))
         secCause = SecondaryCause::INST_LOCAL_UNMAPPED;
       initiateException(ExceptionCause::INST_ACC_FAULT, virtAddr, virtAddr + 2,
                         secCause);
@@ -3445,25 +3540,22 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
   std::vector<unsigned> triggers;
   csRegs_.getLastWrittenRegs(csrs, triggers);
 
-  std::vector<bool> tdataChanged(3);
+  typedef std::pair<URV, URV> CVP;  // CSR-value pair
+  std::vector< CVP > cvps; // CSR-value pairs
+  cvps.reserve(csrs.size() + triggers.size());
 
-  std::map<URV, URV> csrMap; // Map csr-number to its value.
-
+  // Collect non-trigger CSRs and their values.
   for (CsrNumber csr : csrs)
     {
-      if (not csRegs_.read(csr, PrivilegeMode::Machine, value))
+      if (not csRegs_.peek(csr, value))
 	continue;
-
       if (csr >= CsrNumber::TDATA1 and csr <= CsrNumber::TDATA3)
-	{
-	  size_t ix = size_t(csr) - size_t(CsrNumber::TDATA1);
-	  tdataChanged.at(ix) = true;
-	  continue; // Debug triggers printed separately below
-	}
-      csrMap[URV(csr)] = value;
+        continue; // Debug trigger values collected below.
+      cvps.push_back(CVP(URV(csr), value));
     }
 
-  // Process trigger register diffs.
+  // Collect trigger CSRs and their values. A synthetic CSR number
+  // is used encoding the trigger number and the trigger component.
   for (unsigned trigger : triggers)
     {
       uint64_t data1(0), data2(0), data3(0);
@@ -3477,27 +3569,31 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
       if (t1)
 	{
 	  URV ecsr = (trigger << 16) | URV(CsrNumber::TDATA1);
-	  csrMap[ecsr] = data1;
+          cvps.push_back(CVP(ecsr, data1));
 	}
 
       if (t2)
         {
 	  URV ecsr = (trigger << 16) | URV(CsrNumber::TDATA2);
-	  csrMap[ecsr] = data2;
+          cvps.push_back(CVP(ecsr, data2));
 	}
 
       if (t3)
 	{
 	  URV ecsr = (trigger << 16) | URV(CsrNumber::TDATA3);
-	  csrMap[ecsr] = data3;
+          cvps.push_back(CVP(ecsr, data3));
 	}
     }
 
-  for (const auto& [key, val] : csrMap)
+  // Sort by CSR number.
+  std::sort(cvps.begin(), cvps.end(), [] (const CVP& a, const CVP& b) {
+      return a.first < b.first; });
+
+  for (const auto& cvp : cvps)
     {
       if (pending) fprintf(out, "  +\n");
       formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'c',
-			   key, val, tmp.c_str());
+			   cvp.first, cvp.second, tmp.c_str());
       pending = true;
     }
 
@@ -3616,6 +3712,50 @@ addToUnsignedHistogram(std::vector<uint64_t>& histo, uint64_t val)
   else if (val <= 1024)    histo.at(4)++;
   else if (val <= 64*1024) histo.at(5)++;
   else                     histo.at(6)++;
+}
+
+
+extern bool
+mostSignificantFractionBit(float x);
+
+
+extern bool
+mostSignificantFractionBit(double x);
+
+
+template <typename FP_TYPE>
+void
+addToFpHistogram(std::vector<uint64_t>& histo, FP_TYPE val)
+{
+  bool pos = not std::signbit(val);
+  int type = std::fpclassify(val);
+
+  if (type == FP_INFINITE)
+    {
+      FpKinds kind = pos? FpKinds::PosInf : FpKinds::NegInf;
+      histo.at(unsigned(kind))++;
+    }
+  else if (type == FP_NORMAL)
+    {
+      FpKinds kind = pos? FpKinds::PosNormal : FpKinds::NegNormal;
+      histo.at(unsigned(kind))++;
+    }
+  else if (type == FP_SUBNORMAL)
+    {
+      FpKinds kind = pos? FpKinds::PosSubnormal : FpKinds::NegSubnormal;
+      histo.at(unsigned(kind))++;
+    }
+  else if (type == FP_ZERO)
+    {
+      FpKinds kind = pos? FpKinds::PosZero : FpKinds::NegZero;
+      histo.at(unsigned(kind))++;
+    }
+  else if (type == FP_NAN)
+    {
+      bool quiet = mostSignificantFractionBit(val);
+      FpKinds kind = quiet? FpKinds::QuietNan : FpKinds::SignalingNan;
+      histo.at(unsigned(kind))++;
+    }
 }
 
 
@@ -3832,106 +3972,97 @@ Hart<URV>::accumulateInstructionStats(const DecodedInst& di)
   else if (lastPriv_ == PrivilegeMode::Machine)
     prof.machine_++;
 
-  bool hasRd = false;
-
-  unsigned rs1 = 0, rs2 = 0;
-  bool hasRs1 = false, hasRs2 = false;
-
-  if (info.ithOperandType(0) == OperandType::IntReg)
-    {
-      hasRd = info.isIthOperandWrite(0);
-      if (hasRd)
-	prof.rd_.at(di.op0())++;
-      else
-	{
-	  rs1 = di.op0();
-	  prof.rs1_.at(rs1)++;
-	  hasRs1 = true;
-	}
-    }
-
-  bool hasImm = false;  // True if instruction has an immediate operand.
-  int32_t imm = 0;     // Value of immediate operand.
-
-  if (info.ithOperandType(1) == OperandType::IntReg)
-    {
-      if (hasRd)
-	{
-	  rs1 = di.op1();
-	  prof.rs1_.at(rs1)++;
-	  hasRs1 = true;
-	}
-      else
-	{
-	  rs2 = di.op1();
-	  prof.rs2_.at(rs2)++;
-	  hasRs2 = true;
-	}
-    }
-  else if (info.ithOperandType(1) == OperandType::Imm)
-    {
-      hasImm = true;
-      imm = di.op1();
-    }
-
-  if (info.ithOperandType(2) == OperandType::IntReg)
-    {
-      if (hasRd)
-	{
-	  rs2 = di.op2();
-	  prof.rs2_.at(rs2)++;
-	  hasRs2 = true;
-	}
-      else
-	assert(0);
-    }
-  else if (info.ithOperandType(2) == OperandType::Imm)
-    {
-      hasImm = true;
-      imm = di.op2();
-    }
-
-  if (hasImm)
-    {
-      prof.hasImm_ = true;
-
-      if (prof.freq_ == 1)
-	{
-	  prof.minImm_ = prof.maxImm_ = imm;
-	}
-      else
-	{
-	  prof.minImm_ = std::min(prof.minImm_, imm);
-	  prof.maxImm_ = std::max(prof.maxImm_, imm);
-	}
-      addToSignedHistogram(prof.immHisto_, imm);
-    }
+  unsigned opIx = 0;  // Operand index
 
   unsigned rd = unsigned(intRegCount() + 1);
-  URV rdOrigVal = 0;
-  intRegs_.getLastWrittenReg(rd, rdOrigVal);
+  OperandType rdType = OperandType::None;
+  URV rdOrigVal = 0;   // Integer destination register value.
 
-  if (hasRs1)
+  uint64_t frdOrigVal = 0;  // Floating point destination register value.
+
+  if (info.isIthOperandWrite(0))
     {
-      URV val1 = intRegs_.read(rs1);
-      if (rs1 == rd)
-	val1 = rdOrigVal;
-      if (info.isUnsigned())
-	addToUnsignedHistogram(prof.rs1Histo_, val1);
-      else
-	addToSignedHistogram(prof.rs1Histo_, SRV(val1));
+      rdType = info.ithOperandType(0);
+      if (rdType == OperandType::IntReg or rdType == OperandType::FpReg)
+        {
+          prof.destRegFreq_.at(di.op0())++;
+          opIx++;
+          if (rdType == OperandType::IntReg)
+            {
+              intRegs_.getLastWrittenReg(rd, rdOrigVal);
+              assert(rd == di.op0());
+            }
+          else
+            {
+              fpRegs_.getLastWrittenReg(rd, frdOrigVal);
+              assert(rd == di.op0());
+            }
+        }
     }
 
-  if (hasRs2)
+  unsigned maxOperand = 4;  // At most 4 operands (including immediate).
+  unsigned srcIx = 0;  // Processed source operand rank.
+
+  for (unsigned i = opIx; i < maxOperand; ++i)
     {
-      URV val2 = intRegs_.read(rs2);
-      if (rs2 == rd)
-	val2 = rdOrigVal;
-      if (info.isUnsigned())
-	addToUnsignedHistogram(prof.rs2Histo_, val2);
-      else
-	addToSignedHistogram(prof.rs2Histo_, SRV(val2));
+      if (info.ithOperandType(i) == OperandType::IntReg)
+        {
+	  uint32_t regIx = di.ithOperand(i);
+	  prof.srcRegFreq_.at(srcIx).at(regIx)++;
+
+          URV val = intRegs_.read(regIx);
+          if (regIx == rd and rdType == OperandType::IntReg)
+            val = rdOrigVal;
+          if (info.isUnsigned())
+            addToUnsignedHistogram(prof.srcHisto_.at(srcIx), val);
+          else
+            addToSignedHistogram(prof.srcHisto_.at(srcIx), SRV(val));
+
+          srcIx++;
+	}
+      else if (info.ithOperandType(i) == OperandType::FpReg)
+        {
+	  uint32_t regIx = di.ithOperand(i);
+	  prof.srcRegFreq_.at(srcIx).at(regIx)++;
+
+          uint64_t val = fpRegs_.readBitsRaw(regIx);
+          if (regIx == rd and rdType == OperandType::FpReg)
+            val = frdOrigVal;
+          bool sp = fpRegs_.isNanBoxed(val) or not isRvd();
+          if (sp)
+            {
+              FpRegs::FpUnion u{val};
+              float spVal = u.sp.sp;
+              addToFpHistogram(prof.srcHisto_.at(srcIx), spVal);
+            }
+          else
+            {
+              FpRegs::FpUnion u{val};
+              double dpVal = u.dp;
+              addToFpHistogram(prof.srcHisto_.at(srcIx), dpVal);
+            }
+
+          srcIx++;
+        }
+      else if (info.ithOperandType(i) == OperandType::Imm)
+        {
+          int32_t imm = di.ithOperand(i);
+          prof.hasImm_ = true;
+          if (prof.freq_ == 1)
+            {
+              prof.minImm_ = prof.maxImm_ = imm;
+            }
+          else
+            {
+              prof.minImm_ = std::min(prof.minImm_, imm);
+              prof.maxImm_ = std::max(prof.maxImm_, imm);
+            }
+          addToSignedHistogram(prof.srcHisto_.back(), imm);
+        }
     }
+
+  if (prof.hasImm_)
+    assert(srcIx + 1 < maxOperand);
 }
 
 
@@ -4909,7 +5040,7 @@ void
 Hart<URV>::loadQueueCommit(const DecodedInst& di)
 {
   const InstEntry* entry = di.instEntry();
-  if (entry->isLoad())
+  if (entry->isLoad() or entry->isAtomic())
     return;   // Load instruction sources handled in the load methods.
 
   if (entry->isIthOperandIntRegSource(0))
@@ -8013,12 +8144,14 @@ Hart<URV>::enableInstructionFrequency(bool b)
       auto regCount = intRegCount();
       for (auto& inst : instProfileVec_)
 	{
-	  inst.rd_.resize(regCount);
-	  inst.rs1_.resize(regCount);
-	  inst.rs2_.resize(regCount);
-	  inst.rs1Histo_.resize(13);  // FIX: avoid magic 13
-	  inst.rs2Histo_.resize(13);  // FIX: avoid magic 13
-	  inst.immHisto_.resize(13);  // FIX: avoid magic 13
+	  inst.destRegFreq_.resize(regCount);
+          inst.srcRegFreq_.resize(3);  // Up to 3 source operands
+          for (auto& vec : inst.srcRegFreq_)
+            vec.resize(regCount);
+
+          inst.srcHisto_.resize(3);  // Up to 3 source historgrams
+          for (auto& vec : inst.srcHisto_)
+            vec.resize(13);  // FIX: avoid magic 13
 	}
     }
 }
@@ -9188,7 +9321,9 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
       if (not writeOk and not isAddrMemMapped(addr))
         {
           secCause = SecondaryCause::STORE_ACC_MEM_PROTECTION;
-          if (regionHasLocalDataMem_.at(region))
+          if (addr + stSize > memory_.size())
+            secCause = SecondaryCause::STORE_ACC_OUT_OF_BOUNDS;
+          else if (regionHasLocalDataMem_.at(region))
             secCause = SecondaryCause::STORE_ACC_LOCAL_UNMAPPED;
           return ExceptionCause::STORE_ACC_FAULT;
         }

@@ -18,7 +18,7 @@
 #include <memory>               // For shared_ptr
 #include <functional>
 #include "Memory.hpp"
-
+#include "SparseMem.hpp"
 
 namespace WdRiscv
 {
@@ -126,5 +126,6 @@ namespace WdRiscv
     std::vector< std::shared_ptr<CoreClass> > cores_;
     std::vector< std::shared_ptr<HartClass> > sysHarts_; // All harts in system.
     std::shared_ptr<Memory> memory_ = nullptr;
+    SparseMem* sparseMem_ = nullptr;
   };
 }

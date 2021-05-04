@@ -250,6 +250,40 @@ peekAllCsrs(Hart<URV>& hart)
 	  std::cout << '\n';
 	}
     }
+
+  std::cout << '\n';
+
+  PrivilegeMode pm = hart.privilegeMode();
+  std::cout << "Privilege mode: ";
+  switch(pm)
+    {
+    case PrivilegeMode::User:       std::cout << "user\n";       break;
+    case PrivilegeMode::Supervisor: std::cout << "supervisor\n"; break;
+    case PrivilegeMode::Reserved:   std::cout << "reserved\n";   break;
+    case PrivilegeMode::Machine:    std::cout << "machine\n";    break;
+    }
+
+  std::cout << '\n';
+
+  std::cout << "pmpaddr  type mode locked low                high\n";
+
+  uint64_t low = 0, high = 0;
+  Pmp::Type type = Pmp::Type::Off;
+  Pmp::Mode mode = Pmp::Mode::None;
+  bool locked = false;
+
+  for (unsigned ix = 0; ix < 16; ++ix)
+    {
+      if (not hart.unpackMemoryProtection(ix, type, mode, locked, low, high))
+        continue;
+
+      std::string typeStr = Pmp::toString(type);
+      std::string modeStr = Pmp::toString(mode);
+      const char* lockStr = locked? "y" : "n";
+      std::cout << 
+        (boost::format("%7d %5s %4s %6s 0x%016x 0x%016x") % ix % typeStr %
+         modeStr % lockStr % low % high) << '\n';
+    }
 }
 
 

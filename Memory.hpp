@@ -113,15 +113,10 @@ namespace WdRiscv
 #endif
 
 #ifdef MEM_CALLBACKS
-      if (readCallback_)
-        {
-          uint64_t val = 0;
-          if (not readCallback_(address, sizeof(T), val))
-            return false;
-          value = val;
-        }
-      else
-        value = *(reinterpret_cast<const T*>(data_ + address));
+      uint64_t val = 0;
+      if (not readCallback_(address, sizeof(T), val))
+        return false;
+      value = val;
 #else
       value = *(reinterpret_cast<const T*>(data_ + address));
 #endif
@@ -149,15 +144,10 @@ namespace WdRiscv
 	    }
 
 #ifdef MEM_CALLBACKS
-          if (readCallback_)
-            {
-              uint64_t val = 0;
-              if (not readCallback_(address, sizeof(T), val))
-                return false;
-              value = val;
-            }
-          else
-            value = *(reinterpret_cast<const T*>(data_ + address));
+          uint64_t val = 0;
+          if (not readCallback_(address, sizeof(T), val))
+            return false;
+          value = val;
 #else
           value = *(reinterpret_cast<const T*>(data_ + address));
 #endif
@@ -241,22 +231,14 @@ namespace WdRiscv
       lwd.value_ = value;
 
 #ifdef MEM_CALLBACKS
-      if (writeCallback_)
+      uint64_t val = 0;
+      readCallback_(address, sizeof(T), val);
+      lwd.prevValue_ = val;
+      val = value;
+      if (not writeCallback_(address, sizeof(T), val))
         {
-          uint64_t val = 0;
-          readCallback_(address, sizeof(T), val);
-          lwd.prevValue_ = val;
-          val = value;
-          if (not writeCallback_(address, sizeof(T), val))
-            {
-              lwd.size_ = 0;
-              return false;
-            }
-        }
-      else
-        {
-          lwd.prevValue_ = *(reinterpret_cast<T*>(data_ + address));
-          *(reinterpret_cast<T*>(data_ + address)) = value;
+          lwd.size_ = 0;
+          return false;
         }
 #else
       lwd.prevValue_ = *(reinterpret_cast<T*>(data_ + address));
@@ -321,14 +303,11 @@ namespace WdRiscv
         }
 
 #ifdef MEM_CALLBACKS
-      if (readCallback_)
-        {
-          uint64_t val = 0;
-          if (not readCallback_(address, sizeof(T), val))
-            return false;
-          value = val;
-          return true;
-        }
+      uint64_t val = 0;
+      if (not readCallback_(address, sizeof(T), val))
+        return false;
+      value = val;
+      return true;
 #endif
 
       value = *(reinterpret_cast<const T*>(data_ + address));
@@ -475,11 +454,8 @@ namespace WdRiscv
         }
 
 #ifdef MEM_CALLBACKS
-      if (writeCallback_)
-        {
-          uint64_t val = value;
-          return writeCallback_(address, sizeof(T), val))
-        }
+      uint64_t val = value;
+      return writeCallback_(address, sizeof(T), val);
 #endif
 
       *(reinterpret_cast<T*>(data_ + address)) = value;
@@ -720,8 +696,7 @@ namespace WdRiscv
 
     /// Load contents of given ELF segment into memory.
     /// This is a helper to loadElfFile.
-    bool loadElfSegment(ELFIO::elfio& reader, int segment, size_t& end,
-                        size_t& overwrites);
+    bool loadElfSegment(ELFIO::elfio& reader, int segment, size_t& end);
 
     /// Helper to loadElfFile: Collet ELF symbols.
     void collectElfSymbols(ELFIO::elfio& reader);

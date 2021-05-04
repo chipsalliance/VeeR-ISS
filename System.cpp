@@ -27,6 +27,7 @@ System<URV>::System(unsigned coreCount, unsigned hartsPerCore, size_t memSize,
   cores_.resize(coreCount);
 
   memory_ = std::make_shared<Memory>(memSize, pageSize);
+  sparseMem_ = nullptr;
 
   Memory& mem = *(memory_.get());
   mem.setHartCount(hartCount_);
@@ -44,12 +45,25 @@ System<URV>::System(unsigned coreCount, unsigned hartsPerCore, size_t memSize,
           sysHarts_.push_back(hart);
         }
     }
+
+#ifdef MEM_CALLBACKS
+  sparseMem_ = new SparseMem();
+  auto readf = [this](uint64_t addr, unsigned size, uint64_t& value) -> bool {
+                 return sparseMem_->read(addr, size, value); };
+  auto writef = [this](uint64_t addr, unsigned size, uint64_t value) -> bool {
+                  return sparseMem_->write(addr, size, value); };
+
+  mem.defineReadMemoryCallback(readf);
+  mem.defineWriteMemoryCallback(writef);
+#endif
 }
 
 
 template <typename URV>
 System<URV>::~System()
 {
+  delete sparseMem_;
+  sparseMem_ = nullptr;
 }
 
 
