@@ -1213,6 +1213,12 @@ namespace WdRiscv
       idempotentOverride_ = regionCount > 0;
     }
 
+    void setDefaultIdempotent(bool flag)
+    {
+      hasDefaultIdempotent_ = true;
+      defaultIdempotent_ = flag;
+    }
+
     /// Define and idempotency override region with given index. An
     /// address greater than or equal to start and less than or equal
     /// end is assigned given idempotency.  An address matching
@@ -1261,7 +1267,7 @@ namespace WdRiscv
     bool isFpEnabled() const
     { return mstatusFs_ != FpFs::Off; }
 
-    // Return truee if it is legal to execute an FP instruction: F extension must
+    // Return true if it is legal to execute an FP instruction: F extension must
     // be enabled and FS feild of MSTATUS must not be OFF.
     bool isFpLegal() const
     { return isRvf() and isFpEnabled(); }
@@ -3050,6 +3056,9 @@ namespace WdRiscv
     // Physical memory protection.
     bool pmpEnabled_ = false; // True if one or more pmp register defined.
     PmpManager pmpManager_;
+
+    bool defaultIdempotent_ = false;
+    bool hasDefaultIdempotent_ = false;
 
     bool idempotentOverride_ = false;
     std::vector<IdempotentOverride> idempotentOverrideVec_;

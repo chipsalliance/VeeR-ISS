@@ -1509,7 +1509,9 @@ defineMacoSideEffects(System<URV>& system)
 }
 
 
-/// Associate callbacks with write/poke of the mrac CSR.
+/// Associate callbacks with write/poke of the mrac CSR. Mrac is
+/// memory region accss control CSR which defines which regions are
+/// cacahble/idempotent.
 template <typename URV>
 void
 defineMracSideEffects(System<URV>& system)
@@ -1539,7 +1541,7 @@ defineMracSideEffects(System<URV>& system)
                      }
                  };
 
-      // Mrac is shared between hars. If one hart writes it, all
+      // Mrac is shared between harts. If one hart writes it, all
       // harts must be updated.
       auto post = [&system] (Csr<URV>&, URV val) -> void {
                     for (unsigned hix = 0; hix < system.hartCount(); ++hix)
@@ -1563,6 +1565,51 @@ defineMracSideEffects(System<URV>& system)
     {
       std::cerr << "Warning: mrac CSR is defined with rv32. This is likely "
                 << "a mistake. Only least significant 32 bits will be used.\n";
+    }
+}
+
+
+/// Associate callbacks with write/poke of the mdac CSR. This is the
+/// default access control CSR used alongside the maco CSRs to define
+/// cachable/idempotent regions.
+template <typename URV>
+void
+defineMdacSideEffects(System<URV>& system)
+{
+  for (unsigned i = 0; i < system.hartCount(); ++i)
+    {
+      auto hart = system.ithHart(i);
+      auto csrPtr = hart->findCsr("mdac");
+      if (not csrPtr)
+        continue;
+
+      auto pre = [] (Csr<URV>&, URV& val) -> void {
+                   // A value of 0b11 (io/cacheable) is invalid: Make it 0b10
+                   // (io/non-cacheable).
+                   URV mask = 0b11;
+                   if ((val & mask) == mask)
+                     val = (val & ~mask) | 0b10;
+                 };
+
+      // Mdac is not shared between harts.
+      auto post = [hart] (Csr<URV>&, URV val) -> void {
+                    bool idempotent = (val & 2) == 0;
+                    hart->setDefaultIdempotent(idempotent);
+                  };
+
+      auto reset = [hart] (Csr<URV>& csr) -> void {
+          URV val = csr.read();
+          bool idempotent = (val & 2) == 0;
+          hart->setDefaultIdempotent(idempotent);
+        };
+
+      csrPtr->registerPrePoke(pre);
+      csrPtr->registerPreWrite(pre);
+
+      csrPtr->registerPostPoke(post);
+      csrPtr->registerPostWrite(post);
+
+      csrPtr->registerPostReset(reset);
     }
 }
 
@@ -1822,6 +1869,7 @@ HartConfig::finalizeCsrConfig(System<URV>& system) const
   defineMpmcSideEffects(system);
   defineMgpmcSideEffects(system);
   defineMacoSideEffects(system);
+  defineMracSideEffects(system);
   defineMracSideEffects(system);
 
   // Define callback to react to write/poke to mcountinhibit CSR.

@@ -520,6 +520,7 @@ void
 Hart<URV>::reset(bool resetMemoryMappedRegs)
 {
   privMode_ = PrivilegeMode::Machine;
+  hasDefaultIdempotent_ = false;
 
   intRegs_.reset();
   csRegs_.reset();
@@ -984,6 +985,9 @@ Hart<URV>::isIdempotentRegion(size_t addr) const
         if (entry.matches(addr))
           return entry.idempotent_;
     }
+
+  if (hasDefaultIdempotent_)
+    return defaultIdempotent_;
 
   unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
   return regionIsIdempotent_.at(region) or regionHasLocalMem_.at(region);
