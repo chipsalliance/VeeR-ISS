@@ -323,19 +323,6 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
 
   if (number >= CsrNumber::MHPMEVENT3 and number <= CsrNumber::MHPMEVENT31)
     value = legalizeMhpmevent(number, value);
-  else if (number == CsrNumber::MRAC)
-    {
-      // A value of 0b11 (io/cacheable) for the ith region is invalid:
-      // Make it 0b10 (io/non-cacheable).
-      URV mask = 0b11;
-      unsigned xlen = rv32_ ? 32 : 64;
-      for (unsigned i = 0; i < xlen; i += 2)
-	{
-	  if ((value & mask) == mask)
-	    value = (value & ~mask) | (0b10 << i);
-	  mask = mask << 2;
-	}
-    }
   else if (number >= CsrNumber::PMPCFG0 and number <= CsrNumber::PMPCFG3)
     {
       URV prev = 0;
@@ -1302,8 +1289,6 @@ CsRegs<URV>::defineNonStandardRegs()
 
   using Csrn = CsrNumber;
 
-  defineCsr("mrac",   Csrn::MRAC,     !mand, imp, 0, wam, wam);
-
   // mdseac is read-only to CSR insts but is modifiable with poke.
   defineCsr("mdseac", Csrn::MDSEAC,   !mand, imp, 0, rom, wam);
 
@@ -1425,19 +1410,6 @@ CsRegs<URV>::poke(CsrNumber number, URV value)
 
   if (number >= CsrNumber::MHPMEVENT3 and number <= CsrNumber::MHPMEVENT31)
     value = legalizeMhpmevent(number, value);
-  else if (number == CsrNumber::MRAC)
-    {
-      // A value of 0b11 (io/cacheable) for the ith region is invalid:
-      // Make it 0b10 (io/non-cacheable).
-      URV mask = 0b11;
-      unsigned xlen = rv32_ ? 32 : 64;
-      for (unsigned i = 0; i < xlen; i += 2)
-	{
-	  if ((value & mask) == mask)
-	    value = (value & ~mask) | (0b10 << i);
-	  mask = mask << 2;
-	}
-    }
   else if (number >= CsrNumber::PMPCFG0 and number <= CsrNumber::PMPCFG3)
     {
       URV prev = 0;

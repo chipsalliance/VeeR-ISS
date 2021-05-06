@@ -1247,6 +1247,10 @@ namespace WdRiscv
                                 Pmp::Mode& mode, bool& locked,
                                 uint64_t& low, uint64_t& high) const;
 
+    /// Mark the 256MB region with the given region index as
+    /// idempotent/non-idempotent according to flag.
+    void markRegionIdempotent(unsigned regionIx, bool flag);
+
   protected:
 
     /// Helper to reset: reset floating point related structures.
@@ -3022,6 +3026,9 @@ namespace WdRiscv
 
     // Ith entry is true if ith region has pic
     std::vector<bool> regionHasMemMappedRegs_;
+
+    // Ith entry is true if ith region is idempotent.
+    std::vector<bool> regionIsIdempotent_;
 
     // Decoded instruction cache.
     std::vector<DecodedInst> decodeCache_;

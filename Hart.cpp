@@ -100,6 +100,7 @@ Hart<URV>::Hart(unsigned hartIx, Memory& memory)
   regionHasDccm_.resize(16);
   regionHasMemMappedRegs_.resize(16);
   regionHasLocalInstMem_.resize(16);
+  regionIsIdempotent_.resize(16);
 
   decodeCacheSize_ = 128*1024;  // Must be a power of 2.
   decodeCacheMask_ = decodeCacheSize_ - 1;
@@ -985,13 +986,16 @@ Hart<URV>::isIdempotentRegion(size_t addr) const
     }
 
   unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
-  URV mracVal = 0;
-  if (csRegs_.read(CsrNumber::MRAC, PrivilegeMode::Machine, mracVal))
-    {
-      unsigned bit = (mracVal >> (region*2 + 1)) & 1;
-      return bit == 0  or regionHasLocalMem_.at(region);
-    }
-  return true;
+  return regionIsIdempotent_.at(region) or regionHasLocalMem_.at(region);
+}
+
+
+template <typename URV>
+void
+Hart<URV>::markRegionIdempotent(unsigned region, bool flag)
+{
+  if (region < regionIsIdempotent_.size())
+    regionIsIdempotent_.at(region) = flag;
 }
 
 

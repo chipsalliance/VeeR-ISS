@@ -1509,6 +1509,64 @@ defineMacoSideEffects(System<URV>& system)
 }
 
 
+/// Associate callbacks with write/poke of the mrac CSR.
+template <typename URV>
+void
+defineMracSideEffects(System<URV>& system)
+{
+  unsigned count = 0; // Count of mrac definitions.
+
+  for (unsigned i = 0; i < system.hartCount(); ++i)
+    {
+      auto hart = system.ithHart(i);
+      auto csrPtr = hart->findCsr("mrac");
+      if (not csrPtr)
+        continue;
+
+      count++;
+
+      auto pre = [] (Csr<URV>&, URV& val) -> void {
+                   // A value of 0b11 (io/cacheable) for the ith
+                   // region is invalid: Make it 0b10
+                   // (io/non-cacheable).
+                   URV mask = 0b11;
+                   unsigned xlen = sizeof(URV) * 8; // FIX.
+                   for (unsigned i = 0; i < xlen; i += 2)
+                     {
+                       if ((val & mask) == mask)
+                         val = (val & ~mask) | (0b10 << i);
+                       mask = mask << 2;
+                     }
+                 };
+
+      // Mrac is shared between hars. If one hart writes it, all
+      // harts must be updated.
+      auto post = [&system] (Csr<URV>&, URV val) -> void {
+                    for (unsigned hix = 0; hix < system.hartCount(); ++hix)
+                      {
+                        auto ht = system.ithHart(hix);
+                        for (unsigned region = 0; region < 16; ++region)
+                          {
+                            unsigned bit = (val >> (region*2 + 1)) & 1;
+                            ht->markRegionIdempotent(region, bit == 0);
+                          }
+                      }
+                  };
+
+      csrPtr->registerPrePoke(pre);
+      csrPtr->registerPreWrite(pre);
+      csrPtr->registerPostPoke(post);
+      csrPtr->registerPostWrite(post);
+    }
+
+  if (count and sizeof(URV) == 8)
+    {
+      std::cerr << "Warning: mrac CSR is defined with rv32. This is likely "
+                << "a mistake. Only least significant 32 bits will be used.\n";
+    }
+}
+
+
 /// Associate callbacks with write/poke of the mpicbaddr (pic base
 /// address csr).
 template <typename URV>
@@ -1764,6 +1822,7 @@ HartConfig::finalizeCsrConfig(System<URV>& system) const
   defineMpmcSideEffects(system);
   defineMgpmcSideEffects(system);
   defineMacoSideEffects(system);
+  defineMracSideEffects(system);
 
   // Define callback to react to write/poke to mcountinhibit CSR.
   defineMcountinhibitSideEffects(system);
