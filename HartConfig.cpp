@@ -1526,11 +1526,19 @@ defineMacoSideEffects(System<URV>& system)
 
           // Define pre-write/pre-poke callback: If lock bit is set,
           // then preserve CSR value
-          auto pre = [hart] (Csr<URV>& csr, URV& val) -> void {
+          auto pre = [hart, rv32] (Csr<URV>& csr, URV& val) -> void {
                        URV previous = 0;
                        hart->peekCsr(csr.getNumber(), previous);
                        if (previous & URV(Maco32Masks::Lock))
                          val = previous;  // Locked: keep previous value
+                       else if (not rv32)
+                         {
+                           // Combination side-effect/cacable not allowed
+                           bool side = val & URV(Maco64Masks::SideEffect);
+                           bool cache = val & URV(Maco64Masks::Cacheable);
+                           if (cache and side)
+                             val &= ~URV(Maco64Masks::Cacheable);
+                         }
                       };
 
           // Define post-write/post-poke callback. Upddate the idempotent
