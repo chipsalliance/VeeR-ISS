@@ -1900,7 +1900,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
       if (not isReadable)
         {
           secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
-          if (addr + ldSize > memory_.size())
+          if (addr > memory_.size() - ldSize)
             {
               secCause = SecondaryCause::LOAD_ACC_OUT_OF_BOUNDS;
               return ExceptionCause::LOAD_ACC_FAULT;
@@ -2568,7 +2568,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
 
           auto secCause = SecondaryCause::INST_MEM_PROTECTION;
           size_t region = memory_.getRegionIndex(addr);
-          if (addr + 4 > memory_.size())
+          if (addr > memory_.size() - 4)
             secCause = SecondaryCause::INST_OUT_OF_BOUNDS;
           else if (regionHasLocalInstMem_.at(region))
             secCause = SecondaryCause::INST_LOCAL_UNMAPPED;
@@ -2601,7 +2601,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
         return false;
       auto secCause = SecondaryCause::INST_MEM_PROTECTION;
       size_t region = memory_.getRegionIndex(addr);
-      if (addr + 2 > memory_.size())
+      if (addr > memory_.size() - 2)
         secCause = SecondaryCause::INST_OUT_OF_BOUNDS;
       else if (regionHasLocalInstMem_.at(region))
 	secCause = SecondaryCause::INST_LOCAL_UNMAPPED;
@@ -2651,7 +2651,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
       // succeeded. Problem must be in 2nd half of instruction.
       auto secCause = SecondaryCause::INST_MEM_PROTECTION;
       size_t region = memory_.getRegionIndex(addr);
-      if (addr + 2 > memory_.size())
+      if (addr > memory_.size() - 2)
         secCause = SecondaryCause::INST_OUT_OF_BOUNDS;
       else if (regionHasLocalInstMem_.at(region))
         secCause = SecondaryCause::INST_LOCAL_UNMAPPED;
@@ -9347,7 +9347,7 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
       if (not writeOk and not isAddrMemMapped(addr))
         {
           secCause = SecondaryCause::STORE_ACC_MEM_PROTECTION;
-          if (addr + stSize > memory_.size())
+          if (addr > memory_.size() - stSize)
             secCause = SecondaryCause::STORE_ACC_OUT_OF_BOUNDS;
           else if (regionHasLocalDataMem_.at(region))
             secCause = SecondaryCause::STORE_ACC_LOCAL_UNMAPPED;
