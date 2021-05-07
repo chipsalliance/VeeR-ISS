@@ -60,6 +60,10 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
   if (amoInDccmOnly_ and not isAddrInDccm(addr))
     fail = true;
 
+  // Check if invalid unless cacheable.
+  if (amoInCacheableOnly_ and not isAddrCacheable(addr))
+    fail = true;
+
   if (fail)
     {
       // AMO secondary cause has priority over ECC.
@@ -226,6 +230,10 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
   // Address outside DCCM causes an exception (this is swerv specific).
   bool fail = amoInDccmOnly_ and not isAddrInDccm(addr);
 
+  // Check if invalid unless cacheable.
+  if (amoInCacheableOnly_ and not isAddrCacheable(addr))
+    fail = true;
+
   // Access must be naturally aligned.
   if ((addr & (ldSize - 1)) != 0)
     fail = true;
@@ -329,6 +337,7 @@ Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
     }
 
   bool fail = misal or (amoInDccmOnly_ and not isAddrInDccm(addr));
+  fail = fail or (amoInCacheableOnly_ and not isAddrCacheable(addr));
 
   if (fail)
     {

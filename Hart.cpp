@@ -977,7 +977,7 @@ Hart<URV>::execAndi(const DecodedInst* di)
 
 template <typename URV>
 bool
-Hart<URV>::isIdempotentRegion(size_t addr) const
+Hart<URV>::isAddrIdempotent(size_t addr) const
 {
   if (idempotentOverride_)
     {
@@ -991,6 +991,24 @@ Hart<URV>::isIdempotentRegion(size_t addr) const
 
   unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
   return regionIsIdempotent_.at(region) or regionHasLocalMem_.at(region);
+}
+
+
+template <typename URV>
+bool
+Hart<URV>::isAddrCacheable(size_t addr) const
+{
+  if (idempotentOverride_)
+    {
+      for (const auto& entry : idempotentOverrideVec_)
+        if (entry.matches(addr))
+          return entry.cacheable_;
+    }
+
+  if (hasDefaultCacheable_)
+    return defaultCacheable_;
+
+  return false;
 }
 
 
@@ -1658,7 +1676,7 @@ Hart<URV>::determineMisalLoadException(URV addr, unsigned accessSize,
     }
 
   // Misaligned access to a region with side effect.
-  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
+  if (not isAddrIdempotent(addr) or not isAddrIdempotent(addr2))
     {
       secCause = SecondaryCause::LOAD_MISAL_IO;
       return ExceptionCause::LOAD_ADDR_MISAL;
@@ -1703,7 +1721,7 @@ Hart<URV>::determineMisalStoreException(URV addr, unsigned accessSize,
     }
 
   // Misaligned access to a region with side effect.
-  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
+  if (not isAddrIdempotent(addr) or not isAddrIdempotent(addr2))
     {
       secCause = SecondaryCause::STORE_MISAL_IO;
       return ExceptionCause::STORE_ADDR_MISAL;
@@ -2041,7 +2059,7 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
       // Check for load-data-trigger. Load-data-trigger does not apply
       // to io/region unless address is in local memory. Don't ask.
       if (hasActiveTrigger() and
-          (isIdempotentRegion(addr) or
+          (isAddrIdempotent(addr) or
            isAddrMemMapped(addr) or isAddrInDccm(addr)))
         {
           TriggerTiming timing = TriggerTiming::Before;

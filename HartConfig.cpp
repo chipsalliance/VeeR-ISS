@@ -1014,6 +1014,17 @@ HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
         errors++;
     }
 
+  // Atomic instructions illegal outside cacheable regions.
+  tag = "amo_illegal_outside_cacheable";
+  if (config_ -> count(tag))
+    {
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ ->at(tag), flag))
+        hart.setAmoInCacheableOnly(flag);
+      else
+        errors++;
+    }
+
   // Wide (64-bit) load/store. WDC special.
   tag = "enable_wide_load_store";
   if (config_ -> count(tag))
@@ -1434,13 +1445,46 @@ HartConfig::clear()
 }
 
 
+// Meaning of the maco bits depend on the desing.
+// For 32-bit design we have Maco32Masks; Otherwise Maco64Masks.
+enum class Maco32Masks : uint32_t
+  {
+   Enable       = 1,
+   Lock         = 2,
+   SideEffect   = 4,
+   PreciseStore = 8
+  };
+
+enum class Maco64Masks : uint32_t
+  {
+   Enable       = 1,
+   Lock         = 2,
+   Cacheable    = 4,
+   SideEffect   = 8
+  };
+
+
 template <typename URV>
 void
-unpackMacoValue(URV value, uint64_t& start, uint64_t& end, bool& idempotent)
+unpackMacoValue(URV value, bool rv32, uint64_t& start, uint64_t& end,
+                bool& idempotent, bool& cacheable)
 {
   start = end = 0;
-  idempotent = (value & 4) == 0;   // Idempotent if bit 2 is 0.
-  bool enable = value & 1;
+  bool enable = false;
+
+  if (rv32)
+    {
+      idempotent = (value & URV(Maco32Masks::SideEffect)) == 0;
+      cacheable = false;
+      enable = value & URV(Maco32Masks::Enable);
+    }
+  else
+    {
+      idempotent = (value & URV(Maco64Masks::SideEffect)) == 0;
+      cacheable = (value & URV(Maco64Masks::Cacheable)) == 0;
+      enable = value & URV(Maco64Masks::Enable);
+    }
+
   if (not enable)
     return;  // Disabled: start same as end
 
@@ -1464,6 +1508,8 @@ template <typename URV>
 void
 defineMacoSideEffects(System<URV>& system)
 {
+  bool rv32 = sizeof(URV) == 4;
+
   for (unsigned i = 0; i < system.hartCount(); ++i)
     {
       auto hart = system.ithHart(i);
@@ -1483,18 +1529,17 @@ defineMacoSideEffects(System<URV>& system)
           auto pre = [hart] (Csr<URV>& csr, URV& val) -> void {
                        URV previous = 0;
                        hart->peekCsr(csr.getNumber(), previous);
-                       URV lockMask = 2;
-                       if (previous & lockMask)
+                       if (previous & URV(Maco32Masks::Lock))
                          val = previous;  // Locked: keep previous value
                       };
 
           // Define post-write/post-poke callback. Upddate the idempotent
           // regions of the hart.
-          auto post = [hart, macoIx] (Csr<URV>& /*csr*/, URV val) -> void {
+          auto post = [hart, macoIx, rv32] (Csr<URV>& /*csr*/, URV val) -> void {
                         uint64_t start = 0, end = 0;
-                        bool idempotent = false;
-                        unpackMacoValue(val, start, end, idempotent);
-                        hart->defineIdempotentOverride(macoIx, start, end, idempotent);
+                        bool idempotent = false, cacheable = false;
+                        unpackMacoValue(val, rv32, start, end, idempotent, cacheable);
+                        hart->defineIdempotentOverride(macoIx, start, end, idempotent, cacheable);
                       };
 
           csrPtr->registerPrePoke(pre);
@@ -1594,7 +1639,9 @@ defineMdacSideEffects(System<URV>& system)
       // Mdac is not shared between harts.
       auto post = [hart] (Csr<URV>&, URV val) -> void {
                     bool idempotent = (val & 2) == 0;
+                    bool cacheable = (val & 1);
                     hart->setDefaultIdempotent(idempotent);
+                    hart->setDefaultCacheable(cacheable);
                   };
 
       auto reset = [hart] (Csr<URV>& csr) -> void {
@@ -1870,7 +1917,7 @@ HartConfig::finalizeCsrConfig(System<URV>& system) const
   defineMgpmcSideEffects(system);
   defineMacoSideEffects(system);
   defineMracSideEffects(system);
-  defineMracSideEffects(system);
+  defineMdacSideEffects(system);
 
   // Define callback to react to write/poke to mcountinhibit CSR.
   defineMcountinhibitSideEffects(system);

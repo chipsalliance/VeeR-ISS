@@ -890,6 +890,9 @@ namespace WdRiscv
     bool isAddrInDccm(size_t addr) const
     { return memory_.pmaMgr_.isAddrInDccm(addr); }
 
+    /// Return true if given address is cacheable.
+    bool isAddrCacheable(size_t addr) const;
+
     /// Return true if given address is in the memory mapped registers
     /// area of this hart.
     bool isAddrMemMapped(size_t addr) const
@@ -1013,6 +1016,11 @@ namespace WdRiscv
     /// region based on the value of flag (true/false).
     void setAmoInDccmOnly(bool flag)
     { amoInDccmOnly_ = flag; }
+
+    /// Make atomic memory operations illegal/legal for non cachable
+    /// memory based on the value of flag (true/false).
+    void setAmoInCacheableOnly(bool flag)
+    { amoInCacheableOnly_ = flag; }
 
     /// Make load/store instructions take an exception if the base
     /// address (value in rs1) and the effective address refer to
@@ -1213,10 +1221,20 @@ namespace WdRiscv
       idempotentOverride_ = regionCount > 0;
     }
 
+    /// Set the default idempotent attribute for addresses that do
+    /// not match any entries in the MACO CSRs.
     void setDefaultIdempotent(bool flag)
     {
       hasDefaultIdempotent_ = true;
       defaultIdempotent_ = flag;
+    }
+
+    /// Set the default cachable attribute for addresses that do
+    /// not match any entries in the MACO CSRs.
+    void setDefaultCacheable(bool flag)
+    {
+      hasDefaultCacheable_ = true;
+      defaultCacheable_ = flag;
     }
 
     /// Define and idempotency override region with given index. An
@@ -1225,12 +1243,14 @@ namespace WdRiscv
     /// multiple regions get the idempotency of the first region it
     /// matches. Return true on success and false if regionIx is out
     /// of bounds.
-    bool defineIdempotentOverride(unsigned regionIx, uint64_t start,
-                                  uint64_t end, bool idempotent)
+    bool defineIdempotentOverride(unsigned ix, uint64_t start,
+                                  uint64_t end, bool idempotent,
+                                  bool cacheable)
     {
-      if (regionIx >= idempotentOverrideVec_.size())
+      if (ix >= idempotentOverrideVec_.size())
         return false;
-      idempotentOverrideVec_.at(regionIx) = IdempotentOverride(start, end, idempotent);
+      idempotentOverrideVec_.at(ix) = IdempotentOverride(start, end, idempotent,
+                                                         cacheable);
       return true;
     }
 
@@ -1704,8 +1724,9 @@ namespace WdRiscv
     /// interrupt.
     bool isInterruptPossible(InterruptCause& cause);
 
-    /// Return true if 256mb region of address is idempotent.
-    bool isIdempotentRegion(size_t addr) const;
+    /// Return true if given address is an idempotent region of
+    /// memory.
+    bool isAddrIdempotent(size_t addr) const;
 
     /// Check address associated with an atomic memory operation (AMO)
     /// instruction. Return true if AMO access is allowed. Return
@@ -2822,19 +2843,21 @@ namespace WdRiscv
     struct IdempotentOverride
     {
       IdempotentOverride(uint64_t start = 0, uint64_t end = 0,
-                         bool idempotent = false)
-        : start_(start), end_(end), idempotent_(idempotent)
+                         bool idempotent = false, bool cacheable = false)
+        : start_(start), end_(end), idempotent_(idempotent),
+          cacheable_(cacheable)
       { }
 
       bool matches(uint64_t addr) const
       { return end_ > start_ and start_ <= addr and addr <= end_; }
 
       void reset ()
-      { start_ = end_ = 0; idempotent_ = false; }
+      { start_ = end_ = 0; idempotent_ = false; cacheable_ = false; }
 
       uint64_t start_;
       uint64_t end_;
       bool idempotent_;
+      bool cacheable_;
     };
 
     void putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
@@ -2964,6 +2987,7 @@ namespace WdRiscv
     bool newlib_ = false;           // Enable newlib system calls.
     bool linux_ = false;            // Enable linux system calls.
     bool amoInDccmOnly_ = false;
+    bool amoInCacheableOnly_ = false;
 
     uint32_t perfControl_ = ~0;     // Performance counter control
     uint32_t prevPerfControl_ = ~0; // Value before current instruction.
@@ -3059,6 +3083,9 @@ namespace WdRiscv
 
     bool defaultIdempotent_ = false;
     bool hasDefaultIdempotent_ = false;
+
+    bool defaultCacheable_ = false;
+    bool hasDefaultCacheable_ = false;
 
     bool idempotentOverride_ = false;
     std::vector<IdempotentOverride> idempotentOverrideVec_;
