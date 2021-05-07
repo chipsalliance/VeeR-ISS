@@ -437,6 +437,12 @@ Hart<URV>::unpackMemoryProtection(unsigned entryIx, Pmp::Type& type,
       high = pmpVal;
       high = (high >> pmpG) << pmpG;
       high = high << 2;
+      if (high == 0)
+        {
+          type = Pmp::Type::Off;  // Empty range.
+          return true;
+        }
+
       high = high - 1;
       return true;
     }
