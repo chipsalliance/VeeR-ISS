@@ -2096,11 +2096,7 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
   if (triggerTripped_)
     return false;
 
-  cause = ExceptionCause::LOAD_ACC_FAULT;
-  secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
-  if (isAddrMemMapped(addr))
-    secCause = SecondaryCause::LOAD_ACC_PIC;
-  initiateLoadException(cause, virtAddr, secCause);
+  assert(0);
   return false;
 #endif
 }
