@@ -170,26 +170,24 @@ Interactive<URV>::stepCommand(Hart<URV>& hart, const std::string& /*line*/,
 
 
 template <typename URV>
-static
 void
-peekAllFpRegs(Hart<URV>& hart)
+Interactive<URV>::peekAllFpRegs(Hart<URV>& hart, std::ostream& out)
 {
   for (unsigned i = 0; i < hart.fpRegCount(); ++i)
     {
       uint64_t val = 0;
       if (hart.peekFpReg(i, val))
 	{
-	  std::cout << "f" << i << ": "
-		    << (boost::format("0x%016x") % val) << '\n';
+	  out << "f" << i << ": "
+              << (boost::format("0x%016x") % val) << '\n';
 	}
     }
 }
 
 
 template <typename URV>
-static
 void
-peekAllIntRegs(Hart<URV>& hart)
+Interactive<URV>::peekAllIntRegs(Hart<URV>& hart, std::ostream& out)
 {
   bool abiNames = hart.abiNames();
   auto hexForm = getHexForm<URV>(); // Format string for printing a hex val
@@ -205,27 +203,26 @@ peekAllIntRegs(Hart<URV>& hart)
 	    tag += "(" + std::to_string(i) + ")";
 	  tag += ":";
 
-          std::cout << (boost::format("%-9s") % tag)
-		    << (boost::format(hexForm) % val) << '\n';
+          out << (boost::format("%-9s") % tag)
+              << (boost::format(hexForm) % val) << '\n';
 	}
     }
 }
 
 
 template <typename URV>
-static
 void
-peekAllCsrs(Hart<URV>& hart)
+Interactive<URV>::peekAllCsrs(Hart<URV>& hart, std::ostream& out)
 {
   auto hexForm = getHexForm<URV>(); // Format string for printing a hex val
 
-  std::cout << (boost::format("%-23s") % "csr");
+  out << (boost::format("%-23s") % "csr");
   if (sizeof(URV) == 4)
-    std::cout << (boost::format("%-10s %-10s %-10s %-10s\n") % "value" %
-		  "reset" % "mask" % "pokemask");
+    out << (boost::format("%-10s %-10s %-10s %-10s\n") % "value" %
+            "reset" % "mask" % "pokemask");
   else
-    std::cout << (boost::format("%-18s %-18s %-18s %-10s\n") % "value" %
-		  "reset" % "mask" % "pokemask");
+    out << (boost::format("%-18s %-18s %-18s %-10s\n") % "value" %
+            "reset" % "mask" % "pokemask");
 
   for (size_t i = 0; i <= size_t(CsrNumber::MAX_CSR_); ++i)
     {
@@ -237,35 +234,35 @@ peekAllCsrs(Hart<URV>& hart)
 	  std::ostringstream oss;
 	  oss << name << "(0x" << std::hex << i << "):"  << std::dec;
 
-	  std::cout << (boost::format("%-23s") % oss.str())
-		    << (boost::format(hexForm) % val);
+	  out << (boost::format("%-23s") % oss.str())
+              << (boost::format(hexForm) % val);
 
 	  URV reset = 0, writeMask = 0, pokeMask = 0;
 	  if (hart.peekCsr(csr, val, reset, writeMask, pokeMask))
 	    {
-	      std::cout << ' ' << (boost::format(hexForm) % reset);
-	      std::cout << ' ' << (boost::format(hexForm) % writeMask);
-	      std::cout << ' ' << (boost::format(hexForm) % pokeMask);
+	      out << ' ' << (boost::format(hexForm) % reset);
+	      out << ' ' << (boost::format(hexForm) % writeMask);
+	      out << ' ' << (boost::format(hexForm) % pokeMask);
 	    }
-	  std::cout << '\n';
+	  out << '\n';
 	}
     }
 
-  std::cout << '\n';
+  out << '\n';
 
   PrivilegeMode pm = hart.privilegeMode();
-  std::cout << "Privilege mode: ";
+  out << "Privilege mode: ";
   switch(pm)
     {
-    case PrivilegeMode::User:       std::cout << "user\n";       break;
-    case PrivilegeMode::Supervisor: std::cout << "supervisor\n"; break;
-    case PrivilegeMode::Reserved:   std::cout << "reserved\n";   break;
-    case PrivilegeMode::Machine:    std::cout << "machine\n";    break;
+    case PrivilegeMode::User:       out << "user\n";       break;
+    case PrivilegeMode::Supervisor: out << "supervisor\n"; break;
+    case PrivilegeMode::Reserved:   out << "reserved\n";   break;
+    case PrivilegeMode::Machine:    out << "machine\n";    break;
     }
 
-  std::cout << '\n';
+  out << '\n';
 
-  std::cout << "pmpaddr  type mode locked low                high\n";
+  out << "pmpaddr  type mode locked low                high\n";
 
   uint64_t low = 0, high = 0;
   Pmp::Type type = Pmp::Type::Off;
@@ -280,7 +277,7 @@ peekAllCsrs(Hart<URV>& hart)
       std::string typeStr = Pmp::toString(type);
       std::string modeStr = Pmp::toString(mode);
       const char* lockStr = locked? "y" : "n";
-      std::cout << 
+      out << 
         (boost::format("%7d %5s %4s %6s 0x%016x 0x%016x") % ix % typeStr %
          modeStr % lockStr % low % high) << '\n';
     }
@@ -288,23 +285,22 @@ peekAllCsrs(Hart<URV>& hart)
 
 
 template <typename URV>
-static
 void
-peekAllTriggers(Hart<URV>& hart)
+Interactive<URV>::peekAllTriggers(Hart<URV>& hart, std::ostream& out)
 {
   auto hexForm = getHexForm<URV>(); // Format string for printing a hex val
 
-  std::cout << (boost::format("%-12s") % "trigger");
+  out << (boost::format("%-12s") % "trigger");
   if (sizeof(URV) == 4)
-    std::cout << (boost::format("%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n") %
-		  "value1" % "value2" % "value3" %
-		  "mask1" % "mask2" % "mask3" %
-		  "poke-mask1" % "poke-mask2"  % "poke-mask3");
+    out << (boost::format("%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n") %
+            "value1" % "value2" % "value3" %
+            "mask1" % "mask2" % "mask3" %
+            "poke-mask1" % "poke-mask2"  % "poke-mask3");
   else
-    std::cout << (boost::format("%-18s %-18s %-18s %-18s %-18s %-18s %-18s %-18s %-18s\n") %
-		  "value1" % "value2" % "value3" %
-		  "mask1" % "mask2" % "mask3" %
-		  "poke-mask1" % "poke-mask2"  % "poke-mask3");
+    out << (boost::format("%-18s %-18s %-18s %-18s %-18s %-18s %-18s %-18s %-18s\n") %
+            "value1" % "value2" % "value3" %
+            "mask1" % "mask2" % "mask3" %
+            "poke-mask1" % "poke-mask2"  % "poke-mask3");
 
 
   // value/reset/write-mask/poke-mask
@@ -322,17 +318,17 @@ peekAllTriggers(Hart<URV>& hart)
 			       pm1, pm2, pm3))
 	    {
 	      std::string name = "trigger" + std::to_string(trigger) + ":";
-	      std::cout << (boost::format("%-11s") % name);
-	      std::cout << ' ' << (boost::format(hexForm) % v1);
-	      std::cout << ' ' << (boost::format(hexForm) % v2);
-	      std::cout << ' ' << (boost::format(hexForm) % v3);
-	      std::cout << ' ' << (boost::format(hexForm) % wm1);
-	      std::cout << ' ' << (boost::format(hexForm) % wm2);
-	      std::cout << ' ' << (boost::format(hexForm) % wm3);
-	      std::cout << ' ' << (boost::format(hexForm) % pm1);
-	      std::cout << ' ' << (boost::format(hexForm) % pm2);
-	      std::cout << ' ' << (boost::format(hexForm) % pm3);
-	      std::cout << '\n';
+	      out << (boost::format("%-11s") % name);
+	      out << ' ' << (boost::format(hexForm) % v1);
+	      out << ' ' << (boost::format(hexForm) % v2);
+	      out << ' ' << (boost::format(hexForm) % v3);
+	      out << ' ' << (boost::format(hexForm) % wm1);
+	      out << ' ' << (boost::format(hexForm) % wm2);
+	      out << ' ' << (boost::format(hexForm) % wm3);
+	      out << ' ' << (boost::format(hexForm) % pm1);
+	      out << ' ' << (boost::format(hexForm) % pm2);
+	      out << ' ' << (boost::format(hexForm) % pm3);
+	      out << '\n';
 	    }
 	  else
 	    break;
@@ -370,7 +366,8 @@ peekMemory(Hart<URV>& hart, uint64_t addr0, uint64_t addr1, std::ostream& out)
 template <typename URV>
 bool
 Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
-			      const std::vector<std::string>& tokens)
+			      const std::vector<std::string>& tokens,
+                              std::ostream& out)
 {
   if (tokens.size() < 2)
     {
@@ -394,23 +391,23 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
 
   if (resource == "all")
     {
-      std::cout << "pc: " << (boost::format(hexForm) % hart.peekPc()) << '\n';
-      std::cout << "\n";
+      out << "pc: " << (boost::format(hexForm) % hart.peekPc()) << '\n';
+      out << "\n";
 
-      peekAllIntRegs(hart);
-      std::cout << "\n";
+      peekAllIntRegs(hart, out);
+      out << "\n";
 
-      peekAllCsrs(hart);
-      std::cout << "\n";
+      peekAllCsrs(hart, out);
+      out << "\n";
 
-      peekAllTriggers(hart);
+      peekAllTriggers(hart, out);
       return true;
     }
 
   if (resource == "pc")
     {
       URV pc = hart.peekPc();
-      std::cout << (boost::format(hexForm) % pc) << std::endl;
+      out << (boost::format(hexForm) % pc) << std::endl;
       return true;
     }
 
@@ -445,14 +442,14 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
           return peekMemory(hart, addr0, addr1, out);
         }
 
-      return peekMemory(hart, addr0, addr1, std::cout);
+      return peekMemory(hart, addr0, addr1, out);
     }
 
   if (resource == "r")
     {
       if (addrStr == "all")
 	{
-	  peekAllIntRegs(hart);
+	  peekAllIntRegs(hart, out);
 	  return true;
 	}
 
@@ -464,7 +461,7 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
 	}
       if (hart.peekIntReg(intReg, val))
 	{
-	  std::cout << (boost::format(hexForm) % val) << std::endl;
+	  out << (boost::format(hexForm) % val) << std::endl;
 	  return true;
 	}
       std::cerr << "Failed to read integer register: " << addrStr << '\n';
@@ -481,7 +478,7 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
 
       if (addrStr == "all")
 	{
-	  peekAllFpRegs(hart);
+	  peekAllFpRegs(hart, out);
 	  return true;
 	}
 
@@ -494,7 +491,7 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
       uint64_t fpVal = 0;
       if (hart.peekFpReg(fpReg, fpVal))
 	{
-	  std::cout << (boost::format("0x%016x") % fpVal) << std::endl;
+	  out << (boost::format("0x%016x") % fpVal) << std::endl;
 	  return true;
 	}
       std::cerr << "Failed to read fp register: " << addrStr << '\n';
@@ -505,7 +502,7 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
     {
       if (addrStr == "all")
 	{
-	  peekAllCsrs(hart);
+	  peekAllCsrs(hart, out);
 	  return true;
 	}
 
@@ -517,7 +514,7 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
 	}
       if (hart.peekCsr(csr->getNumber(), val))
 	{
-	  std::cout << (boost::format(hexForm) % val) << std::endl;
+	  out << (boost::format(hexForm) % val) << std::endl;
 	  return true;
 	}
       std::cerr << "Failed to read CSR: " << addrStr << '\n';
@@ -528,7 +525,7 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
     {
       if (addrStr == "all")
 	{
-	  peekAllTriggers(hart);
+	  peekAllTriggers(hart, out);
 	  return true;
 	}
 
@@ -538,9 +535,9 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
       uint64_t v1(0), v2(0), v3(0);
       if (hart.peekTrigger(trigger, v1, v2, v3))
 	{
-	  std::cout << (boost::format(hexForm) % v1) << ' '
-		    << (boost::format(hexForm) % v2) << ' '
-		    << (boost::format(hexForm) % v3) << std::endl;
+	  out << (boost::format(hexForm) % v1) << ' '
+              << (boost::format(hexForm) % v2) << ' '
+              << (boost::format(hexForm) % v3) << std::endl;
 	  return true;
 	}
       std::cerr << "Trigger number out of bounds: " << addrStr << '\n';
@@ -1455,7 +1452,7 @@ Interactive<URV>::executeLine(unsigned& currentHartId,
 
   if (command == "peek")
     {
-      if (not peekCommand(hart, line, tokens))
+      if (not peekCommand(hart, line, tokens, std::cout))
 	return false;
        if (commandLog)
 	 fprintf(commandLog, "%s\n", outLine.c_str());

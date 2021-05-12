@@ -14,6 +14,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <fstream>
 #include <map>
 #include <algorithm>
 #include <boost/format.hpp>
@@ -31,6 +32,7 @@
 #include "WhisperMessage.h"
 #include "Hart.hpp"
 #include "Server.hpp"
+#include "Interactive.hpp"
 
 
 using namespace WdRiscv;
@@ -765,6 +767,24 @@ Server<URV>::exceptionCommand(const WhisperMessage& req,
 }
 
 
+/// Dump all registers contents in tracefile.
+template <typename URV>
+static void
+serverPrintFinalRegisterState(std::shared_ptr<Hart<URV>> hartPtr)
+{
+  std::ofstream out("issfinal.log");
+  if (not out)
+    return;
+  Interactive<URV>::peekAllIntRegs(*hartPtr, out);
+  out << "\n";
+  Interactive<URV>::peekAllFpRegs(*hartPtr, out);
+  out << "\n";
+  Interactive<URV>::peekAllTriggers(*hartPtr, out);
+  out << "\n";
+  Interactive<URV>::peekAllCsrs(*hartPtr, out);
+}
+
+
 // Server mode loop: Receive command and send reply till a quit
 // command is received. Return true on successful termination (quit
 // received). Return false otherwise.
@@ -803,6 +823,7 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
 	    case Quit:
 	      if (commandLog)
 		fprintf(commandLog, "hart=%d quit\n", hartId);
+              serverPrintFinalRegisterState(hartPtr);
 	      return true;
 
 	    case Poke:
