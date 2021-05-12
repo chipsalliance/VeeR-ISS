@@ -1581,8 +1581,9 @@ Interactive<URV>::executeLine(unsigned& currentHartId,
 	  std::cerr << "No replay file defined. Use the replay_file to define one\n";
 	  return false;
 	}
+      bool replayDone = false;
       if (not replayCommand(currentHartId, line, tokens, traceFile, commandLog,
-			    replayStream, done))
+			    replayStream, replayDone))
 	return false;
       return true;
     }
