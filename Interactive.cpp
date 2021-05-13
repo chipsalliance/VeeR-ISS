@@ -300,6 +300,7 @@ Interactive<URV>::peekAllCsrs(Hart<URV>& hart, std::ostream& out)
         {
           if (not headerPrinted)
             {
+              out << "\n";
               out << "maco io cacheable low                high\n";
               headerPrinted = true;
             }
