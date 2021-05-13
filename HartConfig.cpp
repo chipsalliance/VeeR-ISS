@@ -1481,7 +1481,7 @@ unpackMacoValue(URV value, bool rv32, uint64_t& start, uint64_t& end,
   else
     {
       idempotent = (value & URV(Maco64Masks::SideEffect)) == 0;
-      cacheable = (value & URV(Maco64Masks::Cacheable)) == 0;
+      cacheable = (value & URV(Maco64Masks::Cacheable));
       enable = value & URV(Maco64Masks::Enable);
     }
 
@@ -1999,3 +1999,14 @@ HartConfig::finalizeCsrConfig<uint32_t>(System<uint32_t>&) const;
 
 template bool
 HartConfig::finalizeCsrConfig<uint64_t>(System<uint64_t>&) const;
+
+
+template
+void
+unpackMacoValue<uint32_t>(uint32_t value, bool rv32, uint64_t& start,
+                          uint64_t& end, bool& idempotent, bool& cacheable);
+
+template
+void
+unpackMacoValue<uint64_t>(uint64_t value, bool rv32, uint64_t& start,
+                          uint64_t& end, bool& idempotent, bool& cacheable);
