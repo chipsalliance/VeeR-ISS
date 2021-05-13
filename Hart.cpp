@@ -3215,9 +3215,15 @@ Hart<URV>::pokeCsr(CsrNumber csr, URV val)
     }
   else if (csr >= CsrNumber::MSPCBA and csr <= CsrNumber::MSPCC)
     updateStackChecker();
-  else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
-           (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
+  else if (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3)
     updateMemoryProtection();
+  else if (csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15)
+    {
+      unsigned config = csRegs_.getPmpConfigByteFromPmpAddr(csr);
+      auto type = Pmp::Type((config >> 3) & 3);
+      if (type != Pmp::Type::Off)
+        updateMemoryProtection();
+    }
   else if (csr == CsrNumber::SATP)
     updateAddressTranslation();
   else if (csr == CsrNumber::FCSR or csr == CsrNumber::FRM or csr == CsrNumber::FFLAGS)
@@ -8988,9 +8994,15 @@ Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
     }
   else if (csr >= CsrNumber::MSPCBA and csr <= CsrNumber::MSPCC)
     updateStackChecker();
-  else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
-           (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
+  else if (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3)
     updateMemoryProtection();
+  else if (csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15)
+    {
+      unsigned config = csRegs_.getPmpConfigByteFromPmpAddr(csr);
+      auto type = Pmp::Type((config >> 3) & 3);
+      if (type != Pmp::Type::Off)
+        updateMemoryProtection();
+    }
   else if (csr == CsrNumber::SATP)
     updateAddressTranslation();
   else if (csr == CsrNumber::FCSR or csr == CsrNumber::FRM or csr == CsrNumber::FFLAGS)
