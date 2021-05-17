@@ -68,7 +68,8 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
     {
       // AMO secondary cause has priority over ECC.
       if (cause == ExceptionCause::NONE or
-          secCause == SecondaryCause::STORE_ACC_DOUBLE_ECC)
+          secCause == SecondaryCause::STORE_ACC_DOUBLE_ECC or
+          secCause == SecondaryCause::STORE_ACC_PMP)
         {
           // Per spec cause is store-access-fault.
           cause = ExceptionCause::STORE_ACC_FAULT;
@@ -343,7 +344,8 @@ Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
     {
       // AMO secondary cause has priority over ECC.
       if (cause == ExceptionCause::NONE or
-          secCause == SecondaryCause::STORE_ACC_DOUBLE_ECC)
+          secCause == SecondaryCause::STORE_ACC_DOUBLE_ECC or
+          secCause == SecondaryCause::STORE_ACC_PMP)
         {
           // Per spec cause is store-access-fault.
           cause = ExceptionCause::STORE_ACC_FAULT;

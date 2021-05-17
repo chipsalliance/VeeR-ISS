@@ -212,7 +212,7 @@ Interactive<URV>::peekAllIntRegs(Hart<URV>& hart, std::ostream& out)
 
 template <typename URV>
 extern void
-unpackMacoValue(URV value, bool rv32, uint64_t& start, uint64_t& end,
+unpackMacoValue(URV value, URV mask, bool rv32, uint64_t& start, uint64_t& end,
                 bool& idempotent, bool& cacheable);
 
 
@@ -306,7 +306,8 @@ Interactive<URV>::peekAllCsrs(Hart<URV>& hart, std::ostream& out)
             }
           bool idempotent = false, cacheable = false;
           uint64_t low = 0, high = 0;
-          unpackMacoValue(value, rv32, low, high, idempotent, cacheable);
+          unpackMacoValue(value, maco->getWriteMask(), rv32, low, high,
+                          idempotent, cacheable);
           std::string ioStr = idempotent? "n" : "y";
           std::string cacheStr = cacheable? "y" : "n";
           out << 

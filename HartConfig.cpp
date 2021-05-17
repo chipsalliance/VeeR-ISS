@@ -1466,7 +1466,7 @@ enum class Maco64Masks : uint32_t
 
 template <typename URV>
 void
-unpackMacoValue(URV value, bool rv32, uint64_t& start, uint64_t& end,
+unpackMacoValue(URV value, URV mask, bool rv32, uint64_t& start, uint64_t& end,
                 bool& idempotent, bool& cacheable)
 {
   start = end = 0;
@@ -1490,9 +1490,9 @@ unpackMacoValue(URV value, bool rv32, uint64_t& start, uint64_t& end,
 
   // We want first zero starting from bit 7 and going towards most sig bit.
   value |= 0x7f;  // Set least sig 7 bits to 1
-  if (value == ~URV(0))
+  if (((value & mask) >> 7) == ((mask | 0x7f) >> 7))
     {
-      start = end = 0;   // Illegal setup: Does not match anything.
+      start = end = 0;   // Illegal setup: Address bits all set.
       return;
     }
 
@@ -1543,10 +1543,11 @@ defineMacoSideEffects(System<URV>& system)
 
           // Define post-write/post-poke callback. Upddate the idempotent
           // regions of the hart.
-          auto post = [hart, macoIx, rv32] (Csr<URV>& /*csr*/, URV val) -> void {
+          auto post = [hart, macoIx, rv32] (Csr<URV>& csr, URV val) -> void {
                         uint64_t start = 0, end = 0;
                         bool idempotent = false, cacheable = false;
-                        unpackMacoValue(val, rv32, start, end, idempotent, cacheable);
+                        URV mask = csr.getWriteMask();
+                        unpackMacoValue(val, mask, rv32, start, end, idempotent, cacheable);
                         hart->defineIdempotentOverride(macoIx, start, end, idempotent, cacheable);
                       };
 
@@ -2003,10 +2004,12 @@ HartConfig::finalizeCsrConfig<uint64_t>(System<uint64_t>&) const;
 
 template
 void
-unpackMacoValue<uint32_t>(uint32_t value, bool rv32, uint64_t& start,
-                          uint64_t& end, bool& idempotent, bool& cacheable);
+unpackMacoValue<uint32_t>(uint32_t value, uint32_t mask, bool rv32,
+                          uint64_t& start, uint64_t& end, bool& idempotent,
+                          bool& cacheable);
 
 template
 void
-unpackMacoValue<uint64_t>(uint64_t value, bool rv32, uint64_t& start,
-                          uint64_t& end, bool& idempotent, bool& cacheable);
+unpackMacoValue<uint64_t>(uint64_t value, uint64_t mask, bool rv32,
+                          uint64_t& start, uint64_t& end, bool& idempotent,
+                          bool& cacheable);
