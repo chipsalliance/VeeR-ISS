@@ -54,6 +54,10 @@ ifdef MEM_CALLBACKS
 override CPPFLAGS += -DMEM_CALLBACKS
 endif
 
+ifdef FAST_SLOPPY
+override CPPFLAGS += -DFAST_SLOPPY
+endif
+
 # Compile optimized code in opt directory.
 opt:
 	mkdir -p opt

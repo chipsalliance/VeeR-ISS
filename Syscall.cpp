@@ -55,7 +55,7 @@ using namespace WdRiscv;
 
 
 // Copy x86 stat buffer to riscv kernel_stat buffer.
-static void
+static size_t
 copyStatBufferToRiscv(const struct stat& buff, void* rvBuff)
 {
   char* ptr = reinterpret_cast<char*>(rvBuff);
@@ -66,7 +66,7 @@ copyStatBufferToRiscv(const struct stat& buff, void* rvBuff)
   *(reinterpret_cast<uint64_t*> (ptr)) = buff.st_uid;             ptr += 4;
   *(reinterpret_cast<uint64_t*> (ptr)) = buff.st_gid;             ptr += 4;
   *(reinterpret_cast<uint64_t*> (ptr)) = buff.st_rdev;            ptr += 8;
-  /* __pad1 */                                                   ptr += 8;
+  /* __pad1 */                                                    ptr += 8;
   *(reinterpret_cast<uint64_t*> (ptr)) = buff.st_size;            ptr += 8;
 
 #ifdef __APPLE__
@@ -93,11 +93,13 @@ copyStatBufferToRiscv(const struct stat& buff, void* rvBuff)
   *(reinterpret_cast<uint32_t*> (ptr)) = buff.st_ctim.tv_sec;     ptr += 4;
   *(reinterpret_cast<uint32_t*> (ptr)) = buff.st_ctim.tv_nsec;    ptr += 4;
 #endif
+
+  return ptr - reinterpret_cast<char*>(rvBuff);
 }
 
 
 // Copy x86 tms struct (used by times) to riscv (32-bit version).
-static void
+static size_t
 copyTmsToRiscv32(const struct tms& buff, void* rvBuff)
 {
   char* ptr = reinterpret_cast<char*> (rvBuff);
@@ -105,11 +107,12 @@ copyTmsToRiscv32(const struct tms& buff, void* rvBuff)
   *(reinterpret_cast<uint32_t*> (ptr)) = buff.tms_stime;          ptr += 4;
   *(reinterpret_cast<uint32_t*> (ptr)) = buff.tms_cutime;         ptr += 4;
   *(reinterpret_cast<uint32_t*> (ptr)) = buff.tms_cstime;         ptr += 4;
+  return ptr - reinterpret_cast<char*> (rvBuff);
 }
 
 
 // Copy x86 tms struct (used by times) to riscv (64-bit version).
-static void
+static size_t
 copyTmsToRiscv64(const struct tms& buff, void* rvBuff)
 {
   char* ptr = reinterpret_cast<char*> (rvBuff);
@@ -117,36 +120,40 @@ copyTmsToRiscv64(const struct tms& buff, void* rvBuff)
   *(reinterpret_cast<uint64_t*> (ptr)) = buff.tms_stime;          ptr += 8;
   *(reinterpret_cast<uint64_t*> (ptr)) = buff.tms_cutime;         ptr += 8;
   *(reinterpret_cast<uint64_t*> (ptr)) = buff.tms_cstime;         ptr += 8;
+  return ptr - reinterpret_cast<char*> (rvBuff);
 }
 
 
 // Copy x86 timeval buffer to riscv timeval buffer (32-bit version).
-static void
+static size_t
 copyTimevalToRiscv32(const struct timeval& buff, void* rvBuff)
 {
   char* ptr = reinterpret_cast<char*> (rvBuff);
   *(reinterpret_cast<uint64_t*> (ptr)) = buff.tv_sec;             ptr += 8;
   *(reinterpret_cast<uint32_t*> (ptr)) = buff.tv_usec;            ptr += 4;
+  return ptr - reinterpret_cast<char*> (rvBuff);
 }
 
 
 // Copy x86 timeval buffer to riscv timeval buffer (32-bit version).
-static void
+static size_t
 copyTimevalToRiscv64(const struct timeval& buff, void* rvBuff)
 {
   char* ptr = reinterpret_cast<char*> (rvBuff);
   *(reinterpret_cast<uint64_t*> (ptr)) = buff.tv_sec;             ptr += 8;
   *(reinterpret_cast<uint64_t*> (ptr)) = buff.tv_usec;            ptr += 8;
+  return ptr - reinterpret_cast<char*> (rvBuff);
 }
 
 
 // Copy x86 timezone to riscv
-static void
+static size_t
 copyTimezoneToRiscv(const struct timezone& buff, void* rvBuff)
 {
   char* ptr = reinterpret_cast<char*> (rvBuff);
   *(reinterpret_cast<uint32_t*> (ptr)) = buff.tz_minuteswest;     ptr += 4;
   *(reinterpret_cast<uint32_t*> (ptr)) = buff.tz_dsttime;         ptr += 4;
+  return ptr - reinterpret_cast<char*> (rvBuff);
 }
 
 
@@ -581,7 +588,8 @@ Syscall<URV>::emulate()
   URV a0 = hart_.peekIntReg(RegA0);
   URV a1 = hart_.peekIntReg(RegA1);
   URV a2 = hart_.peekIntReg(RegA2);
-  // using urv_ll = long long;
+
+  memChanges_.clear();
 
 #ifndef __MINGW64__
   URV a3 = hart_.peekIntReg(RegA3);
@@ -599,15 +607,26 @@ Syscall<URV>::emulate()
     case 17:       // getcwd
       {
 	size_t size = a1;
-	size_t buffAddr = 0;
-	if (not hart_.getSimMemAddr(a0, buffAddr))
-	  return SRV(-EINVAL);
+        size_t rvBuff = a0;
+
 	errno = 0;
-	if (not getcwd(reinterpret_cast<char*> (buffAddr), size))
+        char buffer[1024];
+        
+        if (not getcwd(buffer, sizeof(buffer)))
 	  return SRV(-errno);
+
+        size_t len = strlen(buffer) + 1;
+        if (len > size)
+          return SRV(-EINVAL);
+
+        for (size_t i = 0; i < len; ++i)
+          if (not hart_.pokeMemory(rvBuff+i, uint8_t(buffer[i]), true))
+            return SRV(-EINVAL);
+
 	// Linux getcwd system call returns count of bytes placed in buffer
 	// unlike the C-library interface which returns pointer to buffer.
-	return strlen(reinterpret_cast<char*> (buffAddr)) + 1;
+        memChanges_.push_back(AddressSize(rvBuff, len));
+        return len;
       }
 
     case 25:       // fcntl
@@ -615,19 +634,42 @@ Syscall<URV>::emulate()
 	int fd = effectiveFd(SRV(a0));
 	int cmd = SRV(a1);
 	void* arg = reinterpret_cast<void*> (size_t(a2));
+        int rc = 0;
 	switch (cmd)
 	  {
 	  case F_GETLK:
 	  case F_SETLK:
 	  case F_SETLKW:
 	    {
-	      size_t addr = 0;
-	      if (not hart_.getSimMemAddr(a2, addr))
-		return SRV(-EINVAL);
-	      arg = reinterpret_cast<void*> (addr);
+              // Assume linux and riscv have same flock structure.
+              // Copy riscv flock struct into fl.
+              struct flock fl;
+              uint8_t* ptr = reinterpret_cast<uint8_t*>(&fl);
+
+              for (size_t i = 0; i < sizeof(fl); ++i)
+                {
+                  uint8_t byte = 0;
+                  if (not hart_.peekMemory(a2 + i, byte, true))
+                    return SRV(-EINVAL);
+                  ptr[i] = byte;
+                }
+
+              rc = fcntl(fd, cmd, &fl);
+              if (rc < 0)
+                return rc;
+
+              for (size_t i = 0; i < sizeof(fl); ++i)
+                {
+                  uint8_t byte = ptr[i];
+                  if (not hart_.pokeMemory(a2 + i, byte, true))
+                    return SRV(-EINVAL);
+                }
 	    }
+            break;
+
+          default:
+            rc = fcntl(fd, cmd, arg);
 	  }
-	int rc = fcntl(fd, cmd, arg);
 	return rc;
       }
 
@@ -741,6 +783,8 @@ Syscall<URV>::emulate()
 
 	errno = 0;
 	int rc = getdirentries64(fd, reinterpret_cast<char*> (buffAddr), count, &base);
+        if (rc > 0)
+          memChanges_.push_back(AddressSize(buffAddr, rc));
 	return rc < 0 ? SRV(-errno) : rc;
 #endif
       }
@@ -812,6 +856,8 @@ Syscall<URV>::emulate()
 	errno = 0;
 	ssize_t rc = readlinkat(dirfd, reinterpret_cast<const char*> (pathAddr),
 				reinterpret_cast<char*> (bufAddr), bufSize);
+        if (rc > 0)
+          memChanges_.push_back(AddressSize(bufAddr, rc));
 	return  rc < 0 ? SRV(-errno) : rc;
       }
 
@@ -836,7 +882,8 @@ Syscall<URV>::emulate()
 	  return SRV(-errno);
 
 	// RvBuff contains an address: We cast it to a pointer.
-        copyStatBufferToRiscv(buff, reinterpret_cast<void*> (rvBuff));
+        size_t len = copyStatBufferToRiscv(buff, reinterpret_cast<void*> (rvBuff));
+        memChanges_.push_back(AddressSize(rvBuff, len));
 	return rc;
       }
 #endif
@@ -855,7 +902,8 @@ Syscall<URV>::emulate()
 	  return SRV(-errno);
 
 	// RvBuff contains an address: We cast it to a pointer.
-        copyStatBufferToRiscv(buff, reinterpret_cast<void*> (rvBuff));
+        size_t len = copyStatBufferToRiscv(buff, reinterpret_cast<void*> (rvBuff));
+        memChanges_.push_back(AddressSize(rvBuff, len));
 	return rc;
       }
 
@@ -902,6 +950,8 @@ Syscall<URV>::emulate()
 
 	errno = 0;
 	ssize_t rc = read(fd, reinterpret_cast<void*> (buffAddr), count);
+        if (rc > 0)
+          memChanges_.push_back(AddressSize(buffAddr, rc));
 	return rc < 0 ? SRV(-errno) : rc;
       }
 
@@ -935,6 +985,8 @@ Syscall<URV>::emulate()
 
         int flags = a3;
         int rc = utimensat(dirfd, path, spec, flags);
+        if (rc >= 0)
+          memChanges_.push_back(AddressSize(timeAddr, sizeof(*spec)));
         return rc < 0 ? SRV(-errno) : rc;
       }
 
@@ -964,10 +1016,13 @@ Syscall<URV>::emulate()
 	if (ticks < 0)
 	  return SRV(-errno);
 
+        size_t len = 0;
 	if (sizeof(URV) == 4)
-	  copyTmsToRiscv32(tms0, reinterpret_cast<void*> (buffAddr));
+	  len = copyTmsToRiscv32(tms0, reinterpret_cast<void*> (buffAddr));
 	else
-	  copyTmsToRiscv64(tms0, reinterpret_cast<void*> (buffAddr));
+	  len = copyTmsToRiscv64(tms0, reinterpret_cast<void*> (buffAddr));
+
+        memChanges_.push_back(AddressSize(buffAddr, len));
 	
 	return ticks;
       }
@@ -982,7 +1037,11 @@ Syscall<URV>::emulate()
 
 	errno = 0;
 	int rc = uname(uts);
-	strcpy(uts->release, "5.14.0");
+        if (rc >= 0)
+          {
+            strcpy(uts->release, "5.14.0");
+            memChanges_.push_back(AddressSize(buffAddr, sizeof(*uts)));
+          }
 	return rc < 0 ? SRV(-errno) : rc;
       }
 
@@ -1012,14 +1071,19 @@ Syscall<URV>::emulate()
 
 	if (tvAddr)
 	  {
+            size_t len = 0;
 	    if (sizeof(URV) == 4)
-	      copyTimevalToRiscv32(tv0, reinterpret_cast<void*> (tvAddr));
+	      len = copyTimevalToRiscv32(tv0, reinterpret_cast<void*> (tvAddr));
 	    else
-	      copyTimevalToRiscv64(tv0, reinterpret_cast<void*> (tvAddr));
+	      len = copyTimevalToRiscv64(tv0, reinterpret_cast<void*> (tvAddr));
+            memChanges_.push_back(AddressSize(tvAddr, len));
 	  }
-	
+
 	if (tzAddr)
-	  copyTimezoneToRiscv(tz0, reinterpret_cast<void*> (tzAddr));
+          {
+            size_t len = copyTimezoneToRiscv(tz0, reinterpret_cast<void*> (tzAddr));
+            memChanges_.push_back(AddressSize(tzAddr, len));
+          }
 
 	return rc;
       }
@@ -1160,10 +1224,13 @@ Syscall<URV>::emulate()
 	  return SRV(-EINVAL);
 
 	// RvBuff contains an address: We cast it to a pointer.
-        copyStatBufferToRiscv(buff, reinterpret_cast<void*> (rvBuff));
+        size_t len = copyStatBufferToRiscv(buff, reinterpret_cast<void*> (rvBuff));
+        memChanges_.push_back(AddressSize(rvBuff, len));
 	return rc;
       }
     }
+
+  // using urv_ll = long long;
   //printf("syscall %s (0x%llx, 0x%llx, 0x%llx, 0x%llx) = 0x%llx\n",names[num].c_str(),urv_ll(a0), urv_ll(a1),urv_ll(a2), urv_ll(a3), urv_ll(retVal));
   //printf("syscall %s (0x%llx, 0x%llx, 0x%llx, 0x%llx) = unimplemented\n",names[num].c_str(),urv_ll(a0), urv_ll(a1),urv_ll(a2), urv_ll(a3));
   if (num < reportedCalls.size() and reportedCalls.at(num))

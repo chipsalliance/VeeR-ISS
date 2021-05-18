@@ -130,5 +130,8 @@ namespace WdRiscv
     std::unordered_map<int, std::string> fdPath_;
     std::unordered_set<std::string> readPaths_;
     std::unordered_set<std::string> writePaths_;
+
+    typedef std::pair<uint64_t, uint64_t> AddressSize;
+    std::vector<AddressSize> memChanges_;  // Memory locations changed by syscall.
   };
 }
