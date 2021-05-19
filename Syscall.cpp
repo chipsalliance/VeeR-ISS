@@ -1287,9 +1287,7 @@ Syscall<URV>::emulate()
 
     case 1024: // open
       {
-	size_t pathAddr = 0;
-	if (not hart_.getSimMemAddr(a0, pathAddr))
-	  return SRV(-1);
+	uint64_t rvPath = a0;
 	int flags = a1;
 	int x86Flags = 0;
 	if (linux_)
@@ -1303,12 +1301,16 @@ Syscall<URV>::emulate()
 	  }
 	int mode = a2;
 
+        char path[1024];
+        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
+          return SRV(-EINVAL);
+
 	errno = 0;
-	int rc = open(reinterpret_cast<const char*> (pathAddr), x86Flags, mode);
+	int rc = open(path, x86Flags, mode);
         if (rc >= 0)
           {
             bool isRead = not (x86Flags & (O_WRONLY | O_RDWR));
-            rc = registerLinuxFd(rc, reinterpret_cast<char*> (pathAddr), isRead);
+            rc = registerLinuxFd(rc, path, isRead);
             if (rc < 0)
               return SRV(-EINVAL);
           }
@@ -1317,12 +1319,14 @@ Syscall<URV>::emulate()
 
     case 1026: // unlink
       {
-	size_t pathAddr = 0;
-	if (not hart_.getSimMemAddr(a0, pathAddr))
-	  return SRV(-1);
+        uint64_t rvPath = a0;
+
+        char path[1024];
+        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
+          return SRV(-EINVAL);
 
 	errno = 0;
-	int rc = unlink(reinterpret_cast<char*> (pathAddr));
+	int rc = unlink(path);
 	return rc < 0 ? SRV(-errno) : rc;
       }
 
