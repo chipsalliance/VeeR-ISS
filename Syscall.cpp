@@ -940,24 +940,31 @@ Syscall<URV>::emulate()
     case 78:       // readlinat
       {
 	int dirfd = effectiveFd(SRV(a0));
-	URV path = a1;
-	URV buf = a2;
-	URV bufSize = a3;
+	URV rvPath = a1, rvBuff = a2, buffSize = a3;
 
-	size_t pathAddr = 0;
-	if (not hart_.getSimMemAddr(path, pathAddr))
-	  return SRV(-EINVAL);
+        char path[1024];
+        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
+          return SRV(-EINVAL);
 
-	size_t bufAddr = 0;
-	if (not hart_.getSimMemAddr(buf, bufAddr))
-	  return SRV(-EINVAL);
+        std::vector<char> buff(buffSize);
 
 	errno = 0;
-	ssize_t rc = readlinkat(dirfd, reinterpret_cast<const char*> (pathAddr),
-				reinterpret_cast<char*> (bufAddr), bufSize);
-        if (rc > 0)
-          memChanges_.push_back(AddressSize(a2, rc));
-	return  rc < 0 ? SRV(-errno) : rc;
+	ssize_t rc = readlinkat(dirfd, path, buff.data(), buffSize);
+        if (rc < 0)
+          return SRV(-errno);
+
+        SRV written = 0;
+        for (ssize_t i = 0; i < rc; ++i)
+          {
+            if (hart_.pokeMemory(rvBuff + i, uint8_t(buff.at(i)), true))
+              written++;
+            else
+              break;
+          }
+
+        if (written)
+          memChanges_.push_back(AddressSize(rvBuff, written));
+	return  written == rc ? written : SRV(-EINVAL);
       }
 
     case 79:       // fstatat
