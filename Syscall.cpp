@@ -874,7 +874,7 @@ Syscall<URV>::emulate()
 	errno = 0;
 	int rc = getdirentries64(fd, reinterpret_cast<char*> (buffAddr), count, &base);
         if (rc > 0)
-          memChanges_.push_back(AddressSize(buffAddr, rc));
+          memChanges_.push_back(AddressSize(a1, rc));
 	return rc < 0 ? SRV(-errno) : rc;
 #endif
       }
@@ -947,7 +947,7 @@ Syscall<URV>::emulate()
 	ssize_t rc = readlinkat(dirfd, reinterpret_cast<const char*> (pathAddr),
 				reinterpret_cast<char*> (bufAddr), bufSize);
         if (rc > 0)
-          memChanges_.push_back(AddressSize(bufAddr, rc));
+          memChanges_.push_back(AddressSize(a2, rc));
 	return  rc < 0 ? SRV(-errno) : rc;
       }
 
@@ -1039,7 +1039,7 @@ Syscall<URV>::emulate()
 	errno = 0;
 	ssize_t rc = read(fd, reinterpret_cast<void*> (buffAddr), count);
         if (rc > 0)
-          memChanges_.push_back(AddressSize(buffAddr, rc));
+          memChanges_.push_back(AddressSize(a1, rc));
 	return rc < 0 ? SRV(-errno) : rc;
       }
 
@@ -1065,16 +1065,21 @@ Syscall<URV>::emulate()
         if (not copyRvString(hart_, rvPath, path, sizeof(path)))
 	  return SRV(-EINVAL);
 
-        size_t timeAddr = 0;
-        if (not hart_.getSimMemAddr(a2, timeAddr))
-          return SRV(-EINVAL);
-
-        const struct timespec* spec = reinterpret_cast<struct timespec*> (timeAddr);
+        uint64_t rvTimeAddr = a2;
+        timespec spec[2];
+        uint8_t* ptr = reinterpret_cast<uint8_t*>(&spec);
+        for (size_t i = 0; i < sizeof(spec); ++i)
+          {
+            uint8_t byte = 0;
+            if (not hart_.peekMemory(rvTimeAddr + i, byte, true))
+              return SRV(-EINVAL);
+            ptr[i] = byte;
+          }
 
         int flags = a3;
         int rc = utimensat(dirfd, path, spec, flags);
         if (rc >= 0)
-          memChanges_.push_back(AddressSize(timeAddr, sizeof(*spec)));
+          memChanges_.push_back(AddressSize(rvTimeAddr, sizeof(*spec)));
         return rc < 0 ? SRV(-errno) : rc;
       }
 
@@ -1110,7 +1115,7 @@ Syscall<URV>::emulate()
 	else
 	  len = copyTmsToRiscv64(tms0, reinterpret_cast<void*> (buffAddr));
 
-        memChanges_.push_back(AddressSize(buffAddr, len));
+        memChanges_.push_back(AddressSize(a0, len));
 	
 	return ticks;
       }
@@ -1128,7 +1133,7 @@ Syscall<URV>::emulate()
         if (rc >= 0)
           {
             strcpy(uts->release, "5.14.0");
-            memChanges_.push_back(AddressSize(buffAddr, sizeof(*uts)));
+            memChanges_.push_back(AddressSize(a0, sizeof(*uts)));
           }
 	return rc < 0 ? SRV(-errno) : rc;
       }
@@ -1164,13 +1169,13 @@ Syscall<URV>::emulate()
 	      len = copyTimevalToRiscv32(tv0, reinterpret_cast<void*> (tvAddr));
 	    else
 	      len = copyTimevalToRiscv64(tv0, reinterpret_cast<void*> (tvAddr));
-            memChanges_.push_back(AddressSize(tvAddr, len));
+            memChanges_.push_back(AddressSize(a0, len));
 	  }
 
 	if (tzAddr)
           {
             size_t len = copyTimezoneToRiscv(tz0, reinterpret_cast<void*> (tzAddr));
-            memChanges_.push_back(AddressSize(tzAddr, len));
+            memChanges_.push_back(AddressSize(a1, len));
           }
 
 	return rc;
