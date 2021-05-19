@@ -54,6 +54,24 @@ using namespace WdRiscv;
 #endif
 
 
+template <typename URV>
+static bool
+copyRvString(Hart<URV>& hart, uint64_t rvAddr,
+             char dest[], size_t destSize)
+{
+  for (size_t i = 0; i < destSize; ++i)
+    {
+      uint8_t byte = 0;
+      if (not hart.peekMemory(rvAddr + i, byte, true))
+        return false;
+      dest[i] = byte;
+      if (byte == 0)
+        return true;
+    }
+  return false;
+}
+
+
 // Copy x86 stat buffer to riscv kernel_stat buffer.
 template <typename URV>
 static size_t
@@ -757,13 +775,16 @@ Syscall<URV>::emulate()
     case 35:       // unlinkat
       {
 	int fd = effectiveFd(SRV(a0));
-	size_t pathAddr = 0;
-	if (not hart_.getSimMemAddr(a1, pathAddr))
-	  return SRV(-1);
+
+        uint64_t rvPath = a1;
+        char path[1024];
+        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
+          return SRV(-EINVAL);
+
 	int flags = SRV(a2);
 
 	errno = 0;
-	int rc = unlinkat(fd, reinterpret_cast<char*> (pathAddr), flags);
+	int rc = unlinkat(fd, path, flags);
 	return rc < 0 ? SRV(-errno) : rc;
       }
 
@@ -776,12 +797,13 @@ Syscall<URV>::emulate()
 
     case 49:       // chdir
       {
-	size_t pathAddr = 0;
-	if (not hart_.getSimMemAddr(a0, pathAddr))
-	  return SRV(-1);
+        uint64_t rvPath = a0;
+        char path[1024];
+        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
+          return SRV(-EINVAL);
 
 	errno = 0;
-	int rc = chdir(reinterpret_cast<char*> (pathAddr));
+	int rc = chdir(path);
 	return rc < 0 ? SRV(-errno) : rc;
       }
 
@@ -789,10 +811,10 @@ Syscall<URV>::emulate()
       {
         int dirfd = effectiveFd(SRV(a0));
 
-	size_t pathAddr = 0;
-	if (not hart_.getSimMemAddr(a1, pathAddr))
-	  return SRV(-EINVAL);
-	const char* path = reinterpret_cast<const char*> (pathAddr);
+        uint64_t rvPath = a1;
+        char path[1024];
+        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
+          return SRV(-EINVAL);
 
         mode_t mode = a2;
         int flags = 0; // Should be a3 -- non-zero not working on rhat6
@@ -804,10 +826,10 @@ Syscall<URV>::emulate()
       {
 	int dirfd = effectiveFd(SRV(a0));
 
-	size_t pathAddr = 0;
-	if (not hart_.getSimMemAddr(a1, pathAddr))
-	  return SRV(-EINVAL);
-	const char* path = reinterpret_cast<const char*> (pathAddr);
+	uint64_t rvPath = a1;
+        char path[1024];
+        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
+          return SRV(-EINVAL);
 
 	int flags = a2;
 	int x86Flags = 0;
@@ -934,22 +956,10 @@ Syscall<URV>::emulate()
 	int dirFd = effectiveFd(SRV(a0));
 
         // Copy rv path into path.
-	uint64_t rvPath = a1;
+        uint64_t rvPath = a1;
         char path[1024];
-        size_t lim = sizeof(path);
-        path[lim-1] = 0;
-
-        for (size_t i = 0; i < lim; ++i)
-          {
-            uint8_t byte = 0;
-            if (not hart_.peekMemory(rvPath + i, byte, true))
-              return SRV(-EINVAL);
-            path[i] = byte;
-            if (byte == 0)
-              break;
-          }
-        if (path[lim-1] != 0)
-	  return SRV(-EINVAL);
+        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
+          return SRV(-EINVAL);
 
 	uint64_t rvBuff = a2;
 	int flags = a3;
@@ -1050,10 +1060,10 @@ Syscall<URV>::emulate()
       {
         int dirfd = effectiveFd(SRV(a0));
 
-	size_t pathAddr = 0;
-	if (not hart_.getSimMemAddr(a1, pathAddr))
+	uint64_t rvPath = a1;
+        char path[1024];
+        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
 	  return SRV(-EINVAL);
-	const char* path = reinterpret_cast<const char*> (pathAddr);
 
         size_t timeAddr = 0;
         if (not hart_.getSimMemAddr(a2, timeAddr))
@@ -1229,16 +1239,17 @@ Syscall<URV>::emulate()
 
     case 276:  // rename
       {
-        size_t pathAddr = 0;
-        if (not hart_.getSimMemAddr(a1, pathAddr))
+        size_t pathAddr = a1;
+        char oldName[1024];
+        if (not copyRvString(hart_, pathAddr, oldName, sizeof(oldName)))
           return SRV(-EINVAL);
-        const char* oldName = reinterpret_cast<const char*> (pathAddr);
 
-        size_t newPathAddr = 0;
-        if (not hart_.getSimMemAddr(a3, newPathAddr))
+        size_t newPathAddr = a3;
+        char newName[1024];
+        if (not copyRvString(hart_, newPathAddr, newName, sizeof(newName)))
           return SRV(-EINVAL);
-        const char* newName = reinterpret_cast<const char*> (newPathAddr);
 
+        errno = 0;
         int result = rename(oldName, newName);
         return (result == -1) ? -errno : result;
       }
@@ -1290,20 +1301,8 @@ Syscall<URV>::emulate()
 
         // Copy rv path into path.
         char path[1024];
-        size_t lim = sizeof(path);
-        path[lim-1] = 0;
-
-        for (size_t i = 0; i < lim; ++i)
-          {
-            uint8_t byte = 0;
-            if (not hart_.peekMemory(rvPath + i, byte, true))
-              return SRV(-EINVAL);
-            path[i] = byte;
-            if (byte == 0)
-              break;
-          }
-        if (path[lim-1] != 0)
-	  return SRV(-EINVAL);
+        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
+          return SRV(-EINVAL);
 
 	struct stat buff;
 	errno = 0;
