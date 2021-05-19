@@ -74,17 +74,32 @@ copyRvString(Hart<URV>& hart, uint64_t rvAddr,
 
 template <typename URV, typename T>
 static bool
-readHartMemory(Hart<URV>& hart, uint64_t addr, uint64_t size, T* dest)
+readHartMemory(Hart<URV>& hart, uint64_t readAddr, uint64_t size, T* dest)
 {
   for (uint64_t i = 0; i < size; ++i)
     {
       uint8_t byte = 0;
-      if (not hart.peekMemory(addr + i, byte, true))
+      if (not hart.peekMemory(readAddr + i, byte, true))
         return false;
       dest[i] = byte;
     }
 
   return true;
+}
+
+
+
+template <typename URV, typename T>
+static uint64_t
+writeHartMemory(Hart<URV>& hart, T* data, uint64_t writeAddr, uint64_t size)
+{
+  for (uint64_t i = 0; i < size; ++i)
+    {
+      uint8_t byte = data[i];
+      if (not hart.pokeMemory(writeAddr + i, byte, true))
+        return i;
+    }
+  return size;
 }
 
 
@@ -755,14 +770,11 @@ Syscall<URV>::emulate()
               if (rc < 0)
                 return rc;
 
-              for (size_t i = 0; i < sizeof(fl); ++i)
-                {
-                  uint8_t byte = ptr[i];
-                  if (not hart_.pokeMemory(a2 + i, byte, true))
-                    return SRV(-EINVAL);
-                }
+              uint64_t written = writeHartMemory(hart_, ptr, a2, sizeof(fl));
+              if (written)
+                memChanges_.push_back(AddressSize(a2, written));
+              return written == sizeof(fl)? rc : SRV(-EINVAL);
 	    }
-            break;
 
           default:
             rc = fcntl(fd, cmd, arg);
@@ -886,13 +898,10 @@ Syscall<URV>::emulate()
 	ssize_t rc = getdirentries64(fd, buff.data(), count, &base);
         if (rc >= 0)
           {
-            bool ok = true;
-            ssize_t ii = 0;
-            for (ii = 0; ii < rc and ok; ++ii)
-              ok = hart_.pokeMemory(rvBuff + ii, uint8_t(buff.at(ii)), true);
-            if (ii)
-              memChanges_.push_back(AddressSize(rvBuff, ii));
-            return ok? rc : SRV(-EINVAL);
+            ssize_t written = writeHartMemory(hart_, buff.data(), rvBuff, rc);
+            if (written)
+              memChanges_.push_back(AddressSize(rvBuff, written));
+            return written == rc? rc : SRV(-EINVAL);
           }
 	return SRV(-errno);
 #endif
@@ -959,15 +968,7 @@ Syscall<URV>::emulate()
         if (rc < 0)
           return SRV(-errno);
 
-        SRV written = 0;
-        for (ssize_t i = 0; i < rc; ++i)
-          {
-            if (hart_.pokeMemory(rvBuff + i, uint8_t(buff.at(i)), true))
-              written++;
-            else
-              break;
-          }
-
+        ssize_t written = writeHartMemory(hart_, buff.data(), rvBuff, rc);
         if (written)
           memChanges_.push_back(AddressSize(rvBuff, written));
 	return  written == rc ? written : SRV(-EINVAL);
@@ -1053,28 +1054,36 @@ Syscall<URV>::emulate()
     case 63: // read
       {
 	int fd = effectiveFd(SRV(a0));
-	size_t buffAddr = 0;
-	if (not hart_.getSimMemAddr(a1, buffAddr))
-	  return SRV(-1);
+
+	uint64_t buffAddr = a1;
 	size_t count = a2;
 
+        std::vector<uint8_t> temp(count);
+
 	errno = 0;
-	ssize_t rc = read(fd, reinterpret_cast<void*> (buffAddr), count);
-        if (rc > 0)
-          memChanges_.push_back(AddressSize(a1, rc));
-	return rc < 0 ? SRV(-errno) : rc;
+	ssize_t rc = read(fd, temp.data(), count);
+        if (rc < 0)
+          return SRV(-errno);
+
+        ssize_t written = writeHartMemory(hart_, temp.data(), buffAddr, rc);
+        if (written)
+          memChanges_.push_back(AddressSize(buffAddr, written));
+	return written == rc? written : SRV(-EINVAL);
       }
 
     case 64: // write
       {
 	int fd = effectiveFd(SRV(a0));
-	size_t buffAddr = 0;
-	if (not hart_.getSimMemAddr(a1, buffAddr))
-	  return SRV(-1);
+
+	uint64_t buffAddr = a1;
 	size_t count = a2;
 
+        std::vector<uint8_t> temp(count);
+        if (not readHartMemory(hart_, buffAddr, count, temp.data()))
+          return SRV(-EINVAL);
+
 	errno = 0;
-	auto rc = write(fd, reinterpret_cast<void*> (buffAddr), count);
+	auto rc = write(fd, temp.data(), count);
 	return rc < 0 ? SRV(-errno) : rc;
       }
 
