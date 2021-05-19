@@ -865,17 +865,25 @@ Syscall<URV>::emulate()
 	// TBD: double check that struct linux_dirent is same
 	// in x86 and RISCV 32/64.
 	int fd = effectiveFd(SRV(a0));
-	size_t buffAddr = 0;
-	if (not hart_.getSimMemAddr(a1, buffAddr))
-	  return SRV(-EINVAL);
+        uint64_t rvBuff = a1;
 	size_t count = a2;
 	off64_t base = 0;
 
+        std::vector<char> buff(count);
+
 	errno = 0;
-	int rc = getdirentries64(fd, reinterpret_cast<char*> (buffAddr), count, &base);
-        if (rc > 0)
-          memChanges_.push_back(AddressSize(a1, rc));
-	return rc < 0 ? SRV(-errno) : rc;
+	ssize_t rc = getdirentries64(fd, buff.data(), count, &base);
+        if (rc >= 0)
+          {
+            bool ok = true;
+            ssize_t ii = 0;
+            for (ii = 0; ii < rc and ok; ++ii)
+              ok = hart_.pokeMemory(rvBuff + ii, uint8_t(buff.at(ii)), true);
+            if (ii)
+              memChanges_.push_back(AddressSize(rvBuff, ii));
+            return ok? rc : SRV(-EINVAL);
+          }
+	return SRV(-errno);
 #endif
       }
 
@@ -893,39 +901,40 @@ Syscall<URV>::emulate()
     case 66:       // writev
       {
 	int fd = effectiveFd(SRV(a0));
+	URV rvIov = a1;
+	SRV count = a2;
 
-	size_t iovAddr = 0;
-	if (not hart_.getSimMemAddr(a1, iovAddr))
-	  return SRV(-EINVAL);
+        std::vector< std::vector<char> > buffers(count);
+        std::vector<struct iovec> iov(count);
 
-	int count = a2;
+        for (SRV i = 0; i < count; ++i)
+          {
+            URV base = 0, len = 0;
+            if (not hart_.peekMemory(rvIov, base, true))
+              return SRV(-EINVAL);
+            rvIov += sizeof(base);
 
-	unsigned errors = 0;
-	struct iovec* iov = new struct iovec [count];
-	for (int i = 0; i < count; ++i)
-	  {
-	    URV* vec = reinterpret_cast<URV*> (iovAddr);
-	    URV base = vec[i*2];
-	    URV len = vec[i*2+1];
-	    size_t addr = 0;
-	    if (not hart_.getSimMemAddr(base, addr))
-	      {
-		errors++;
-		break;
-	      }
-	    iov[i].iov_base = reinterpret_cast<void*> (addr);
-	    iov[i].iov_len = len;
-	  }
-	ssize_t rc = -EINVAL;
-	if (not errors)
-	  {
-	    errno = 0;
-	    rc = writev(fd, iov, count);
-	    rc = rc < 0 ? SRV(-errno) : rc;
-	  }
+            if (not hart_.peekMemory(rvIov, len, true))
+              return SRV(-EINVAL);
+            rvIov += sizeof(len);
 
-	delete [] iov;
-	return SRV(rc);
+            auto& buffer = buffers.at(i);
+            buffer.resize(len);
+            for (URV j = 0; j < len; j++)
+              {
+                uint8_t byte = 0;
+                if (not hart_.peekMemory(base+j, byte, true))
+                  return SRV(-EINVAL);
+                buffer.at(j) = byte;
+              }
+
+            iov.at(i).iov_base = buffer.data();
+            iov.at(i).iov_len = len;
+          }
+
+        errno = 0;
+        ssize_t rc = writev(fd, iov.data(), count);
+        return rc < 0 ? SRV(-errno) : rc;
       }
 
     case 78:       // readlinat
