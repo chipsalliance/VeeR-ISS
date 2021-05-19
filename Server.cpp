@@ -379,6 +379,11 @@ Server<URV>::peekCommand(const WhisperMessage& req, WhisperMessage& reply)
 	  return true;
 	}
       break;
+    case 'p':
+      {
+        reply.value = hart.peekPc();
+        break;
+      }
     }
 
   reply.type = Invalid;
@@ -839,10 +844,17 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
 	    case Peek:
 	      peekCommand(msg, reply);
 	      if (commandLog)
-		fprintf(commandLog, "hart=%d peek %c %s # ts=%s tag=%s\n", hartId,
-			msg.resource,
-			(boost::format(hexForm) % msg.address).str().c_str(),
-			timeStamp.c_str(), msg.tag);
+                {
+                  if (msg.resource == 'p')
+                    fprintf(commandLog, "hart=%d peek pc # ts=%s tag=%s\n",
+                            hartId, timeStamp.c_str(), msg.tag);
+                  else
+                    fprintf(commandLog, "hart=%d peek %c %s # ts=%s tag=%s\n",
+                            hartId,
+                            msg.resource,
+                            (boost::format(hexForm) % msg.address).str().c_str(),
+                            timeStamp.c_str(), msg.tag);
+                }
 	      break;
 
 	    case Step:
