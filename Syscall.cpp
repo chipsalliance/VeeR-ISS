@@ -72,6 +72,22 @@ copyRvString(Hart<URV>& hart, uint64_t rvAddr,
 }
 
 
+template <typename URV, typename T>
+static bool
+readHartMemory(Hart<URV>& hart, uint64_t addr, uint64_t size, T* dest)
+{
+  for (uint64_t i = 0; i < size; ++i)
+    {
+      uint8_t byte = 0;
+      if (not hart.peekMemory(addr + i, byte, true))
+        return false;
+      dest[i] = byte;
+    }
+
+  return true;
+}
+
+
 // Copy x86 stat buffer to riscv kernel_stat buffer.
 template <typename URV>
 static size_t
@@ -732,13 +748,8 @@ Syscall<URV>::emulate()
               struct flock fl;
               uint8_t* ptr = reinterpret_cast<uint8_t*>(&fl);
 
-              for (size_t i = 0; i < sizeof(fl); ++i)
-                {
-                  uint8_t byte = 0;
-                  if (not hart_.peekMemory(a2 + i, byte, true))
-                    return SRV(-EINVAL);
-                  ptr[i] = byte;
-                }
+              if (not readHartMemory(hart_, a2, sizeof(fl), ptr))
+                return SRV(-EINVAL);
 
               rc = fcntl(fd, cmd, &fl);
               if (rc < 0)
@@ -920,13 +931,8 @@ Syscall<URV>::emulate()
 
             auto& buffer = buffers.at(i);
             buffer.resize(len);
-            for (URV j = 0; j < len; j++)
-              {
-                uint8_t byte = 0;
-                if (not hart_.peekMemory(base+j, byte, true))
-                  return SRV(-EINVAL);
-                buffer.at(j) = byte;
-              }
+            if (not readHartMemory(hart_, base, len, buffer.data()))
+              return SRV(-EINVAL);
 
             iov.at(i).iov_base = buffer.data();
             iov.at(i).iov_len = len;
@@ -1084,13 +1090,8 @@ Syscall<URV>::emulate()
         uint64_t rvTimeAddr = a2;
         timespec spec[2];
         uint8_t* ptr = reinterpret_cast<uint8_t*>(&spec);
-        for (size_t i = 0; i < sizeof(spec); ++i)
-          {
-            uint8_t byte = 0;
-            if (not hart_.peekMemory(rvTimeAddr + i, byte, true))
-              return SRV(-EINVAL);
-            ptr[i] = byte;
-          }
+        if (not readHartMemory(hart_, rvTimeAddr, sizeof(spec), ptr))
+          return SRV(-EINVAL);
 
         int flags = a3;
         int rc = utimensat(dirfd, path, spec, flags);
