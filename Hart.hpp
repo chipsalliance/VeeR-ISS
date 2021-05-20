@@ -594,6 +594,9 @@ namespace WdRiscv
     void lastMemory(std::vector<size_t>& addresses,
 		    std::vector<uint32_t>& words) const;
 
+    void lastSyscallChanges(std::vector<std::pair<uint64_t, uint64_t>>& v) const
+    { syscall_.getMemoryChanges(v); }
+
     /// Return data address of last executed ld/st instruction.
     URV lastLdStAddress() const
     { return ldStAddr_; }

@@ -4142,6 +4142,7 @@ Hart<URV>::clearTraceData()
   csRegs_.clearLastWrittenRegs();
   vecRegs_.clearLastWrittenReg();
   memory_.clearLastWriteInfo(hartIx_);
+  syscall_.clearMemoryChanges();
 }
 
 

@@ -78,6 +78,15 @@ namespace WdRiscv
 
     typedef std::pair<uint64_t, uint64_t> AddrLen;  // Address/length pair
 
+    /// Clear memory changes recorded by last emulate call.
+    void clearMemoryChanges()
+    { memChanges_.clear(); }
+
+    /// Copy the memory changes recorded by the last emulate call to the
+    /// given vector.
+    void getMemoryChanges(std::vector<AddrLen>& changes) const
+    { changes = memChanges_; }
+
     void getUsedMemBlocks(std::vector<AddrLen>& used_blocks);
 
     bool loadUsedMemBlocks(const std::string& path, std::vector<AddrLen>& used_blocks);
