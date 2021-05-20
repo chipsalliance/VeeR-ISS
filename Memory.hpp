@@ -473,7 +473,8 @@ namespace WdRiscv
     /// corresponding value and return the size of that write. Return
     /// 0 if no write since the most recent clearLastWriteInfo in
     /// which case addr and value are not modified.
-    unsigned getLastWriteNewValue(unsigned sysHartIx, size_t& addr, uint64_t& value) const
+    unsigned getLastWriteNewValue(unsigned sysHartIx, uint64_t& addr,
+                                  uint64_t& value) const
     {
       const auto& lwd = lastWriteData_.at(sysHartIx);
       if (lwd.size_)
