@@ -52,6 +52,14 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
       secCause = SecondaryCause::STORE_ACC_AMO;
     }
 
+  // Check if invalid unless cacheable.
+  if (amoInCacheableOnly_ and not isAddrCacheable(addr))
+    if (cause == ExceptionCause::NONE)
+      {
+        cause = ExceptionCause::STORE_ACC_FAULT;
+        secCause = SecondaryCause::STORE_ACC_AMO_UNCACHED;
+      }
+
   // Address must be word aligned for word access and double-word
   // aligned for double-word access.
   bool fail = (addr & mask) != 0;
@@ -223,6 +231,14 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
         }
     }
 
+  // Check if invalid unless cacheable.
+  if (amoInCacheableOnly_ and not isAddrCacheable(addr))
+    if (cause == ExceptionCause::NONE)
+      {
+        cause = ExceptionCause::LOAD_ACC_FAULT;
+        secCause = SecondaryCause::LOAD_ACC_AMO_UNCACHED;
+      }
+
   // Address outside DCCM causes an exception (this is swerv specific).
   bool fail = amoInDccmOnly_ and not isAddrInDccm(addr);
 
@@ -327,6 +343,14 @@ Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
       cause = ExceptionCause::STORE_ACC_FAULT;
       secCause = SecondaryCause::STORE_ACC_AMO;
     }
+
+  // Check if invalid unless cacheable.
+  if (amoInCacheableOnly_ and not isAddrCacheable(addr))
+    if (cause == ExceptionCause::NONE)
+      {
+        cause = ExceptionCause::STORE_ACC_FAULT;
+        secCause = SecondaryCause::STORE_ACC_AMO_UNCACHED;
+      }
 
   bool fail = misal or (amoInDccmOnly_ and not isAddrInDccm(addr));
 

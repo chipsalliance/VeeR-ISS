@@ -1014,6 +1014,17 @@ HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
         errors++;
     }
 
+  // Atomic instructions illegal outside cacheable regions.
+  tag = "amo_illegal_outside_cacheable";
+  if (config_ -> count(tag))
+    {
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ ->at(tag), flag))
+        hart.setAmoInCacheableOnly(flag);
+      else
+        errors++;
+    }
+
   // Wide (64-bit) load/store. WDC special.
   tag = "enable_wide_load_store";
   if (config_ -> count(tag))
@@ -1434,21 +1445,54 @@ HartConfig::clear()
 }
 
 
+// Meaning of the maco bits depend on the desing.
+// For 32-bit design we have Maco32Masks; Otherwise Maco64Masks.
+enum class Maco32Masks : uint32_t
+  {
+   Enable       = 1,
+   Lock         = 2,
+   SideEffect   = 4,
+   PreciseStore = 8
+  };
+
+enum class Maco64Masks : uint32_t
+  {
+   Enable       = 1,
+   Lock         = 2,
+   Cacheable    = 4,
+   SideEffect   = 8
+  };
+
+
 template <typename URV>
 void
-unpackMacoValue(URV value, uint64_t& start, uint64_t& end, bool& idempotent)
+unpackMacoValue(URV value, URV mask, bool rv32, uint64_t& start, uint64_t& end,
+                bool& idempotent, bool& cacheable)
 {
   start = end = 0;
-  idempotent = (value & 4) == 0;   // Idempotent if bit 2 is 0.
-  bool enable = value & 1;
+  bool enable = false;
+
+  if (rv32)
+    {
+      idempotent = (value & URV(Maco32Masks::SideEffect)) == 0;
+      cacheable = false;
+      enable = value & URV(Maco32Masks::Enable);
+    }
+  else
+    {
+      idempotent = (value & URV(Maco64Masks::SideEffect)) == 0;
+      cacheable = (value & URV(Maco64Masks::Cacheable));
+      enable = value & URV(Maco64Masks::Enable);
+    }
+
   if (not enable)
     return;  // Disabled: start same as end
 
   // We want first zero starting from bit 7 and going towards most sig bit.
   value |= 0x7f;  // Set least sig 7 bits to 1
-  if (value == ~URV(0))
+  if (((value & mask) >> 7) == ((mask | 0x7f) >> 7))
     {
-      start = end = 0;   // Illegal setup: Does not match anything.
+      start = end = 0;   // Illegal setup: Address bits all set.
       return;
     }
 
@@ -1464,6 +1508,8 @@ template <typename URV>
 void
 defineMacoSideEffects(System<URV>& system)
 {
+  bool rv32 = sizeof(URV) == 4;
+
   for (unsigned i = 0; i < system.hartCount(); ++i)
     {
       auto hart = system.ithHart(i);
@@ -1480,21 +1526,29 @@ defineMacoSideEffects(System<URV>& system)
 
           // Define pre-write/pre-poke callback: If lock bit is set,
           // then preserve CSR value
-          auto pre = [hart] (Csr<URV>& csr, URV& val) -> void {
+          auto pre = [hart, rv32] (Csr<URV>& csr, URV& val) -> void {
                        URV previous = 0;
                        hart->peekCsr(csr.getNumber(), previous);
-                       URV lockMask = 2;
-                       if (previous & lockMask)
+                       if (previous & URV(Maco32Masks::Lock))
                          val = previous;  // Locked: keep previous value
+                       else if (not rv32)
+                         {
+                           // Combination side-effect/cacable not allowed
+                           bool side = val & URV(Maco64Masks::SideEffect);
+                           bool cache = val & URV(Maco64Masks::Cacheable);
+                           if (cache and side)
+                             val &= ~URV(Maco64Masks::Cacheable);
+                         }
                       };
 
           // Define post-write/post-poke callback. Upddate the idempotent
           // regions of the hart.
-          auto post = [hart, macoIx] (Csr<URV>& /*csr*/, URV val) -> void {
+          auto post = [hart, macoIx, rv32] (Csr<URV>& csr, URV val) -> void {
                         uint64_t start = 0, end = 0;
-                        bool idempotent = false;
-                        unpackMacoValue(val, start, end, idempotent);
-                        hart->defineIdempotentOverride(macoIx, start, end, idempotent);
+                        bool idempotent = false, cacheable = false;
+                        URV mask = csr.getWriteMask();
+                        unpackMacoValue(val, mask, rv32, start, end, idempotent, cacheable);
+                        hart->defineIdempotentOverride(macoIx, start, end, idempotent, cacheable);
                       };
 
           csrPtr->registerPrePoke(pre);
@@ -1505,6 +1559,113 @@ defineMacoSideEffects(System<URV>& system)
         }
 
       hart->defineIdempotentOverrideRegions(macoIx);
+    }
+}
+
+
+/// Associate callbacks with write/poke of the mrac CSR. Mrac is
+/// memory region accss control CSR which defines which regions are
+/// cacahble/idempotent.
+template <typename URV>
+void
+defineMracSideEffects(System<URV>& system)
+{
+  unsigned count = 0; // Count of mrac definitions.
+
+  for (unsigned i = 0; i < system.hartCount(); ++i)
+    {
+      auto hart = system.ithHart(i);
+      auto csrPtr = hart->findCsr("mrac");
+      if (not csrPtr)
+        continue;
+
+      count++;
+
+      auto pre = [] (Csr<URV>&, URV& val) -> void {
+                   // A value of 0b11 (io/cacheable) for the ith
+                   // region is invalid: Make it 0b10
+                   // (io/non-cacheable).
+                   URV mask = 0b11;
+                   unsigned xlen = sizeof(URV) * 8; // FIX.
+                   for (unsigned i = 0; i < xlen; i += 2)
+                     {
+                       if ((val & mask) == mask)
+                         val = (val & ~mask) | (0b10 << i);
+                       mask = mask << 2;
+                     }
+                 };
+
+      // Mrac is shared between harts. If one hart writes it, all
+      // harts must be updated.
+      auto post = [&system] (Csr<URV>&, URV val) -> void {
+                    for (unsigned hix = 0; hix < system.hartCount(); ++hix)
+                      {
+                        auto ht = system.ithHart(hix);
+                        for (unsigned region = 0; region < 16; ++region)
+                          {
+                            unsigned bit = (val >> (region*2 + 1)) & 1;
+                            ht->markRegionIdempotent(region, bit == 0);
+                          }
+                      }
+                  };
+
+      csrPtr->registerPrePoke(pre);
+      csrPtr->registerPreWrite(pre);
+      csrPtr->registerPostPoke(post);
+      csrPtr->registerPostWrite(post);
+    }
+
+  if (count and sizeof(URV) == 8)
+    {
+      std::cerr << "Warning: mrac CSR is defined with rv32. This is likely "
+                << "a mistake. Only least significant 32 bits will be used.\n";
+    }
+}
+
+
+/// Associate callbacks with write/poke of the mdac CSR. This is the
+/// default access control CSR used alongside the maco CSRs to define
+/// cachable/idempotent regions.
+template <typename URV>
+void
+defineMdacSideEffects(System<URV>& system)
+{
+  for (unsigned i = 0; i < system.hartCount(); ++i)
+    {
+      auto hart = system.ithHart(i);
+      auto csrPtr = hart->findCsr("mdac");
+      if (not csrPtr)
+        continue;
+
+      auto pre = [] (Csr<URV>&, URV& val) -> void {
+                   // A value of 0b11 (io/cacheable) is invalid: Make it 0b10
+                   // (io/non-cacheable).
+                   URV mask = 0b11;
+                   if ((val & mask) == mask)
+                     val = (val & ~mask) | 0b10;
+                 };
+
+      // Mdac is not shared between harts.
+      auto post = [hart] (Csr<URV>&, URV val) -> void {
+                    bool idempotent = (val & 2) == 0;
+                    bool cacheable = (val & 1);
+                    hart->setDefaultIdempotent(idempotent);
+                    hart->setDefaultCacheable(cacheable);
+                  };
+
+      auto reset = [hart] (Csr<URV>& csr) -> void {
+          URV val = csr.read();
+          bool idempotent = (val & 2) == 0;
+          hart->setDefaultIdempotent(idempotent);
+        };
+
+      csrPtr->registerPrePoke(pre);
+      csrPtr->registerPreWrite(pre);
+
+      csrPtr->registerPostPoke(post);
+      csrPtr->registerPostWrite(post);
+
+      csrPtr->registerPostReset(reset);
     }
 }
 
@@ -1764,6 +1925,8 @@ HartConfig::finalizeCsrConfig(System<URV>& system) const
   defineMpmcSideEffects(system);
   defineMgpmcSideEffects(system);
   defineMacoSideEffects(system);
+  defineMracSideEffects(system);
+  defineMdacSideEffects(system);
 
   // Define callback to react to write/poke to mcountinhibit CSR.
   defineMcountinhibitSideEffects(system);
@@ -1837,3 +2000,16 @@ HartConfig::finalizeCsrConfig<uint32_t>(System<uint32_t>&) const;
 
 template bool
 HartConfig::finalizeCsrConfig<uint64_t>(System<uint64_t>&) const;
+
+
+template
+void
+unpackMacoValue<uint32_t>(uint32_t value, uint32_t mask, bool rv32,
+                          uint64_t& start, uint64_t& end, bool& idempotent,
+                          bool& cacheable);
+
+template
+void
+unpackMacoValue<uint64_t>(uint64_t value, uint64_t mask, bool rv32,
+                          uint64_t& start, uint64_t& end, bool& idempotent,
+                          bool& cacheable);

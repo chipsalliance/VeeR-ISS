@@ -621,17 +621,6 @@ namespace WdRiscv
       return not (pma.isDccm() or pma.isMemMappedReg());
     }
 
-    /// Return the simulator memory address corresponding to the
-    /// simulated RISCV memory address. This is useful for Linux
-    /// emulation.
-    bool getSimMemAddr(size_t addr, size_t& simAddr)
-    {
-      if (addr >= size_)
-	return false;
-      simAddr = reinterpret_cast<size_t>(data_ + addr);
-      return true;
-    }
-
     /// Track LR instructin resrvations.
     struct Reservation
     {

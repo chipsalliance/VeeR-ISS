@@ -92,7 +92,7 @@ template <typename URV>
 Hart<URV>::Hart(unsigned hartIx, Memory& memory)
   : hartIx_(hartIx), memory_(memory), intRegs_(32),
     fpRegs_(32), vecRegs_(), syscall_(*this),
-    pmpManager_(memory.size()),
+    pmpManager_(memory.size(), 1024*1024),
     virtMem_(hartIx, memory, memory.pageSize(), pmpManager_, 16 /* FIX: TLB size*/)
 {
   regionHasLocalMem_.resize(16);
@@ -100,6 +100,7 @@ Hart<URV>::Hart(unsigned hartIx, Memory& memory)
   regionHasDccm_.resize(16);
   regionHasMemMappedRegs_.resize(16);
   regionHasLocalInstMem_.resize(16);
+  regionIsIdempotent_.resize(16);
 
   decodeCacheSize_ = 128*1024;  // Must be a power of 2.
   decodeCacheMask_ = decodeCacheSize_ - 1;
@@ -436,6 +437,12 @@ Hart<URV>::unpackMemoryProtection(unsigned entryIx, Pmp::Type& type,
       high = pmpVal;
       high = (high >> pmpG) << pmpG;
       high = high << 2;
+      if (high == 0)
+        {
+          type = Pmp::Type::Off;  // Empty range.
+          return true;
+        }
+
       high = high - 1;
       return true;
     }
@@ -519,6 +526,7 @@ void
 Hart<URV>::reset(bool resetMemoryMappedRegs)
 {
   privMode_ = PrivilegeMode::Machine;
+  hasDefaultIdempotent_ = false;
 
   intRegs_.reset();
   csRegs_.reset();
@@ -975,7 +983,7 @@ Hart<URV>::execAndi(const DecodedInst* di)
 
 template <typename URV>
 bool
-Hart<URV>::isIdempotentRegion(size_t addr) const
+Hart<URV>::isAddrIdempotent(size_t addr) const
 {
   if (idempotentOverride_)
     {
@@ -984,14 +992,38 @@ Hart<URV>::isIdempotentRegion(size_t addr) const
           return entry.idempotent_;
     }
 
+  if (hasDefaultIdempotent_)
+    return defaultIdempotent_;
+
   unsigned region = unsigned(addr >> (sizeof(URV)*8 - 4));
-  URV mracVal = 0;
-  if (csRegs_.read(CsrNumber::MRAC, PrivilegeMode::Machine, mracVal))
+  return regionIsIdempotent_.at(region) or regionHasLocalMem_.at(region);
+}
+
+
+template <typename URV>
+bool
+Hart<URV>::isAddrCacheable(size_t addr) const
+{
+  if (idempotentOverride_)
     {
-      unsigned bit = (mracVal >> (region*2 + 1)) & 1;
-      return bit == 0  or regionHasLocalMem_.at(region);
+      for (const auto& entry : idempotentOverrideVec_)
+        if (entry.matches(addr))
+          return entry.cacheable_;
     }
-  return true;
+
+  if (hasDefaultCacheable_)
+    return defaultCacheable_;
+
+  return false;
+}
+
+
+template <typename URV>
+void
+Hart<URV>::markRegionIdempotent(unsigned region, bool flag)
+{
+  if (region < regionIsIdempotent_.size())
+    regionIsIdempotent_.at(region) = flag;
 }
 
 
@@ -1650,7 +1682,7 @@ Hart<URV>::determineMisalLoadException(URV addr, unsigned accessSize,
     }
 
   // Misaligned access to a region with side effect.
-  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
+  if (not isAddrIdempotent(addr) or not isAddrIdempotent(addr2))
     {
       secCause = SecondaryCause::LOAD_MISAL_IO;
       return ExceptionCause::LOAD_ADDR_MISAL;
@@ -1695,7 +1727,7 @@ Hart<URV>::determineMisalStoreException(URV addr, unsigned accessSize,
     }
 
   // Misaligned access to a region with side effect.
-  if (not isIdempotentRegion(addr) or not isIdempotentRegion(addr2))
+  if (not isAddrIdempotent(addr) or not isAddrIdempotent(addr2))
     {
       secCause = SecondaryCause::STORE_MISAL_IO;
       return ExceptionCause::STORE_ADDR_MISAL;
@@ -1874,7 +1906,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
       if (not isReadable)
         {
           secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
-          if (addr + ldSize > memory_.size())
+          if (addr > memory_.size() - ldSize)
             {
               secCause = SecondaryCause::LOAD_ACC_OUT_OF_BOUNDS;
               return ExceptionCause::LOAD_ACC_FAULT;
@@ -2033,7 +2065,7 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
       // Check for load-data-trigger. Load-data-trigger does not apply
       // to io/region unless address is in local memory. Don't ask.
       if (hasActiveTrigger() and
-          (isIdempotentRegion(addr) or
+          (isAddrIdempotent(addr) or
            isAddrMemMapped(addr) or isAddrInDccm(addr)))
         {
           TriggerTiming timing = TriggerTiming::Before;
@@ -2064,11 +2096,7 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
   if (triggerTripped_)
     return false;
 
-  cause = ExceptionCause::LOAD_ACC_FAULT;
-  secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
-  if (isAddrMemMapped(addr))
-    secCause = SecondaryCause::LOAD_ACC_PIC;
-  initiateLoadException(cause, virtAddr, secCause);
+  assert(0);
   return false;
 #endif
 }
@@ -2542,7 +2570,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
 
           auto secCause = SecondaryCause::INST_MEM_PROTECTION;
           size_t region = memory_.getRegionIndex(addr);
-          if (addr + 4 > memory_.size())
+          if (addr > memory_.size() - 4)
             secCause = SecondaryCause::INST_OUT_OF_BOUNDS;
           else if (regionHasLocalInstMem_.at(region))
             secCause = SecondaryCause::INST_LOCAL_UNMAPPED;
@@ -2575,7 +2603,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
         return false;
       auto secCause = SecondaryCause::INST_MEM_PROTECTION;
       size_t region = memory_.getRegionIndex(addr);
-      if (addr + 2 > memory_.size())
+      if (addr > memory_.size() - 2)
         secCause = SecondaryCause::INST_OUT_OF_BOUNDS;
       else if (regionHasLocalInstMem_.at(region))
 	secCause = SecondaryCause::INST_LOCAL_UNMAPPED;
@@ -2625,7 +2653,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
       // succeeded. Problem must be in 2nd half of instruction.
       auto secCause = SecondaryCause::INST_MEM_PROTECTION;
       size_t region = memory_.getRegionIndex(addr);
-      if (addr + 2 > memory_.size())
+      if (addr > memory_.size() - 2)
         secCause = SecondaryCause::INST_OUT_OF_BOUNDS;
       else if (regionHasLocalInstMem_.at(region))
         secCause = SecondaryCause::INST_LOCAL_UNMAPPED;
@@ -3187,9 +3215,15 @@ Hart<URV>::pokeCsr(CsrNumber csr, URV val)
     }
   else if (csr >= CsrNumber::MSPCBA and csr <= CsrNumber::MSPCC)
     updateStackChecker();
-  else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
-           (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
+  else if (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3)
     updateMemoryProtection();
+  else if (csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15)
+    {
+      unsigned config = csRegs_.getPmpConfigByteFromPmpAddr(csr);
+      auto type = Pmp::Type((config >> 3) & 3);
+      if (type != Pmp::Type::Off)
+        updateMemoryProtection();
+    }
   else if (csr == CsrNumber::SATP)
     updateAddressTranslation();
   else if (csr == CsrNumber::FCSR or csr == CsrNumber::FRM or csr == CsrNumber::FFLAGS)
@@ -8960,9 +8994,15 @@ Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
     }
   else if (csr >= CsrNumber::MSPCBA and csr <= CsrNumber::MSPCC)
     updateStackChecker();
-  else if ((csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15) or
-           (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3))
+  else if (csr >= CsrNumber::PMPCFG0 and csr <= CsrNumber::PMPCFG3)
     updateMemoryProtection();
+  else if (csr >= CsrNumber::PMPADDR0 and csr <= CsrNumber::PMPADDR15)
+    {
+      unsigned config = csRegs_.getPmpConfigByteFromPmpAddr(csr);
+      auto type = Pmp::Type((config >> 3) & 3);
+      if (type != Pmp::Type::Off)
+        updateMemoryProtection();
+    }
   else if (csr == CsrNumber::SATP)
     updateAddressTranslation();
   else if (csr == CsrNumber::FCSR or csr == CsrNumber::FRM or csr == CsrNumber::FFLAGS)
@@ -9321,7 +9361,7 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
       if (not writeOk and not isAddrMemMapped(addr))
         {
           secCause = SecondaryCause::STORE_ACC_MEM_PROTECTION;
-          if (addr + stSize > memory_.size())
+          if (addr > memory_.size() - stSize)
             secCause = SecondaryCause::STORE_ACC_OUT_OF_BOUNDS;
           else if (regionHasLocalDataMem_.at(region))
             secCause = SecondaryCause::STORE_ACC_LOCAL_UNMAPPED;

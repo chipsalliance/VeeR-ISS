@@ -890,6 +890,9 @@ namespace WdRiscv
     bool isAddrInDccm(size_t addr) const
     { return memory_.pmaMgr_.isAddrInDccm(addr); }
 
+    /// Return true if given address is cacheable.
+    bool isAddrCacheable(size_t addr) const;
+
     /// Return true if given address is in the memory mapped registers
     /// area of this hart.
     bool isAddrMemMapped(size_t addr) const
@@ -1014,6 +1017,11 @@ namespace WdRiscv
     void setAmoInDccmOnly(bool flag)
     { amoInDccmOnly_ = flag; }
 
+    /// Make atomic memory operations illegal/legal for non cachable
+    /// memory based on the value of flag (true/false).
+    void setAmoInCacheableOnly(bool flag)
+    { amoInCacheableOnly_ = flag; }
+
     /// Make load/store instructions take an exception if the base
     /// address (value in rs1) and the effective address refer to
     /// regions of different types.
@@ -1099,13 +1107,6 @@ namespace WdRiscv
     /// Cancel load reservation held by this hart (if any).
     void cancelLr()
     { memory_.invalidateLr(hartIx_); }
-
-    /// Set simAddr to the simulator memory address corresponding to
-    /// the RISCV memory address returning true on success and false
-    /// if riscvAddr is out of bounds (in which case simAddr is left
-    /// unmodified).
-    bool getSimMemAddr(size_t riscvAddr, size_t& simAddr)
-    { return memory_.getSimMemAddr(riscvAddr, simAddr); }
 
     /// Report the files opened by the target RISCV program during
     /// current run.
@@ -1213,18 +1214,36 @@ namespace WdRiscv
       idempotentOverride_ = regionCount > 0;
     }
 
+    /// Set the default idempotent attribute for addresses that do
+    /// not match any entries in the MACO CSRs.
+    void setDefaultIdempotent(bool flag)
+    {
+      hasDefaultIdempotent_ = true;
+      defaultIdempotent_ = flag;
+    }
+
+    /// Set the default cachable attribute for addresses that do
+    /// not match any entries in the MACO CSRs.
+    void setDefaultCacheable(bool flag)
+    {
+      hasDefaultCacheable_ = true;
+      defaultCacheable_ = flag;
+    }
+
     /// Define and idempotency override region with given index. An
     /// address greater than or equal to start and less than or equal
     /// end is assigned given idempotency.  An address matching
     /// multiple regions get the idempotency of the first region it
     /// matches. Return true on success and false if regionIx is out
     /// of bounds.
-    bool defineIdempotentOverride(unsigned regionIx, uint64_t start,
-                                  uint64_t end, bool idempotent)
+    bool defineIdempotentOverride(unsigned ix, uint64_t start,
+                                  uint64_t end, bool idempotent,
+                                  bool cacheable)
     {
-      if (regionIx >= idempotentOverrideVec_.size())
+      if (ix >= idempotentOverrideVec_.size())
         return false;
-      idempotentOverrideVec_.at(regionIx) = IdempotentOverride(start, end, idempotent);
+      idempotentOverrideVec_.at(ix) = IdempotentOverride(start, end, idempotent,
+                                                         cacheable);
       return true;
     }
 
@@ -1247,6 +1266,10 @@ namespace WdRiscv
                                 Pmp::Mode& mode, bool& locked,
                                 uint64_t& low, uint64_t& high) const;
 
+    /// Mark the 256MB region with the given region index as
+    /// idempotent/non-idempotent according to flag.
+    void markRegionIdempotent(unsigned regionIx, bool flag);
+
   protected:
 
     /// Helper to reset: reset floating point related structures.
@@ -1257,7 +1280,7 @@ namespace WdRiscv
     bool isFpEnabled() const
     { return mstatusFs_ != FpFs::Off; }
 
-    // Return truee if it is legal to execute an FP instruction: F extension must
+    // Return true if it is legal to execute an FP instruction: F extension must
     // be enabled and FS feild of MSTATUS must not be OFF.
     bool isFpLegal() const
     { return isRvf() and isFpEnabled(); }
@@ -1694,8 +1717,9 @@ namespace WdRiscv
     /// interrupt.
     bool isInterruptPossible(InterruptCause& cause);
 
-    /// Return true if 256mb region of address is idempotent.
-    bool isIdempotentRegion(size_t addr) const;
+    /// Return true if given address is an idempotent region of
+    /// memory.
+    bool isAddrIdempotent(size_t addr) const;
 
     /// Check address associated with an atomic memory operation (AMO)
     /// instruction. Return true if AMO access is allowed. Return
@@ -2812,19 +2836,21 @@ namespace WdRiscv
     struct IdempotentOverride
     {
       IdempotentOverride(uint64_t start = 0, uint64_t end = 0,
-                         bool idempotent = false)
-        : start_(start), end_(end), idempotent_(idempotent)
+                         bool idempotent = false, bool cacheable = false)
+        : start_(start), end_(end), idempotent_(idempotent),
+          cacheable_(cacheable)
       { }
 
       bool matches(uint64_t addr) const
       { return end_ > start_ and start_ <= addr and addr <= end_; }
 
       void reset ()
-      { start_ = end_ = 0; idempotent_ = false; }
+      { start_ = end_ = 0; idempotent_ = false; cacheable_ = false; }
 
       uint64_t start_;
       uint64_t end_;
       bool idempotent_;
+      bool cacheable_;
     };
 
     void putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
@@ -2954,6 +2980,7 @@ namespace WdRiscv
     bool newlib_ = false;           // Enable newlib system calls.
     bool linux_ = false;            // Enable linux system calls.
     bool amoInDccmOnly_ = false;
+    bool amoInCacheableOnly_ = false;
 
     uint32_t perfControl_ = ~0;     // Performance counter control
     uint32_t prevPerfControl_ = ~0; // Value before current instruction.
@@ -3023,6 +3050,9 @@ namespace WdRiscv
     // Ith entry is true if ith region has pic
     std::vector<bool> regionHasMemMappedRegs_;
 
+    // Ith entry is true if ith region is idempotent.
+    std::vector<bool> regionIsIdempotent_;
+
     // Decoded instruction cache.
     std::vector<DecodedInst> decodeCache_;
     uint32_t decodeCacheSize_ = 0;
@@ -3043,6 +3073,12 @@ namespace WdRiscv
     // Physical memory protection.
     bool pmpEnabled_ = false; // True if one or more pmp register defined.
     PmpManager pmpManager_;
+
+    bool defaultIdempotent_ = false;
+    bool hasDefaultIdempotent_ = false;
+
+    bool defaultCacheable_ = false;
+    bool hasDefaultCacheable_ = false;
 
     bool idempotentOverride_ = false;
     std::vector<IdempotentOverride> idempotentOverrideVec_;

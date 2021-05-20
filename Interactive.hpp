@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <iosfwd>
 #include <unordered_map>
 #include "System.hpp"
 #include "Hart.hpp"
@@ -56,7 +57,8 @@ namespace WdRiscv
     /// Helper to interact: "peek" command. Examine a register/memory
     /// location.
     bool peekCommand(Hart<URV>&, const std::string& line,
-		     const std::vector<std::string>& tokens);
+		     const std::vector<std::string>& tokens,
+                     std::ostream& out);
 
     /// Helper to interact: "poke" command. Set a register/memory
     /// location.
@@ -104,6 +106,11 @@ namespace WdRiscv
 		       const std::vector<std::string>& tokens,
 		       FILE* traceFile, FILE* commandLog,
 		       std::ifstream& replayStream, bool& done);
+
+    static void peekAllFpRegs(Hart<URV>& hart, std::ostream& out);
+    static void peekAllIntRegs(Hart<URV>& hart, std::ostream& out);
+    static void peekAllCsrs(Hart<URV>& hart, std::ostream& out);
+    static void peekAllTriggers(Hart<URV>& hart, std::ostream& out);
 
   protected:
 

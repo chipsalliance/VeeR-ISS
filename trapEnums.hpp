@@ -115,6 +115,7 @@ namespace WdRiscv
       LOAD_ACC_PMP = 8,
       LOAD_ACC_PRECISE = 9,  // precise bus error
       LOAD_ACC_OUT_OF_BOUNDS = 0xb,
+      LOAD_ACC_AMO_UNCACHED = 0xc,
 
       // Cause = STORE_ADDR_MISAL
       STORE_MISAL_IO = 1,
@@ -132,6 +133,7 @@ namespace WdRiscv
       STORE_ACC_PRECISE = 9,
       STORE_ACC_STACK_CHECK = 0xa,
       STORE_ACC_OUT_OF_BOUNDS = 0xb,
+      STORE_ACC_AMO_UNCACHED = 0xc,
 
       MAX_CAUSE = INST_OUT_OF_BOUNDS
     };
