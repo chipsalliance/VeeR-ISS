@@ -72,6 +72,10 @@ copyRvString(Hart<URV>& hart, uint64_t rvAddr,
 }
 
 
+/// Read from the RISCV system memory at address readAddr up size
+/// bytes placing them in the dest array (which must be large enoug
+/// to accomodate size bytes). Return true on succes and false if
+/// size bytes cannot be read.
 template <typename URV, typename T>
 static bool
 readHartMemory(Hart<URV>& hart, uint64_t readAddr, uint64_t size, T* dest)
@@ -215,62 +219,86 @@ copyStatBufferToRiscv(Hart<URV>& hart, const struct stat& buff,
 }
 
 
-// Copy x86 tms struct (used by times) to riscv (32-bit version).
+// Copy x86 tms struct (used by times) to riscv.
+template <typename URV>
 static size_t
-copyTmsToRiscv32(const struct tms& buff, void* rvBuff)
+copyTmsToRiscv(Hart<URV>& hart, const struct tms& buff, URV addr)
 {
-  char* ptr = reinterpret_cast<char*> (rvBuff);
-  *(reinterpret_cast<uint32_t*> (ptr)) = buff.tms_utime;          ptr += 4;
-  *(reinterpret_cast<uint32_t*> (ptr)) = buff.tms_stime;          ptr += 4;
-  *(reinterpret_cast<uint32_t*> (ptr)) = buff.tms_cutime;         ptr += 4;
-  *(reinterpret_cast<uint32_t*> (ptr)) = buff.tms_cstime;         ptr += 4;
-  return ptr - reinterpret_cast<char*> (rvBuff);
-}
+  URV addr0 = addr;
+  if (not hart.pokeMemory(addr, URV(buff.tms_utime), true))
+    return addr - addr0;
+  addr += sizeof(URV);
 
+  if (not hart.pokeMemory(addr, URV(buff.tms_stime), true))
+    return addr - addr0;
+  addr += sizeof(URV);
 
-// Copy x86 tms struct (used by times) to riscv (64-bit version).
-static size_t
-copyTmsToRiscv64(const struct tms& buff, void* rvBuff)
-{
-  char* ptr = reinterpret_cast<char*> (rvBuff);
-  *(reinterpret_cast<uint64_t*> (ptr)) = buff.tms_utime;          ptr += 8;
-  *(reinterpret_cast<uint64_t*> (ptr)) = buff.tms_stime;          ptr += 8;
-  *(reinterpret_cast<uint64_t*> (ptr)) = buff.tms_cutime;         ptr += 8;
-  *(reinterpret_cast<uint64_t*> (ptr)) = buff.tms_cstime;         ptr += 8;
-  return ptr - reinterpret_cast<char*> (rvBuff);
-}
+  if (not hart.pokeMemory(addr, URV(buff.tms_cutime), true))
+    return addr - addr0;
+  addr += sizeof(URV);
 
+  if (not hart.pokeMemory(addr, URV(buff.tms_cstime), true))
+    return addr -addr0;
+  addr += sizeof(URV);
 
-// Copy x86 timeval buffer to riscv timeval buffer (32-bit version).
-static size_t
-copyTimevalToRiscv32(const struct timeval& buff, void* rvBuff)
-{
-  char* ptr = reinterpret_cast<char*> (rvBuff);
-  *(reinterpret_cast<uint64_t*> (ptr)) = buff.tv_sec;             ptr += 8;
-  *(reinterpret_cast<uint32_t*> (ptr)) = buff.tv_usec;            ptr += 4;
-  return ptr - reinterpret_cast<char*> (rvBuff);
+  return addr -addr0;
 }
 
 
 // Copy x86 timeval buffer to riscv timeval buffer (32-bit version).
+template <typename URV>
 static size_t
-copyTimevalToRiscv64(const struct timeval& buff, void* rvBuff)
+copyTimevalToRiscv32(Hart<URV>& hart, const struct timeval& tv, URV addr)
 {
-  char* ptr = reinterpret_cast<char*> (rvBuff);
-  *(reinterpret_cast<uint64_t*> (ptr)) = buff.tv_sec;             ptr += 8;
-  *(reinterpret_cast<uint64_t*> (ptr)) = buff.tv_usec;            ptr += 8;
-  return ptr - reinterpret_cast<char*> (rvBuff);
+  size_t written = 0;
+  if (not hart.pokeMemory(addr, uint32_t(tv.tv_sec), true))
+    return written;
+  written += sizeof(uint32_t);
+  addr += sizeof(uint32_t);
+
+  if (not hart.pokeMemory(addr, uint64_t(tv.tv_usec), true))
+    return written;
+  written += sizeof(uint64_t);
+
+  return written;
+}
+
+
+// Copy x86 timeval buffer to riscv timeval buffer (32-bit version).
+template <typename URV>
+static size_t
+copyTimevalToRiscv64(Hart<URV>& hart, const struct timeval& tv, URV addr)
+{
+  size_t written = 0;
+  if (not hart.pokeMemory(addr, uint64_t(tv.tv_sec), true))
+    return written;
+  written += sizeof(uint64_t);
+  addr += sizeof(uint64_t);
+
+  if (not hart.pokeMemory(addr, uint64_t(tv.tv_usec), true))
+    return written;
+  written += sizeof(uint64_t);
+
+  return written;
 }
 
 
 // Copy x86 timezone to riscv
+template<typename URV>
 static size_t
-copyTimezoneToRiscv(const struct timezone& buff, void* rvBuff)
+copyTimezoneToRiscv(Hart<URV>& hart, const struct timezone& tz, URV dest)
 {
-  char* ptr = reinterpret_cast<char*> (rvBuff);
-  *(reinterpret_cast<uint32_t*> (ptr)) = buff.tz_minuteswest;     ptr += 4;
-  *(reinterpret_cast<uint32_t*> (ptr)) = buff.tz_dsttime;         ptr += 4;
-  return ptr - reinterpret_cast<char*> (rvBuff);
+  size_t written = 0;
+  if (not hart.pokeMemory(dest, URV(tz.tz_minuteswest), true))
+    return written;
+  written += sizeof(URV);
+  dest += sizeof(URV);
+
+  if (not hart.pokeMemory(dest, URV(tz.tz_dsttime), true))
+    return written;
+  written += sizeof(URV);
+
+  return written;
 }
 
 
@@ -786,12 +814,22 @@ Syscall<URV>::emulate()
       {
 	int fd = effectiveFd(SRV(a0));
 	int req = SRV(a1);
-	size_t addr = 0;
-	if (a2 != 0)
-	  if (not hart_.getSimMemAddr(a2, addr))
-	    return SRV(-EINVAL);
+        URV rvArg = a2;
+
+        std::vector<char> tmp;
+        char* arg = nullptr;
+
+	if (rvArg != 0)
+          {
+            size_t size = _IOC_SIZE(req);
+            tmp.resize(size);
+            if (not readHartMemory(hart_, rvArg, size, tmp.data()))
+              return SRV(-EINVAL);
+            arg = tmp.data();
+          }
+
 	errno = 0;
-	int rc = ioctl(fd, req, reinterpret_cast<char*> (addr));
+	int rc = ioctl(fd, req, arg);
 	return rc < 0 ? SRV(-errno) : rc;
       }
 
@@ -1124,55 +1162,47 @@ Syscall<URV>::emulate()
 #ifndef __MINGW64__
     case 153: // times
       {
-	size_t buffAddr = 0;
-	if (not hart_.getSimMemAddr(a0, buffAddr))
-	  return SRV(-1);
+	URV rvBuff = a0;
 
 	errno = 0;
-
 	struct tms tms0;
 	auto ticks = times(&tms0);
 	if (ticks < 0)
 	  return SRV(-errno);
 
-        size_t len = 0;
-	if (sizeof(URV) == 4)
-	  len = copyTmsToRiscv32(tms0, reinterpret_cast<void*> (buffAddr));
-	else
-	  len = copyTmsToRiscv64(tms0, reinterpret_cast<void*> (buffAddr));
+        size_t len = copyTmsToRiscv(hart_, tms0, rvBuff);
+        size_t expected = 4*sizeof(URV);
 
-        memChanges_.push_back(AddressSize(a0, len));
+        if (len)
+          memChanges_.push_back(AddressSize(a0, len));
 	
-	return ticks;
+	return (len == expected)? ticks : SRV(-EINVAL);
       }
 
     case 160: // uname
       {
 	// Assumes that x86 and rv Linux have same layout for struct utsname.
-	size_t buffAddr = 0;
-	if (not hart_.getSimMemAddr(a0, buffAddr))
-	  return SRV(-1);
-	struct utsname* uts = reinterpret_cast<struct utsname*> (buffAddr);
+        URV rvBuff = a0;
 
 	errno = 0;
-	int rc = uname(uts);
+	struct utsname uts;
+
+	int rc = uname(&uts);
         if (rc >= 0)
           {
-            strcpy(uts->release, "5.14.0");
-            memChanges_.push_back(AddressSize(a0, sizeof(*uts)));
+            strcpy(uts.release, "5.14.0");
+            size_t len = writeHartMemory(hart_, reinterpret_cast<char*>(&uts),
+                                         rvBuff, sizeof(uts));
+            if (len)
+              memChanges_.push_back(AddressSize(rvBuff, len));
+            return len == sizeof(uts)? rc : SRV(-EINVAL);
           }
-	return rc < 0 ? SRV(-errno) : rc;
+	return SRV(-errno);
       }
 
     case 169: // gettimeofday
       {
-	size_t tvAddr = 0;  // Address of riscv timeval
-	if (not hart_.getSimMemAddr(a0, tvAddr))
-	  return SRV(-EINVAL);
-
-	size_t tzAddr = 0;  // Address of rsicv timezone
-	if (not hart_.getSimMemAddr(a1, tzAddr))
-	  return SRV(-EINVAL);
+	URV tvAddr = a0, tzAddr = 0;
 
 	struct timeval tv0;
 	struct timeval* tv0Ptr = &tv0;
@@ -1191,17 +1221,27 @@ Syscall<URV>::emulate()
 	if (tvAddr)
 	  {
             size_t len = 0;
+            size_t expected = 12; // uint64_t & uint32_t
 	    if (sizeof(URV) == 4)
-	      len = copyTimevalToRiscv32(tv0, reinterpret_cast<void*> (tvAddr));
+	      len = copyTimevalToRiscv32(hart_, tv0, tvAddr);
 	    else
-	      len = copyTimevalToRiscv64(tv0, reinterpret_cast<void*> (tvAddr));
-            memChanges_.push_back(AddressSize(a0, len));
+              {
+                len = copyTimevalToRiscv64(hart_, tv0, tvAddr);
+                expected = 16; // uint64_t & unit64_t
+              }
+            if (len)
+              memChanges_.push_back(AddressSize(a0, len));
+            if (len != expected)
+              return SRV(-EINVAL);
 	  }
 
 	if (tzAddr)
           {
-            size_t len = copyTimezoneToRiscv(tz0, reinterpret_cast<void*> (tzAddr));
-            memChanges_.push_back(AddressSize(a1, len));
+            size_t len = copyTimezoneToRiscv(hart_, tz0, tzAddr);
+            if (len)
+              memChanges_.push_back(AddressSize(a1, len));
+            if (len != 2*sizeof(URV))
+              return SRV(-EINVAL);
           }
 
 	return rc;

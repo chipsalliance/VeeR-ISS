@@ -1108,13 +1108,6 @@ namespace WdRiscv
     void cancelLr()
     { memory_.invalidateLr(hartIx_); }
 
-    /// Set simAddr to the simulator memory address corresponding to
-    /// the RISCV memory address returning true on success and false
-    /// if riscvAddr is out of bounds (in which case simAddr is left
-    /// unmodified).
-    bool getSimMemAddr(size_t riscvAddr, size_t& simAddr)
-    { return memory_.getSimMemAddr(riscvAddr, simAddr); }
-
     /// Report the files opened by the target RISCV program during
     /// current run.
     void reportOpenedFiles(std::ostream& out)
