@@ -428,6 +428,54 @@ Server<URV>::disassembleAnnotateInst(Hart<URV>& hart,
 
 
 template <typename URV>
+static void
+collectSyscallMemChanges(Hart<URV>& hart,
+                         const std::vector<std::pair<uint64_t, uint64_t>>& scVec,
+                         std::vector<WhisperMessage>& changes)
+{
+  for (auto al : scVec)
+    {
+      uint64_t addr = al.first;
+      uint64_t len = al.second;
+
+      while (len >= 8)
+        {
+          uint64_t val = 0;
+          hart.peekMemory(addr, val, true);
+          WhisperMessage msg(0, Change, 'm', addr, val);
+          msg.flags = 8; len -= 8; addr += 8;
+          changes.push_back(msg);
+        }
+      if (len >= 4)
+        {
+          uint32_t val = 0;
+          hart.peekMemory(addr, val, true);
+          WhisperMessage msg(0, Change, 'm', addr, val);
+          msg.flags = 4; len -= 4; addr += 4;
+          changes.push_back(msg);
+        }
+      if (len >= 2)
+        {
+          uint16_t val = 0;
+          hart.peekMemory(addr, val, true);
+          WhisperMessage msg(0, Change, 'm', addr, val);
+          msg.flags = 2; len -= 2; addr += 2;
+          changes.push_back(msg);
+        }
+      if (len)
+        {
+          uint8_t val = 0;
+          hart.peekMemory(addr, val, true);
+          WhisperMessage msg(0, Change, 'm', addr, val);
+          msg.flags = 1; len -= 1; addr += 1;
+          changes.push_back(msg);
+        }
+      assert(len == 0);
+    }
+}
+
+
+template <typename URV>
 void
 Server<URV>::processStepCahnges(Hart<URV>& hart,
 				uint32_t inst,
@@ -558,6 +606,12 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
       msg.flags = size;
       pendingChanges.push_back(msg);
     }
+
+  // Collect emulated system call changes.
+  std::vector<std::pair<uint64_t, uint64_t>> scVec;
+  hart.lastSyscallChanges(scVec);
+  if (scVec.size())
+    collectSyscallMemChanges(hart, scVec, pendingChanges);
 
   // Add count of changes to reply.
   reply.value = pendingChanges.size();
