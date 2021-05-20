@@ -73,22 +73,23 @@ copyRvString(Hart<URV>& hart, uint64_t rvAddr,
 
 
 /// Read from the RISCV system memory at address readAddr up size
-/// bytes placing them in the dest array (which must be large enoug
-/// to accomodate size bytes). Return true on succes and false if
-/// size bytes cannot be read.
+/// elements placing them in the dest array (which must be large enough
+/// to accomodate size bytes). Return number of elements successfully
+/// read. Reading of elements is done sequentially and stopped at the
+/// first failure.
 template <typename URV, typename T>
-static bool
+static uint64_t
 readHartMemory(Hart<URV>& hart, uint64_t readAddr, uint64_t size, T* dest)
 {
   for (uint64_t i = 0; i < size; ++i)
     {
       uint8_t byte = 0;
       if (not hart.peekMemory(readAddr + i, byte, true))
-        return false;
+        return i;
       dest[i] = byte;
     }
 
-  return true;
+  return size;
 }
 
 
@@ -770,7 +771,7 @@ Syscall<URV>::emulate()
 
 	// Linux getcwd system call returns count of bytes placed in buffer
 	// unlike the C-library interface which returns pointer to buffer.
-        memChanges_.push_back(AddressSize(rvBuff, len));
+        memChanges_.push_back(AddrLen{rvBuff, len});
         return len;
       }
 
@@ -791,7 +792,7 @@ Syscall<URV>::emulate()
               struct flock fl;
               uint8_t* ptr = reinterpret_cast<uint8_t*>(&fl);
 
-              if (not readHartMemory(hart_, a2, sizeof(fl), ptr))
+              if (readHartMemory(hart_, a2, sizeof(fl), ptr) != sizeof(fl))
                 return SRV(-EINVAL);
 
               rc = fcntl(fd, cmd, &fl);
@@ -800,7 +801,7 @@ Syscall<URV>::emulate()
 
               uint64_t written = writeHartMemory(hart_, ptr, a2, sizeof(fl));
               if (written)
-                memChanges_.push_back(AddressSize(a2, written));
+                memChanges_.push_back(AddrLen{a2, written});
               return written == sizeof(fl)? rc : SRV(-EINVAL);
 	    }
 
@@ -823,7 +824,7 @@ Syscall<URV>::emulate()
           {
             size_t size = _IOC_SIZE(req);
             tmp.resize(size);
-            if (not readHartMemory(hart_, rvArg, size, tmp.data()))
+            if (readHartMemory(hart_, rvArg, size, tmp.data()) != size)
               return SRV(-EINVAL);
             arg = tmp.data();
           }
@@ -938,7 +939,7 @@ Syscall<URV>::emulate()
           {
             ssize_t written = writeHartMemory(hart_, buff.data(), rvBuff, rc);
             if (written)
-              memChanges_.push_back(AddressSize(rvBuff, written));
+              memChanges_.push_back(AddrLen{rvBuff, written});
             return written == rc? rc : SRV(-EINVAL);
           }
 	return SRV(-errno);
@@ -978,7 +979,7 @@ Syscall<URV>::emulate()
 
             auto& buffer = buffers.at(i);
             buffer.resize(len);
-            if (not readHartMemory(hart_, base, len, buffer.data()))
+            if (readHartMemory(hart_, base, len, buffer.data()) != len)
               return SRV(-EINVAL);
 
             iov.at(i).iov_base = buffer.data();
@@ -1008,7 +1009,7 @@ Syscall<URV>::emulate()
 
         ssize_t written = writeHartMemory(hart_, buff.data(), rvBuff, rc);
         if (written)
-          memChanges_.push_back(AddressSize(rvBuff, written));
+          memChanges_.push_back(AddrLen{rvBuff, written});
 	return  written == rc ? written : SRV(-EINVAL);
       }
 
@@ -1033,7 +1034,7 @@ Syscall<URV>::emulate()
 
         bool copyOk = true;
         size_t len = copyStatBufferToRiscv(hart_, buff, rvBuff, copyOk);
-        memChanges_.push_back(AddressSize(rvBuff, len));
+        memChanges_.push_back(AddrLen{rvBuff, len});
 	return copyOk? rc : SRV(-1);
       }
 #endif
@@ -1052,7 +1053,7 @@ Syscall<URV>::emulate()
         bool copyOk  = true;
         size_t len = copyStatBufferToRiscv(hart_, buff, rvBuff, copyOk);
 
-        memChanges_.push_back(AddressSize(rvBuff, len));
+        memChanges_.push_back(AddrLen{rvBuff, len});
 	return copyOk? rc : SRV(-1);
       }
 
@@ -1105,7 +1106,7 @@ Syscall<URV>::emulate()
 
         ssize_t written = writeHartMemory(hart_, temp.data(), buffAddr, rc);
         if (written)
-          memChanges_.push_back(AddressSize(buffAddr, written));
+          memChanges_.push_back(AddrLen{buffAddr, written});
 	return written == rc? written : SRV(-EINVAL);
       }
 
@@ -1117,7 +1118,7 @@ Syscall<URV>::emulate()
 	size_t count = a2;
 
         std::vector<uint8_t> temp(count);
-        if (not readHartMemory(hart_, buffAddr, count, temp.data()))
+        if (readHartMemory(hart_, buffAddr, count, temp.data()) != count)
           return SRV(-EINVAL);
 
 	errno = 0;
@@ -1137,13 +1138,13 @@ Syscall<URV>::emulate()
         uint64_t rvTimeAddr = a2;
         timespec spec[2];
         uint8_t* ptr = reinterpret_cast<uint8_t*>(&spec);
-        if (not readHartMemory(hart_, rvTimeAddr, sizeof(spec), ptr))
+        if (readHartMemory(hart_, rvTimeAddr, sizeof(spec), ptr) != sizeof(spec))
           return SRV(-EINVAL);
 
         int flags = a3;
         int rc = utimensat(dirfd, path, spec, flags);
         if (rc >= 0)
-          memChanges_.push_back(AddressSize(rvTimeAddr, sizeof(*spec)));
+          memChanges_.push_back(AddrLen{rvTimeAddr, sizeof(spec)});
         return rc < 0 ? SRV(-errno) : rc;
       }
 
@@ -1174,7 +1175,7 @@ Syscall<URV>::emulate()
         size_t expected = 4*sizeof(URV);
 
         if (len)
-          memChanges_.push_back(AddressSize(a0, len));
+          memChanges_.push_back(AddrLen{a0, len});
 	
 	return (len == expected)? ticks : SRV(-EINVAL);
       }
@@ -1194,7 +1195,7 @@ Syscall<URV>::emulate()
             size_t len = writeHartMemory(hart_, reinterpret_cast<char*>(&uts),
                                          rvBuff, sizeof(uts));
             if (len)
-              memChanges_.push_back(AddressSize(rvBuff, len));
+              memChanges_.push_back(AddrLen{rvBuff, len});
             return len == sizeof(uts)? rc : SRV(-EINVAL);
           }
 	return SRV(-errno);
@@ -1230,7 +1231,7 @@ Syscall<URV>::emulate()
                 expected = 16; // uint64_t & unit64_t
               }
             if (len)
-              memChanges_.push_back(AddressSize(a0, len));
+              memChanges_.push_back(AddrLen{a0, len});
             if (len != expected)
               return SRV(-EINVAL);
 	  }
@@ -1239,7 +1240,7 @@ Syscall<URV>::emulate()
           {
             size_t len = copyTimezoneToRiscv(hart_, tz0, tzAddr);
             if (len)
-              memChanges_.push_back(AddressSize(a1, len));
+              memChanges_.push_back(AddrLen{a1, len});
             if (len != 2*sizeof(URV))
               return SRV(-EINVAL);
           }
@@ -1390,7 +1391,7 @@ Syscall<URV>::emulate()
         bool copyOk  = true;
         size_t len = copyStatBufferToRiscv(hart_, buff, rvBuff, copyOk);
 
-        memChanges_.push_back(AddressSize(rvBuff, len));
+        memChanges_.push_back(AddrLen{rvBuff, len});
 	return copyOk? rc : SRV(-1);
       }
     }
@@ -1635,27 +1636,29 @@ Syscall<URV>::mmap_remap(uint64_t addr, uint64_t old_size, uint64_t new_size,
 // TBD FIX: Needs improvement.
 template<typename URV>
 void
-Syscall<URV>::getUsedMemBlocks(std::vector<std::pair<uint64_t,uint64_t>>& used_blocks)
+Syscall<URV>::getUsedMemBlocks(std::vector<AddrLen>& used_blocks)
 {
   static const uint64_t max_stack_size = 1024*1024*8;
   auto mem_size = hart_.getMemorySize();
   used_blocks.clear();
   if (mem_size<=(max_stack_size+progBreak_))
     {
-      used_blocks.push_back(std::pair<uint64_t,uint64_t>(0,mem_size));
+      used_blocks.push_back(AddrLen{0, mem_size});
       return;
     }
-  used_blocks.push_back(std::pair<uint64_t,uint64_t>(0,progBreak_));
+  used_blocks.push_back(AddrLen{0, progBreak_});
   for(auto& it:mmap_blocks_)
     if(not it.second.free)
-      used_blocks.push_back(std::pair<uint64_t,uint64_t>(it.first,it.second.length));
-  used_blocks.push_back(std::pair<uint64_t,uint64_t>(hart_.getMemorySize()-max_stack_size,max_stack_size));
+      used_blocks.push_back(AddrLen{it.first, it.second.length});
+  used_blocks.push_back(AddrLen{hart_.getMemorySize()-max_stack_size,
+                                max_stack_size});
 }
 
 
 template<typename URV>
 bool
-Syscall<URV>::loadUsedMemBlocks(const std::string& filename, std::vector<std::pair<uint64_t,uint64_t>>& used_blocks)
+Syscall<URV>::loadUsedMemBlocks(const std::string& filename,
+                                std::vector<AddrLen>& used_blocks)
 {
   // open file for read, check success
   used_blocks.clear();
@@ -1674,7 +1677,7 @@ Syscall<URV>::loadUsedMemBlocks(const std::string& filename, std::vector<std::pa
       uint64_t addr, length;
       iss >> addr;
       iss >> length;
-      used_blocks.push_back(std::pair<uint64_t,uint64_t>(addr, length));
+      used_blocks.push_back(AddrLen{addr, length});
     }
 
   return true;
@@ -1684,7 +1687,7 @@ Syscall<URV>::loadUsedMemBlocks(const std::string& filename, std::vector<std::pa
 template<typename URV>
 bool
 Syscall<URV>::saveUsedMemBlocks(const std::string& filename,
-                                std::vector<std::pair<uint64_t,uint64_t>>& used_blocks)
+                                std::vector<AddrLen>& used_blocks)
 {
   // open file for write, check success
   std::ofstream ofs(filename, std::ios::trunc);
