@@ -8588,7 +8588,8 @@ Hart<URV>::execEcall(const DecodedInst*)
     {
       URV a0 = syscall_.emulate();
       intRegs_.write(RegA0, a0);
-      return;
+      if (not syscallSlam_)
+        return;
     }
 
   auto secCause = SecondaryCause::NONE;

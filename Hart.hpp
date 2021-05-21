@@ -1274,6 +1274,15 @@ namespace WdRiscv
     /// idempotent/non-idempotent according to flag.
     void markRegionIdempotent(unsigned regionIx, bool flag);
 
+    /// Define address at which to slam memory changes resulting from
+    /// an emulated system call. If addr is zero, no slamming is done.
+    void defineSyscallSlam(URV addr)
+    { syscallSlam_ = addr; }
+
+    /// Return the address set by defineSyscallSlam.
+    URV syscallSlam() const
+    { return syscallSlam_; }
+
   protected:
 
     /// Helper to reset: reset floating point related structures.
@@ -2889,6 +2898,7 @@ namespace WdRiscv
     VecRegs vecRegs_;            // Vector register file.
 
     Syscall<URV> syscall_;
+    URV syscallSlam_ = 0;        // Area in which to slam syscall mem changes.
 
     bool rv64_ = sizeof(URV)==8; // True if 64-bit base (RV64I).
     bool rva_ = false;           // True if extension A (atomic) enabled.

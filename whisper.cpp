@@ -199,6 +199,7 @@ struct Args
   std::optional<uint64_t> alarmInterval;
   std::optional<uint64_t> swInterrupt;  // Sotware interrupt mem mapped address
   std::optional<uint64_t> clint;  // Clint mem mapped address
+  std::optional<uint64_t> syscallSlam;
 
   unsigned regWidth = 32;
   unsigned harts = 1;
@@ -253,7 +254,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 674;
+  unsigned subversion = 675;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -363,6 +364,13 @@ collectCommandLineValues(const boost::program_options::variables_map& varMap,
           std::cerr << "Error: softinterrupt address must be a multiple of 4\n";
           ok = false;
         }
+    }
+
+  if (varMap.count("syscallslam"))
+    {
+      auto numStr = varMap["syscallslam"].as<std::string>();
+      if (not parseCmdLineNumber("syscallslam", numStr, args.syscallSlam))
+        ok = false;
     }
 
   if (args.interactive)
@@ -520,6 +528,11 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
          "of these double words sets the timer-limit of the corresponding hart. "
          "A timer interrupt in such a hart becomes pending when the timer value "
          "equals or exceeds the timer limit.")
+        ("syscallslam", po::value<std::string>(),
+         "Define address, a, of a non-cached memory area in which the "
+         "memory changes of an emulated system call will be slammed. This "
+         "is used in server mode to relay the effects of a system call "
+         "to the RTL simulator.")
         ("iccmrw", po::bool_switch(&args.iccmRw),
          "Temporary switch to make ICCM region available to ld/st isntructions.")
         ("quitany", po::bool_switch(&args.quitOnAnyHart),
@@ -1097,6 +1110,9 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
       uint64_t clintLimit = swAddr + system.hartCount() * 4 - 1;
       configureClint(hart, system, swAddr, clintLimit, timerAddr);
     }
+
+  if (args.syscallSlam)
+    hart.defineSyscallSlam(*args.syscallSlam);
 
   // Set instruction count limit.
   if (args.instCountLim)

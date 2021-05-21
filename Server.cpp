@@ -427,50 +427,70 @@ Server<URV>::disassembleAnnotateInst(Hart<URV>& hart,
 }
 
 
+/// Collect the double-words overlapping the areas of memory modified
+/// by the most recent emulated system call. It is assumed that
+/// memory protection boundaries are double-word aligned.
 template <typename URV>
 static void
 collectSyscallMemChanges(Hart<URV>& hart,
                          const std::vector<std::pair<uint64_t, uint64_t>>& scVec,
-                         std::vector<WhisperMessage>& changes)
+                         std::vector<WhisperMessage>& changes,
+                         uint64_t slamAddr)
 {
+  auto hexForm = getHexForm<URV>(); // Format string for printing a hex val
+
   for (auto al : scVec)
     {
       uint64_t addr = al.first;
       uint64_t len = al.second;
 
-      while (len >= 8)
+      uint64_t offset = addr & 7;  // Offset from double word address.
+      if (offset)
+        {
+          addr -= offset;   // Make double word aligned.
+          len += offset;    // Keep last byte the same.
+        }
+
+      for (uint64_t ix = 0; ix < len; ix += 8, addr += 8)
         {
           uint64_t val = 0;
-          hart.peekMemory(addr, val, true);
-          WhisperMessage msg(0, Change, 'm', addr, val);
-          msg.flags = 8; len -= 8; addr += 8;
-          changes.push_back(msg);
+          if (not hart.peekMemory(addr, val, true))
+            {
+              std::cerr << "Peek-memory fail at 0x%x"
+                        << (boost::format(hexForm) % addr)
+                        << " in collectSyscallMemChanges\n";
+              break;
+            }
+
+          changes.push_back(WhisperMessage{0, Change, 'm', addr, val});
+
+          if (not slamAddr)
+            continue;
+
+          bool ok = hart.pokeMemory(slamAddr, addr, true);
+          if (ok)
+            {
+              slamAddr += 8;
+              ok = hart.pokeMemory(slamAddr, val, true);
+              if (ok)
+                slamAddr += 8;
+            }
+
+          if (not ok)
+            {
+              std::cerr << "Poke-memory fail at 0x%x"
+                        << (boost::format(hexForm) % slamAddr)
+                        << " in collectSyscallMemChanges\n";
+              break;
+            }
         }
-      if (len >= 4)
-        {
-          uint32_t val = 0;
-          hart.peekMemory(addr, val, true);
-          WhisperMessage msg(0, Change, 'm', addr, val);
-          msg.flags = 4; len -= 4; addr += 4;
-          changes.push_back(msg);
-        }
-      if (len >= 2)
-        {
-          uint16_t val = 0;
-          hart.peekMemory(addr, val, true);
-          WhisperMessage msg(0, Change, 'm', addr, val);
-          msg.flags = 2; len -= 2; addr += 2;
-          changes.push_back(msg);
-        }
-      if (len)
-        {
-          uint8_t val = 0;
-          hart.peekMemory(addr, val, true);
-          WhisperMessage msg(0, Change, 'm', addr, val);
-          msg.flags = 1; len -= 1; addr += 1;
-          changes.push_back(msg);
-        }
-      assert(len == 0);
+    }
+
+  // Put a zero to mark end of syscall changes in slam area.
+  if (slamAddr)
+    {
+      hart.pokeMemory(slamAddr, uint64_t(0), true);
+      hart.pokeMemory(slamAddr + 8, uint64_t(0), true);
     }
 }
 
@@ -608,10 +628,14 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
     }
 
   // Collect emulated system call changes.
-  std::vector<std::pair<uint64_t, uint64_t>> scVec;
-  hart.lastSyscallChanges(scVec);
-  if (scVec.size())
-    collectSyscallMemChanges(hart, scVec, pendingChanges);
+  uint64_t slamAddr = hart.syscallSlam();
+  if (slamAddr)
+    {
+      std::vector<std::pair<uint64_t, uint64_t>> scVec;
+      hart.lastSyscallChanges(scVec);
+      if (scVec.size())
+        collectSyscallMemChanges(hart, scVec, pendingChanges, slamAddr);
+    }
 
   // Add count of changes to reply.
   reply.value = pendingChanges.size();
