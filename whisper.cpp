@@ -532,7 +532,10 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
          "Define address, a, of a non-cached memory area in which the "
          "memory changes of an emulated system call will be slammed. This "
          "is used in server mode to relay the effects of a system call "
-         "to the RTL simulator.")
+         "to the RTL simulator. The memory area at location a will be filled "
+         "with a sequence of pairs of double words designating addresses and "
+         "corresponding values. A zero/zero pair will indicate the end of "
+         "sequence.")
         ("iccmrw", po::bool_switch(&args.iccmRw),
          "Temporary switch to make ICCM region available to ld/st isntructions.")
         ("quitany", po::bool_switch(&args.quitOnAnyHart),
