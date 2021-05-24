@@ -1305,9 +1305,10 @@ HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
         errors++;
     }
 
-  if (config_ -> count("memmap"))
+  tag = "memmap";
+  if (config_ -> count(tag))
     {
-      const auto& memmap = config_ -> at("memmap");
+      const auto& memmap = config_ -> at(tag);
       tag = "consoleio";
       if (memmap.count(tag))
 	{
@@ -1317,6 +1318,16 @@ HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
           else
             errors++;
 	}
+    }
+
+  tag = "syscall_slam_area";
+  if (config_ -> count(tag))
+    {
+      uint64_t addr = 0;
+      if (getJsonUnsigned(tag, config_ -> at(tag), addr))
+        hart.defineSyscallSlam(addr);
+      else
+        errors++;
     }
 
   return errors == 0;

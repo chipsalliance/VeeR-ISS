@@ -588,11 +588,15 @@ namespace WdRiscv
     void lastCsr(std::vector<CsrNumber>& csrs,
 		 std::vector<unsigned>& triggers) const;
 
-    /// Support for tracing: Fill the addresses and words vectors with
-    /// the addresses of the memory words modified by the last
-    /// executed instruction and their corresponding values.
-    void lastMemory(std::vector<size_t>& addresses,
-		    std::vector<uint32_t>& words) const;
+    /// Support for tracing: Set address and value to the memory
+    /// location changed by the last instruction. Return the size
+    /// of the change or zero if the last instruction did not change
+    /// memory in which case address and value are not modified.
+    /// Returned size is one of 0, 1, 2, 4, or 8.
+    unsigned lastMemory(uint64_t& addr, uint64_t& value) const;
+
+    void lastSyscallChanges(std::vector<std::pair<uint64_t, uint64_t>>& v) const
+    { syscall_.getMemoryChanges(v); }
 
     /// Return data address of last executed ld/st instruction.
     URV lastLdStAddress() const
@@ -1269,6 +1273,15 @@ namespace WdRiscv
     /// Mark the 256MB region with the given region index as
     /// idempotent/non-idempotent according to flag.
     void markRegionIdempotent(unsigned regionIx, bool flag);
+
+    /// Define address at which to slam memory changes resulting from
+    /// an emulated system call. If addr is zero, no slamming is done.
+    void defineSyscallSlam(URV addr)
+    { syscallSlam_ = addr; }
+
+    /// Return the address set by defineSyscallSlam.
+    URV syscallSlam() const
+    { return syscallSlam_; }
 
   protected:
 
@@ -2885,6 +2898,7 @@ namespace WdRiscv
     VecRegs vecRegs_;            // Vector register file.
 
     Syscall<URV> syscall_;
+    URV syscallSlam_ = 0;        // Area in which to slam syscall mem changes.
 
     bool rv64_ = sizeof(URV)==8; // True if 64-bit base (RV64I).
     bool rva_ = false;           // True if extension A (atomic) enabled.

@@ -4142,6 +4142,7 @@ Hart<URV>::clearTraceData()
   csRegs_.clearLastWrittenRegs();
   vecRegs_.clearLastWrittenReg();
   memory_.clearLastWriteInfo(hartIx_);
+  syscall_.clearMemoryChanges();
 }
 
 
@@ -4258,30 +4259,10 @@ Hart<URV>::lastCsr(std::vector<CsrNumber>& csrs,
 
 
 template <typename URV>
-void
-Hart<URV>::lastMemory(std::vector<size_t>& addresses,
-		      std::vector<uint32_t>& words) const
+unsigned
+Hart<URV>::lastMemory(uint64_t& address, uint64_t& value) const
 {
-  addresses.clear();
-  words.clear();
-
-  size_t address = 0;
-  uint64_t value;
-  unsigned writeSize = memory_.getLastWriteNewValue(hartIx_, address, value);
-
-  if (not writeSize)
-    return;
-
-  addresses.clear();
-  words.clear();
-  addresses.push_back(address);
-  words.push_back(uint32_t(value));
-
-  if (writeSize == 8)
-    {
-      addresses.push_back(address + 4);
-      words.push_back(uint32_t(value >> 32));
-    }
+  return memory_.getLastWriteNewValue(hartIx_, address, value);
 }
 
 
@@ -8607,7 +8588,8 @@ Hart<URV>::execEcall(const DecodedInst*)
     {
       URV a0 = syscall_.emulate();
       intRegs_.write(RegA0, a0);
-      return;
+      if (not syscallSlam_)
+        return;
     }
 
   auto secCause = SecondaryCause::NONE;
