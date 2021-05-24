@@ -8584,7 +8584,7 @@ Hart<URV>::execEcall(const DecodedInst*)
   if (triggerTripped_)
     return;
 
-  if (newlib_ or linux_)
+  if (newlib_ or linux_ or syscallSlam_)
     {
       URV a0 = syscall_.emulate();
       intRegs_.write(RegA0, a0);
