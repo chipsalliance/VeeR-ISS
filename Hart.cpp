@@ -3569,6 +3569,28 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
       pending = true;
     }
 
+  // Process syscal memory diffs
+  if (syscallSlam_ and di.instEntry()->instId() == InstId::ecall)
+    {
+      std::vector<std::pair<uint64_t, uint64_t>> scVec;
+      lastSyscallChanges(scVec);
+      for (auto al: scVec)
+        {
+          uint64_t addr = al.first, len = al.second;
+          for (uint64_t ix = 0; ix < len; ix += 8, addr += 8)
+            {
+              uint64_t val = 0;
+              peekMemory(addr, val, true);
+
+              if (pending)
+                fprintf(out, "  +\n");
+              formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'm',
+                                   addr, val, tmp.c_str());
+              pending = true;
+            }
+        }
+    }
+
   // Process CSR diffs.
   std::vector<CsrNumber> csrs;
   std::vector<unsigned> triggers;
