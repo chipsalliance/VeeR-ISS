@@ -492,8 +492,10 @@ collectSyscallMemChanges(Hart<URV>& hart,
   // Put a zero to mark end of syscall changes in slam area.
   if (slamAddr)
     {
-      hart.pokeMemory(slamAddr, uint64_t(0), true);
-      hart.pokeMemory(slamAddr + 8, uint64_t(0), true);
+      if (hart.pokeMemory(slamAddr, uint64_t(0), true))
+        changes.push_back(WhisperMessage{0, Change, 'm', slamAddr, 0});
+      if (hart.pokeMemory(slamAddr + 8, uint64_t(0), true))
+        changes.push_back(WhisperMessage{0, Change, 'm', slamAddr+8, 0});
     }
 }
 
