@@ -462,18 +462,21 @@ collectSyscallMemChanges(Hart<URV>& hart,
               break;
             }
 
-          changes.push_back(WhisperMessage{0, Change, 'm', addr, val});
-
           if (not slamAddr)
             continue;
 
           bool ok = hart.pokeMemory(slamAddr, addr, true);
           if (ok)
             {
+              changes.push_back(WhisperMessage{0, Change, 'm', slamAddr, addr});
+
               slamAddr += 8;
               ok = hart.pokeMemory(slamAddr, val, true);
               if (ok)
-                slamAddr += 8;
+                {
+                  changes.push_back(WhisperMessage{0, Change, 'm', slamAddr, val});
+                  slamAddr += 8;
+                }
             }
 
           if (not ok)
