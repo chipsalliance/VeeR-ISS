@@ -462,18 +462,21 @@ collectSyscallMemChanges(Hart<URV>& hart,
               break;
             }
 
-          changes.push_back(WhisperMessage{0, Change, 'm', addr, val});
-
           if (not slamAddr)
             continue;
 
           bool ok = hart.pokeMemory(slamAddr, addr, true);
           if (ok)
             {
+              changes.push_back(WhisperMessage{0, Change, 'm', slamAddr, addr});
+
               slamAddr += 8;
               ok = hart.pokeMemory(slamAddr, val, true);
               if (ok)
-                slamAddr += 8;
+                {
+                  changes.push_back(WhisperMessage{0, Change, 'm', slamAddr, val});
+                  slamAddr += 8;
+                }
             }
 
           if (not ok)
@@ -489,8 +492,10 @@ collectSyscallMemChanges(Hart<URV>& hart,
   // Put a zero to mark end of syscall changes in slam area.
   if (slamAddr)
     {
-      hart.pokeMemory(slamAddr, uint64_t(0), true);
-      hart.pokeMemory(slamAddr + 8, uint64_t(0), true);
+      if (hart.pokeMemory(slamAddr, uint64_t(0), true))
+        changes.push_back(WhisperMessage{0, Change, 'm', slamAddr, 0});
+      if (hart.pokeMemory(slamAddr + 8, uint64_t(0), true))
+        changes.push_back(WhisperMessage{0, Change, 'm', slamAddr+8, 0});
     }
 }
 

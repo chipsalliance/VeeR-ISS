@@ -873,7 +873,7 @@ template <typename URV>
 void
 Hart<URV>::execFsgnjn_s(const DecodedInst* di)
 {
-if (not isFpLegal())
+  if (not isFpLegal())
     {
       illegalInst(di);
       return;
