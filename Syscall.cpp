@@ -189,29 +189,29 @@ copyStatBufferToRiscv(Hart<URV>& hart, const struct stat& buff,
     return addr - rvBuff;
   addr += 8;
 
-  if (not hart.pokeMemory(addr, uint32_t(buff.st_atim.tv_sec), true))
+  if (not hart.pokeMemory(addr, uint64_t(buff.st_atim.tv_sec), true))
     return addr - rvBuff;
-  addr += 4;
+  addr += 8;
 
-  if (not hart.pokeMemory(addr, uint32_t(buff.st_atim.tv_nsec), true))
+  if (not hart.pokeMemory(addr, uint64_t(buff.st_atim.tv_nsec), true))
     return addr - rvBuff;
-  addr += 4;
+  addr += 8;
 
-  if (not hart.pokeMemory(addr, uint32_t(buff.st_mtim.tv_sec), true))
+  if (not hart.pokeMemory(addr, uint64_t(buff.st_mtim.tv_sec), true))
     return addr - rvBuff;
-  addr += 4;
+  addr += 8;
 
-  if (not hart.pokeMemory(addr, uint32_t(buff.st_mtim.tv_nsec), true))
+  if (not hart.pokeMemory(addr, uint64_t(buff.st_mtim.tv_nsec), true))
     return addr - rvBuff;
-  addr += 4;
+  addr += 8;
 
-  if (not hart.pokeMemory(addr, uint32_t(buff.st_ctim.tv_sec), true))
+  if (not hart.pokeMemory(addr, uint64_t(buff.st_ctim.tv_sec), true))
     return addr - rvBuff;
-  addr += 4;
+  addr += 8;
 
-  if (not hart.pokeMemory(addr, uint32_t(buff.st_ctim.tv_nsec), true))
+  if (not hart.pokeMemory(addr, uint64_t(buff.st_ctim.tv_nsec), true))
     return addr - rvBuff;
-  addr += 4;
+  addr += 8;
 
 #endif
 
