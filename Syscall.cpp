@@ -318,7 +318,8 @@ Syscall<URV>::redirectOutputDescriptor(int fd, const std::string& path)
       return false;
     }
 
-  int newFd = open(path.c_str(), O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+  int newFd = open(path.c_str(), O_WRONLY | O_CREAT,
+                   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   if (newFd < 0)
     {
       std::cerr << "Error: Failed to open file " << path << " for output\n";
