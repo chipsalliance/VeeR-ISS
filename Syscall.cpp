@@ -1027,11 +1027,22 @@ Syscall<URV>::emulate()
 	uint64_t rvBuff = a2;
 	int flags = a3;
 
+        int rc = 0;
 	struct stat buff;
+
 	errno = 0;
-	int rc = fstatat(dirFd, path, &buff, flags);
+
+        // Host OS may not support AT_EMPTY_PATH (0x1000) of fstatat: compensate.
+        if ((flags & 0x1000) != 0 and path[0] == 0)
+          rc = fstat(dirFd, &buff);
+        else
+          rc = fstatat(dirFd, path, &buff, flags);
+
 	if (rc < 0)
-	  return SRV(-errno);
+          {
+            perror("fstatat error: ");
+            return SRV(-errno);
+          }
 
         bool copyOk = true;
         size_t len = copyStatBufferToRiscv(hart_, buff, rvBuff, copyOk);
