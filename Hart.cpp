@@ -602,7 +602,7 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   consecutiveIllegalCount_ = 0;
 
   // Make all idempotent override entries invalid.
-  for (auto& entry : idempotentOverrideVec_)
+  for (auto& entry : pmaOverrideVec_)
     entry.reset();
 }
 
@@ -985,9 +985,9 @@ template <typename URV>
 bool
 Hart<URV>::isAddrIdempotent(size_t addr) const
 {
-  if (idempotentOverride_)
+  if (pmaOverride_)
     {
-      for (const auto& entry : idempotentOverrideVec_)
+      for (const auto& entry : pmaOverrideVec_)
         if (entry.matches(addr))
           return entry.idempotent_;
     }
@@ -1004,9 +1004,9 @@ template <typename URV>
 bool
 Hart<URV>::isAddrCacheable(size_t addr) const
 {
-  if (idempotentOverride_)
+  if (pmaOverride_)
     {
-      for (const auto& entry : idempotentOverrideVec_)
+      for (const auto& entry : pmaOverrideVec_)
         if (entry.matches(addr))
           return entry.cacheable_;
     }

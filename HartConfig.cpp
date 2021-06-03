@@ -1559,7 +1559,7 @@ defineMacoSideEffects(System<URV>& system)
                         bool idempotent = false, cacheable = false;
                         URV mask = csr.getWriteMask();
                         unpackMacoValue(val, mask, rv32, start, end, idempotent, cacheable);
-                        hart->defineIdempotentOverride(macoIx, start, end, idempotent, cacheable);
+                        hart->definePmaOverride(macoIx, start, end, idempotent, cacheable);
                       };
 
           csrPtr->registerPrePoke(pre);
@@ -1569,7 +1569,7 @@ defineMacoSideEffects(System<URV>& system)
           csrPtr->registerPostWrite(post);
         }
 
-      hart->defineIdempotentOverrideRegions(macoIx);
+      hart->definePmaOverrideRegions(macoIx);
     }
 }
 

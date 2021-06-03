@@ -1642,7 +1642,7 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
 
       { "bext", InstId::bext, 0x08006033, top7Funct3Low7Mask,
-	InstType::Zbe,
+	InstType::Zbs,
 	OperandType::IntReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::IntReg, OperandMode::Read, rs2Mask },
