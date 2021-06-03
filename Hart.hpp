@@ -1210,12 +1210,13 @@ namespace WdRiscv
     void registerPreInst(std::function<void(Hart<URV>&, bool&, bool&)> callback)
     { preInst_ = callback; }
 
-    /// Define idempotency override regions. If region count is greater than
-    /// zero then the defined regions override the MRAC CSR.
-    void defineIdempotentOverrideRegions(unsigned regionCount)
+    /// Define physical memory attribute override regions. If region
+    /// count is greater than zero then the defined regions override
+    /// the MRAC CSR.
+    void definePmaOverrideRegions(unsigned regionCount)
     {
-      idempotentOverrideVec_.resize(regionCount);
-      idempotentOverride_ = regionCount > 0;
+      pmaOverrideVec_.resize(regionCount);
+      pmaOverride_ = regionCount > 0;
     }
 
     /// Set the default idempotent attribute for addresses that do
@@ -1234,20 +1235,19 @@ namespace WdRiscv
       defaultCacheable_ = flag;
     }
 
-    /// Define and idempotency override region with given index. An
-    /// address greater than or equal to start and less than or equal
-    /// end is assigned given idempotency.  An address matching
-    /// multiple regions get the idempotency of the first region it
-    /// matches. Return true on success and false if regionIx is out
-    /// of bounds.
-    bool defineIdempotentOverride(unsigned ix, uint64_t start,
-                                  uint64_t end, bool idempotent,
-                                  bool cacheable)
+    /// Define a physical memory attribute override region with given
+    /// index. An address greater than or equal to start and less than
+    /// or equal end is assigned given idempotency/cachability
+    /// attributes.  An address matching multiple regions get the
+    /// attributes of the first region it matches. Return true on
+    /// success and false if regionIx is out of bounds.
+    bool definePmaOverride(unsigned ix, uint64_t start,
+                           uint64_t end, bool idempotent,
+                           bool cacheable)
     {
-      if (ix >= idempotentOverrideVec_.size())
+      if (ix >= pmaOverrideVec_.size())
         return false;
-      idempotentOverrideVec_.at(ix) = IdempotentOverride(start, end, idempotent,
-                                                         cacheable);
+      pmaOverrideVec_.at(ix) = PmaOverride(start, end, idempotent, cacheable);
       return true;
     }
 
@@ -2846,10 +2846,10 @@ namespace WdRiscv
       bool fp_ = false;
     };
 
-    struct IdempotentOverride
+    struct PmaOverride
     {
-      IdempotentOverride(uint64_t start = 0, uint64_t end = 0,
-                         bool idempotent = false, bool cacheable = false)
+      PmaOverride(uint64_t start = 0, uint64_t end = 0,
+                  bool idempotent = false, bool cacheable = false)
         : start_(start), end_(end), idempotent_(idempotent),
           cacheable_(cacheable)
       { }
@@ -3094,8 +3094,8 @@ namespace WdRiscv
     bool defaultCacheable_ = false;
     bool hasDefaultCacheable_ = false;
 
-    bool idempotentOverride_ = false;
-    std::vector<IdempotentOverride> idempotentOverrideVec_;
+    bool pmaOverride_ = false;
+    std::vector<PmaOverride> pmaOverrideVec_;
 
     VirtMem virtMem_;
 
