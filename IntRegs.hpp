@@ -108,13 +108,12 @@ namespace WdRiscv
   {
   public:
 
-    friend class Hart<URV>;
+    friend class Hart<URV>;  // To access reset and last-written-reg methods.
 
     /// Constructor: Define a register file with the given number of
     /// registers. Each register is of type URV. All registers initialized
     /// to zero.
     IntRegs(unsigned registerCount);
-
 
     /// Destructor.
     ~IntRegs()
@@ -167,6 +166,7 @@ namespace WdRiscv
 
   protected:
 
+    /// Clear all regisers.
     void reset()
     {
       clearLastWrittenReg();

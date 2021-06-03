@@ -416,6 +416,17 @@ Server<URV>::disassembleAnnotateInst(Hart<URV>& hart,
         std::ostringstream oss;
         oss << " [0x" << std::hex << addr << "]" << std::dec;
         text += oss.str();
+        bool cacheable = hart.isAddrCacheable(addr);
+        bool io = not hart.isAddrCacheable(addr);
+        if (cacheable or io)
+          {
+            text += " (";
+            if (cacheable)
+              text += "C";
+            if (io)
+              text += "S";
+            text += ")";
+          }
       }
 
   if (interrupted)
