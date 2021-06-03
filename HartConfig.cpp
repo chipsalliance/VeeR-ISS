@@ -1667,7 +1667,9 @@ defineMdacSideEffects(System<URV>& system)
       auto reset = [hart] (Csr<URV>& csr) -> void {
           URV val = csr.read();
           bool idempotent = (val & 2) == 0;
+          bool cacheable = (val & 1);
           hart->setDefaultIdempotent(idempotent);
+          hart->setDefaultCacheable(cacheable);
         };
 
       csrPtr->registerPrePoke(pre);
