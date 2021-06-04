@@ -96,6 +96,10 @@ namespace WdRiscv
     bool loadFinishedCommand(Hart<URV>&, const std::string& line,
 			     const std::vector<std::string>& tokens);
 
+    /// Helper to interact: "dump_memory" command.
+    bool dumpMemoryCommand(const std::string& line,
+                           const std::vector<std::string>& tokens);
+
     /// Helper to interact: "help" command.
     void helpCommand(const std::vector<std::string>& tokens);
 

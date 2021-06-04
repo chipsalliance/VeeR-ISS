@@ -19,7 +19,8 @@
 
 enum WhisperMessageType { Peek, Poke, Step, Until, Change, ChangeCount,
                           Quit, Invalid, Reset, Exception, EnterDebug,
-                          ExitDebug, LoadFinished, CancelDiv, CancelLr };
+                          ExitDebug, LoadFinished, CancelDiv, CancelLr,
+                          DumpMemory };
 
 // Be careful changing this: test-bench file (defines.svh) needs to be
 // updated.

@@ -118,6 +118,12 @@ namespace WdRiscv
       return true;
     }
 
+    /// Write contents of memory accessed by current run in verilog
+    /// hex format to the file at the given path. Return true on
+    /// success and false on failure. Currently this will write the
+    /// contents of accessed pages.
+    bool writeAccessedMemory(const std::string& path) const;
+
   private:
 
     unsigned hartCount_;

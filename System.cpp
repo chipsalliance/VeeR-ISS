@@ -76,5 +76,15 @@ System<URV>::checkUnmappedElf(bool flag)
 }
 
 
+template <typename URV>
+bool
+System<URV>::writeAccessedMemory(const std::string& path) const
+{
+  if (not sparseMem_)
+    return false;
+  return sparseMem_->writeHexFile(path);
+}
+
+
 template class WdRiscv::System<uint32_t>;
 template class WdRiscv::System<uint64_t>;

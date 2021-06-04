@@ -1073,6 +1073,14 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
                         timeStamp.c_str());
               break;
 
+            case DumpMemory:
+              if (not system_.writeAccessedMemory(msg.buffer))
+                reply.type = Invalid;
+              if (commandLog)
+                fprintf(commandLog, "hart=%d dump_memory %s # ts=%s\n",
+                        hartId, msg.buffer, timeStamp.c_str());
+              break;
+
 	    default:
               std::cerr << "Unknown command\n";
 	      reply.type = Invalid;
