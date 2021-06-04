@@ -283,7 +283,7 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
       return true;
     }
 
-  // fflags and frm are part of fcsr
+  // vxsat and vrm are part of vcsr
   if (number == CsrNumber::VXSAT or number == CsrNumber::VXRM or
       number == CsrNumber::VCSR)
     {
