@@ -398,7 +398,7 @@ namespace WdRiscv
     URV getWriteMask() const
     { return writeMask_; }
 
-    /// Return the mask associated with this register. A register
+    /// Return the poke mask associated with this register. A register
     /// value bit is modifiable if and only if the corresponding bit
     /// in the mask is 1; otherwise, the bit is preserved. The write
     /// mask is used by the CSR write instructions. The poke mask
