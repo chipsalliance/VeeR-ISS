@@ -144,9 +144,9 @@ SparseMem::writeHexFile(const std::string& path) const
 
   for (const auto& kv : pageMap_)
     {
-      uint64_t addr = kv.first;    // Page address
+      uint64_t addr = kv.first * pageSize_;    // Page address
       uint8_t* data = kv.second;   // Page data
-      if (fprintf(out, "@%lx\n", addr) < 0)
+      if (fprintf(out, "@%0lx\n", addr) < 0)
         {
           ok = false;
           break;
@@ -159,7 +159,7 @@ SparseMem::writeHexFile(const std::string& path) const
           const char* sep = "";
           for (size_t i = 0; i < chunk; ++i)
             {
-              if (fprintf(out, "%s%02x", sep, data[i]) < 0)
+              if (fprintf(out, "%s%02x", sep, *data++) < 0)
                 ok = false;
               sep = " ";
             }
