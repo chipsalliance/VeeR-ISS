@@ -500,7 +500,7 @@ namespace WdRiscv
     void setIsDebug(bool flag)
     { debug_ = flag; }
 
-    /// Mark regiser as shared among harts.
+    /// Mark register as shared among harts.
     void setIsShared(bool flag)
     { shared_ = flag; }
 
