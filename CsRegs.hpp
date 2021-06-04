@@ -494,7 +494,7 @@ namespace WdRiscv
     void setPokeMask(URV mask)
     { pokeMask_ = mask; }
 
-    /// Mark register as a debug-mode register. Assessing a debug-mode
+    /// Mark register as a debug-mode register. Accessing a debug-mode
     /// register when the processor is not in debug mode will trigger an
     /// illegal instruction exception.
     void setIsDebug(bool flag)
