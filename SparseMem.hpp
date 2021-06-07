@@ -44,6 +44,10 @@ namespace WdRiscv
     /// on failure (out of bounds address or size).
     bool write(uint64_t addr, unsigned size, uint64_t value);
 
+    /// Write the contents of the memory to a verilog hex file. Return
+    /// true on success and false on failure.
+    bool writeHexFile(const std::string& path) const;
+
   protected:
 
     /// Read from given target-machine address an item of type U

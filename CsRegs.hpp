@@ -398,7 +398,7 @@ namespace WdRiscv
     URV getWriteMask() const
     { return writeMask_; }
 
-    /// Return the mask associated with this register. A register
+    /// Return the poke mask associated with this register. A register
     /// value bit is modifiable if and only if the corresponding bit
     /// in the mask is 1; otherwise, the bit is preserved. The write
     /// mask is used by the CSR write instructions. The poke mask
@@ -494,13 +494,13 @@ namespace WdRiscv
     void setPokeMask(URV mask)
     { pokeMask_ = mask; }
 
-    /// Mark register as a debug-mode register. Assessing a debug-mode
+    /// Mark register as a debug-mode register. Accessing a debug-mode
     /// register when the processor is not in debug mode will trigger an
     /// illegal instruction exception.
     void setIsDebug(bool flag)
     { debug_ = flag; }
 
-    /// Mark regiser as shared among harts.
+    /// Mark register as shared among harts.
     void setIsShared(bool flag)
     { shared_ = flag; }
 
@@ -727,7 +727,7 @@ namespace WdRiscv
     bool pokeTrigger(URV trigger, URV data1, URV data2, URV data3)
     { return triggers_.poke(trigger, data1, data2, data3); }
 
-    /// Return true if any of the load (store if isLoad is true)
+    /// Return true if any of the load (store if isLoad is false)
     /// triggers trips. A load/store trigger trips if it matches the
     /// given address and timing and if all the remaining triggers in
     /// its chain have tripped. Set the local-hit bit of any

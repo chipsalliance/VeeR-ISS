@@ -1124,6 +1124,22 @@ Interactive<URV>::loadFinishedCommand(Hart<URV>& hart, const std::string& line,
 }
 
 
+template <typename URV>
+bool
+Interactive<URV>::dumpMemoryCommand(const std::string& line,
+                                    const std::vector<std::string>& tokens)
+{
+  if (tokens.size() != 2)
+    {
+      std::cerr << "Invalid dump_memory command: " << line << '\n';
+      std::cerr << "  Expecting: dump_memory path\n";
+      return false;
+    }
+
+  return system_.writeAccessedMemory(tokens[1]);
+}
+
+
 /// If tokens contain a string of the form hart=<id> then remove that
 /// token from tokens and set hartId to <id> returning true. Return
 /// false if no hart=<id> token is found or if there is an error (<id>
@@ -1631,6 +1647,15 @@ Interactive<URV>::executeLine(unsigned& currentHartId,
   if (command == "pagetable")
     {
       hart.printPageTable(std::cout);
+      return true;
+    }
+
+  if (command == "dump_memory")
+    {
+      if (not dumpMemoryCommand(line, tokens))
+        return false;
+      if (commandLog)
+	fprintf(commandLog, "%s\n", outLine.c_str());
       return true;
     }
 

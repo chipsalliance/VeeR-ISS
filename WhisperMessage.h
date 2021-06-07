@@ -18,15 +18,16 @@
 
 
 enum WhisperMessageType { Peek, Poke, Step, Until, Change, ChangeCount,
-			  Quit, Invalid, Reset, Exception, EnterDebug,
-			  ExitDebug, LoadFinished, CancelDiv, CancelLr };
+                          Quit, Invalid, Reset, Exception, EnterDebug,
+                          ExitDebug, LoadFinished, CancelDiv, CancelLr,
+                          DumpMemory };
 
 // Be careful changing this: test-bench file (defines.svh) needs to be
 // updated.
 enum WhisperExceptionType { InstAccessFault, DataAccessFault,
-			    ImpreciseStoreFault, ImpreciseLoadFault,
+                            ImpreciseStoreFault, ImpreciseLoadFault,
                             PreciseStoreFault, PreciseLoadFault, 
-			    NonMaskableInterrupt };
+                            NonMaskableInterrupt };
 
 
 /// Structure used to communicate with the whisper program using
@@ -43,7 +44,10 @@ struct WhisperMessage
 		 uint64_t value = 0, uint64_t rank = 0)
   : hart(hart), type(type), resource(resource), flags(0), rank(rank),
     address(address), value(value)
-  { }
+  {
+    buffer[0] = 0;
+    tag[0] = 0;
+  }
 #endif
 
   uint32_t hart;

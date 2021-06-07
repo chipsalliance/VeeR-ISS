@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
+#include <cstdio>
 #include "SparseMem.hpp"
 
 
@@ -124,4 +126,50 @@ SparseMem::write(uint64_t addr, unsigned size, uint64_t val)
     }
 
   return false;
+}
+
+
+bool
+SparseMem::writeHexFile(const std::string& path) const
+{
+  FILE* out = fopen(path.c_str(), "w");
+  if (not out)
+    {
+      std::cerr << "SparseMem::writeHexFile failed - cannot open "
+                << path << " for write\n";
+      return false;
+    }
+
+  bool ok = true;
+
+  for (const auto& kv : pageMap_)
+    {
+      uint64_t addr = kv.first * pageSize_;    // Page address
+      uint8_t* data = kv.second;   // Page data
+      if (fprintf(out, "@%0lx\n", addr) < 0)
+        {
+          ok = false;
+          break;
+        }
+
+      size_t remain = pageSize_;
+      while (remain and ok)
+        {
+          size_t chunk = std::min(remain, size_t(16));
+          const char* sep = "";
+          for (size_t i = 0; i < chunk; ++i)
+            {
+              if (fprintf(out, "%s%02x", sep, *data++) < 0)
+                ok = false;
+              sep = " ";
+            }
+          if (fprintf(out, "\n") < 0)
+            ok = false;
+          remain -= chunk;
+        }
+    }
+
+  fclose(out);
+
+  return ok;
 }

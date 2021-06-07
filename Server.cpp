@@ -416,6 +416,17 @@ Server<URV>::disassembleAnnotateInst(Hart<URV>& hart,
         std::ostringstream oss;
         oss << " [0x" << std::hex << addr << "]" << std::dec;
         text += oss.str();
+        bool cacheable = hart.isAddrCacheable(addr);
+        bool io = not hart.isAddrCacheable(addr);
+        if (cacheable or io)
+          {
+            text += " (";
+            if (cacheable)
+              text += "C";
+            if (io)
+              text += "S";
+            text += ")";
+          }
       }
 
   if (interrupted)
@@ -1060,6 +1071,14 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
               if (commandLog)
                 fprintf(commandLog, "hart=%d cancel_lr # ts=%s\n", hartId,
                         timeStamp.c_str());
+              break;
+
+            case DumpMemory:
+              if (not system_.writeAccessedMemory(msg.buffer))
+                reply.type = Invalid;
+              if (commandLog)
+                fprintf(commandLog, "hart=%d dump_memory %s # ts=%s\n",
+                        hartId, msg.buffer, timeStamp.c_str());
               break;
 
 	    default:
