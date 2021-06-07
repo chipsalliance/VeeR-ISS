@@ -727,7 +727,7 @@ namespace WdRiscv
     bool pokeTrigger(URV trigger, URV data1, URV data2, URV data3)
     { return triggers_.poke(trigger, data1, data2, data3); }
 
-    /// Return true if any of the load (store if isLoad is true)
+    /// Return true if any of the load (store if isLoad is false)
     /// triggers trips. A load/store trigger trips if it matches the
     /// given address and timing and if all the remaining triggers in
     /// its chain have tripped. Set the local-hit bit of any
