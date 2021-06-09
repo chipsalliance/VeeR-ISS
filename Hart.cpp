@@ -868,7 +868,7 @@ Hart<URV>::putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
       newIx = loadQueue_.size() - 1;
     }
 
-  URV prev = loadQueue_.at(newIx).prevData_;
+  uint64_t prev = loadQueue_.at(newIx).prevData_;
 
   for (size_t i = 0; i < newIx; ++i)
     {
