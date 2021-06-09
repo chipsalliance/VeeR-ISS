@@ -380,7 +380,7 @@ namespace WdRiscv
             PmpManager& pmpMgr, unsigned tlbSize);
 
     /// Perform virtual to physical memory address translation and
-    /// check for read access if the read flag is true (similary aslo
+    /// check for read access if the read flag is true (similary also
     /// check for write access is the write flag is true ...).  Return
     /// encoutered exception on failure or ExceptionType::NONE on
     /// success.
