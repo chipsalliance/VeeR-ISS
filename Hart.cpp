@@ -1130,13 +1130,16 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
   // Revert register of matching item.
   // Update prev-data of 1st younger item with same target register.
   auto& entry = loadQueue_.at(matchIx);
-  if (entry.fp_)
-    pokeFpReg(entry.regIx_, entry.prevData_);
-  else
+  if (entry.isValid())
     {
-      pokeIntReg(entry.regIx_, entry.prevData_);
-      if (entry.wide_)
-        pokeCsr(CsrNumber::MDBHD, entry.prevData_ >> 32);
+      if (entry.fp_)
+        pokeFpReg(entry.regIx_, entry.prevData_);
+      else
+        {
+          pokeIntReg(entry.regIx_, entry.prevData_);
+          if (entry.wide_)
+            pokeCsr(CsrNumber::MDBHD, entry.prevData_ >> 32);
+        }
     }
 
   loadQueue_.erase(loadQueue_.begin() + matchIx);
