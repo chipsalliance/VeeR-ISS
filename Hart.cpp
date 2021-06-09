@@ -1131,7 +1131,7 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
   // Update prev-data of 1st younger item with same target register.
   auto& entry = loadQueue_.at(matchIx);
   if (entry.isValid())
-    {
+
       if (entry.fp_)
         pokeFpReg(entry.regIx_, entry.prevData_);
       else
@@ -1187,19 +1187,7 @@ Hart<URV>::applyLoadFinished(URV addr, unsigned tag, unsigned& matches)
     }
 
   // Remove matching entry from queue.
-  size_t newSize = 0;
-  for (size_t i = 0; i < size; ++i)
-    {
-      auto& li = loadQueue_.at(i);
-      bool remove = i == matchIx;
-      if (remove)
-	continue;
-
-      if (newSize != i)
-	loadQueue_.at(newSize) = li;
-      newSize++;
-    }
-  loadQueue_.resize(newSize);
+  loadQueue_.erase(loadQueue_.begin() + matchIx);
 
   return true;
 }
