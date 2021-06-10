@@ -875,7 +875,7 @@ Hart<URV>::putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
       auto& entry = loadQueue_.at(i);
       if (entry.isValid() and entry.regIx_ == regIx and entry.fp_ == fp)
         {
-          if (entry.wide_)
+          if (entry.wide_ and not loadQueue_.at(newIx).wide_)
             pokeCsr(CsrNumber::MDBHD, entry.prevData_ >> 32); // Revert MDBHD.
           prev = entry.prevData_;
           entry.makeInvalid();
