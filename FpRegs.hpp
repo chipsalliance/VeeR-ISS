@@ -152,9 +152,11 @@ namespace WdRiscv
   template <typename URV>
   class Hart;
 
-  /// Model a RISCV floating point register file. We use double precision
-  /// representation for each register and nan-boxing for single precision
-  /// values.
+  /// Model a RISCV floating point register file.
+  /// FRV (floating point register value) is the register value type. For
+  /// 32-bit registers, FRV should be float. For 64-bit registers,
+  /// it should be double.
+  template <typename FRV>
   class FpRegs
   {
   public:
@@ -163,7 +165,8 @@ namespace WdRiscv
     friend class Hart<uint64_t>;
 
     /// Constructor: Define a register file with the given number of
-    /// registers. All registers initialized to zero.
+    /// registers. Each register is of type FRV. All registers
+    /// initialized to zero.
     FpRegs(unsigned registerCount);
 
     /// Destructor.
@@ -171,7 +174,7 @@ namespace WdRiscv
     { regs_.clear(); }
     
     /// Return value of ith register.
-    double readDouble(unsigned i) const
+    FRV read(unsigned i) const
     { return regs_[i]; }
 
     /// Return the bit pattern of the ith register as an unsigned
@@ -179,21 +182,15 @@ namespace WdRiscv
     /// that value without the box.
     uint64_t readBitsUnboxed(unsigned i) const
     {
-      FpUnion u{regs_.at(i)};
-      if (nanBox_ and u.sp.pad == ~uint32_t(0))
-        u.sp.pad = 0;
+      if (sizeof(FRV) == 4)
+	return *((uint32_t*) &regs_.at(i));
 
-      return u.i64;
-    }
+      // If nan-boxed return the single precision number.
+      uint32_t* words = (uint32_t*) &regs_.at(i);
+      if (words[1] == ~uint32_t(0))
+	return words[0];
 
-    /// Return true if given value represents a nan-boxed single
-    /// precision value.
-    bool isNanBoxed(uint64_t value) const
-    {
-      if (not nanBox_)
-        return false;
-      FpUnion u{value};
-      return u.sp.pad == ~uint32_t(0);
+      return *((uint64_t*) &regs_.at(i));
     }
 
     /// Return the bit pattern of the ith register as an unsigned
@@ -201,21 +198,22 @@ namespace WdRiscv
     /// unbox it (return the 64-bit NaN).
     uint64_t readBitsRaw(unsigned i) const
     {
-      FpUnion u {regs_.at(i)};
-      if (flen_ == 32)
-        u.sp.pad = 0;
-      return u.i64;
+      if (sizeof(FRV) == 4)
+	return *((uint32_t*) &regs_.at(i));
+      return *((uint64_t*) &regs_.at(i));
     }
 
     /// Set FP register i to the given value.
     void pokeBits(unsigned i, uint64_t val)
     {
-      FpUnion fpu(val);
-      regs_.at(i) = fpu.dp;
+      if (sizeof(FRV) == 4)
+	*((uint32_t*) &regs_.at(i)) = val;
+      else
+	*((uint64_t*) &regs_.at(i)) = val;
     }
 
     /// Set value of ith register to the given value.
-    void writeDouble(unsigned i, double value)
+    void write(unsigned i, FRV value)
     {
       originalValue_ = regs_.at(i);
       regs_.at(i) = value;
@@ -257,24 +255,17 @@ namespace WdRiscv
       return std::string("f?");
     }
 
+    /// Return the number of bits in a register in this register file.
+    static constexpr uint32_t regWidth()
+    { return sizeof(FRV)*8; }
+
   protected:
 
-    void reset(bool isDouble)
+    void reset()
     {
-      if (isDouble)
-        {
-          for (auto& reg : regs_)
-            reg = 0;
-        }
-      else
-        {
-          // Only F extension present. Reset to NAN-boxed zeros if
-          // flen is 64.
-          for (size_t i = 0; i < regs_.size(); ++i)
-            writeSingle(i, 0);
-        }
-
       clearLastWrittenReg();
+      for (auto& reg : regs_)
+	reg = 0;
     }
 
     /// Clear the number denoting the last written register.
@@ -295,30 +286,7 @@ namespace WdRiscv
     {
       if (lastWrittenReg_ < 0) return false;
       regIx = lastWrittenReg_;
-
-      // Copy bits of last written value inot regValue
-      union
-      {
-        double d;
-        uint64_t u;
-      } tmp;
-      tmp.d = originalValue_;
-      regValue = tmp.u;
-
-      return true;
-    }
-
-    /// Set width of floating point register (flen). Internal
-    /// representation always uses 64-bits. If flen is set to 32 then
-    /// nan-boxing is not done. Return true on success and false
-    /// on failure (fail if length is neither 32 or 64).
-    /// Flen should not be set to 32 if D extension is enabled.
-    bool setFlen(unsigned length)
-    {
-      if (length != 32 and length != 64)
-        return false;
-      flen_ = length;
-      nanBox_ = (flen_ == 64);
+      regValue = originalValue_;
       return true;
     }
 
@@ -327,8 +295,6 @@ namespace WdRiscv
     // Single precision number with a 32-bit padding.
     struct SpPad
     {
-      SpPad(float x)  : sp(x), pad(0) { }
-
       float sp;
       uint32_t pad;
     };
@@ -336,36 +302,46 @@ namespace WdRiscv
     // Union of double and single precision numbers used for NAN boxing.
     union FpUnion
     {
-      FpUnion(double x)   : dp(x)  { }
-      FpUnion(uint64_t x) : i64(x) { }
-      FpUnion(float x)    : sp(x)  { }
-
       SpPad sp;
       double dp;
-      uint64_t i64;
     };
 	
   private:
 
-    std::vector<double> regs_;
-    int lastWrittenReg_ = -1;    // Register accessed in most recent write.
-    double originalValue_ = 0;   // Original value of last written reg.
-    unsigned flen_ = 64;         // Floating point register width.
-    bool nanBox_ = true;
+    std::vector<FRV> regs_;
+    int lastWrittenReg_ = -1;  // Register accessed in most recent write.
+    FRV originalValue_ = 0;    // Original value of last written reg.
     std::unordered_map<std::string, FpRegNumber> nameToNumber_;
     std::vector<std::string> numberToAbiName_;
     std::vector<std::string> numberToName_;
   };
 
 
+  template<>
   inline
   float
-  FpRegs::readSingle(unsigned i) const
+  FpRegs<float>::readSingle(unsigned i) const
   {
-    FpUnion u{regs_.at(i)};
-    if (not nanBox_)
-      return u.sp.sp;
+    return regs_.at(i);
+  }
 
+
+  template<>
+  inline
+  void
+  FpRegs<float>::writeSingle(unsigned i, float x)
+  {
+    write(i, x);
+  }
+
+
+  template<>
+  inline
+  float
+  FpRegs<double>::readSingle(unsigned i) const
+  {
+    FpUnion u;
+    u.dp = regs_.at(i);
     // Check for proper nan-boxing. If not properly boxed, replace with NaN.
     if (~u.sp.pad != 0)
       return std::numeric_limits<float>::quiet_NaN();
@@ -373,13 +349,14 @@ namespace WdRiscv
   }
 
 
+  template<>
   inline
   void
-  FpRegs::writeSingle(unsigned i, float x)
+  FpRegs<double>::writeSingle(unsigned i, float x)
   {
-    FpUnion u{x};
-    if (nanBox_)
-      u.sp.pad = ~uint32_t(0);  // Nan box: Bit pattern for negative quiet NAN.
-    writeDouble(i, u.dp);
+    FpUnion u;
+    u.sp.sp = x;
+    u.sp.pad = ~uint32_t(0);  // Bit pattern for negative quiet NAN.
+    write(i, u.dp);
   }
 }

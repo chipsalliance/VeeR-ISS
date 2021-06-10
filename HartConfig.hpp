@@ -50,21 +50,15 @@ namespace WdRiscv
     /// the type associated with the integer registers of a hart. Use
     /// uint32_t for 32-bit harts and uint64_t for 64-bit harts.
     template<typename URV>
-    bool applyConfig(Hart<URV>&, bool userMode, bool verbose) const;
+    bool applyConfig(Hart<URV>&, bool verbose) const;
 
     /// Apply the configurations in this object to all the given
     /// harts. Finalize CSR configuration by defining callbacks for
     /// non-standard CSRs.
     template<typename URV>
-    bool configHarts(System<URV>& system, const std::string& isaString,
-                     bool verbose) const;
+    bool configHarts(System<URV>& system, bool verbose) const;
 
-    /// Configure memory.
-    template<typename URV>
-    bool configMemory(System<URV>& system, bool iccmRw, bool unmappedElfOf,
-                      bool verbose) const;
-
-    /// Apply the memory configuration in this object. Helper to configMemory.
+    /// Apply the memory configuration in this object.
     template<typename URV>
     bool applyMemoryConfig(Hart<URV>&, bool iccmRw, bool verbose) const;
     
@@ -93,17 +87,6 @@ namespace WdRiscv
     /// not contain a memory size configuration.
     bool getMemorySize(size_t& memSize) const;
 
-    /// Return true if the reset value of the MISA CSR has the user
-    /// extension enabled. Return false if MISA CSR is not present in
-    /// this configuration or if user extension is not enabled.
-    bool userModeEnabled() const;
-
-    /// Return true if the reset value of the MISA CSR has the
-    /// supervisor extension enabled. Return false if MISA CSR is not
-    /// present in this configuration or if user extension is not
-    /// enabled.
-    bool supervisorModeEnabled() const;
-
     /// Clear (make empty) the set of configurations held in this object.
     void clear();
 
@@ -111,14 +94,6 @@ namespace WdRiscv
     /// in multi-hart configurations.
     template<typename URV>
     bool finalizeCsrConfig(System<URV>& system) const;
-
-  protected:
-
-    /// Set val to the reset value of the MISA CSR returning true on
-    /// success and false if no such entry in this config or if entry
-    /// has the wrong value type. This is a heler to userModeEnabled
-    /// and supervisorModeEnabeld.
-    bool getMisaReset(uint64_t& val) const;
 
   private:
 

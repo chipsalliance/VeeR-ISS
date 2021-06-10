@@ -1,51 +1,44 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-
-#if defined(__cpp_lib_filesystem)
-  #include <filesystem>
-  namespace FileSystem = std::filesystem;
-#else
-  #include <experimental/filesystem>
-  namespace FileSystem = std::experimental::filesystem;
-#endif
-
+#include <experimental/filesystem>
 #include <unistd.h>
 #include <fcntl.h>
 #include "Hart.hpp"
 
-
+ 
 using namespace WdRiscv;
 
+using namespace std::experimental;
 
 template <typename URV>
 bool
 Hart<URV>::saveSnapshot(const std::string& dir)
 {
-  FileSystem::path dirPath = dir;
+  filesystem::path dirPath = dir;
   std::vector<std::pair<uint64_t,uint64_t>> usedBlocks;
 
-  FileSystem::path regPath = dirPath / "registers";
+  filesystem::path regPath = dirPath / "registers";
   if (not saveSnapshotRegs(regPath.string()))
     return false;
 
-  FileSystem::path usedBlocksPath = dirPath / "usedblocks";
+  filesystem::path usedBlocksPath = dirPath / "usedblocks";
   if (not syscall_.saveUsedMemBlocks(usedBlocksPath.string(), usedBlocks))
     return false;
 
-  FileSystem::path memPath = dirPath / "memory";
+  filesystem::path memPath = dirPath / "memory";
   if (not memory_.saveSnapshot(memPath.string(), usedBlocks))
     return false;
 
-  FileSystem::path fdPath = dirPath / "fd";
+  filesystem::path fdPath = dirPath / "fd";
   if (not syscall_.saveFileDescriptors(fdPath.string()))
     return false;
 
-  FileSystem::path mmapPath = dirPath / "mmap";
+  filesystem::path mmapPath = dirPath / "mmap";
   if (not syscall_.saveMmap(mmapPath.string()))
     return false;
 
-  FileSystem::path cachePath = dirPath / "cache";
+  filesystem::path cachePath = dirPath / "cache";
   if (not memory_.saveCacheSnapshot(cachePath))
     return false;
 
@@ -57,31 +50,31 @@ template <typename URV>
 bool
 Hart<URV>::loadSnapshot(const std::string& dir)
 {
-  FileSystem::path dirPath = dir;
+  filesystem::path dirPath = dir;
   std::vector<std::pair<uint64_t,uint64_t>> usedBlocks;
 
-  FileSystem::path regPath = dirPath / "registers";
+  filesystem::path regPath = dirPath / "registers";
   if (not loadSnapshotRegs(regPath.string()))
     return false;
 
-  FileSystem::path usedBlocksPath = dirPath / "usedblocks";
+  filesystem::path usedBlocksPath = dirPath / "usedblocks";
   if (not syscall_.loadUsedMemBlocks(usedBlocksPath.string(), usedBlocks))
     return false;
 
-  FileSystem::path mmapPath = dirPath / "mmap";
+  filesystem::path mmapPath = dirPath / "mmap";
   if (not syscall_.loadMmap(mmapPath.string()))
     return false;
 
-  FileSystem::path memPath = dirPath / "memory";
+  filesystem::path memPath = dirPath / "memory";
   if (not memory_.loadSnapshot(memPath.string(), usedBlocks))
     return false;
 
-  FileSystem::path fdPath = dirPath / "fd";
+  filesystem::path fdPath = dirPath / "fd";
   if (not syscall_.loadFileDescriptors(fdPath.string()))
     return false;
 
-  FileSystem::path cachePath = dirPath / "cache";
-  if (FileSystem::is_regular_file(cachePath))
+  filesystem::path cachePath = dirPath / "cache";
+  if (filesystem::is_regular_file(cachePath))
     if (not memory_.loadCacheSnapshot(cachePath.string()))
       return false;
 

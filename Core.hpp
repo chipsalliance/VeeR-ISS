@@ -15,8 +15,8 @@
 
 #pragma once
 
-#include <memory>               // For shared_ptr
-#include "Memory.hpp"
+#include <memory>               // For shapre_ptr
+#include <Memory.hpp>
 
 
 namespace WdRiscv

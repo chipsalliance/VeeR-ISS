@@ -14,7 +14,6 @@
 
 #include <iostream>
 #include <sstream>
-#include <fstream>
 #include <map>
 #include <algorithm>
 #include <boost/format.hpp>
@@ -32,7 +31,6 @@
 #include "WhisperMessage.h"
 #include "Hart.hpp"
 #include "Server.hpp"
-#include "Interactive.hpp"
 
 
 using namespace WdRiscv;
@@ -66,43 +64,43 @@ deserializeMessage(const char buffer[], size_t bufferLen,
   assert (bufferLen >= sizeof(msg));
 
   const char* p = buffer;
-  uint32_t x = ntohl(* reinterpret_cast<const uint32_t*> (p));
+  uint32_t x = ntohl(*((uint32_t*)p));
   msg.hart = x;
   p += sizeof(x);
 
-  x = ntohl(* reinterpret_cast<const uint32_t*> (p));
+  x = ntohl(*((uint32_t*)p));
   msg.type = x;
   p += sizeof(x);
 
-  x = ntohl(* reinterpret_cast<const uint32_t*> (p));
+  x = ntohl(*((uint32_t*)p));
   msg.resource = x;
   p += sizeof(x);
 
-  x = ntohl(* reinterpret_cast<const uint32_t*> (p));
+  x = ntohl(*((uint32_t*)p));
   msg.flags = x;
   p += sizeof(x);
 
-  uint32_t part = ntohl(* reinterpret_cast<const uint32_t*> (p));
+  uint32_t part = ntohl(*((uint32_t*)p));
   msg.rank = uint64_t(part) << 32;
   p += sizeof(part);
 
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
+  part = ntohl(*(uint32_t*)p);
   msg.rank |= part;
   p += sizeof(part);
 
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
+  part = ntohl(*((uint32_t*)p));
   msg.address = uint64_t(part) << 32;
   p += sizeof(part);
 
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
+  part = ntohl(*((uint32_t*)p));
   msg.address |= part;
   p += sizeof(part);
 
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
+  part = ntohl(*((uint32_t*)p));
   msg.value = uint64_t(part) << 32;
   p += sizeof(part);
 
-  part = ntohl(* reinterpret_cast<const uint32_t*> (p));
+  part = ntohl(*((uint32_t*)p));
   msg.value |= part;
   p += sizeof(part);
 
@@ -284,16 +282,6 @@ Server<URV>::pokeCommand(const WhisperMessage& req, WhisperMessage& reply)
       }
       break;
 
-    case 'f':
-      {
-	unsigned reg = static_cast<unsigned>(req.address);
-	uint64_t val = req.value;
-	if (reg == req.address)
-	  if (hart.pokeFpReg(reg, val))
-	    return true;
-      }
-      break;
-
     case 'c':
       {
 	URV val = static_cast<URV>(req.value);
@@ -303,18 +291,14 @@ Server<URV>::pokeCommand(const WhisperMessage& req, WhisperMessage& reply)
       break;
 
     case 'm':
-      {
-        bool usePma = false; // Ignore phsical memory attributes.
-
-        if (sizeof(URV) == 4)
-          {
-            // Poke a word in 32-bit harts.
-            if (hart.pokeMemory(req.address, uint32_t(req.value), usePma))
-              return true;
-          }
-        else if (hart.pokeMemory(req.address, req.value, usePma))
-          return true;
-      }
+      if (sizeof(URV) == 4)
+	{
+	  // Poke a word in 32-bit harts.
+	  if (hart.pokeMemory(req.address, uint32_t(req.value)))
+	    return true;
+	}
+      else if (hart.pokeMemory(req.address, req.value))
+	return true;
       break;
     }
 
@@ -373,17 +357,12 @@ Server<URV>::peekCommand(const WhisperMessage& req, WhisperMessage& reply)
 	}
       break;
     case 'm':
-      if (hart.peekMemory(req.address, value, false /*usePma*/))
+      if (hart.peekMemory(req.address, value))
 	{
 	  reply.value = value;
 	  return true;
 	}
       break;
-    case 'p':
-      {
-        reply.value = hart.peekPc();
-        break;
-      }
     }
 
   reply.type = Invalid;
@@ -416,17 +395,6 @@ Server<URV>::disassembleAnnotateInst(Hart<URV>& hart,
         std::ostringstream oss;
         oss << " [0x" << std::hex << addr << "]" << std::dec;
         text += oss.str();
-        bool cacheable = hart.isAddrCacheable(addr);
-        bool io = not hart.isAddrCacheable(addr);
-        if (cacheable or io)
-          {
-            text += " (";
-            if (cacheable)
-              text += "C";
-            if (io)
-              text += "S";
-            text += ")";
-          }
       }
 
   if (interrupted)
@@ -435,79 +403,6 @@ Server<URV>::disassembleAnnotateInst(Hart<URV>& hart,
     text += " (pre-trigger)";
   else if (hasPostTrigger)
     text += " (post-trigger)";
-}
-
-
-/// Collect the double-words overlapping the areas of memory modified
-/// by the most recent emulated system call. It is assumed that
-/// memory protection boundaries are double-word aligned.
-template <typename URV>
-static void
-collectSyscallMemChanges(Hart<URV>& hart,
-                         const std::vector<std::pair<uint64_t, uint64_t>>& scVec,
-                         std::vector<WhisperMessage>& changes,
-                         uint64_t slamAddr)
-{
-  auto hexForm = getHexForm<URV>(); // Format string for printing a hex val
-
-  for (auto al : scVec)
-    {
-      uint64_t addr = al.first;
-      uint64_t len = al.second;
-
-      uint64_t offset = addr & 7;  // Offset from double word address.
-      if (offset)
-        {
-          addr -= offset;   // Make double word aligned.
-          len += offset;    // Keep last byte the same.
-        }
-
-      for (uint64_t ix = 0; ix < len; ix += 8, addr += 8)
-        {
-          uint64_t val = 0;
-          if (not hart.peekMemory(addr, val, true))
-            {
-              std::cerr << "Peek-memory fail at 0x%x"
-                        << (boost::format(hexForm) % addr)
-                        << " in collectSyscallMemChanges\n";
-              break;
-            }
-
-          if (not slamAddr)
-            continue;
-
-          bool ok = hart.pokeMemory(slamAddr, addr, true);
-          if (ok)
-            {
-              changes.push_back(WhisperMessage{0, Change, 'm', slamAddr, addr});
-
-              slamAddr += 8;
-              ok = hart.pokeMemory(slamAddr, val, true);
-              if (ok)
-                {
-                  changes.push_back(WhisperMessage{0, Change, 'm', slamAddr, val});
-                  slamAddr += 8;
-                }
-            }
-
-          if (not ok)
-            {
-              std::cerr << "Poke-memory fail at 0x%x"
-                        << (boost::format(hexForm) % slamAddr)
-                        << " in collectSyscallMemChanges\n";
-              break;
-            }
-        }
-    }
-
-  // Put a zero to mark end of syscall changes in slam area.
-  if (slamAddr)
-    {
-      if (hart.pokeMemory(slamAddr, uint64_t(0), true))
-        changes.push_back(WhisperMessage{0, Change, 'm', slamAddr, 0});
-      if (hart.pokeMemory(slamAddr + 8, uint64_t(0), true))
-        changes.push_back(WhisperMessage{0, Change, 'm', slamAddr+8, 0});
-    }
 }
 
 
@@ -533,8 +428,6 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
 
   strncpy(reply.buffer, text.c_str(), sizeof(reply.buffer) - 1);
   reply.buffer[sizeof(reply.buffer) -1] = 0;
-
-  // Order of changes: rfcvm (int reg, fp reg, csr, vec reg, memory, csr)
 
   // Collect integer register change caused by execution of instruction.
   pendingChanges.clear();
@@ -569,8 +462,6 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
 	}
     }
 
-  // Collect vector register change (format not yet defined).
-
   // Collect CSR and trigger changes.
   std::vector<CsrNumber> csrs;
   std::vector<unsigned> triggers;
@@ -602,25 +493,20 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
   // Collect changes associated with trigger register.
   for (unsigned trigger : triggers)
     {
-      uint64_t data1(0), data2(0), data3(0);
+      URV data1(0), data2(0), data3(0);
       if (not hart.peekTrigger(trigger, data1, data2, data3))
 	continue;
-
-      // Components of trigger that changed.
-      bool t1 = false, t2 = false, t3 = false;
-      hart.getTriggerChange(trigger, t1, t2, t3);
-
-      if (t1)
+      if (tdataChanged.at(0))
 	{
 	  URV addr = (trigger << 16) | unsigned(CsrNumber::TDATA1);
 	  csrMap[addr] = data1;
 	}
-      if (t2)
+      if (tdataChanged.at(1))
 	{
 	  URV addr = (trigger << 16) | unsigned(CsrNumber::TDATA2);
 	  csrMap[addr] = data2;
 	}
-      if (t3)
+      if (tdataChanged.at(2))
 	{
 	  URV addr = (trigger << 16) | unsigned(CsrNumber::TDATA3);
 	  csrMap[addr] = data3;
@@ -633,24 +519,16 @@ Server<URV>::processStepCahnges(Hart<URV>& hart,
       pendingChanges.push_back(msg);
     }
 
-  // Collect memory change.
-  uint64_t memAddr = 0, memVal = 0;
-  unsigned size = hart.lastMemory(memAddr, memVal);
-  if (size)
-    {
-      WhisperMessage msg(0, Change, 'm', memAddr, memVal);
-      msg.flags = size;
-      pendingChanges.push_back(msg);
-    }
+  std::vector<size_t> addresses;
+  std::vector<uint32_t> words;
 
-  // Collect emulated system call changes.
-  uint64_t slamAddr = hart.syscallSlam();
-  if (slamAddr)
+  hart.lastMemory(addresses, words);
+  assert(addresses.size() == words.size());
+
+  for (size_t i = 0; i < addresses.size(); ++i)
     {
-      std::vector<std::pair<uint64_t, uint64_t>> scVec;
-      hart.lastSyscallChanges(scVec);
-      if (scVec.size())
-        collectSyscallMemChanges(hart, scVec, pendingChanges, slamAddr);
+      WhisperMessage msg(0, Change, 'm', addresses.at(i), words.at(i));
+      pendingChanges.push_back(msg);
     }
 
   // Add count of changes to reply.
@@ -856,24 +734,6 @@ Server<URV>::exceptionCommand(const WhisperMessage& req,
 }
 
 
-/// Dump all registers contents in tracefile.
-template <typename URV>
-static void
-serverPrintFinalRegisterState(std::shared_ptr<Hart<URV>> hartPtr)
-{
-  std::ofstream out("issfinal.log");
-  if (not out)
-    return;
-  Interactive<URV>::peekAllIntRegs(*hartPtr, out);
-  out << "\n";
-  Interactive<URV>::peekAllFpRegs(*hartPtr, out);
-  out << "\n";
-  Interactive<URV>::peekAllTriggers(*hartPtr, out);
-  out << "\n";
-  Interactive<URV>::peekAllCsrs(*hartPtr, out);
-}
-
-
 // Server mode loop: Receive command and send reply till a quit
 // command is received. Return true on successful termination (quit
 // received). Return false otherwise.
@@ -912,7 +772,6 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
 	    case Quit:
 	      if (commandLog)
 		fprintf(commandLog, "hart=%d quit\n", hartId);
-              serverPrintFinalRegisterState(hartPtr);
 	      return true;
 
 	    case Poke:
@@ -928,17 +787,10 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
 	    case Peek:
 	      peekCommand(msg, reply);
 	      if (commandLog)
-                {
-                  if (msg.resource == 'p')
-                    fprintf(commandLog, "hart=%d peek pc # ts=%s tag=%s\n",
-                            hartId, timeStamp.c_str(), msg.tag);
-                  else
-                    fprintf(commandLog, "hart=%d peek %c %s # ts=%s tag=%s\n",
-                            hartId,
-                            msg.resource,
-                            (boost::format(hexForm) % msg.address).str().c_str(),
-                            timeStamp.c_str(), msg.tag);
-                }
+		fprintf(commandLog, "hart=%d peek %c %s # ts=%s\n", hartId,
+			msg.resource,
+			(boost::format(hexForm) % msg.address).str().c_str(),
+			timeStamp.c_str());
 	      break;
 
 	    case Step:
@@ -1016,14 +868,11 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
 	      break;
 
 	    case EnterDebug:
-              {
-                bool force = msg.flags;
-                if (checkHart(msg, "enter_debug", reply))
-                  hart.enterDebugMode(hart.peekPc(), force);
-                if (commandLog)
-                  fprintf(commandLog, "hart=%d enter_debug %s # ts=%s\n", hartId,
-                          force? "true" : "false", timeStamp.c_str());
-              }
+              if (checkHart(msg, "enter_debug", reply))
+                hart.enterDebugMode(hart.peekPc());
+              if (commandLog)
+                fprintf(commandLog, "hart=%d enter_debug # ts=%s\n", hartId,
+                        timeStamp.c_str());
 	      break;
 
 	    case ExitDebug:
@@ -1071,14 +920,6 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
               if (commandLog)
                 fprintf(commandLog, "hart=%d cancel_lr # ts=%s\n", hartId,
                         timeStamp.c_str());
-              break;
-
-            case DumpMemory:
-              if (not system_.writeAccessedMemory(msg.buffer))
-                reply.type = Invalid;
-              if (commandLog)
-                fprintf(commandLog, "hart=%d dump_memory %s # ts=%s\n",
-                        hartId, msg.buffer, timeStamp.c_str());
               break;
 
 	    default:

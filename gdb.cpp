@@ -142,7 +142,7 @@ receivePacketFromGdb(int fd, std::string& packet)
 {
   unsigned char ch = ' '; // Anything besides $ will do.
 
-  char buffer[1024];
+  char buffer[256];
   uint8_t sum = 0;  // checksum
 
   ssize_t count = read(fd, buffer, sizeof(buffer));
@@ -424,10 +424,6 @@ getGdbTargetXml(WdRiscv::Hart<URV>& hart, std::string& xml)
 }
 
 
-// XML describing this RISCV processor to gdb.
-static std::string targetXml;
-static std::mutex xmlMutex;
-
 template <typename URV>
 void
 processXferQuery(const std::string& packet, WdRiscv::Hart<URV>& hart,
@@ -451,16 +447,13 @@ processXferQuery(const std::string& packet, WdRiscv::Hart<URV>& hart,
       return;
     }
 
-  {
-    std::lock_guard<std::mutex> lock(xmlMutex);
+  // Fill xml string on first call to this function.
+  static std::string xml;
+  if (xml.empty())
+    getGdbTargetXml(hart, xml);
 
-    // Fill xml string on first call to this function.
-    if (targetXml.empty())
-      getGdbTargetXml(hart, targetXml);
-  }
-
-  auto part = targetXml.substr(offset, length);
-  if (offset + length < targetXml.size())
+  auto part = xml.substr(offset, length);
+  if (offset + length < xml.size())
     reply << 'm' << part;
   else
     reply << 'l' << part;
@@ -609,10 +602,9 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
 		    for (URV ix = 0; ix < len; ++ix)
 		      {
 			uint8_t byte = 0, high = 0, low = 0;
-                        bool usePma = false; // Ignore physical memory attributes.
-			hart.peekMemory(addr++, byte, usePma);
+			hart.peekMemory(addr++, byte);
                         byteToHexChars(byte, high, low);
-                        reply.write(reinterpret_cast<char*> (&high), 1);
+                        reply.write((char*) &high, 1);
                         reply.write((char*) &low, 1);
 		      }
 		  }
@@ -642,8 +634,7 @@ handleExceptionForGdb(WdRiscv::Hart<URV>& hart, int fd)
 			    int bb = hexCharToInt(data.at(2*ix));
 			    bb = (bb << 4) | hexCharToInt(data.at(2*ix+1));
                             uint8_t val = bb;
-                            bool usePma = false; // Ignore physical memory attributes.
-			    hart.pokeMemory(addr, val, usePma);
+			    hart.pokeMemory(addr, val);
                             addr++;
 			  }
 			reply << "OK";

@@ -30,34 +30,13 @@ BOOST_INC := $(wildcard $(BOOST_DIR) $(BOOST_DIR)/include)
 BOOST_LIB_DIR := $(wildcard $(BOOST_DIR)/stage/lib $(BOOST_DIR)/lib)
 
 # Specify only the basename of the Boost libraries
-BOOST_LIBS := boost_program_options
+BOOST_LIBS := boost_program_options 
 
 # Add extra dependency libraries here
-ifeq (CYGWIN_NT-10.0,$(shell uname -s))
-EXTRA_LIBS := -lpthread -lz -lstdc++fs
-else
-EXTRA_LIBS := -lpthread -lz -static-libstdc++
-endif
-
-ifeq (Linux,$(shell uname -s))
-EXTRA_LIBS += -lstdc++fs
-endif
-
+EXTRA_LIBS := -lpthread -lz -static-libstdc++ -lstdc++fs
 ifeq (mingw,$(findstring mingw,$(shell $(CXX) -v 2>&1 | grep Target | cut -d' ' -f2)))
 EXTRA_LIBS += -lws2_32
 endif
-
-ifdef SOFT_FLOAT
-override CPPFLAGS += -I$(PWD)/softfloat/source/include
-override CPPFLAGS += -DSOFT_FLOAT
-soft_float_build := $(wildcard $(PWD)/softfloat/build/RISCV-GCC)
-soft_float_lib := $(soft_float_build)/softfloat.a
-endif
-
-ifdef MEM_CALLBACKS
-override CPPFLAGS += -DMEM_CALLBACKS
-endif
-
 
 # Add External Library location paths here
 LINK_DIRS := $(addprefix -L,$(BOOST_LIB_DIR))
@@ -71,10 +50,6 @@ else
   LINK_LIBS := $(addprefix -l, $(BOOST_LIBS)) $(EXTRA_LIBS)
 endif
 
-ifeq (Darwin,$(shell uname))
-   LINK_LIBS := $(BOOST_LIB_DIR)/lib$(BOOST_LIBS).a $(EXTRA_LIBS)
-endif
-
 # For out of source build
 BUILD_DIR := build-$(shell uname -s)
 MKDIR_P ?= mkdir -p
@@ -86,12 +61,7 @@ OFLAGS := -O3
 IFLAGS := $(addprefix -isystem ,$(BOOST_INC)) -I.
 
 # Command to compile .cpp files.
-ifeq (CYGWIN_NT-10.0,$(shell uname -s))
-override CXXFLAGS += -MMD -MP -std=c++17 -D_GNU_SOURCE $(OFLAGS) $(IFLAGS) -pedantic -Wall -Wextra
-else
 override CXXFLAGS += -MMD -MP -std=c++17 $(OFLAGS) $(IFLAGS) -pedantic -Wall -Wextra
-endif
-
 # Command to compile .c files
 override CFLAGS += -MMD -MP $(OFLAGS) $(IFLAGS) -pedantic -Wall -Wextra
 
@@ -107,8 +77,7 @@ $(BUILD_DIR)/%.c.o:  %.c
 
 # Main target.(only linking)
 $(BUILD_DIR)/$(PROJECT): $(BUILD_DIR)/whisper.cpp.o \
-                         $(BUILD_DIR)/librvcore.a \
-			 $(soft_float_lib)
+                         $(BUILD_DIR)/librvcore.a
 	$(CXX) -o $@ $^ $(LINK_DIRS) $(LINK_LIBS)
 
 # List of all CPP sources needed for librvcore.a
@@ -116,10 +85,9 @@ RVCORE_SRCS := IntRegs.cpp CsRegs.cpp FpRegs.cpp instforms.cpp \
             Memory.cpp Hart.cpp InstEntry.cpp Triggers.cpp \
             PerfRegs.cpp gdb.cpp HartConfig.cpp \
             Server.cpp Interactive.cpp decode.cpp disas.cpp \
-	    Syscall.cpp PmaManager.cpp DecodedInst.cpp snapshot.cpp \
-	    PmpManager.cpp VirtMem.cpp Core.cpp System.cpp Cache.cpp \
-	    Tlb.cpp VecRegs.cpp vector.cpp wideint.cpp float.cpp bitmanip.cpp \
-	    amo.cpp SparseMem.cpp
+            Syscall.cpp PmaManager.cpp DecodedInst.cpp snapshot.cpp \
+            PmpManager.cpp VirtMem.cpp Core.cpp System.cpp Cache.cpp \
+            Uart8250.cpp Tlb.cpp
 
 # List of All CPP Sources for the project
 SRCS_CXX += $(RVCORE_SRCS) whisper.cpp
@@ -141,9 +109,6 @@ OBJS := $(RVCORE_SRCS:%=$(BUILD_DIR)/%.o) $(SRCS_C:%=$(BUILD_DIR)/%.o)
 
 $(BUILD_DIR)/librvcore.a: $(OBJS)
 	$(AR) cr $@ $^
-
-$(soft_float_lib):
-	$(MAKE) -C $(soft_float_build)
 
 install: $(BUILD_DIR)/$(PROJECT)
 	@if test "." -ef "$(INSTALL_DIR)" -o "" == "$(INSTALL_DIR)" ; \

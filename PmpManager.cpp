@@ -21,24 +21,24 @@
 using namespace WdRiscv;
 
 
-PmpManager::PmpManager(uint64_t memSize, uint64_t sectionSize)
-  : memSize_(memSize), sectionSize_(sectionSize), accessCount_(16),
+PmpManager::PmpManager(uint64_t memSize, uint64_t pageSize)
+  : memSize_(memSize), pageSize_(pageSize), accessCount_(16),
     typeCount_(Pmp::Type::_Count)
 {
-  assert(memSize >= sectionSize);
-  assert(sectionSize >= 64);
+  assert(memSize >= pageSize);
+  assert(pageSize >= 64);
 
-  uint64_t logSectionSize = static_cast<uint64_t>(std::log2(sectionSize_));
-  uint64_t p2SectionSize = uint64_t(1) << logSectionSize;
-  assert(p2SectionSize == sectionSize_);
-  sectionShift_ = logSectionSize;
+  uint64_t logPageSize = static_cast<uint64_t>(std::log2(pageSize_));
+  uint64_t p2PageSize = uint64_t(1) << logPageSize;
+  assert(p2PageSize == pageSize_);
+  pageShift_ = logPageSize;
 
-  uint64_t sectionCount = memSize_ / sectionSize_;
-  assert(sectionCount * sectionSize_ == memSize_);
+  uint64_t pageCount = memSize_ / pageSize_;
+  assert(pageCount * pageSize_ == memSize_);
 
   // Mark memory as no access (machine mode still has access because
   // it is not checked).
-  sectionPmps_.resize(sectionCount, Pmp::None);
+  pagePmps_.resize(pageCount, Pmp::None);
 }
 
 
@@ -50,7 +50,7 @@ PmpManager::~PmpManager()
 void
 PmpManager::reset()
 {
-  for (auto& entry : sectionPmps_)
+  for (auto& entry : pagePmps_)
     entry = Pmp(Pmp::None);
   wordPmps_.clear();
 }
@@ -68,10 +68,10 @@ PmpManager::setMode(uint64_t a0, uint64_t a1, Pmp::Type type, Pmp::Mode mode,
 
   while (a0 <= a1)
     {
-      uint64_t p0 = getSectionStartAddr(a0);
-      uint64_t p1 = getSectionStartAddr(a1);
+      uint64_t p0 = getPageStartAddr(a0);
+      uint64_t p1 = getPageStartAddr(a1);
 
-      bool doWord = (a0 != p0) or (p0 == p1 and (a1 - a0 + 4 != sectionSize_));
+      bool doWord = (a0 != p0) or (p0 == p1 and (a1 - a0 + 4 != pageSize_));
       Pmp prev = getPmp(a0);
       doWord = doWord or prev.word_;
 
@@ -81,15 +81,15 @@ PmpManager::setMode(uint64_t a0, uint64_t a1, Pmp::Type type, Pmp::Mode mode,
         {
           fracture(a0);
           pmp.word_ = true;
-          uint64_t last = std::min(a1, p0 + sectionSize_ - 4);
+          uint64_t last = std::min(a1, p0 + pageSize_ - 4);
           for ( ; a0 <= last; a0 += 4)
             wordPmps_[a0>>2] = pmp;
         }
       else
         {
-          uint64_t sectionIx = getSectionIx(p0);
-          sectionPmps_.at(sectionIx) = pmp;
-          a0 += sectionSize_;
+          uint64_t pageIx = getPageIx(p0);
+          pagePmps_.at(pageIx) = pmp;
+          a0 += pageSize_;
         }
     }
 }
@@ -132,32 +132,4 @@ PmpManager::printStats(const std::string& path) const
     }
 
   return printStats(out);
-}
-
-
-std::string
-Pmp::toString(Pmp::Type type)
-{
-  switch (type)
-    {
-    case Pmp::Type::Off:   return "off";
-    case Pmp::Type::Tor:   return "tor";
-    case Pmp::Type::Na4:   return "na4";
-    case Pmp::Type::Napot: return "napot";
-    default:               return "?";
-    }
-  return "";
-}
-
-
-std::string
-Pmp::toString(Pmp::Mode mode)
-{
-  std::string result;
-
-  result += (mode & Mode::Read)  ? "r" : "-";
-  result += (mode & Mode::Write) ? "w" : "-";
-  result += (mode & Mode::Exec)  ? "x" : "-";
-
-  return result;
 }

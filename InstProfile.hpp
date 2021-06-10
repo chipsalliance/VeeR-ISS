@@ -31,18 +31,20 @@ namespace WdRiscv
     uint64_t machine_ = 0;    // Number of times exeuted in machine mode.
 
     // One entry per integer register: Count of times register was used
-    // by instruction as destination register.
-    std::vector<uint64_t> destRegFreq_;
+    // by instruction as rd.
+    std::vector<uint64_t> rd_;
 
-    // SrcRegFreq_[0] corresponds to the 1st source register operand,
-    // srcRegFreq_[1] to the second and srcRegFreq_[3] to the
-    // 3rd/immediate operand. Each entry of srcRegFreq_[i] is a vector
-    // with one entry per integer/fp register indicating the count of
-    // times that register was used by the instruction as a source
-    // operand.
-    std::vector< std::vector<uint64_t> > srcRegFreq_;
+    // One entry per integer register: Count of times register was
+    // used by instruction as rs1.
+    std::vector<uint64_t> rs1_;
 
-    std::vector< std::vector<uint64_t> > srcHisto_;
+    // One entry per integer register: Count of times register was
+    // used by instruction as rs2.
+    std::vector<uint64_t> rs2_;
+
+    std::vector<uint64_t> rs1Histo_;  // rs1 value histogram.
+    std::vector<uint64_t> rs2Histo_;  // rs2 value histogram.
+    std::vector<uint64_t> immHisto_;  // Immediate value histogram.
 
     bool hasImm_ = false;
     int32_t minImm_ = 0;  // Minimum immediate operand value.

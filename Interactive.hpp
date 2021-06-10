@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include <iosfwd>
 #include <unordered_map>
 #include "System.hpp"
 #include "Hart.hpp"
@@ -57,15 +56,14 @@ namespace WdRiscv
     /// Helper to interact: "peek" command. Examine a register/memory
     /// location.
     bool peekCommand(Hart<URV>&, const std::string& line,
-		     const std::vector<std::string>& tokens,
-                     std::ostream& out);
+		     const std::vector<std::string>& tokens);
 
     /// Helper to interact: "poke" command. Set a register/memory
     /// location.
     bool pokeCommand(Hart<URV>&, const std::string& line,
 		     const std::vector<std::string>& tokens);
 
-    /// Helper to interact: "disass" command. Disassemble.
+    /// Helper to interact: "disas" command. Disassemble.
     bool disassCommand(Hart<URV>&, const std::string& line,
 		       const std::vector<std::string>& tokens);
 
@@ -96,10 +94,6 @@ namespace WdRiscv
     bool loadFinishedCommand(Hart<URV>&, const std::string& line,
 			     const std::vector<std::string>& tokens);
 
-    /// Helper to interact: "dump_memory" command.
-    bool dumpMemoryCommand(const std::string& line,
-                           const std::vector<std::string>& tokens);
-
     /// Helper to interact: "help" command.
     void helpCommand(const std::vector<std::string>& tokens);
 
@@ -110,11 +104,6 @@ namespace WdRiscv
 		       const std::vector<std::string>& tokens,
 		       FILE* traceFile, FILE* commandLog,
 		       std::ifstream& replayStream, bool& done);
-
-    static void peekAllFpRegs(Hart<URV>& hart, std::ostream& out);
-    static void peekAllIntRegs(Hart<URV>& hart, std::ostream& out);
-    static void peekAllCsrs(Hart<URV>& hart, std::ostream& out);
-    static void peekAllTriggers(Hart<URV>& hart, std::ostream& out);
 
   protected:
 

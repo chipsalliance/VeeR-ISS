@@ -21,13 +21,11 @@
 #include <unordered_set>
 #include <type_traits>
 #include <functional>
-#include <atomic>
 #include "InstId.hpp"
 #include "InstEntry.hpp"
 #include "IntRegs.hpp"
 #include "CsRegs.hpp"
 #include "FpRegs.hpp"
-#include "VecRegs.hpp"
 #include "Memory.hpp"
 #include "InstProfile.hpp"
 #include "DecodedInst.hpp"
@@ -247,12 +245,11 @@ namespace WdRiscv
 
     /// Configure given trigger with given reset values, write and
     /// poke masks. Return true on success and false on failure.
-    bool configTrigger(unsigned trigger,
-                       uint64_t rv1, uint64_t rv2, uint64_t rv3,
-		       uint64_t wm1, uint64_t wm2, uint64_t wm3,
-		       uint64_t pm1, uint64_t pm2, uint64_t pm3)
+    bool configTrigger(unsigned trigger, URV val1, URV val2, URV val3,
+		       URV wm1, URV wm2, URV wm3,
+		       URV pm1, URV pm2, URV pm3)
     {
-      return csRegs_.configTrigger(trigger, rv1, rv2, rv3,
+      return csRegs_.configTrigger(trigger, val1, val2, val3,
 				   wm1, wm2, wm3, pm1, pm2, pm3);
     }
 
@@ -290,32 +287,18 @@ namespace WdRiscv
     void configMachineModeMaxPerfEvent(URV maxId)
     { csRegs_.setMaxEventId(maxId); }
 
-    /// Configure valid event. If this is used then events outside the
-    /// given vector are replaced by zero before being assigned to an
-    /// MHPMEVENT register. Otherwise, events greater that
-    /// max-event-id are clamped to max-event-id before being assigned
-    /// to an MHPMEVENT register.
-    void configPerfEvents(std::vector<unsigned>& eventVec)
-    { csRegs_.configPerfEvents(eventVec); }
-
-    /// Configure vector unit of this hart.
-    void configVector(unsigned bytesPerVec, unsigned maxBytesPerElem)
-    { vecRegs_.config(bytesPerVec, maxBytesPerElem); }
-
     /// Get the values of the three components of the given debug
     /// trigger. Return true on success and false if trigger is out of
     /// bounds.
-    bool peekTrigger(unsigned trigger, uint64_t& data1, uint64_t& data2,
-                     uint64_t& data3) const
+    bool peekTrigger(URV trigger, URV& data1, URV& data2, URV& data3) const
     { return csRegs_.peekTrigger(trigger, data1, data2, data3); }
 
     /// Get the values of the three components of the given debug
     /// trigger as well as the components write and poke masks. Return
     /// true on success and false if trigger is out of bounds.
-    bool peekTrigger(unsigned trigger,
-                     uint64_t& val1, uint64_t& val2, uint64_t& val3,
-		     uint64_t& wm1, uint64_t& wm2, uint64_t& wm3,
-		     uint64_t& pm1, uint64_t& pm2, uint64_t& pm3) const
+    bool peekTrigger(URV trigger, URV& val1, URV& val2, URV& val3,
+		     URV& wm1, URV& wm2, URV& wm3,
+		     URV& pm1, URV& pm2, URV& pm3) const
     { return csRegs_.peekTrigger(trigger, val1, val2, val3, wm1, wm2, wm3,
 				 pm1, pm2, pm3); }
 
@@ -358,15 +341,15 @@ namespace WdRiscv
     bool whatIfSingleStep(URV programCounter, uint32_t inst,
 			  ChangeRecord& record);
 
-    /// Similar to the preceding method but without fetching anything
-    /// from from instruction memory (in other words, this variant
-    /// will never cause an misaligned/instruction-access-fault
+    /// Similar to the above method but without fetching anything from
+    /// from instruction memory (in other words, this variant will
+    /// never cause an misaligned/instruction-access-fault
     /// exception).
     bool whatIfSingleStep(uint32_t inst, ChangeRecord& record);
 
-    /// Similar to the preceding but without fetching register
-    /// operands. Register operand values are obtained from the given
-    /// decoded instruction object.
+    /// Similar to the above but without fetching register operands.
+    /// Register operand values are obtained from the given decoded
+    /// instruction object.
     bool whatIfSingStep(const DecodedInst& inst, ChangeRecord& record);
 
     /// Run until the program counter reaches the given address. Do
@@ -452,7 +435,7 @@ namespace WdRiscv
     const InstEntry& decode(uint32_t inst, uint32_t& op0, uint32_t& op1,
 			    uint32_t& op2, uint32_t& op3);
 
-    /// Similar to the precedning decode method but with decoded data
+    /// Similar to the above decode method but with decoded data
     /// placed in the given DecodedInst object.
     void decode(URV address, uint32_t inst, DecodedInst& decodedInst);
 
@@ -497,35 +480,39 @@ namespace WdRiscv
     void printElfSymbols(std::ostream& out) const
     { memory_.printElfSymbols(out); }
 
-    /// Set val to the value of the byte at the given address
+    /// Set val to the value of the memory byte at the given address
     /// returning true on success and false if address is out of
-    /// bounds. Memory is little-endian. Bypass physical memory
-    /// attribute checking if usePma is false.
-    bool peekMemory(size_t addr, uint8_t& val, bool usePma) const;
+    /// bounds.
+    bool peekMemory(size_t address, uint8_t& val) const;
 
-    /// Half-word version of the preceding method.
-    bool peekMemory(size_t addr, uint16_t& val, bool usePma) const;
+    /// Set val to the value of the half-word at the given address
+    /// returning true on success and false if address is out of
+    /// bounds. Memory is little endian.
+    bool peekMemory(size_t address, uint16_t& val) const;
 
-    /// Word version of the preceding method.
-    bool peekMemory(size_t addr, uint32_t& val, bool usePma) const;
+    /// Set val to the value of the word at the given address
+    /// returning true on success and false if address is out of
+    /// bounds. Memory is little endian.
+    bool peekMemory(size_t address, uint32_t& val) const;
 
-    /// Double-word version of the preceding method.
-    bool peekMemory(size_t addr, uint64_t& val, bool usePma) const;
+    /// Set val to the value of the word at the given address
+    /// returning true on success and false if address is out of
+    /// bounds. Memory is little endian.
+    bool peekMemory(size_t address, uint64_t& val) const;
 
     /// Set the memory byte at the given address to the given value.
     /// Return true on success and false on failure (address out of
     /// bounds, location not mapped, location not writable etc...)
-    /// Bypass physical memory attribute checking if usePma is false.
-    bool pokeMemory(size_t addr, uint8_t val, bool usePma);
+    bool pokeMemory(size_t address, uint8_t val);
 
-    /// Half-word version of the preceding method.
-    bool pokeMemory(size_t address, uint16_t val, bool usePma);
+    /// Half-word version of the above.
+    bool pokeMemory(size_t address, uint16_t val);
 
-    /// Word version of the preceding method.
-    bool pokeMemory(size_t addr, uint32_t val, bool usePma);
+    /// Word version of the above.
+    bool pokeMemory(size_t address, uint32_t val);
 
-    /// Double-word version of the preceding method.
-    bool pokeMemory(size_t addr, uint64_t val, bool usePma);
+    /// Double-word version of the above.
+    bool pokeMemory(size_t address, uint64_t val);
 
     /// Define value of program counter after a reset.
     void defineResetPc(URV addr)
@@ -543,7 +530,7 @@ namespace WdRiscv
 
     /// Define address to which a write will stop the simulator. An
     /// sb, sh, or sw instruction will stop the simulator if the write
-    /// address of the instruction is identical to the given address.
+    /// address of he instruction is identical to the given address.
     void setToHostAddress(size_t address);
 
     /// Special target program symbol writing to which stops the
@@ -588,15 +575,11 @@ namespace WdRiscv
     void lastCsr(std::vector<CsrNumber>& csrs,
 		 std::vector<unsigned>& triggers) const;
 
-    /// Support for tracing: Set address and value to the memory
-    /// location changed by the last instruction. Return the size
-    /// of the change or zero if the last instruction did not change
-    /// memory in which case address and value are not modified.
-    /// Returned size is one of 0, 1, 2, 4, or 8.
-    unsigned lastMemory(uint64_t& addr, uint64_t& value) const;
-
-    void lastSyscallChanges(std::vector<std::pair<uint64_t, uint64_t>>& v) const
-    { syscall_.getMemoryChanges(v); }
+    /// Support for tracing: Fill the addresses and words vectors with
+    /// the addresses of the memory words modified by the last
+    /// executed instruction and their corresponding values.
+    void lastMemory(std::vector<size_t>& addresses,
+		    std::vector<uint32_t>& words) const;
 
     /// Return data address of last executed ld/st instruction.
     URV lastLdStAddress() const
@@ -690,12 +673,6 @@ namespace WdRiscv
     /// that tripped by the last executed instruction.
     void countTrippedTriggers(unsigned& pre, unsigned& post) const
     { csRegs_.countTrippedTriggers(pre, post); }
-
-    /// Set t1, t2, and t3 to true if corresponding component (tdata1,
-    /// tdata2, an tdata3) of given trigger was changed by the current
-    /// instruction.
-    void getTriggerChange(URV trigger, bool& t1, bool& t2, bool& t3) const
-    { csRegs_.getTriggerChange(trigger, t1, t2, t3); }
 
     /// Apply an imprecise store exception at given address. Return
     /// true if address is found exactly once in the store
@@ -798,11 +775,12 @@ namespace WdRiscv
 
     /// Put this hart in debug mode setting the DCSR cause field to
     /// the given cause.
-    void enterDebugMode_(DebugModeCause cause, URV pc);
+    void enterDebugMode(DebugModeCause cause, URV pc);
 
     /// Put this hart in debug mode setting the DCSR cause field to
     /// either DEBUGGER or SETP depending on the step bit of DCSR.
-    void enterDebugMode(URV pc, bool force = false);
+    /// given cause.
+    void enterDebugMode(URV pc);
 
     /// True if in debug mode.
     bool inDebugMode() const
@@ -833,9 +811,6 @@ namespace WdRiscv
 
     /// Print collected physical memory protection stats on the given file.
     void reportPmpStat(FILE* file) const;
-
-    /// Print collected load-reserve/store-conditional stats on the given file.
-    void reportLrScStat(FILE* file) const;
 
     /// Reset trace data (items changed by the execution of an
     /// instruction.)
@@ -893,9 +868,6 @@ namespace WdRiscv
     /// memory of this hart.
     bool isAddrInDccm(size_t addr) const
     { return memory_.pmaMgr_.isAddrInDccm(addr); }
-
-    /// Return true if given address is cacheable.
-    bool isAddrCacheable(size_t addr) const;
 
     /// Return true if given address is in the memory mapped registers
     /// area of this hart.
@@ -958,10 +930,6 @@ namespace WdRiscv
     bool isRvu() const
     { return rvu_; }
 
-    /// Return true if rvv (vector) extension is enabled in this hart.
-    bool isRvv() const
-    { return rvv_; }
-
     /// Return true if rvn (user-mode-interrupt) extension is enabled
     /// in this hart.
     bool isRvn() const
@@ -1021,11 +989,6 @@ namespace WdRiscv
     void setAmoInDccmOnly(bool flag)
     { amoInDccmOnly_ = flag; }
 
-    /// Make atomic memory operations illegal/legal for non cachable
-    /// memory based on the value of flag (true/false).
-    void setAmoInCacheableOnly(bool flag)
-    { amoInCacheableOnly_ = flag; }
-
     /// Make load/store instructions take an exception if the base
     /// address (value in rs1) and the effective address refer to
     /// regions of different types.
@@ -1043,7 +1006,7 @@ namespace WdRiscv
     /// exists, then each remaining hart must be explicitly started by
     /// hart 0 by writing to the corresponding bit in that CSR. This
     /// is special for WD.
-    bool isStarted()
+    bool isStarted() const
     { return hartStarted_; }
 
     /// Mark this hart as started.
@@ -1062,8 +1025,8 @@ namespace WdRiscv
     void tieSharedCsrsTo(Hart<URV>& target)
     { return csRegs_.tieSharedCsrsTo(target.csRegs_); }
 
-    /// Return true if non-maskable interrupts (NMIs) are enabled for
-    /// this hart.
+    /// Return true if non-maskable interrupts (NMIs) should be delivered
+    /// to this hart.
     bool isNmiEnabled() const
     { return nmiEnabled_; }
 
@@ -1111,6 +1074,13 @@ namespace WdRiscv
     /// Cancel load reservation held by this hart (if any).
     void cancelLr()
     { memory_.invalidateLr(hartIx_); }
+
+    /// Set simAddr to the simulator memory address corresponding to
+    /// the RISCV memory address returning true on success and false
+    /// if riscvAddr is out of bounds (in which case simAddr is left
+    /// unmodified).
+    bool getSimMemAddr(size_t riscvAddr, size_t& simAddr)
+    { return memory_.getSimMemAddr(riscvAddr, simAddr); }
 
     /// Report the files opened by the target RISCV program during
     /// current run.
@@ -1184,141 +1154,14 @@ namespace WdRiscv
     void printPageTable(std::ostream& out) const
     { virtMem_.printPageTable(out); }
 
-    /// Enable per-privilege-mode performance-counter control.
-    void enablePerModeCounterControl(bool flag)
-    { csRegs_.enablePerModeCounterControl(flag); }
-
-    /// Invalidate whole cache.
-    void invalidateDecodeCache();
-
-    /// Register a callback to be invoked before a CSR instruction
-    /// acceses its target CSR. Callback is invoked with the
-    /// hart-index (hart index in sytstem) and csr number. This is for
-    /// the SOC (system on chip) model.
-    void registerPreCsrInst(std::function<void(unsigned, CsrNumber)> callback)
-    { preCsrInst_ = callback; }
-
-    /// Register a callback to be invoked after a CSR accesses its
-    /// target CSR, or in the case of an exception, after the CSR
-    /// instruction takes the exception.  Callback is invoked with the
-    /// hart-index (hart index in sytstem) and csr number. This is for
-    /// the SOC model.
-    void registerPostCsrInst(std::function<void(unsigned, CsrNumber)> callback)
-    { postCsrInst_ = callback; }
-
-    /// Callback to invoke before the execution of an instruction.
-    void registerPreInst(std::function<void(Hart<URV>&, bool&, bool&)> callback)
-    { preInst_ = callback; }
-
-    /// Define physical memory attribute override regions. If region
-    /// count is greater than zero then the defined regions override
-    /// the MRAC CSR.
-    void definePmaOverrideRegions(unsigned regionCount)
-    {
-      pmaOverrideVec_.resize(regionCount);
-      pmaOverride_ = regionCount > 0;
-    }
-
-    /// Set the default idempotent attribute for addresses that do
-    /// not match any entries in the MACO CSRs.
-    void setDefaultIdempotent(bool flag)
-    {
-      hasDefaultIdempotent_ = true;
-      defaultIdempotent_ = flag;
-    }
-
-    /// Set the default cachable attribute for addresses that do
-    /// not match any entries in the MACO CSRs.
-    void setDefaultCacheable(bool flag)
-    {
-      hasDefaultCacheable_ = true;
-      defaultCacheable_ = flag;
-    }
-
-    /// Define a physical memory attribute override region with given
-    /// index. An address greater than or equal to start and less than
-    /// or equal end is assigned given idempotency/cachability
-    /// attributes.  An address matching multiple regions get the
-    /// attributes of the first region it matches. Return true on
-    /// success and false if regionIx is out of bounds.
-    bool definePmaOverride(unsigned ix, uint64_t start,
-                           uint64_t end, bool idempotent,
-                           bool cacheable)
-    {
-      if (ix >= pmaOverrideVec_.size())
-        return false;
-      pmaOverrideVec_.at(ix) = PmaOverride(start, end, idempotent, cacheable);
-      return true;
-    }
-
-    /// Enable disable wide load/store mode (64-bit on 32-bit machine).
-    void enableWideLoadStore(bool flag)
-    { enableWideLdSt_ = flag; }
-
-    /// Enable bbarrier (bus barrier) custom instruction.
-    void enableBusBarrier(bool flag)
-    { enableBbarrier_ = flag; }
-
-    /// Unpack the memory protection information defined by the given
-    /// physical memory protection entry (entry 0 corresponds to
-    /// PMPADDR0, ... 15 o PMPADDR15). Return true on success setting
-    /// type, mode, locked, low and high to the corresponding values
-    /// associated with the entry. If entry mode is off the low and
-    /// hight will be set to zero. Return false on failure (entry
-    /// index out of bounds or corresponding CSR not implemented).
-    bool unpackMemoryProtection(unsigned entryIx, Pmp::Type& type,
-                                Pmp::Mode& mode, bool& locked,
-                                uint64_t& low, uint64_t& high) const;
-
-    /// Mark the 256MB region with the given region index as
-    /// idempotent/non-idempotent according to flag.
-    void markRegionIdempotent(unsigned regionIx, bool flag);
-
-    /// Define address at which to slam memory changes resulting from
-    /// an emulated system call. If addr is zero, no slamming is done.
-    void defineSyscallSlam(URV addr)
-    { syscallSlam_ = addr; }
-
-    /// Return the address set by defineSyscallSlam.
-    URV syscallSlam() const
-    { return syscallSlam_; }
-
   protected:
-
-    /// Helper to reset: reset floating point related structures.
-    /// No-op if no  floating point extension is enabled.
-    void resetFloat();
 
     // Return true if FS field of mstatus is not off.
     bool isFpEnabled() const
     { return mstatusFs_ != FpFs::Off; }
 
-    // Return true if it is legal to execute an FP instruction: F extension must
-    // be enabled and FS feild of MSTATUS must not be OFF.
-    bool isFpLegal() const
-    { return isRvf() and isFpEnabled(); }
-
-    // Return trie if it is legal to execute a double precision
-    // floating point instruction: D extension must be enabled and FS
-    // feild of MSTATUS must not be OFF.
-    bool isDpLegal() const
-    { return isRvd() and isFpEnabled(); }
-
     // Mark FS field of mstatus as dirty.
     void markFsDirty();
-
-    // Return true if vS field of mstatus is not off.
-    bool isVecEnabled() const
-    { return mstatusVs_ != FpFs::Off; }
-
-    // Mark VS field of mstatus as dirty.
-    void markVsDirty();
-
-    // Return true if it is legal to execute a vector instruction: V
-    // extension must be enabled and VS feild of MSTATUS must not be
-    // OFF.
-    bool isVecLegal() const
-    { return isRvv() and isVecEnabled(); }
 
     // Update cached values of mstatus.mpp and mstatus.mprv and
     // mstatus.fs ...  This is called when mstatus is written/poked.
@@ -1377,10 +1220,8 @@ namespace WdRiscv
     /// floating point instruction.
     RoundingMode effectiveRoundingMode(RoundingMode instMode);
 
-    /// Update the accrued floating point bits in the FCSR
-    /// register. No-op if a trigger has tripped.
-    void updateAccruedFpBits(float res, bool invalid);
-    void updateAccruedFpBits(double res, bool invalid);
+    /// Update the accrued floating point bits in the FCSR register.
+    void updateAccruedFpBits(bool noUderflow);
 
     /// Set the flags field in FCSR to the least sig 5 bits of the
     /// given value
@@ -1491,21 +1332,21 @@ namespace WdRiscv
     /// Return true if store is successful. Return false if an exception
     /// or a trigger is encountered.
     template<typename STORE_TYPE>
-    bool store(uint32_t rs1, URV base, URV addr, STORE_TYPE value);
+    bool store(unsigned rs1, URV base, URV addr, STORE_TYPE value);
 
     /// For use by performance model. 
     template<typename STORE_TYPE>
-    bool fastStore(uint32_t rs1, URV base, URV addr, STORE_TYPE value);
+    bool fastStore(unsigned rs1, URV base, URV addr, STORE_TYPE value);
 
     /// Helper to store method: Return possible exception (wihtout
     /// taking any exception). Update stored value by doing memory
     /// mapped register masking.
     template<typename STORE_TYPE>
-    ExceptionCause determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
+    ExceptionCause determineStoreException(unsigned rs1, URV base, uint64_t& addr,
 					   STORE_TYPE& storeVal,
-                                           SecondaryCause& secCause, bool& forced);
+					   SecondaryCause& secCause);
 
-    /// Helper to execLr. Load type must be int32_t, or int64_t.
+    /// Helper to execLr. Load type should be int32_t, or int64_t.
     /// Return true if instruction is successful. Return false if an
     /// exception occurs or a trigger is tripped. If successful,
     /// physAddr is set to the result of the virtual to physical
@@ -1513,7 +1354,7 @@ namespace WdRiscv
     template<typename LOAD_TYPE>
     bool loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr);
 
-    /// Helper to execSc. Store type must be uint32_t, or uint64_t.
+    /// Helper to execSc. Store type should be uint32_t, or uint64_t.
     /// Return true if store is successful. Return false otherwise
     /// (exception or trigger or condition failed).
     template<typename STORE_TYPE>
@@ -1521,11 +1362,11 @@ namespace WdRiscv
 
     /// Do a 64-bit wide load in one transaction. This is swerv
     /// specfic.
-    bool wideLoad(unsigned rd, URV addr);
+    bool wideLoad(unsigned rd, URV addr, unsigned ldSize);
 
     /// Do a 64-bit wide store in one transaction. This is swerv
     /// specfic.
-    bool wideStore(URV addr, URV storeVal);
+    bool wideStore(URV addr, URV storeVal, unsigned storeSize);
 
     /// Helper to load methods. Check loads performed with stack
     /// pointer.  Return true if referenced bytes are all between the
@@ -1540,9 +1381,8 @@ namespace WdRiscv
     /// false otherwise.
     bool checkStackStore(URV base, URV addr, unsigned storeSize);
 
-    /// Helper to CSR instructions: return true if given CSR is
-    /// writebale and false otherwise.
-    bool isCsrWriteable(CsrNumber csr) const;
+    /// Helper to CSR instructions. Keep minstret and mcycle up to date.
+    void preCsrInstruction(CsrNumber csr);
 
     /// Helper to CSR instructions: Write csr and integer register if csr
     /// is writeable.
@@ -1610,12 +1450,6 @@ namespace WdRiscv
     void updatePerformanceCounters(uint32_t inst, const InstEntry&,
 				   uint32_t op0, uint32_t op1);
 
-    // For CSR instruction we need to let the counters count before
-    // letting CSR instruction write. Consequently we update the
-    // counters from within the code executing the CSR instruction
-    // using this method.
-    void updatePerformanceCountersForCsr(const DecodedInst& di);
-
     /// Fetch an instruction. Return true on success. Return false on
     /// fail (in which case an exception is initiated). May fetch a
     /// compressed instruction (16-bits) in which case the upper 16
@@ -1641,9 +1475,9 @@ namespace WdRiscv
     void printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
 			FILE* out, bool interrupt = false);
 
-    /// Variant of the preceding method for cases where the trace is
-    /// printed before decode. If the instruction is not available
-    /// then a zero (illegal) value is required.
+    /// Variant of the above for cases where the trace is printed
+    /// before decode. If the instruction is not available then a zero
+    /// (illegal) should be passed.
     void printInstTrace(uint32_t instruction, uint64_t tag, std::string& tmp,
 			FILE* out, bool interrupt = false);
 
@@ -1673,8 +1507,11 @@ namespace WdRiscv
     /// otherwise.
     bool processExternalInterrupt(FILE* traceFile, std::string& insStr);
 
-    /// Helper to FP execution: Set the given flag value (ored values
-    /// ok) in FCSR. No-op if a trigger has already tripped.
+    /// Check if any IODevices has interrupts. If we find interrupts
+    /// we return true and not all devices will be checked.
+    bool processDeviceInterrupts();
+
+    /// Helper to FP execution: Set the given flag value (ored values ok) in FCSR.
     void setFcsrFlags(FpFlags value);
 
     /// Execute decoded instruction. Branch/jump instructions will
@@ -1685,21 +1522,6 @@ namespace WdRiscv
     /// 1010011.
     const InstEntry& decodeFp(uint32_t inst, uint32_t& op0, uint32_t& op1,
 			      uint32_t& op2, uint32_t& op3);
-
-    /// Helper to decode: Decode instructions associated with opcode
-    /// 1010111.
-    const InstEntry& decodeVec(uint32_t inst, uint32_t& op0, uint32_t& op1,
-                               uint32_t& op2, uint32_t& op3);
-
-    /// Helper to decode: Decode vector instructions associated with
-    /// opcode 0100111. For whole register or segment load, op3 is set
-    /// to the code of the register count or segment field count.
-    const InstEntry& decodeVecStore(uint32_t f3, uint32_t imm12, uint32_t& op3);
-
-    /// Helper to decode: Decode vector instructions associated with
-    /// opcode 0000111. For whole register or segment store, op3 is
-    /// set to the code of the register count or segment field count.
-    const InstEntry& decodeVecLoad(uint32_t f3, uint32_t imm12, uint32_t& op3);
 
     /// Helper to disassembleInst32: Disassemble instructions
     /// associated with opcode 1010011.
@@ -1730,9 +1552,8 @@ namespace WdRiscv
     /// interrupt.
     bool isInterruptPossible(InterruptCause& cause);
 
-    /// Return true if given address is an idempotent region of
-    /// memory.
-    bool isAddrIdempotent(size_t addr) const;
+    /// Return true if 256mb region of address is idempotent.
+    bool isIdempotentRegion(size_t addr) const;
 
     /// Check address associated with an atomic memory operation (AMO)
     /// instruction. Return true if AMO access is allowed. Return
@@ -1748,20 +1569,27 @@ namespace WdRiscv
     /// if a trigger tripped or an exception took place in which case
     /// val is not modified. The loaded word is sign extended to fill
     /// the URV value (this is relevant for rv64).
-    bool amoLoad32(uint32_t rd, uint32_t rs1, uint32_t rs2, URV& val);
+    bool amoLoad32(uint32_t rs1, URV& val);
 
     /// Do the load value part of a double-word-sized AMO
     /// instruction. Return true on success putting the loaded value
     /// in val. Return false if a trigger tripped or an exception took
     /// place in which case val is not modified.
-    bool amoLoad64(uint32_t rd, uint32_t rs1, uint32_t rs2, URV& val);
+    bool amoLoad64(uint32_t rs1, URV& val);
 
     /// Invalidate cache entries overlapping the bytes written by a
     /// store.
     void invalidateDecodeCache(URV addr, unsigned storeSize);
 
+    /// Invalidate whole cache.
+    void invalidateDecodeCache();
+
     /// Update stack checker parameters after a write/poke to a CSR.
     void updateStackChecker();
+
+    /// Enable disable wide load/store mode (64-bit on 32-bit machine).
+    void enableWideLdStMode(bool flag)
+    { wideLdSt_ = flag; }
 
     /// Helper to shift/bit execute instruction with immediate
     /// operands: Signal an illegal instruction if immediate value is
@@ -1784,19 +1612,6 @@ namespace WdRiscv
     /// corresponding hart if all the conditions are met. Set timer
     /// limit if timer-limit regiser is written.
     void processClintWrite(size_t addr, unsigned stSize, URV stVal);
-
-    /// Mask to extract shift amount from a integer register value to use
-    /// in shift instructions. This returns 0x1f in 32-bit more and 0x3f
-    /// in 64-bit mode.
-    uint32_t shiftMask() const
-    {
-      if constexpr (std::is_same<URV, uint32_t>::value)
-	return 0x1f;
-      if constexpr (std::is_same<URV, uint64_t>::value)
-	return 0x3f;
-      assert(0 and "Register value type must be uint32_t or uint64_t.");
-      return 0x1f;
-    }
 
     // rs1: index of source register (value range: 0 to 31)
     // rs2: index of source register (value range: 0 to 31)
@@ -1999,68 +1814,59 @@ namespace WdRiscv
     // Bit manipulation: zbb
     void execClz(const DecodedInst*);
     void execCtz(const DecodedInst*);
-    void execCpop(const DecodedInst*);
-    void execClzw(const DecodedInst*);
-    void execCtzw(const DecodedInst*);
-    void execCpopw(const DecodedInst*);
+    void execPcnt(const DecodedInst*);
+    void execAndn(const DecodedInst*);
+    void execOrn(const DecodedInst*);
+    void execXnor(const DecodedInst*);
+    void execSlo(const DecodedInst*);
+    void execSro(const DecodedInst*);
+    void execSloi(const DecodedInst*);
+    void execSroi(const DecodedInst*);
     void execMin(const DecodedInst*);
     void execMax(const DecodedInst*);
     void execMinu(const DecodedInst*);
     void execMaxu(const DecodedInst*);
-    void execSext_b(const DecodedInst*);
-    void execSext_h(const DecodedInst*);
-    void execAndn(const DecodedInst*);
-    void execOrn(const DecodedInst*);
-    void execXnor(const DecodedInst*);
     void execRol(const DecodedInst*);
     void execRor(const DecodedInst*);
     void execRori(const DecodedInst*);
-    void execRolw(const DecodedInst*);
-    void execRorw(const DecodedInst*);
-    void execRoriw(const DecodedInst*);
     void execRev8(const DecodedInst*);
+    void execRev(const DecodedInst*);
     void execPack(const DecodedInst*);
-    void execSlli_uw(const DecodedInst*);
+    void execAddwu(const DecodedInst*);
+    void execSubwu(const DecodedInst*);
+    void execAddiwu(const DecodedInst*);
+    void execSext_b(const DecodedInst*);
+    void execSext_h(const DecodedInst*);
+    void execAddu_w(const DecodedInst*);
+    void execSubu_w(const DecodedInst*);
+    void execSlliu_w(const DecodedInst*);
     void execPackh(const DecodedInst*);
     void execPacku(const DecodedInst*);
     void execPackw(const DecodedInst*);
     void execPackuw(const DecodedInst*);
     void execGrev(const DecodedInst*);
     void execGrevi(const DecodedInst*);
-    void execGrevw(const DecodedInst*);
-    void execGreviw(const DecodedInst*);
     void execGorc(const DecodedInst*);
     void execGorci(const DecodedInst*);
-    void execGorcw(const DecodedInst*);
-    void execGorciw(const DecodedInst*);
     void execShfl(const DecodedInst*);
-    void execShflw(const DecodedInst*);
     void execShfli(const DecodedInst*);
     void execUnshfl(const DecodedInst*);
     void execUnshfli(const DecodedInst*);
-    void execUnshflw(const DecodedInst*);
-    void execXperm_n(const DecodedInst*);
-    void execXperm_b(const DecodedInst*);
-    void execXperm_h(const DecodedInst*);
-    void execXperm_w(const DecodedInst*);
 
     // Bit manipulation: zbs
-    void execBset(const DecodedInst*);
-    void execBclr(const DecodedInst*);
-    void execBinv(const DecodedInst*);
+    void execSbset(const DecodedInst*);
+    void execSbclr(const DecodedInst*);
+    void execSbinv(const DecodedInst*);
+    void execSbext(const DecodedInst*);
+
+    void execSbseti(const DecodedInst*);
+    void execSbclri(const DecodedInst*);
+    void execSbinvi(const DecodedInst*);
+    void execSbexti(const DecodedInst*);
+
     void execBext(const DecodedInst*);
-    void execBseti(const DecodedInst*);
-    void execBclri(const DecodedInst*);
-    void execBinvi(const DecodedInst*);
-    void execBexti(const DecodedInst*);
-
-    void execBcompress(const DecodedInst*);
-    void execBdecompress(const DecodedInst*);
-    void execBcompressw(const DecodedInst*);
-    void execBdecompressw(const DecodedInst*);
-
+    void execBdep(const DecodedInst*);
     void execBfp(const DecodedInst*);
-    void execBfpw(const DecodedInst*);
 
     void execClmul(const DecodedInst*);
     void execClmulh(const DecodedInst*);
@@ -2069,10 +1875,9 @@ namespace WdRiscv
     void execSh1add(const DecodedInst*);
     void execSh2add(const DecodedInst*);
     void execSh3add(const DecodedInst*);
-    void execSh1add_uw(const DecodedInst*);
-    void execSh2add_uw(const DecodedInst*);
-    void execSh3add_uw(const DecodedInst*);
-    void execAdd_uw(const DecodedInst*);
+    void execSh1addu_w(const DecodedInst*);
+    void execSh2addu_w(const DecodedInst*);
+    void execSh3addu_w(const DecodedInst*);
 
     void execCrc32_b(const DecodedInst*);
     void execCrc32_h(const DecodedInst*);
@@ -2092,714 +1897,6 @@ namespace WdRiscv
     void execFsl(const DecodedInst*);
     void execFsr(const DecodedInst*);
     void execFsri(const DecodedInst*);
-    void execFslw(const DecodedInst*);
-    void execFsrw(const DecodedInst*);
-    void execFsriw(const DecodedInst*);
-
-    // Custom insts
-    void execLoad64(const DecodedInst*);
-    void execStore64(const DecodedInst*);
-    void execBbarrier(const DecodedInst*);
-
-    // Return true if maskable instruction is legal. Take an illegal instuction
-    // exception and return false otherwise.
-    bool checkMaskableInst(const DecodedInst* di);
-
-    void vsetvl(unsigned rd, unsigned rs1, URV vtypeVal);
-    void execVsetvli(const DecodedInst*);
-    void execVsetvl(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVadd_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vadd_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVadd_vx(const DecodedInst*);
-
-    void execVadd_vi(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vsub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVsub_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vsub_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVsub_vx(const DecodedInst*);
-
-
-    template<typename ELEM_TYPE>
-    void vrsub_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVrsub_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vrsub_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVrsub_vi(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vwadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVwaddu_vv(const DecodedInst*);
-    void execVwadd_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vwadd_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVwaddu_vx(const DecodedInst*);
-    void execVwadd_vx(const DecodedInst*);
-    void execVwsubu_vx(const DecodedInst*);
-    void execVwsub_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vwsub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVwsubu_vv(const DecodedInst*);
-    void execVwsub_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vwadd_wv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVwaddu_wv(const DecodedInst*);
-    void execVwadd_wv(const DecodedInst*);
-
-    void execVwaddu_wx(const DecodedInst*);
-    void execVwadd_wx(const DecodedInst*);
-    void execVwsubu_wx(const DecodedInst*);
-    void execVwsub_wx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vwsub_wv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVwsubu_wv(const DecodedInst*);
-    void execVwsub_wv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vminu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVminu_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vminu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVminu_vx(const DecodedInst*);
-
-
-    template<typename ELEM_TYPE>
-    void vmin_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVmin_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vmin_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVmin_vx(const DecodedInst*);
-
-
-    template<typename ELEM_TYPE>
-    void vmaxu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVmaxu_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vmaxu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVmaxu_vx(const DecodedInst*);
-
-
-    template<typename ELEM_TYPE>
-    void vmax_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVmax_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vmax_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVmax_vx(const DecodedInst*);
-
-
-    template<typename ELEM_TYPE>
-    void vand_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVand_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vand_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVand_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vand_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVand_vi(const DecodedInst*);
-
-
-    template<typename ELEM_TYPE>
-    void vor_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                unsigned start, unsigned elems, bool masked);
-    void execVor_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vor_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                unsigned start, unsigned elems, bool masked);
-    void execVor_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vor_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
-                unsigned start, unsigned elems, bool masked);
-    void execVor_vi(const DecodedInst*);
-
-
-    template<typename ELEM_TYPE>
-    void vxor_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVxor_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vxor_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVxor_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vxor_vi(unsigned vd, unsigned vs1, int32_t imm, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVxor_vi(const DecodedInst*);
-
-
-    template<typename ELEM_TYPE>
-    void vrgather_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                     unsigned start, unsigned elems);
-    void execVrgather_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vrgather_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                     unsigned start, unsigned elems);
-    void execVrgather_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vrgather_vi(unsigned vd, unsigned vs1, uint32_t imm, unsigned group,
-                     unsigned start, unsigned elems);
-    void execVrgather_vi(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vrgatherei16_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                         unsigned start, unsigned elems);
-    void execVrgatherei16_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vcompress_vm(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                      unsigned start, unsigned elems);
-    void execVcompress_vm(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vredsum_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                    unsigned start, unsigned elems);
-    void execVredsum_vs(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vredand_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                    unsigned start, unsigned elems);
-    void execVredand_vs(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vredor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                   unsigned start, unsigned elems);
-    void execVredor_vs(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vredxor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                    unsigned start, unsigned elems);
-    void execVredxor_vs(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vredminu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                     unsigned start, unsigned elems);
-    void execVredminu_vs(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vredmin_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                    unsigned start, unsigned elems);
-    void execVredmin_vs(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vredmaxu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                     unsigned start, unsigned elems);
-    void execVredmaxu_vs(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vredmax_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                    unsigned start, unsigned elems);
-    void execVredmax_vs(const DecodedInst*);
-
-    void execVmand_mm(const DecodedInst*);
-    void execVmnand_mm(const DecodedInst*);
-    void execVmandnot_mm(const DecodedInst*);
-    void execVmxor_mm(const DecodedInst*);
-    void execVmor_mm(const DecodedInst*);
-    void execVmnor_mm(const DecodedInst*);
-    void execVmornot_mm(const DecodedInst*);
-    void execVmxnor_mm(const DecodedInst*);
-    void execVpopc_m(const DecodedInst*);
-    void execVfirst_m(const DecodedInst*);
-    void execVmsbf_m(const DecodedInst*);
-    void execVmsif_m(const DecodedInst*);
-    void execVmsof_m(const DecodedInst*);
-    void execViota_m(const DecodedInst*);
-    void execVid_v(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vslideup(unsigned vd, unsigned vs1, URV amount, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVslideup_vx(const DecodedInst*);
-    void execVslideup_vi(const DecodedInst*);
-    void execVslide1up_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vslidedown(unsigned vd, unsigned vs1, URV amount, unsigned group,
-                    unsigned start, unsigned elems, bool masked);
-    void execVslidedown_vx(const DecodedInst*);
-    void execVslidedown_vi(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vmul_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVmul_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vmul_vx(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVmul_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vmulh_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVmulh_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vmulh_vx(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVmulh_vx(const DecodedInst*);
-
-    void execVmulhu_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vmulhu_vx(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                   unsigned start, unsigned elems, bool masked);
-    void execVmulhu_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vmulhsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                    unsigned start, unsigned elems, bool masked);
-    void execVmulhsu_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vmulhsu_vx(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                    unsigned start, unsigned elems, bool masked);
-    void execVmulhsu_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vwmulu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                   unsigned start, unsigned elems, bool masked);
-    void execVwmulu_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vwmulu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                   unsigned start, unsigned elems, bool masked);
-    void execVwmulu_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vwmul_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                   unsigned start, unsigned elems, bool masked);
-    void execVwmul_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vwmul_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                   unsigned start, unsigned elems, bool masked);
-    void execVwmul_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vwmulsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                   unsigned start, unsigned elems, bool masked);
-    void execVwmulsu_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vwmulsu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                   unsigned start, unsigned elems, bool masked);
-    void execVwmulsu_vx(const DecodedInst*);
-
-    // This is used for vwmacc.vv and vwmaccu.vv.
-    template<typename ELEM_TYPE>
-    void vwmacc_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                   unsigned start, unsigned elems, bool masked);
-
-    void execVwmaccu_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vwmaccu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                    unsigned start, unsigned elems, bool masked);
-    void execVwmaccu_vx(const DecodedInst*);
-
-    void execVwmacc_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vwmacc_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                   unsigned start, unsigned elems, bool masked);
-    void execVwmacc_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vwmaccsu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                     unsigned start, unsigned elems, bool masked);
-    void execVwmaccsu_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vwmaccsu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                     unsigned start, unsigned elems, bool masked);
-    void execVwmaccsu_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vwmaccus_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                     unsigned start, unsigned elems, bool masked);
-    void execVwmaccus_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vdivu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVdivu_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vdivu_vx(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVdivu_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vdiv_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVdiv_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vdiv_vx(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVdiv_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vremu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVremu_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vremu_vx(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVremu_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vrem_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVrem_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vrem_vx(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVrem_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE, typename FROM_TYPE>
-    void vsext(unsigned vd, unsigned vs1, unsigned group, unsigned fromGroup,
-               unsigned start, unsigned elems, bool masked);
-    void execVsext_vf2(const DecodedInst*);
-    void execVsext_vf4(const DecodedInst*);
-    void execVsext_vf8(const DecodedInst*);
-
-    template<typename ELEM_TYPE, typename FROM_TYPE>
-    void vzext(unsigned vd, unsigned vs1, unsigned group, unsigned from,
-               unsigned start, unsigned elems, bool masked);
-    void execVzext_vf2(const DecodedInst*);
-    void execVzext_vf4(const DecodedInst*);
-    void execVzext_vf8(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vadc_vvm(unsigned vd, unsigned vs1, unsigned vs2, unsigned vcin,
-                  unsigned group, unsigned start, unsigned elems);
-
-    template<typename ELEM_TYPE>
-    void vadc_vxm(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned vcin,
-                  unsigned group, unsigned start, unsigned elems);
-    
-    template<typename ELEM_TYPE>
-    void vsbc_vvm(unsigned vd, unsigned vs1, unsigned vs2, unsigned vbin,
-                  unsigned group, unsigned start, unsigned elems);
-
-    template<typename ELEM_TYPE>
-    void vsbc_vxm(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned vbin,
-                  unsigned group, unsigned start, unsigned elems);
-
-    template<typename ELEM_TYPE>
-    void vmadc_vvm(unsigned vcout, unsigned vs1, unsigned vs2, bool carry,
-                   unsigned vcin, unsigned group, unsigned start,
-                   unsigned elems);
-
-    template<typename ELEM_TYPE>
-    void vmadc_vxm(unsigned vcout, unsigned vs1, ELEM_TYPE e2, bool carry,
-                   unsigned vcin, unsigned group, unsigned start,
-                   unsigned elems);
-
-    template<typename ELEM_TYPE>
-    void vmsbc_vvm(unsigned vbout, unsigned vs1, unsigned vs2, bool borrow,
-                   unsigned vbin, unsigned group, unsigned start,
-                   unsigned elems);
-
-    template<typename ELEM_TYPE>
-    void vmsbc_vxm(unsigned vbout, unsigned vs1, ELEM_TYPE e2, bool borrow,
-                   unsigned vbin, unsigned group, unsigned start,
-                   unsigned elems);
-
-    void execVadc_vvm(const DecodedInst*);
-    void execVadc_vxm(const DecodedInst*);
-    void execVadc_vim(const DecodedInst*);
-    void execVsbc_vvm(const DecodedInst*);
-    void execVsbc_vxm(const DecodedInst*);
-    void execVmadc_vvm(const DecodedInst*);
-    void execVmadc_vxm(const DecodedInst*);
-    void execVmadc_vim(const DecodedInst*);
-    void execVmsbc_vvm(const DecodedInst*);
-    void execVmsbc_vxm(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vmerge_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                   unsigned start, unsigned elems);
-    void execVmerge_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vmerge_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                   unsigned start, unsigned elems);
-    void execVmerge_vx(const DecodedInst*);
-
-    void execVmerge_vi(const DecodedInst*);
-
-    void execVmv_x_s(const DecodedInst*);
-    void execVmv_s_x(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vmv_v_v(unsigned vd, unsigned vs1, unsigned group,
-                 unsigned start, unsigned elems);
-    void execVmv_v_v(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vmv_v_x(unsigned vd, ELEM_TYPE e1, unsigned group,
-                 unsigned start, unsigned elems);
-    void execVmv_v_x(const DecodedInst*);
-    void execVmv_v_i(const DecodedInst*);
-
-    void execVmv1r_v(const DecodedInst*);
-    void execVmv2r_v(const DecodedInst*);
-    void execVmv4r_v(const DecodedInst*);
-    void execVmv8r_v(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vsaddu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                   unsigned start, unsigned elems, bool masked);
-    void execVsaddu_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vsaddu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                   unsigned start, unsigned elems, bool masked);
-    void execVsaddu_vx(const DecodedInst*);
-    void execVsaddu_vi(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vsadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVsadd_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vsadd_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVsadd_vx(const DecodedInst*);
-    void execVsadd_vi(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vssubu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                   unsigned start, unsigned elems, bool masked);
-    void execVssubu_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vssubu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                   unsigned start, unsigned elems, bool masked);
-    void execVssubu_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vssub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVssub_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vssub_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVssub_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vaadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVaadd_vv(const DecodedInst*);
-    void execVaaddu_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vaadd_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVaadd_vx(const DecodedInst*);
-    void execVaaddu_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vasub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVasub_vv(const DecodedInst*);
-    void execVasubu_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vasub_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVasub_vx(const DecodedInst*);
-    void execVasubu_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vsmul_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVsmul_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vsmul_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVsmul_vx(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vssr_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                 unsigned start, unsigned elems, bool masked);
-    void execVssrl_vv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vssr_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                  unsigned start, unsigned elems, bool masked);
-    void execVssrl_vx(const DecodedInst*);
-    void execVssrl_vi(const DecodedInst*);
-
-    void execVssra_vv(const DecodedInst*);
-    void execVssra_vx(const DecodedInst*);
-    void execVssra_vi(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vnclip_wv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                   unsigned start, unsigned elems, bool masked);
-    void execVnclipu_wv(const DecodedInst*);
-
-    template<typename ELEM_TYPE>
-    void vnclip_wx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
-                   unsigned start, unsigned elems, bool masked);
-    void execVnclipu_wx(const DecodedInst*);
-    void execVnclipu_wi(const DecodedInst*);
-
-    void execVnclip_wv(const DecodedInst*);
-    void execVnclip_wx(const DecodedInst*);
-    void execVnclip_wi(const DecodedInst*);
-
-    template <typename ELEM_TYPE>
-    void vectorLoad(const DecodedInst*, ElementWidth, bool faultOnFirstOnly);
-
-    void execVle8_v(const DecodedInst*);
-    void execVle16_v(const DecodedInst*);
-    void execVle32_v(const DecodedInst*);
-    void execVle64_v(const DecodedInst*);
-    void execVle128_v(const DecodedInst*);
-    void execVle256_v(const DecodedInst*);
-    void execVle512_v(const DecodedInst*);
-    void execVle1024_v(const DecodedInst*);
-
-    template <typename ELEM_TYPE>
-    void vectorStore(const DecodedInst*, ElementWidth);
-
-    void execVse8_v(const DecodedInst*);
-    void execVse16_v(const DecodedInst*);
-    void execVse32_v(const DecodedInst*);
-    void execVse64_v(const DecodedInst*);
-    void execVse128_v(const DecodedInst*);
-    void execVse256_v(const DecodedInst*);
-    void execVse512_v(const DecodedInst*);
-    void execVse1024_v(const DecodedInst*);
-
-    template <typename ELEM_TYPE>
-    void vectorLoadWholeReg(const DecodedInst*, ElementWidth);
-
-    void execVlre8_v(const DecodedInst*);
-    void execVlre16_v(const DecodedInst*);
-    void execVlre32_v(const DecodedInst*);
-    void execVlre64_v(const DecodedInst*);
-    void execVlre128_v(const DecodedInst*);
-    void execVlre256_v(const DecodedInst*);
-    void execVlre512_v(const DecodedInst*);
-    void execVlre1024_v(const DecodedInst*);
-
-    template <typename ELEM_TYPE>
-    void vectorStoreWholeReg(const DecodedInst*, ElementWidth);
-
-    void execVsre8_v(const DecodedInst*);
-    void execVsre16_v(const DecodedInst*);
-    void execVsre32_v(const DecodedInst*);
-    void execVsre64_v(const DecodedInst*);
-    void execVsre128_v(const DecodedInst*);
-    void execVsre256_v(const DecodedInst*);
-    void execVsre512_v(const DecodedInst*);
-    void execVsre1024_v(const DecodedInst*);
-
-    void execVle8ff_v(const DecodedInst*);
-    void execVle16ff_v(const DecodedInst*);
-    void execVle32ff_v(const DecodedInst*);
-    void execVle64ff_v(const DecodedInst*);
-    void execVle128ff_v(const DecodedInst*);
-    void execVle256ff_v(const DecodedInst*);
-    void execVle512ff_v(const DecodedInst*);
-    void execVle1024ff_v(const DecodedInst*);
-
-    template <typename ELEM_TYPE>
-    void vectorLoadStrided(const DecodedInst*, ElementWidth);
-
-    void execVlse8_v(const DecodedInst*);
-    void execVlse16_v(const DecodedInst*);
-    void execVlse32_v(const DecodedInst*);
-    void execVlse64_v(const DecodedInst*);
-    void execVlse128_v(const DecodedInst*);
-    void execVlse256_v(const DecodedInst*);
-    void execVlse512_v(const DecodedInst*);
-    void execVlse1024_v(const DecodedInst*);
-
-    template <typename ELEM_TYPE>
-    void vectorStoreStrided(const DecodedInst*, ElementWidth);
-
-    void execVsse8_v(const DecodedInst*);
-    void execVsse16_v(const DecodedInst*);
-    void execVsse32_v(const DecodedInst*);
-    void execVsse64_v(const DecodedInst*);
-    void execVsse128_v(const DecodedInst*);
-    void execVsse256_v(const DecodedInst*);
-    void execVsse512_v(const DecodedInst*);
-    void execVsse1024_v(const DecodedInst*);
-
-    template <typename ELEM_TYPE>
-    void vectorLoadIndexed(const DecodedInst*, ElementWidth);
-
-    void execVlxei8_v(const DecodedInst*);
-    void execVlxei16_v(const DecodedInst*);
-    void execVlxei32_v(const DecodedInst*);
-    void execVlxei64_v(const DecodedInst*);
-
-    template <typename ELEM_TYPE>
-    void vectorStoreIndexed(const DecodedInst*, ElementWidth);
-
-    void execVsxei8_v(const DecodedInst*);
-    void execVsxei16_v(const DecodedInst*);
-    void execVsxei32_v(const DecodedInst*);
-    void execVsxei64_v(const DecodedInst*);
 
   private:
 
@@ -2824,17 +1921,17 @@ namespace WdRiscv
     {
       LoadInfo()
 	: size_(0), addr_(0), regIx_(0), prevData_(0), valid_(false),
-	  wide_(false), fp_(false)
+	  wide_(false)
       { }
 
       LoadInfo(unsigned size, size_t addr, unsigned regIx, uint64_t prev,
-	       bool isWide, unsigned tag, bool fp)
+	       bool isWide, unsigned tag)
 	: size_(size), addr_(addr), regIx_(regIx), tag_(tag), prevData_(prev),
-	  valid_(true), wide_(isWide), fp_(fp)
+	  valid_(true), wide_(isWide)
       { }
 
       bool isValid() const  { return valid_; }
-      void makeInvalid() { valid_ = false; fp_ = false; }
+      void makeInvalid() { valid_ = false; }
 
       unsigned size_ = 0;
       size_t addr_ = 0;
@@ -2843,38 +1940,14 @@ namespace WdRiscv
       uint64_t prevData_ = 0;
       bool valid_ = false;
       bool wide_ = false;
-      bool fp_ = false;
-    };
-
-    struct PmaOverride
-    {
-      PmaOverride(uint64_t start = 0, uint64_t end = 0,
-                  bool idempotent = false, bool cacheable = false)
-        : start_(start), end_(end), idempotent_(idempotent),
-          cacheable_(cacheable)
-      { }
-
-      bool matches(uint64_t addr) const
-      { return end_ > start_ and start_ <= addr and addr <= end_; }
-
-      void reset ()
-      { start_ = end_ = 0; idempotent_ = false; cacheable_ = false; }
-
-      uint64_t start_;
-      uint64_t end_;
-      bool idempotent_;
-      bool cacheable_;
     };
 
     void putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
-			uint64_t prevData, bool isWide = false,
-                        bool fp = false);
+			uint64_t prevData, bool isWide = false);
 
-    void removeFromLoadQueue(unsigned regIx, bool isDiv, bool fp = false);
+    void removeFromLoadQueue(unsigned regIx, bool isDiv);
 
-    void invalidateInLoadQueue(unsigned regIx, bool isDiv, bool fp = false);
-
-    void loadQueueCommit(const DecodedInst&);
+    void invalidateInLoadQueue(unsigned regIx, bool isDiv);
 
     /// Save snapshot of registers (PC, integer, floating point, CSR) into file
     bool saveSnapshotRegs(const std::string& path);
@@ -2882,23 +1955,15 @@ namespace WdRiscv
     // Load snapshot of registers (PC, integer, floating point, CSR) into file
     bool loadSnapshotRegs(const std::string& path);
 
-    // Set the program counter to the given value after clearing the
-    // least significant bit.
-    void setPc(URV value)
-    { pc_ = value & pcMask_; }
-
   private:
 
     unsigned hartIx_ = 0;        // Hardware thread id within cluster.
-    std::atomic<bool> hartStarted_ = true;    // True if hart is running. WD special.
+    bool hartStarted_ = true;    // True if hart is running. WD special.
     Memory& memory_;
     IntRegs<URV> intRegs_;       // Integer register file.
     CsRegs<URV> csRegs_;         // Control and status registers.
-    FpRegs fpRegs_;              // Floating point registers.
-    VecRegs vecRegs_;            // Vector register file.
-
+    FpRegs<double> fpRegs_;      // Floating point registers.
     Syscall<URV> syscall_;
-    URV syscallSlam_ = 0;        // Area in which to slam syscall mem changes.
 
     bool rv64_ = sizeof(URV)==8; // True if 64-bit base (RV64I).
     bool rva_ = false;           // True if extension A (atomic) enabled.
@@ -2909,7 +1974,6 @@ namespace WdRiscv
     bool rvm_ = true;            // True if extension M (mul/div) enabled.
     bool rvs_ = false;           // True if extension S (supervisor-mode) enabled.
     bool rvu_ = false;           // True if extension U (user-mode) enabled.
-    bool rvv_ = false;           // True if extension V (vector) enabled.
     bool rvn_ = false;           // True if extension N (user-mode-interrupt) enabled.
     bool rvzba_ = false;         // True if extension zba enabled.
     bool rvzbb_ = false;         // True if extension zbb enabled.
@@ -2925,7 +1989,6 @@ namespace WdRiscv
     URV currPc_ = 0;             // Addr instr being executed (pc_ before fetch).
     URV resetPc_ = 0;            // Pc to use on reset.
     URV stopAddr_ = 0;           // Pc at which to stop the simulator.
-    URV pcMask_ = ~URV(1);       // Values are anded with this before being assigned to the program counter.
     bool stopAddrValid_ = false; // True if stopAddr_ is valid.
 
     URV toHost_ = 0;             // Writing to this stops the simulator.
@@ -2947,10 +2010,9 @@ namespace WdRiscv
     NmiCause nmiCause_ = NmiCause::UNKNOWN;
     bool nmiEnabled_ = true;
 
-    // These must be cleared before each instruction when triggers enabled.
+    // These should be cleared before each instruction when triggers enabled.
     bool hasException_ = 0;      // True if current inst has an exception.
     bool csrException_ = 0;      // True if there is a CSR related exception.
-    bool hasInterrupt_ = 0;      // True if there is an interrupt.
     bool triggerTripped_ = 0;    // True if a trigger trips.
 
     bool lastBranchTaken_ = false; // Useful for performance counters
@@ -2972,10 +2034,6 @@ namespace WdRiscv
     uint64_t nmiCount_ = 0;
     uint64_t consecutiveIllegalCount_ = 0;
     uint64_t counterAtLastIllegal_ = 0;
-    uint64_t lrCount_ = 0;    // Count of dispatched load-reserve instructions.
-    uint64_t lrSuccess_ = 0;  // Counte of successful LR (reservaton acquired).
-    uint64_t scCount_ = 0;    // Count of dispatched store-conditional instructions.
-    uint64_t scSuccess_ = 0;  // Counte of successful SC (store accomplished).
     bool forceAccessFail_ = false;  // Force load/store access fault.
     bool forceFetchFail_ = false;   // Force fetch access fault.
     bool fastInterrupts_ = false;
@@ -2994,7 +2052,6 @@ namespace WdRiscv
     bool newlib_ = false;           // Enable newlib system calls.
     bool linux_ = false;            // Enable linux system calls.
     bool amoInDccmOnly_ = false;
-    bool amoInCacheableOnly_ = false;
 
     uint32_t perfControl_ = ~0;     // Performance counter control
     uint32_t prevPerfControl_ = ~0; // Value before current instruction.
@@ -3016,8 +2073,6 @@ namespace WdRiscv
     bool mstatusMprv_ = false;                          // Cached mstatus.mprv.
     FpFs mstatusFs_ = FpFs::Off;                        // Cahced mstatus.fs.
 
-    FpFs mstatusVs_ = FpFs::Off;
-
     bool debugMode_ = false;         // True on debug mode.
     bool debugStepMode_ = false;     // True in debug step mode.
     bool dcsrStepIe_ = false;        // True if stepie bit set in dcsr.
@@ -3035,9 +2090,11 @@ namespace WdRiscv
     URV stackMax_ = ~URV(0);
     URV stackMin_ = 0;
 
-    bool enableWideLdSt_ = false;   // True if wide (64-bit) ld/st enabled.
-    bool wideLdSt_ = false;         // True if executing wide ld/st instrution.
-    bool enableBbarrier_ = false;
+    bool wideLdSt_ = false;
+
+    // AMO instructions have additional operands: rl and aq.
+    bool amoAq_ = false;
+    bool amoRl_ = false;
 
     int gdbInputFd_ = -1;  // Input file descriptor when running in gdb mode.
 
@@ -3064,9 +2121,6 @@ namespace WdRiscv
     // Ith entry is true if ith region has pic
     std::vector<bool> regionHasMemMappedRegs_;
 
-    // Ith entry is true if ith region is idempotent.
-    std::vector<bool> regionIsIdempotent_;
-
     // Decoded instruction cache.
     std::vector<DecodedInst> decodeCache_;
     uint32_t decodeCacheSize_ = 0;
@@ -3088,30 +2142,7 @@ namespace WdRiscv
     bool pmpEnabled_ = false; // True if one or more pmp register defined.
     PmpManager pmpManager_;
 
-    bool defaultIdempotent_ = false;
-    bool hasDefaultIdempotent_ = false;
-
-    bool defaultCacheable_ = false;
-    bool hasDefaultCacheable_ = false;
-
-    bool pmaOverride_ = false;
-    std::vector<PmaOverride> pmaOverrideVec_;
-
     VirtMem virtMem_;
-
-    // Callback invoked before a CSR instruction accesses a CSR.
-    std::function<void(unsigned, CsrNumber)> preCsrInst_ = nullptr;
-
-    // Callback invoked after a CSR instruction accesses a CSR or, in
-    // the case of an exception, after the CSR intruction takes the
-    // exception.
-    std::function<void(unsigned, CsrNumber)> postCsrInst_ = nullptr;
-
-    // Callback invoked beofre execution of an instruction. Callback
-    // invoked as follows: preInst_(hart, halt, reset), and upon completion
-    // the hart will halt if halt is true and will reset if reset is true.
-    // If both halt and reset are true, reset takes precedence.
-    std::function<void(Hart<URV>&, bool&, bool&)> preInst_ = nullptr;
   };
 }
 

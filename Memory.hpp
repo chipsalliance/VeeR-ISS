@@ -17,12 +17,13 @@
 #include <cstdint>
 #include <vector>
 #include <unordered_map>
-#include <functional>
 #include <mutex>
 #include <type_traits>
 #include <cassert>
 #include "PmaManager.hpp"
 #include "Cache.hpp"
+#include "IODevice.hpp"
+#include "Uart8250.hpp"
 
 
 namespace ELFIO
@@ -73,20 +74,37 @@ namespace WdRiscv
     void setHartCount(unsigned count)
     { reservations_.resize(count); lastWriteData_.resize(count); }
 
+    /// Register all of the IO devices
+    void registerIODevices();
+
     /// Return memory size in bytes.
     size_t size() const
     { return size_; }
 
+    template <typename T>
+    bool readIO(size_t address, T& value) const
+    {
+      for(auto d_: devices_) {
+        if (d_.addr_ <= address && (d_.addr_ + d_.size_) > address) {
+          value = d_.device->read(address);
+          return true;
+        }
+      }
+
+      return false;
+    }
+
     /// Read an unsigned integer value of type T from memory at the
-    /// given address into value assuming a little-endian memory
-    /// organization. Return true on success. Return false if any of
-    /// the requested bytes is out of memory bounds, fall in unmapped
-    /// memory, are in a region marked non-read, or if is to a
-    /// memory-mapped-register aht the access size is different than
-    /// 4.
+    /// given address into value. Return true on success. Return false
+    /// if any of the requested bytes is out of memory bounds, fall in
+    /// unmapped memory, are in a region marked non-read, or if is to
+    /// a memory-mapped-register aht the access size is different than 4.
     template <typename T>
     bool read(size_t address, T& value) const
     {
+      if (readIO(address, value)) {
+        return true;
+      }
 #ifdef FAST_SLOPPY
       if (address + sizeof(T) > size_)
         return false;
@@ -111,22 +129,17 @@ namespace WdRiscv
             return false;
         }
 #endif
-
-#ifdef MEM_CALLBACKS
-      uint64_t val = 0;
-      if (not readCallback_(address, sizeof(T), val))
-        return false;
-      value = val;
-#else
       value = *(reinterpret_cast<const T*>(data_ + address));
-#endif
-
       if (cache_)
         cache_->insert(address);
       return true;
     }
 
-    /// Read an unsigned integer ot type T from memory for instruction
+    /// Read byte from given address into value. See read method.
+    bool readByte(size_t address, uint8_t& value) const
+    { return read(address, value); }
+
+    /// Read an unsigned inteer ot type T from memory for instruction
     /// fetch. Return true on success and false if address is not
     /// executable or if an iccm boundary is corssed.
     template <typename T>
@@ -143,15 +156,7 @@ namespace WdRiscv
                 return false;  // Cannot cross an ICCM boundary.
 	    }
 
-#ifdef MEM_CALLBACKS
-          uint64_t val = 0;
-          if (not readCallback_(address, sizeof(T), val))
-            return false;
-          value = val;
-#else
-          value = *(reinterpret_cast<const T*>(data_ + address));
-#endif
-
+	  value = *(reinterpret_cast<const T*>(data_ + address));
           if (cache_)
             cache_->insert(address);
 	  return true;
@@ -189,23 +194,35 @@ namespace WdRiscv
       return true;
     }
 
+    template <typename T>
+    bool writeIO(size_t address, T value)
+    {
+      for(auto d_: devices_) {
+        if (d_.addr_ <= address && (d_.addr_ + d_.size_) > address) {
+          return d_.device->write(address, value);
+        }
+      }
+
+      return false;
+    }
+
     /// Write given unsigned integer value of type T into memory
-    /// starting at the given address and assuming little-endian
-    /// origanization. Return true on success. Return false if any of
-    /// the target memory bytes are out of bounds or fall in
-    /// inaccessible regions or if the write crosses memory region of
-    /// different attributes.
+    /// starting at the given address. Return true on success. Return
+    /// false if any of the target memory bytes are out of bounds or
+    /// fall in inaccessible regions or if the write crosses memory
+    /// region of different attributes.
     template <typename T>
     bool write(unsigned sysHartIx, size_t address, T value)
     {
+      if (writeIO(address, value)) {
+        return true;
+      }
+
 #ifdef FAST_SLOPPY
       if (address + sizeof(T) > size_)
         return false;
       sysHartIx = sysHartIx; // Avoid unused var warning.
-      *(reinterpret_cast<T*>(data_ + address)) = value;
-      return true;
-#endif
-
+#else
       Pma pma1 = pmaMgr_.getPma(address);
       if (not pma1.isWrite())
 	return false;
@@ -226,25 +243,13 @@ namespace WdRiscv
 	}
 
       auto& lwd = lastWriteData_.at(sysHartIx);
+      lwd.prevValue_ = *(reinterpret_cast<T*>(data_ + address));
       lwd.size_ = sizeof(T);
       lwd.addr_ = address;
       lwd.value_ = value;
-
-#ifdef MEM_CALLBACKS
-      uint64_t val = 0;
-      readCallback_(address, sizeof(T), val);
-      lwd.prevValue_ = val;
-      val = value;
-      if (not writeCallback_(address, sizeof(T), val))
-        {
-          lwd.size_ = 0;
-          return false;
-        }
-#else
-      lwd.prevValue_ = *(reinterpret_cast<T*>(data_ + address));
-      *(reinterpret_cast<T*>(data_ + address)) = value;
 #endif
 
+      *(reinterpret_cast<T*>(data_ + address)) = value;
       return true;
     }
 
@@ -265,54 +270,6 @@ namespace WdRiscv
     /// of bounds.
     bool writeDoubleWord(unsigned sysHartIx, size_t address, uint64_t value)
     { return write(sysHartIx, address, value); }
-
-    /// Similar to read but ignore physical-memory-attributes if
-    /// usePma is false.
-    template <typename T>
-    bool peek(size_t address, T& value, bool usePma) const
-    {
-      if (address + sizeof(T) > size_)
-        return false;
-
-#ifdef FAST_SLOPPY
-      value = *(reinterpret_cast<const T*>(data_ + address));
-      return true;
-#endif
-
-      // Memory mapped region accessible only with word-size read.
-      Pma pma1 = pmaMgr_.getPma(address);
-      if (pma1.isMemMappedReg())
-        {
-          if constexpr (sizeof(T) == 4)
-            return readRegister(address, value);
-          else
-            return false;
-        }
-
-      if (usePma)
-        {
-          if (not pma1.isRead() and not pma1.isExec())
-            return false;
-
-          if (address & (sizeof(T) - 1))  // If address is misaligned
-            {
-              Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
-              if (not pma2.isRead() and not pma2.isExec())
-                return false;
-            }
-        }
-
-#ifdef MEM_CALLBACKS
-      uint64_t val = 0;
-      if (not readCallback_(address, sizeof(T), val))
-        return false;
-      value = val;
-      return true;
-#endif
-
-      value = *(reinterpret_cast<const T*>(data_ + address));
-      return true;
-    }
 
     /// Load the given hex file and set memory locations accordingly.
     /// Return true on success. Return false if file does not exists,
@@ -403,60 +360,30 @@ namespace WdRiscv
     /// one first).
     void getCacheLineAddresses(std::vector<uint64_t>& addresses);
 
-    /// Define read memory callback. This (along with
-    /// defineWriteMemoryCallback) allows the caller to bypass the
-    /// memory model with their own.
-    void defineReadMemoryCallback(
-         std::function<bool(uint64_t, unsigned, uint64_t&)> callback )
-    {
-      readCallback_ = callback;
-    }
-
-    /// Define write memory callback. This (along with
-    /// defineReadMemoryCallback) allows the caller to bypass the
-    /// memory model with their own.
-    void defineWriteMemoryCallback(
-         std::function<bool(uint64_t, unsigned, uint64_t)> callback )
-    {
-      writeCallback_ = callback;
-    }
-
   protected:
 
-    /// Same as write but effects not recorded in last-write info and
-    /// physical memory attributes are ignored if usePma is false.
+    /// Same as write but effects not recorded in last-write info.
     template <typename T>
-    bool poke(size_t address, T value, bool usePma = true)
+    bool poke(size_t address, T value)
     {
-      if (address + sizeof(T) > size_)
-        return false;
+      Pma pma1 = pmaMgr_.getPma(address);
+      if (not pma1.isMapped())
+	return false;
+
+      if (address & (sizeof(T) - 1))  // If address is misaligned
+	{
+          Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
+          if (not pma2.isMapped())
+	    return false;
+	}
 
       // Memory mapped region accessible only with word-size poke.
-      Pma pma1 = pmaMgr_.getPma(address);
       if (pma1.isMemMappedReg())
         {
           if constexpr (sizeof(T) != 4)
             return false;
           return pmaMgr_.writeRegisterNoMask(address, value);
         }
-
-      if (usePma)
-        {
-          if (not pma1.isMapped())
-            return false;
-
-          if (address & (sizeof(T) - 1))  // If address is misaligned
-            {
-              Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
-              if (not pma2.isMapped())
-                return false;
-            }
-        }
-
-#ifdef MEM_CALLBACKS
-      uint64_t val = value;
-      return writeCallback_(address, sizeof(T), val);
-#endif
 
       *(reinterpret_cast<T*>(data_ + address)) = value;
       return true;
@@ -473,8 +400,7 @@ namespace WdRiscv
     /// corresponding value and return the size of that write. Return
     /// 0 if no write since the most recent clearLastWriteInfo in
     /// which case addr and value are not modified.
-    unsigned getLastWriteNewValue(unsigned sysHartIx, uint64_t& addr,
-                                  uint64_t& value) const
+    unsigned getLastWriteNewValue(unsigned sysHartIx, size_t& addr, uint64_t& value) const
     {
       const auto& lwd = lastWriteData_.at(sysHartIx);
       if (lwd.size_)
@@ -622,6 +548,17 @@ namespace WdRiscv
       return not (pma.isDccm() or pma.isMemMappedReg());
     }
 
+    /// Return the simulator memory address corresponding to the
+    /// simulated RISCV memory address. This is useful for Linux
+    /// emulation.
+    bool getSimMemAddr(size_t addr, size_t& simAddr)
+    {
+      if (addr >= size_)
+	return false;
+      simAddr = reinterpret_cast<size_t>(data_ + addr);
+      return true;
+    }
+
     /// Track LR instructin resrvations.
     struct Reservation
     {
@@ -630,6 +567,14 @@ namespace WdRiscv
       bool valid_ = false;
     };
       
+    /// A list of MMIO devices that can be accessed by the guest.
+    struct MMIODevice
+    {
+      IODevice *device;
+      size_t addr_ = 0;
+      unsigned size_ = 0;
+    };
+
     /// Invalidate LR reservations matching address of poked/written
     /// bytes and belonging to harts other than the given hart-id. The
     /// memory tracks one reservation per hart indexed by local hart
@@ -677,16 +622,17 @@ namespace WdRiscv
     }
 
     /// Return true if given hart has a valid LR reservation for the
-    /// given address and size.
-    bool hasLr(unsigned sysHartIx, uint64_t addr, unsigned size) const
+    /// given address.
+    bool hasLr(unsigned sysHartIx, size_t addr) const
     {
       auto& res = reservations_.at(sysHartIx);
-      return res.valid_ and res.addr_ == addr and res.size_ == size;
+      return res.valid_ and res.addr_ == addr;
     }
 
     /// Load contents of given ELF segment into memory.
     /// This is a helper to loadElfFile.
-    bool loadElfSegment(ELFIO::elfio& reader, int segment, size_t& end);
+    bool loadElfSegment(ELFIO::elfio& reader, int segment, size_t& end,
+                        size_t& overwrites);
 
     /// Helper to loadElfFile: Collet ELF symbols.
     void collectElfSymbols(ELFIO::elfio& reader);
@@ -750,13 +696,10 @@ namespace WdRiscv
     std::vector<Reservation> reservations_;
     std::vector<LastWriteData> lastWriteData_;
 
+    std::vector<MMIODevice> devices_;
+    Uart8250 uart_;
+
     PmaManager pmaMgr_;
     Cache* cache_ = nullptr;
-
-    /// Callback for read: bool func(uint64_t addr, unsigned size, uint64_t& val);
-    std::function<bool(uint64_t, unsigned, uint64_t&)> readCallback_ = nullptr;
-
-    /// Callback for write: bool func(uint64_t addr, unsigned size, uint64_t val);
-    std::function<bool(uint64_t, unsigned, uint64_t)> writeCallback_ = nullptr;
   };
 }

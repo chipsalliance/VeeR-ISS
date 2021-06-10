@@ -15,15 +15,7 @@
 #include <iomanip>
 #include <iostream>
 #include <fstream>
-#include <sstream>
-
-#if defined(__cpp_lib_filesystem)
-  #include <filesystem>
-  namespace FileSystem = std::filesystem;
-#else
-  #include <experimental/filesystem>
-  namespace FileSystem = std::experimental::filesystem;
-#endif
+#include <experimental/filesystem>
 
 #include <cstring>
 #include <ctime>
@@ -48,258 +40,99 @@
 using namespace WdRiscv;
 
 
-#if defined(__APPLE__) || defined(__CYGWIN__)
-  #define off64_t off_t
-  #define MREMAP_MAYMOVE 0
-#endif
-
-
-template <typename URV>
-static bool
-copyRvString(Hart<URV>& hart, uint64_t rvAddr,
-             char dest[], size_t destSize)
-{
-  for (size_t i = 0; i < destSize; ++i)
-    {
-      uint8_t byte = 0;
-      if (not hart.peekMemory(rvAddr + i, byte, true))
-        return false;
-      dest[i] = byte;
-      if (byte == 0)
-        return true;
-    }
-  return false;
-}
-
-
-/// Read from the RISCV system memory at address readAddr up size
-/// elements placing them in the dest array (which must be large enough
-/// to accomodate size bytes). Return number of elements successfully
-/// read. Reading of elements is done sequentially and stopped at the
-/// first failure.
-template <typename URV, typename T>
-static uint64_t
-readHartMemory(Hart<URV>& hart, uint64_t readAddr, uint64_t size, T* dest)
-{
-  for (uint64_t i = 0; i < size; ++i)
-    {
-      uint8_t byte = 0;
-      if (not hart.peekMemory(readAddr + i, byte, true))
-        return i;
-      dest[i] = byte;
-    }
-
-  return size;
-}
-
-
-
-template <typename URV, typename T>
-static uint64_t
-writeHartMemory(Hart<URV>& hart, T* data, uint64_t writeAddr, uint64_t size)
-{
-  for (uint64_t i = 0; i < size; ++i)
-    {
-      uint8_t byte = data[i];
-      if (not hart.pokeMemory(writeAddr + i, byte, true))
-        return i;
-    }
-  return size;
-}
-
-
 // Copy x86 stat buffer to riscv kernel_stat buffer.
-template <typename URV>
-static size_t
-copyStatBufferToRiscv(Hart<URV>& hart, const struct stat& buff,
-                      uint64_t rvBuff, bool& writeOk)
+static void
+copyStatBufferToRiscv(const struct stat& buff, void* rvBuff)
 {
-  writeOk = false;
-  uint64_t addr = rvBuff;
-
-  if (not hart.pokeMemory(addr, uint64_t(buff.st_dev), true))
-    return addr - rvBuff;
-  addr += 8;
-
-  if (not hart.pokeMemory(addr, uint64_t(buff.st_ino), true))
-    return addr - rvBuff;
-  addr += 8;
-
-  if (not hart.pokeMemory(addr, uint32_t(buff.st_mode), true))
-    return addr - rvBuff;
-  addr += 4;
-
-  if (not hart.pokeMemory(addr, uint32_t(buff.st_nlink), true))
-    return addr - rvBuff;
-  addr += 4;
-
-  if (not hart.pokeMemory(addr, uint32_t(buff.st_uid), true))
-    return addr - rvBuff;
-  addr += 4;
-
-  if (not hart.pokeMemory(addr, uint32_t(buff.st_gid), true))
-    return addr - rvBuff;
-  addr += 4;
-
-  if (not hart.pokeMemory(addr, uint64_t(buff.st_rdev), true))
-    return addr - rvBuff;
-  addr += 8;
-
-  addr += 8; // __pad1
-
-  if (not hart.pokeMemory(addr, uint64_t(buff.st_size), true))
-    return addr - rvBuff;
-  addr += 8;
+  char* ptr = (char*) rvBuff;
+  *((uint64_t*) ptr) = buff.st_dev;             ptr += 8;
+  *((uint64_t*) ptr) = buff.st_ino;             ptr += 8;
+  *((uint32_t*) ptr) = buff.st_mode;            ptr += 4;
+  *((uint32_t*) ptr) = buff.st_nlink;           ptr += 4;
+  *((uint32_t*) ptr) = buff.st_uid;             ptr += 4;
+  *((uint32_t*) ptr) = buff.st_gid;             ptr += 4;
+  *((uint64_t*) ptr) = buff.st_rdev;            ptr += 8;
+  /* __pad1 */                                  ptr += 8;
+  *((uint64_t*) ptr) = buff.st_size;            ptr += 8;
 
 #ifdef __APPLE__
   // TODO: adapt code for Mac OS.
-  addr += 40;
+  ptr += 40;
 #elif defined __MINGW64__
-  if (not hart.pokeMemory(addr, uint32_t(buff.st_atime), true))
-    return addr - rvBuff;
-  addr += 4;
-
-  if (not hart.pokeMemory(addr, uint32_t(0), true))
-    return addr - rvBuff;
-  addr += 4;
-
-  if (not hart.pokeMemory(addr, uint32_t(buff.st_mtime), true))
-    return addr - rvBuff;
-  addr += 4;
-
-  if (not hart.pokeMemory(addr, uint32_t(0), true))
-    return addr - rvBuff;
-  addr += 4;
-
-  if (not hart.pokeMemory(addr, uint32_t(buff.st_ctime), true))
-    return addr - rvBuff;
-  addr += 4;
-
-  if (not hart.pokeMemory(addr, uint32_t(0), true))
-    return addr - rvBuff;
-  addr += 4;
+  /* *((uint32_t*) ptr) = buff.st_blksize; */   ptr += 4;
+  /* __pad2 */                                  ptr += 4;
+  /* *((uint64_t*) ptr) = buff.st_blocks; */    ptr += 8;
+  *((uint32_t*) ptr) = buff.st_atime;           ptr += 4;
+  *((uint32_t*) ptr) = 0;                       ptr += 4;
+  *((uint32_t*) ptr) = buff.st_mtime;           ptr += 4;
+  *((uint32_t*) ptr) = 0;                       ptr += 4;
+  *((uint32_t*) ptr) = buff.st_ctime;           ptr += 4;
+  *((uint32_t*) ptr) = 0;                       ptr += 4;
 #else
-  if (not hart.pokeMemory(addr, uint32_t(buff.st_blksize), true))
-    return addr - rvBuff;
-  addr += 4;
-
-  addr += 4; // __pad2
-
-  if (not hart.pokeMemory(addr, uint64_t(buff.st_blocks), true))
-    return addr - rvBuff;
-  addr += 8;
-
-  if (not hart.pokeMemory(addr, uint64_t(buff.st_atim.tv_sec), true))
-    return addr - rvBuff;
-  addr += 8;
-
-  if (not hart.pokeMemory(addr, uint64_t(buff.st_atim.tv_nsec), true))
-    return addr - rvBuff;
-  addr += 8;
-
-  if (not hart.pokeMemory(addr, uint64_t(buff.st_mtim.tv_sec), true))
-    return addr - rvBuff;
-  addr += 8;
-
-  if (not hart.pokeMemory(addr, uint64_t(buff.st_mtim.tv_nsec), true))
-    return addr - rvBuff;
-  addr += 8;
-
-  if (not hart.pokeMemory(addr, uint64_t(buff.st_ctim.tv_sec), true))
-    return addr - rvBuff;
-  addr += 8;
-
-  if (not hart.pokeMemory(addr, uint64_t(buff.st_ctim.tv_nsec), true))
-    return addr - rvBuff;
-  addr += 8;
-
+  *((uint32_t*) ptr) = buff.st_blksize;         ptr += 4;
+  /* __pad2 */                                  ptr += 4;
+  *((uint64_t*) ptr) = buff.st_blocks;          ptr += 8;
+  *((uint32_t*) ptr) = buff.st_atim.tv_sec;     ptr += 4;
+  *((uint32_t*) ptr) = buff.st_atim.tv_nsec;    ptr += 4;
+  *((uint32_t*) ptr) = buff.st_mtim.tv_sec;     ptr += 4;
+  *((uint32_t*) ptr) = buff.st_mtim.tv_nsec;    ptr += 4;
+  *((uint32_t*) ptr) = buff.st_ctim.tv_sec;     ptr += 4;
+  *((uint32_t*) ptr) = buff.st_ctim.tv_nsec;    ptr += 4;
 #endif
-
-  writeOk = true;
-  return addr - rvBuff;
 }
 
 
-// Copy x86 tms struct (used by times) to riscv.
-template <typename URV>
-static size_t
-copyTmsToRiscv(Hart<URV>& hart, const struct tms& buff, URV addr)
+// Copy x86 tms struct (used by times) to riscv (32-bit version).
+static void
+copyTmsToRiscv32(const struct tms& buff, void* rvBuff)
 {
-  URV addr0 = addr;
-  if (not hart.pokeMemory(addr, URV(buff.tms_utime), true))
-    return addr - addr0;
-  addr += sizeof(URV);
+  char* ptr = (char*) rvBuff;
+  *((uint32_t*) ptr) = buff.tms_utime;          ptr += 4;
+  *((uint32_t*) ptr) = buff.tms_stime;          ptr += 4;
+  *((uint32_t*) ptr) = buff.tms_cutime;         ptr += 4;
+  *((uint32_t*) ptr) = buff.tms_cstime;         ptr += 4;
+}
 
-  if (not hart.pokeMemory(addr, URV(buff.tms_stime), true))
-    return addr - addr0;
-  addr += sizeof(URV);
 
-  if (not hart.pokeMemory(addr, URV(buff.tms_cutime), true))
-    return addr - addr0;
-  addr += sizeof(URV);
-
-  if (not hart.pokeMemory(addr, URV(buff.tms_cstime), true))
-    return addr -addr0;
-  addr += sizeof(URV);
-
-  return addr -addr0;
+// Copy x86 tms struct (used by times) to riscv (64-bit version).
+static void
+copyTmsToRiscv64(const struct tms& buff, void* rvBuff)
+{
+  char* ptr = (char*) rvBuff;
+  *((uint64_t*) ptr) = buff.tms_utime;          ptr += 8;
+  *((uint64_t*) ptr) = buff.tms_stime;          ptr += 8;
+  *((uint64_t*) ptr) = buff.tms_cutime;         ptr += 8;
+  *((uint64_t*) ptr) = buff.tms_cstime;         ptr += 8;
 }
 
 
 // Copy x86 timeval buffer to riscv timeval buffer (32-bit version).
-template <typename URV>
-static size_t
-copyTimevalToRiscv32(Hart<URV>& hart, const struct timeval& tv, URV addr)
+static void
+copyTimevalToRiscv32(const struct timeval& buff, void* rvBuff)
 {
-  size_t written = 0;
-  if (not hart.pokeMemory(addr, uint32_t(tv.tv_sec), true))
-    return written;
-  written += sizeof(uint32_t);
-  addr += sizeof(uint32_t);
-
-  if (not hart.pokeMemory(addr, uint64_t(tv.tv_usec), true))
-    return written;
-  written += sizeof(uint64_t);
-
-  return written;
+  char* ptr = (char*) rvBuff;
+  *((uint64_t*) ptr) = buff.tv_sec;             ptr += 8;
+  *((uint32_t*) ptr) = buff.tv_usec;            ptr += 4;
 }
 
 
 // Copy x86 timeval buffer to riscv timeval buffer (32-bit version).
-template <typename URV>
-static size_t
-copyTimevalToRiscv64(Hart<URV>& hart, const struct timeval& tv, URV addr)
+static void
+copyTimevalToRiscv64(const struct timeval& buff, void* rvBuff)
 {
-  size_t written = 0;
-  if (not hart.pokeMemory(addr, uint64_t(tv.tv_sec), true))
-    return written;
-  written += sizeof(uint64_t);
-  addr += sizeof(uint64_t);
-
-  if (not hart.pokeMemory(addr, uint64_t(tv.tv_usec), true))
-    return written;
-  written += sizeof(uint64_t);
-
-  return written;
+  char* ptr = (char*) rvBuff;
+  *((uint64_t*) ptr) = buff.tv_sec;             ptr += 8;
+  *((uint64_t*) ptr) = buff.tv_usec;            ptr += 8;
 }
 
 
 // Copy x86 timezone to riscv
-template<typename URV>
-static size_t
-copyTimezoneToRiscv(Hart<URV>& hart, const struct timezone& tz, URV dest)
+static void
+copyTimezoneToRiscv(const struct timezone& buff, void* rvBuff)
 {
-  size_t written = 0;
-  if (not hart.pokeMemory(dest, URV(tz.tz_minuteswest), true))
-    return written;
-  written += sizeof(URV);
-  dest += sizeof(URV);
-
-  if (not hart.pokeMemory(dest, URV(tz.tz_dsttime), true))
-    return written;
-  written += sizeof(URV);
-
-  return written;
+  char* ptr = (char*) rvBuff;
+  *((uint32_t*) ptr) = buff.tz_minuteswest;     ptr += 4;
+  *((uint32_t*) ptr) = buff.tz_dsttime;         ptr += 4;
 }
 
 
@@ -318,8 +151,7 @@ Syscall<URV>::redirectOutputDescriptor(int fd, const std::string& path)
       return false;
     }
 
-  int newFd = open(path.c_str(), O_WRONLY | O_CREAT,
-                   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+  int newFd = open(path.c_str(), O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
   if (newFd < 0)
     {
       std::cerr << "Error: Failed to open file " << path << " for output\n";
@@ -329,7 +161,7 @@ Syscall<URV>::redirectOutputDescriptor(int fd, const std::string& path)
   fdIsRead_[fd] = false;
   fdPath_[fd] = path;
 
-  auto absPath = FileSystem::absolute(path);
+  auto absPath = std::experimental::filesystem::absolute(path);
   writePaths_.insert(absPath.string());
 
   return true;
@@ -382,7 +214,7 @@ Syscall<URV>::registerLinuxFd(int linuxFd, const std::string& path, bool isRead)
   fdIsRead_[riscvFd] = isRead;
   fdPath_[riscvFd] = path;
 
-  auto absPath = FileSystem::absolute(path);
+  auto absPath = std::experimental::filesystem::absolute(path);
   if (isRead)
     readPaths_.insert(absPath.string());
   else
@@ -735,8 +567,7 @@ Syscall<URV>::emulate()
   URV a0 = hart_.peekIntReg(RegA0);
   URV a1 = hart_.peekIntReg(RegA1);
   URV a2 = hart_.peekIntReg(RegA2);
-
-  memChanges_.clear();
+  // using urv_ll = long long;
 
 #ifndef __MINGW64__
   URV a3 = hart_.peekIntReg(RegA3);
@@ -754,61 +585,35 @@ Syscall<URV>::emulate()
     case 17:       // getcwd
       {
 	size_t size = a1;
-        size_t rvBuff = a0;
-
+	size_t buffAddr = 0;
+	if (not hart_.getSimMemAddr(a0, buffAddr))
+	  return SRV(-EINVAL);
 	errno = 0;
-        char buffer[1024];
-        
-        if (not getcwd(buffer, sizeof(buffer)))
+	if (not getcwd((char*) buffAddr, size))
 	  return SRV(-errno);
-
-        size_t len = strlen(buffer) + 1;
-        if (len > size)
-          return SRV(-EINVAL);
-
-        for (size_t i = 0; i < len; ++i)
-          if (not hart_.pokeMemory(rvBuff+i, uint8_t(buffer[i]), true))
-            return SRV(-EINVAL);
-
 	// Linux getcwd system call returns count of bytes placed in buffer
 	// unlike the C-library interface which returns pointer to buffer.
-        memChanges_.push_back(AddrLen{rvBuff, len});
-        return len;
+	return strlen((char*) buffAddr) + 1;
       }
 
     case 25:       // fcntl
       {
 	int fd = effectiveFd(SRV(a0));
 	int cmd = SRV(a1);
-	void* arg = reinterpret_cast<void*> (size_t(a2));
-        int rc = 0;
+	void* arg = (void*) size_t(a2);
 	switch (cmd)
 	  {
 	  case F_GETLK:
 	  case F_SETLK:
 	  case F_SETLKW:
 	    {
-              // Assume linux and riscv have same flock structure.
-              // Copy riscv flock struct into fl.
-              struct flock fl;
-              uint8_t* ptr = reinterpret_cast<uint8_t*>(&fl);
-
-              if (readHartMemory(hart_, a2, sizeof(fl), ptr) != sizeof(fl))
-                return SRV(-EINVAL);
-
-              rc = fcntl(fd, cmd, &fl);
-              if (rc < 0)
-                return rc;
-
-              uint64_t written = writeHartMemory(hart_, ptr, a2, sizeof(fl));
-              if (written)
-                memChanges_.push_back(AddrLen{a2, written});
-              return written == sizeof(fl)? rc : SRV(-EINVAL);
+	      size_t addr = 0;
+	      if (not hart_.getSimMemAddr(a2, addr))
+		return SRV(-EINVAL);
+	      arg = (void*) addr;
 	    }
-
-          default:
-            rc = fcntl(fd, cmd, arg);
 	  }
+	int rc = fcntl(fd, cmd, arg);
 	return rc;
       }
 
@@ -816,38 +621,25 @@ Syscall<URV>::emulate()
       {
 	int fd = effectiveFd(SRV(a0));
 	int req = SRV(a1);
-        URV rvArg = a2;
-
-        std::vector<char> tmp;
-        char* arg = nullptr;
-
-	if (rvArg != 0)
-          {
-            size_t size = _IOC_SIZE(req);
-            tmp.resize(size);
-            if (readHartMemory(hart_, rvArg, size, tmp.data()) != size)
-              return SRV(-EINVAL);
-            arg = tmp.data();
-          }
-
+	size_t addr = 0;
+	if (a2 != 0)
+	  if (not hart_.getSimMemAddr(a2, addr))
+	    return SRV(-EINVAL);
 	errno = 0;
-	int rc = ioctl(fd, req, arg);
+	int rc = ioctl(fd, req, (char*) addr);
 	return rc < 0 ? SRV(-errno) : rc;
       }
 
     case 35:       // unlinkat
       {
 	int fd = effectiveFd(SRV(a0));
-
-        uint64_t rvPath = a1;
-        char path[1024];
-        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
-          return SRV(-EINVAL);
-
+	size_t pathAddr = 0;
+	if (not hart_.getSimMemAddr(a1, pathAddr))
+	  return SRV(-1);
 	int flags = SRV(a2);
 
 	errno = 0;
-	int rc = unlinkat(fd, path, flags);
+	int rc = unlinkat(fd, (char*) pathAddr, flags);
 	return rc < 0 ? SRV(-errno) : rc;
       }
 
@@ -860,13 +652,12 @@ Syscall<URV>::emulate()
 
     case 49:       // chdir
       {
-        uint64_t rvPath = a0;
-        char path[1024];
-        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
-          return SRV(-EINVAL);
+	size_t pathAddr = 0;
+	if (not hart_.getSimMemAddr(a0, pathAddr))
+	  return SRV(-1);
 
 	errno = 0;
-	int rc = chdir(path);
+	int rc = chdir((char*) pathAddr);
 	return rc < 0 ? SRV(-errno) : rc;
       }
 
@@ -874,10 +665,10 @@ Syscall<URV>::emulate()
       {
         int dirfd = effectiveFd(SRV(a0));
 
-        uint64_t rvPath = a1;
-        char path[1024];
-        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
-          return SRV(-EINVAL);
+	size_t pathAddr = 0;
+	if (not hart_.getSimMemAddr(a1, pathAddr))
+	  return SRV(-EINVAL);
+	const char* path = (const char*) pathAddr;
 
         mode_t mode = a2;
         int flags = 0; // Should be a3 -- non-zero not working on rhat6
@@ -889,10 +680,10 @@ Syscall<URV>::emulate()
       {
 	int dirfd = effectiveFd(SRV(a0));
 
-	uint64_t rvPath = a1;
-        char path[1024];
-        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
-          return SRV(-EINVAL);
+	size_t pathAddr = 0;
+	if (not hart_.getSimMemAddr(a1, pathAddr))
+	  return SRV(-EINVAL);
+	const char* path = (const char*) pathAddr;
 
 	int flags = a2;
 	int x86Flags = 0;
@@ -922,29 +713,18 @@ Syscall<URV>::emulate()
 
     case 61:       // getdents64  -- get directory entries
       {
-#if defined(__APPLE__) || defined(__CYGWIN__)
-	return SRV(-1);
-#else
 	// TBD: double check that struct linux_dirent is same
 	// in x86 and RISCV 32/64.
 	int fd = effectiveFd(SRV(a0));
-        uint64_t rvBuff = a1;
+	size_t buffAddr = 0;
+	if (not hart_.getSimMemAddr(a1, buffAddr))
+	  return SRV(-EINVAL);
 	size_t count = a2;
 	off64_t base = 0;
 
-        std::vector<char> buff(count);
-
 	errno = 0;
-	ssize_t rc = getdirentries64(fd, buff.data(), count, &base);
-        if (rc >= 0)
-          {
-            ssize_t written = writeHartMemory(hart_, buff.data(), rvBuff, rc);
-            if (written)
-              memChanges_.push_back(AddrLen{rvBuff, written});
-            return written == rc? rc : SRV(-EINVAL);
-          }
-	return SRV(-errno);
-#endif
+	int rc = getdirentries64(fd, (char*) buffAddr, count, &base);
+	return rc < 0 ? SRV(-errno) : rc;
       }
 
     case 62:       // lseek
@@ -961,112 +741,104 @@ Syscall<URV>::emulate()
     case 66:       // writev
       {
 	int fd = effectiveFd(SRV(a0));
-	URV rvIov = a1;
-	SRV count = a2;
 
-        std::vector< std::vector<char> > buffers(count);
-        std::vector<struct iovec> iov(count);
+	size_t iovAddr = 0;
+	if (not hart_.getSimMemAddr(a1, iovAddr))
+	  return SRV(-EINVAL);
 
-        for (SRV i = 0; i < count; ++i)
-          {
-            URV base = 0, len = 0;
-            if (not hart_.peekMemory(rvIov, base, true))
-              return SRV(-EINVAL);
-            rvIov += sizeof(base);
+	int count = a2;
 
-            if (not hart_.peekMemory(rvIov, len, true))
-              return SRV(-EINVAL);
-            rvIov += sizeof(len);
+	unsigned errors = 0;
+	struct iovec* iov = new struct iovec [count];
+	for (int i = 0; i < count; ++i)
+	  {
+	    URV* vec = (URV*) iovAddr;
+	    URV base = vec[i*2];
+	    URV len = vec[i*2+1];
+	    size_t addr = 0;
+	    if (not hart_.getSimMemAddr(base, addr))
+	      {
+		errors++;
+		break;
+	      }
+	    iov[i].iov_base = (void*) addr;
+	    iov[i].iov_len = len;
+	  }
+	ssize_t rc = -EINVAL;
+	if (not errors)
+	  {
+	    errno = 0;
+	    rc = writev(fd, iov, count);
+	    rc = rc < 0 ? SRV(-errno) : rc;
+	  }
 
-            auto& buffer = buffers.at(i);
-            buffer.resize(len);
-            if (readHartMemory(hart_, base, len, buffer.data()) != len)
-              return SRV(-EINVAL);
-
-            iov.at(i).iov_base = buffer.data();
-            iov.at(i).iov_len = len;
-          }
-
-        errno = 0;
-        ssize_t rc = writev(fd, iov.data(), count);
-        return rc < 0 ? SRV(-errno) : rc;
+	delete [] iov;
+	return SRV(rc);
       }
 
     case 78:       // readlinat
       {
 	int dirfd = effectiveFd(SRV(a0));
-	URV rvPath = a1, rvBuff = a2, buffSize = a3;
+	URV path = a1;
+	URV buf = a2;
+	URV bufSize = a3;
 
-        char path[1024];
-        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
-          return SRV(-EINVAL);
+	size_t pathAddr = 0;
+	if (not hart_.getSimMemAddr(path, pathAddr))
+	  return SRV(-EINVAL);
 
-        std::vector<char> buff(buffSize);
+	size_t bufAddr = 0;
+	if (not hart_.getSimMemAddr(buf, bufAddr))
+	  return SRV(-EINVAL);
 
 	errno = 0;
-	ssize_t rc = readlinkat(dirfd, path, buff.data(), buffSize);
-        if (rc < 0)
-          return SRV(-errno);
-
-        ssize_t written = writeHartMemory(hart_, buff.data(), rvBuff, rc);
-        if (written)
-          memChanges_.push_back(AddrLen{rvBuff, written});
-	return  written == rc ? written : SRV(-EINVAL);
+	ssize_t rc = readlinkat(dirfd, (const char*) pathAddr,
+				(char*) bufAddr, bufSize);
+	return  rc < 0 ? SRV(-errno) : rc;
       }
 
     case 79:       // fstatat
       {
 	int dirFd = effectiveFd(SRV(a0));
 
-        // Copy rv path into path.
-        uint64_t rvPath = a1;
-        char path[1024];
-        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
-          return SRV(-EINVAL);
+	size_t pathAddr = 0;
+	if (not hart_.getSimMemAddr(a1, pathAddr))
+	  return SRV(-1);
 
-	uint64_t rvBuff = a2;
+	size_t rvBuff = 0;
+	if (not hart_.getSimMemAddr(a2, rvBuff))
+	  return SRV(-1);
+
 	int flags = a3;
 
-        int rc = 0;
 	struct stat buff;
-
 	errno = 0;
-
-        // Host OS may not support AT_EMPTY_PATH (0x1000) of fstatat: compensate.
-        if ((flags & 0x1000) != 0 and path[0] == 0)
-          rc = fstat(dirFd, &buff);
-        else
-          rc = fstatat(dirFd, path, &buff, flags);
-
+	int rc = fstatat(dirFd, (char*) pathAddr, &buff, flags);
 	if (rc < 0)
-          {
-            perror("fstatat error: ");
-            return SRV(-errno);
-          }
+	  return SRV(-errno);
 
-        bool copyOk = true;
-        size_t len = copyStatBufferToRiscv(hart_, buff, rvBuff, copyOk);
-        memChanges_.push_back(AddrLen{rvBuff, len});
-	return copyOk? rc : SRV(-1);
+	// RvBuff contains an address: We cast it to a pointer.
+        copyStatBufferToRiscv(buff, (void*) rvBuff);
+	return rc;
       }
 #endif
 
     case 80:       // fstat
       {
 	int fd = effectiveFd(SRV(a0));
-	uint64_t rvBuff = a1;
+	size_t rvBuff = 0;
+	if (not hart_.getSimMemAddr(a1, rvBuff))
+	  return SRV(-1);
+	struct stat buff;
 
 	errno = 0;
-	struct stat buff;
 	int rc = fstat(fd, &buff);
 	if (rc < 0)
 	  return SRV(-errno);
 
-        bool copyOk  = true;
-        size_t len = copyStatBufferToRiscv(hart_, buff, rvBuff, copyOk);
-
-        memChanges_.push_back(AddrLen{rvBuff, len});
-	return copyOk? rc : SRV(-1);
+	// RvBuff contains an address: We cast it to a pointer.
+        copyStatBufferToRiscv(buff, (void*) rvBuff);
+	return rc;
       }
 
 
@@ -1079,7 +851,7 @@ Syscall<URV>::emulate()
           else
             {
               for (URV addr = newBrk; addr<progBreak_; addr++)
-                hart_.pokeMemory(addr, uint8_t(0), true /*usePma*/);
+                hart_.pokeMemory(addr, uint8_t(0));
               rc = progBreak_ = newBrk;
             }
      	  return rc;
@@ -1105,36 +877,26 @@ Syscall<URV>::emulate()
     case 63: // read
       {
 	int fd = effectiveFd(SRV(a0));
-
-	uint64_t buffAddr = a1;
+	size_t buffAddr = 0;
+	if (not hart_.getSimMemAddr(a1, buffAddr))
+	  return SRV(-1);
 	size_t count = a2;
 
-        std::vector<uint8_t> temp(count);
-
 	errno = 0;
-	ssize_t rc = read(fd, temp.data(), count);
-        if (rc < 0)
-          return SRV(-errno);
-
-        ssize_t written = writeHartMemory(hart_, temp.data(), buffAddr, rc);
-        if (written)
-          memChanges_.push_back(AddrLen{buffAddr, written});
-	return written == rc? written : SRV(-EINVAL);
+	ssize_t rc = read(fd, (void*) buffAddr, count);
+	return rc < 0 ? SRV(-errno) : rc;
       }
 
     case 64: // write
       {
 	int fd = effectiveFd(SRV(a0));
-
-	uint64_t buffAddr = a1;
+	size_t buffAddr = 0;
+	if (not hart_.getSimMemAddr(a1, buffAddr))
+	  return SRV(-1);
 	size_t count = a2;
 
-        std::vector<uint8_t> temp(count);
-        if (readHartMemory(hart_, buffAddr, count, temp.data()) != count)
-          return SRV(-EINVAL);
-
 	errno = 0;
-	auto rc = write(fd, temp.data(), count);
+	auto rc = write(fd, (void*) buffAddr, count);
 	return rc < 0 ? SRV(-errno) : rc;
       }
 
@@ -1142,21 +904,19 @@ Syscall<URV>::emulate()
       {
         int dirfd = effectiveFd(SRV(a0));
 
-	uint64_t rvPath = a1;
-        char path[1024];
-        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
+	size_t pathAddr = 0;
+	if (not hart_.getSimMemAddr(a1, pathAddr))
 	  return SRV(-EINVAL);
+	const char* path = (const char*) pathAddr;
 
-        uint64_t rvTimeAddr = a2;
-        timespec spec[2];
-        uint8_t* ptr = reinterpret_cast<uint8_t*>(&spec);
-        if (readHartMemory(hart_, rvTimeAddr, sizeof(spec), ptr) != sizeof(spec))
+        size_t timeAddr = 0;
+        if (not hart_.getSimMemAddr(a2, timeAddr))
           return SRV(-EINVAL);
+
+        const struct timespec* spec = (struct timespec*) timeAddr;
 
         int flags = a3;
         int rc = utimensat(dirfd, path, spec, flags);
-        if (rc >= 0)
-          memChanges_.push_back(AddrLen{rvTimeAddr, sizeof(spec)});
         return rc < 0 ? SRV(-errno) : rc;
       }
 
@@ -1175,47 +935,48 @@ Syscall<URV>::emulate()
 #ifndef __MINGW64__
     case 153: // times
       {
-	URV rvBuff = a0;
+	size_t buffAddr = 0;
+	if (not hart_.getSimMemAddr(a0, buffAddr))
+	  return SRV(-1);
 
 	errno = 0;
+
 	struct tms tms0;
 	auto ticks = times(&tms0);
 	if (ticks < 0)
 	  return SRV(-errno);
 
-        size_t len = copyTmsToRiscv(hart_, tms0, rvBuff);
-        size_t expected = 4*sizeof(URV);
-
-        if (len)
-          memChanges_.push_back(AddrLen{a0, len});
+	if (sizeof(URV) == 4)
+	  copyTmsToRiscv32(tms0, (void*) buffAddr);
+	else
+	  copyTmsToRiscv64(tms0, (void*) buffAddr);
 	
-	return (len == expected)? ticks : SRV(-EINVAL);
+	return ticks;
       }
 
     case 160: // uname
       {
 	// Assumes that x86 and rv Linux have same layout for struct utsname.
-        URV rvBuff = a0;
+	size_t buffAddr = 0;
+	if (not hart_.getSimMemAddr(a0, buffAddr))
+	  return SRV(-1);
+	struct utsname* uts = (struct utsname*) buffAddr;
 
 	errno = 0;
-	struct utsname uts;
-
-	int rc = uname(&uts);
-        if (rc >= 0)
-          {
-            strcpy(uts.release, "5.14.0");
-            size_t len = writeHartMemory(hart_, reinterpret_cast<char*>(&uts),
-                                         rvBuff, sizeof(uts));
-            if (len)
-              memChanges_.push_back(AddrLen{rvBuff, len});
-            return len == sizeof(uts)? rc : SRV(-EINVAL);
-          }
-	return SRV(-errno);
+	int rc = uname(uts);
+	strcpy(uts->release, "5.14.0");
+	return rc < 0 ? SRV(-errno) : rc;
       }
 
     case 169: // gettimeofday
       {
-	URV tvAddr = a0, tzAddr = 0;
+	size_t tvAddr = 0;  // Address of riscv timeval
+	if (not hart_.getSimMemAddr(a0, tvAddr))
+	  return SRV(-EINVAL);
+
+	size_t tzAddr = 0;  // Address of rsicv timezone
+	if (not hart_.getSimMemAddr(a1, tzAddr))
+	  return SRV(-EINVAL);
 
 	struct timeval tv0;
 	struct timeval* tv0Ptr = &tv0;
@@ -1233,29 +994,14 @@ Syscall<URV>::emulate()
 
 	if (tvAddr)
 	  {
-            size_t len = 0;
-            size_t expected = 12; // uint64_t & uint32_t
 	    if (sizeof(URV) == 4)
-	      len = copyTimevalToRiscv32(hart_, tv0, tvAddr);
+	      copyTimevalToRiscv32(tv0, (void*) tvAddr);
 	    else
-              {
-                len = copyTimevalToRiscv64(hart_, tv0, tvAddr);
-                expected = 16; // uint64_t & unit64_t
-              }
-            if (len)
-              memChanges_.push_back(AddrLen{a0, len});
-            if (len != expected)
-              return SRV(-EINVAL);
+	      copyTimevalToRiscv64(tv0, (void*) tvAddr);
 	  }
-
+	
 	if (tzAddr)
-          {
-            size_t len = copyTimezoneToRiscv(hart_, tz0, tzAddr);
-            if (len)
-              memChanges_.push_back(AddrLen{a1, len});
-            if (len != 2*sizeof(URV))
-              return SRV(-EINVAL);
-          }
+	  copyTimezoneToRiscv(tz0, (void*) tzAddr);
 
 	return rc;
       }
@@ -1323,24 +1069,25 @@ Syscall<URV>::emulate()
 
     case 276:  // rename
       {
-        size_t pathAddr = a1;
-        char oldName[1024];
-        if (not copyRvString(hart_, pathAddr, oldName, sizeof(oldName)))
+        size_t pathAddr = 0;
+        if (not hart_.getSimMemAddr(a1, pathAddr))
           return SRV(-EINVAL);
+        const char* oldName = (const char*) pathAddr;
 
-        size_t newPathAddr = a3;
-        char newName[1024];
-        if (not copyRvString(hart_, newPathAddr, newName, sizeof(newName)))
+        size_t newPathAddr = 0;
+        if (not hart_.getSimMemAddr(a3, newPathAddr))
           return SRV(-EINVAL);
+        const char* newName = (const char*) newPathAddr;
 
-        errno = 0;
         int result = rename(oldName, newName);
         return (result == -1) ? -errno : result;
       }
 
     case 1024: // open
       {
-	uint64_t rvPath = a0;
+	size_t pathAddr = 0;
+	if (not hart_.getSimMemAddr(a0, pathAddr))
+	  return SRV(-1);
 	int flags = a1;
 	int x86Flags = 0;
 	if (linux_)
@@ -1354,16 +1101,12 @@ Syscall<URV>::emulate()
 	  }
 	int mode = a2;
 
-        char path[1024];
-        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
-          return SRV(-EINVAL);
-
 	errno = 0;
-	int rc = open(path, x86Flags, mode);
+	int rc = open((const char*) pathAddr, x86Flags, mode);
         if (rc >= 0)
           {
             bool isRead = not (x86Flags & (O_WRONLY | O_RDWR));
-            rc = registerLinuxFd(rc, path, isRead);
+            rc = registerLinuxFd(rc, (char*) pathAddr, isRead);
             if (rc < 0)
               return SRV(-EINVAL);
           }
@@ -1372,43 +1115,37 @@ Syscall<URV>::emulate()
 
     case 1026: // unlink
       {
-        uint64_t rvPath = a0;
-
-        char path[1024];
-        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
-          return SRV(-EINVAL);
+	size_t pathAddr = 0;
+	if (not hart_.getSimMemAddr(a0, pathAddr))
+	  return SRV(-1);
 
 	errno = 0;
-	int rc = unlink(path);
+	int rc = unlink((char*) pathAddr);
 	return rc < 0 ? SRV(-errno) : rc;
       }
 
     case 1038: // stat
       {
-        uint64_t rvPath = a0;
+	size_t filePathAddr = 0;
+	if (not hart_.getSimMemAddr(a0, filePathAddr))
+	  return SRV(-EINVAL);
 
-        // Copy rv path into path.
-        char path[1024];
-        if (not copyRvString(hart_, rvPath, path, sizeof(path)))
-          return SRV(-EINVAL);
-
+	// FilePathAddr contains an address: We cast it to a pointer.
 	struct stat buff;
 	errno = 0;
-	SRV rc = stat(path, &buff);
+	SRV rc = stat((char*) filePathAddr, &buff);
 	if (rc < 0)
 	  return SRV(-errno);
 
-	uint64_t rvBuff = a1;
+	size_t rvBuff = 0;
+	if (not hart_.getSimMemAddr(a1, rvBuff))
+	  return SRV(-EINVAL);
 
-        bool copyOk  = true;
-        size_t len = copyStatBufferToRiscv(hart_, buff, rvBuff, copyOk);
-
-        memChanges_.push_back(AddrLen{rvBuff, len});
-	return copyOk? rc : SRV(-1);
+	// RvBuff contains an address: We cast it to a pointer.
+        copyStatBufferToRiscv(buff, (void*) rvBuff);
+	return rc;
       }
     }
-
-  // using urv_ll = long long;
   //printf("syscall %s (0x%llx, 0x%llx, 0x%llx, 0x%llx) = 0x%llx\n",names[num].c_str(),urv_ll(a0), urv_ll(a1),urv_ll(a2), urv_ll(a3), urv_ll(retVal));
   //printf("syscall %s (0x%llx, 0x%llx, 0x%llx, 0x%llx) = unimplemented\n",names[num].c_str(),urv_ll(a0), urv_ll(a1),urv_ll(a2), urv_ll(a3));
   if (num < reportedCalls.size() and reportedCalls.at(num))
@@ -1502,7 +1239,7 @@ Syscall<URV>::loadFileDescriptors(const std::string& path)
       else
         {
           int newFd = -1;
-          if (FileSystem::is_regular_file(fdPath))
+          if (std::experimental::filesystem::is_regular_file(fdPath))
             {
               newFd = open(fdPath.c_str(), O_RDWR);
               if (lseek(newFd, position, SEEK_SET) == off_t(-1))
@@ -1576,7 +1313,7 @@ Syscall<URV>::mmap_dealloc(uint64_t addr, uint64_t size)
   auto mem_addr = curr->first;
   auto mem_end_addr = mem_addr+(curr_size);
   for (; mem_addr<mem_end_addr; mem_addr+=uint64_t(sizeof(uint64_t)))
-    hart_.pokeMemory(mem_addr,uint64_t(0), true /*usePma*/);
+    hart_.pokeMemory(mem_addr,uint64_t(0));
   auto next = curr;
   if (++next != mmap_blocks_.end() and next->second.free)
     {
@@ -1631,9 +1368,8 @@ Syscall<URV>::mmap_remap(uint64_t addr, uint64_t old_size, uint64_t new_size,
       for (uint64_t index=0; index<old_size; index+=uint64_t(sizeof(uint64_t)))
         {
           uint64_t data;
-          bool usePma = true;
-          hart_.peekMemory(addr+index, data, usePma);
-          hart_.pokeMemory(new_addr+index, data, usePma);
+          hart_.peekMemory(addr+index, data);
+          hart_.pokeMemory(new_addr+index, data);
         }
       mmap_dealloc(addr, old_size);
       //print_mmap("remap3");
@@ -1648,29 +1384,27 @@ Syscall<URV>::mmap_remap(uint64_t addr, uint64_t old_size, uint64_t new_size,
 // TBD FIX: Needs improvement.
 template<typename URV>
 void
-Syscall<URV>::getUsedMemBlocks(std::vector<AddrLen>& used_blocks)
+Syscall<URV>::getUsedMemBlocks(std::vector<std::pair<uint64_t,uint64_t>>& used_blocks)
 {
   static const uint64_t max_stack_size = 1024*1024*8;
   auto mem_size = hart_.getMemorySize();
   used_blocks.clear();
   if (mem_size<=(max_stack_size+progBreak_))
     {
-      used_blocks.push_back(AddrLen{0, mem_size});
+      used_blocks.push_back(std::pair<uint64_t,uint64_t>(0,mem_size));
       return;
     }
-  used_blocks.push_back(AddrLen{0, progBreak_});
+  used_blocks.push_back(std::pair<uint64_t,uint64_t>(0,progBreak_));
   for(auto& it:mmap_blocks_)
     if(not it.second.free)
-      used_blocks.push_back(AddrLen{it.first, it.second.length});
-  used_blocks.push_back(AddrLen{hart_.getMemorySize()-max_stack_size,
-                                max_stack_size});
+      used_blocks.push_back(std::pair<uint64_t,uint64_t>(it.first,it.second.length));
+  used_blocks.push_back(std::pair<uint64_t,uint64_t>(hart_.getMemorySize()-max_stack_size,max_stack_size));
 }
 
 
 template<typename URV>
 bool
-Syscall<URV>::loadUsedMemBlocks(const std::string& filename,
-                                std::vector<AddrLen>& used_blocks)
+Syscall<URV>::loadUsedMemBlocks(const std::string& filename, std::vector<std::pair<uint64_t,uint64_t>>& used_blocks)
 {
   // open file for read, check success
   used_blocks.clear();
@@ -1689,7 +1423,7 @@ Syscall<URV>::loadUsedMemBlocks(const std::string& filename,
       uint64_t addr, length;
       iss >> addr;
       iss >> length;
-      used_blocks.push_back(AddrLen{addr, length});
+      used_blocks.push_back(std::pair<uint64_t,uint64_t>(addr, length));
     }
 
   return true;
@@ -1699,7 +1433,7 @@ Syscall<URV>::loadUsedMemBlocks(const std::string& filename,
 template<typename URV>
 bool
 Syscall<URV>::saveUsedMemBlocks(const std::string& filename,
-                                std::vector<AddrLen>& used_blocks)
+                                std::vector<std::pair<uint64_t,uint64_t>>& used_blocks)
 {
   // open file for write, check success
   std::ofstream ofs(filename, std::ios::trunc);

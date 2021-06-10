@@ -79,27 +79,6 @@ parseCmdLineNumber(const std::string& option,
 }
 
 
-static
-bool
-parseCmdLineBool(const std::string& option, const std::string& str, bool& val)
-{
-  bool good = true;
-
-  if (str == "0" or str == "false")
-    val = false;
-  else if (str == "1" or str == "true")
-    val = true;
-  else
-    good = false;
-
-  if (not good)
-    std::cerr << "Invalid command line " << option << " value: " << str
-	      << '\n';
-
-  return good;
-}
-
-
 template <typename URV>
 Interactive<URV>::Interactive(System<URV>& system)
   : system_(system)
@@ -170,24 +149,26 @@ Interactive<URV>::stepCommand(Hart<URV>& hart, const std::string& /*line*/,
 
 
 template <typename URV>
+static
 void
-Interactive<URV>::peekAllFpRegs(Hart<URV>& hart, std::ostream& out)
+peekAllFpRegs(Hart<URV>& hart)
 {
   for (unsigned i = 0; i < hart.fpRegCount(); ++i)
     {
       uint64_t val = 0;
       if (hart.peekFpReg(i, val))
 	{
-	  out << "f" << i << ": "
-              << (boost::format("0x%016x") % val) << '\n';
+	  std::cout << "f" << i << ": "
+		    << (boost::format("0x%016x") % val) << '\n';
 	}
     }
 }
 
 
 template <typename URV>
+static
 void
-Interactive<URV>::peekAllIntRegs(Hart<URV>& hart, std::ostream& out)
+peekAllIntRegs(Hart<URV>& hart)
 {
   bool abiNames = hart.abiNames();
   auto hexForm = getHexForm<URV>(); // Format string for printing a hex val
@@ -203,32 +184,27 @@ Interactive<URV>::peekAllIntRegs(Hart<URV>& hart, std::ostream& out)
 	    tag += "(" + std::to_string(i) + ")";
 	  tag += ":";
 
-          out << (boost::format("%-9s") % tag)
-              << (boost::format(hexForm) % val) << '\n';
+          std::cout << (boost::format("%-9s") % tag)
+		    << (boost::format(hexForm) % val) << '\n';
 	}
     }
 }
 
 
 template <typename URV>
-extern void
-unpackMacoValue(URV value, URV mask, bool rv32, uint64_t& start, uint64_t& end,
-                bool& idempotent, bool& cacheable);
-
-
-template <typename URV>
+static
 void
-Interactive<URV>::peekAllCsrs(Hart<URV>& hart, std::ostream& out)
+peekAllCsrs(Hart<URV>& hart)
 {
   auto hexForm = getHexForm<URV>(); // Format string for printing a hex val
 
-  out << (boost::format("%-23s") % "csr");
+  std::cout << (boost::format("%-23s") % "csr");
   if (sizeof(URV) == 4)
-    out << (boost::format("%-10s %-10s %-10s %-10s\n") % "value" %
-            "reset" % "mask" % "pokemask");
+    std::cout << (boost::format("%-10s %-10s %-10s %-10s\n") % "value" %
+		  "reset" % "mask" % "pokemask");
   else
-    out << (boost::format("%-18s %-18s %-18s %-10s\n") % "value" %
-            "reset" % "mask" % "pokemask");
+    std::cout << (boost::format("%-18s %-18s %-18s %-10s\n") % "value" %
+		  "reset" % "mask" % "pokemask");
 
   for (size_t i = 0; i <= size_t(CsrNumber::MAX_CSR_); ++i)
     {
@@ -240,101 +216,40 @@ Interactive<URV>::peekAllCsrs(Hart<URV>& hart, std::ostream& out)
 	  std::ostringstream oss;
 	  oss << name << "(0x" << std::hex << i << "):"  << std::dec;
 
-	  out << (boost::format("%-23s") % oss.str())
-              << (boost::format(hexForm) % val);
+	  std::cout << (boost::format("%-23s") % oss.str())
+		    << (boost::format(hexForm) % val);
 
 	  URV reset = 0, writeMask = 0, pokeMask = 0;
 	  if (hart.peekCsr(csr, val, reset, writeMask, pokeMask))
 	    {
-	      out << ' ' << (boost::format(hexForm) % reset);
-	      out << ' ' << (boost::format(hexForm) % writeMask);
-	      out << ' ' << (boost::format(hexForm) % pokeMask);
+	      std::cout << ' ' << (boost::format(hexForm) % reset);
+	      std::cout << ' ' << (boost::format(hexForm) % writeMask);
+	      std::cout << ' ' << (boost::format(hexForm) % pokeMask);
 	    }
-	  out << '\n';
+	  std::cout << '\n';
 	}
-    }
-
-  out << '\n';
-
-  PrivilegeMode pm = hart.privilegeMode();
-  out << "Privilege mode: ";
-  switch(pm)
-    {
-    case PrivilegeMode::User:       out << "user\n";       break;
-    case PrivilegeMode::Supervisor: out << "supervisor\n"; break;
-    case PrivilegeMode::Reserved:   out << "reserved\n";   break;
-    case PrivilegeMode::Machine:    out << "machine\n";    break;
-    }
-
-  out << '\n';
-
-  out << "pmpaddr  type mode locked low                high\n";
-
-  uint64_t low = 0, high = 0;
-  Pmp::Type type = Pmp::Type::Off;
-  Pmp::Mode mode = Pmp::Mode::None;
-  bool locked = false;
-
-  for (unsigned ix = 0; ix < 16; ++ix)
-    {
-      if (not hart.unpackMemoryProtection(ix, type, mode, locked, low, high))
-        continue;
-
-      std::string typeStr = Pmp::toString(type);
-      std::string modeStr = Pmp::toString(mode);
-      const char* lockStr = locked? "y" : "n";
-      out << 
-        (boost::format("%7d %5s %4s %6s 0x%016x 0x%016x") % ix % typeStr %
-         modeStr % lockStr % low % high) << '\n';
-    }
-
-  bool headerPrinted = false;
-  bool rv32 = sizeof(URV) == 4;
-
-  for (unsigned ix = 0; ix < 16; ++ix)
-    {
-      std::string name = std::string("maco") + std::to_string(ix);
-      auto maco = hart.findCsr(name);
-      URV value = 0;
-      if (maco and hart.peekCsr(maco->getNumber(), value))
-        {
-          if (not headerPrinted)
-            {
-              out << "\n";
-              out << "maco io cacheable low                high\n";
-              headerPrinted = true;
-            }
-          bool idempotent = false, cacheable = false;
-          uint64_t low = 0, high = 0;
-          unpackMacoValue(value, maco->getWriteMask(), rv32, low, high,
-                          idempotent, cacheable);
-          std::string ioStr = idempotent? "n" : "y";
-          std::string cacheStr = cacheable? "y" : "n";
-          out << 
-            (boost::format("%4d %2s %9s 0x%016x 0x%016x") % ix % ioStr %
-             cacheStr % low % high) << '\n';
-        }
     }
 }
 
 
 template <typename URV>
+static
 void
-Interactive<URV>::peekAllTriggers(Hart<URV>& hart, std::ostream& out)
+peekAllTriggers(Hart<URV>& hart)
 {
   auto hexForm = getHexForm<URV>(); // Format string for printing a hex val
 
-  out << (boost::format("%-12s") % "trigger");
+  std::cout << (boost::format("%-12s") % "trigger");
   if (sizeof(URV) == 4)
-    out << (boost::format("%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n") %
-            "value1" % "value2" % "value3" %
-            "mask1" % "mask2" % "mask3" %
-            "poke-mask1" % "poke-mask2"  % "poke-mask3");
+    std::cout << (boost::format("%-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s %-10s\n") %
+		  "value1" % "value2" % "value3" %
+		  "mask1" % "mask2" % "mask3" %
+		  "poke-mask1" % "poke-mask2"  % "poke-mask3");
   else
-    out << (boost::format("%-18s %-18s %-18s %-18s %-18s %-18s %-18s %-18s %-18s\n") %
-            "value1" % "value2" % "value3" %
-            "mask1" % "mask2" % "mask3" %
-            "poke-mask1" % "poke-mask2"  % "poke-mask3");
+    std::cout << (boost::format("%-18s %-18s %-18s %-18s %-18s %-18s %-18s %-18s %-18s\n") %
+		  "value1" % "value2" % "value3" %
+		  "mask1" % "mask2" % "mask3" %
+		  "poke-mask1" % "poke-mask2"  % "poke-mask3");
 
 
   // value/reset/write-mask/poke-mask
@@ -345,24 +260,24 @@ Interactive<URV>::peekAllTriggers(Hart<URV>& hart, std::ostream& out)
       URV maxTrigger = tselWm;
       for (URV trigger = 0; trigger <= maxTrigger; ++trigger)
 	{
-	  uint64_t v1(0), v2(0), v3(0), wm1(0), wm2(0), wm3(0);
-	  uint64_t pm1(0), pm2(0), pm3(0);
+	  URV v1(0), v2(0), v3(0), wm1(0), wm2(0), wm3(0);
+	  URV pm1(0), pm2(0), pm3(0);
 
 	  if (hart.peekTrigger(trigger, v1, v2, v3, wm1, wm2, wm3,
 			       pm1, pm2, pm3))
 	    {
 	      std::string name = "trigger" + std::to_string(trigger) + ":";
-	      out << (boost::format("%-11s") % name);
-	      out << ' ' << (boost::format(hexForm) % v1);
-	      out << ' ' << (boost::format(hexForm) % v2);
-	      out << ' ' << (boost::format(hexForm) % v3);
-	      out << ' ' << (boost::format(hexForm) % wm1);
-	      out << ' ' << (boost::format(hexForm) % wm2);
-	      out << ' ' << (boost::format(hexForm) % wm3);
-	      out << ' ' << (boost::format(hexForm) % pm1);
-	      out << ' ' << (boost::format(hexForm) % pm2);
-	      out << ' ' << (boost::format(hexForm) % pm3);
-	      out << '\n';
+	      std::cout << (boost::format("%-11s") % name);
+	      std::cout << ' ' << (boost::format(hexForm) % v1);
+	      std::cout << ' ' << (boost::format(hexForm) % v2);
+	      std::cout << ' ' << (boost::format(hexForm) % v3);
+	      std::cout << ' ' << (boost::format(hexForm) % wm1);
+	      std::cout << ' ' << (boost::format(hexForm) % wm2);
+	      std::cout << ' ' << (boost::format(hexForm) % wm3);
+	      std::cout << ' ' << (boost::format(hexForm) % pm1);
+	      std::cout << ' ' << (boost::format(hexForm) % pm2);
+	      std::cout << ' ' << (boost::format(hexForm) % pm3);
+	      std::cout << '\n';
 	    }
 	  else
 	    break;
@@ -372,36 +287,9 @@ Interactive<URV>::peekAllTriggers(Hart<URV>& hart, std::ostream& out)
 
 
 template <typename URV>
-static
-bool
-peekMemory(Hart<URV>& hart, uint64_t addr0, uint64_t addr1, std::ostream& out)
-{
-  auto hexForm = getHexForm<URV>(); // Format string for printing a hex val
-
-  uint32_t word = 0;
-  bool usePma = false;
-
-  for (uint64_t addr = addr0; addr <= addr1; addr += 4)
-    {
-      if (not hart.peekMemory(addr, word, usePma))
-        {
-          std::cerr << "Peek memory address out of bounds: 0x"
-                    << std::hex << addr << std::dec << '\n';
-          return false;
-        }
-      out << (boost::format(hexForm) % addr) << ": ";
-      out << (boost::format("0x%08x") % word) << std::endl;
-    }
-
-  return true;
-}
-
-
-template <typename URV>
 bool
 Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
-			      const std::vector<std::string>& tokens,
-                              std::ostream& out)
+			      const std::vector<std::string>& tokens)
 {
   if (tokens.size() < 2)
     {
@@ -425,23 +313,23 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
 
   if (resource == "all")
     {
-      out << "pc: " << (boost::format(hexForm) % hart.peekPc()) << '\n';
-      out << "\n";
+      std::cout << "pc: " << (boost::format(hexForm) % hart.peekPc()) << '\n';
+      std::cout << "\n";
 
-      peekAllIntRegs(hart, out);
-      out << "\n";
+      peekAllIntRegs(hart);
+      std::cout << "\n";
 
-      peekAllCsrs(hart, out);
-      out << "\n";
+      peekAllCsrs(hart);
+      std::cout << "\n";
 
-      peekAllTriggers(hart, out);
+      peekAllTriggers(hart);
       return true;
     }
 
   if (resource == "pc")
     {
       URV pc = hart.peekPc();
-      out << (boost::format(hexForm) % pc) << std::endl;
+      std::cout << (boost::format(hexForm) % pc) << std::endl;
       return true;
     }
 
@@ -456,34 +344,34 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
 
   if (resource == "m")
     {
-      uint64_t addr0 = 0;
+      size_t addr0 = 0;
       if (not parseCmdLineNumber("memory-address", addrStr, addr0))
 	return false;
 
-      uint64_t addr1 = addr0;
-      if (tokens.size() >= 4)
+      size_t addr1 = addr0;
+      if (tokens.size() == 4)
 	if (not parseCmdLineNumber("memory-address", tokens.at(3), addr1))
 	  return false;
 
-      if (tokens.size() >= 5)
-        {
-          std::ofstream out(tokens.at(4));
-          if (not out)
-            {
-              std::cerr << "Failed to open " << tokens.at(4) << " for write of peek command output\n";
-              return false;
-            }
-          return peekMemory(hart, addr0, addr1, out);
-        }
-
-      return peekMemory(hart, addr0, addr1, out);
+      uint32_t word = 0;
+      for (size_t addr = addr0; addr <= addr1; addr += 4)
+	{
+	  if (not hart.peekMemory(addr, word))
+	    {
+	      std::cerr << "Memory address out of bounds: " << addrStr << '\n';
+	      return false;
+	    }
+	  std::cout << (boost::format(hexForm) % addr) << ": ";
+	  std::cout << (boost::format("0x%08x") % word) << std::endl;
+	}
+      return true;
     }
 
   if (resource == "r")
     {
       if (addrStr == "all")
 	{
-	  peekAllIntRegs(hart, out);
+	  peekAllIntRegs(hart);
 	  return true;
 	}
 
@@ -495,7 +383,7 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
 	}
       if (hart.peekIntReg(intReg, val))
 	{
-	  out << (boost::format(hexForm) % val) << std::endl;
+	  std::cout << (boost::format(hexForm) % val) << std::endl;
 	  return true;
 	}
       std::cerr << "Failed to read integer register: " << addrStr << '\n';
@@ -512,7 +400,7 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
 
       if (addrStr == "all")
 	{
-	  peekAllFpRegs(hart, out);
+	  peekAllFpRegs(hart);
 	  return true;
 	}
 
@@ -525,7 +413,7 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
       uint64_t fpVal = 0;
       if (hart.peekFpReg(fpReg, fpVal))
 	{
-	  out << (boost::format("0x%016x") % fpVal) << std::endl;
+	  std::cout << (boost::format("0x%016x") % fpVal) << std::endl;
 	  return true;
 	}
       std::cerr << "Failed to read fp register: " << addrStr << '\n';
@@ -536,7 +424,7 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
     {
       if (addrStr == "all")
 	{
-	  peekAllCsrs(hart, out);
+	  peekAllCsrs(hart);
 	  return true;
 	}
 
@@ -548,7 +436,7 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
 	}
       if (hart.peekCsr(csr->getNumber(), val))
 	{
-	  out << (boost::format(hexForm) % val) << std::endl;
+	  std::cout << (boost::format(hexForm) % val) << std::endl;
 	  return true;
 	}
       std::cerr << "Failed to read CSR: " << addrStr << '\n';
@@ -559,19 +447,19 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
     {
       if (addrStr == "all")
 	{
-	  peekAllTriggers(hart, out);
+	  peekAllTriggers(hart);
 	  return true;
 	}
 
       URV trigger = 0;
       if (not parseCmdLineNumber("trigger-number", addrStr, trigger))
 	return false;
-      uint64_t v1(0), v2(0), v3(0);
+      URV v1(0), v2(0), v3(0);
       if (hart.peekTrigger(trigger, v1, v2, v3))
 	{
-	  out << (boost::format(hexForm) % v1) << ' '
-              << (boost::format(hexForm) % v2) << ' '
-              << (boost::format(hexForm) % v3) << std::endl;
+	  std::cout << (boost::format(hexForm) % v1) << ' '
+		    << (boost::format(hexForm) % v2) << ' '
+		    << (boost::format(hexForm) % v3) << std::endl;
 	  return true;
 	}
       std::cerr << "Trigger number out of bounds: " << addrStr << '\n';
@@ -600,7 +488,7 @@ Interactive<URV>::pokeCommand(Hart<URV>& hart, const std::string& line,
     }
 
   const std::string& resource = tokens.at(1);
-  uint64_t value = 0;
+  URV value = 0;
 
   if (resource == "pc")
     {
@@ -693,9 +581,7 @@ Interactive<URV>::pokeCommand(Hart<URV>& hart, const std::string& line,
       size_t addr = 0;
       if (not parseCmdLineNumber("address", addrStr, addr))
 	return false;
-      bool usePma = false; // Ignore physicla memory attributes.
-      uint32_t word = value; // Memory peek/poke in words.
-      if (hart.pokeMemory(addr, word, usePma))
+      if (hart.pokeMemory(addr, value))
 	return true;
       std::cerr << "Address out of bounds: " << addrStr << '\n';
       return false;
@@ -760,8 +646,7 @@ Interactive<URV>::disassCommand(Hart<URV>& hart, const std::string& line,
       for (size_t addr = start; addr < end; )
 	{
 	  uint32_t inst = 0;
-          bool usePma = false;
-	  if (not hart.peekMemory(addr, inst, usePma))
+	  if (not hart.peekMemory(addr, inst))
 	    {
 	      std::cerr << "Address out of bounds: 0x" << std::hex << addr
 			<< '\n' << std::dec;
@@ -802,8 +687,7 @@ Interactive<URV>::disassCommand(Hart<URV>& hart, const std::string& line,
   for (URV addr = addr1; addr <= addr2; )
     {
       uint32_t inst = 0;
-      bool usePma = false;
-      if (not hart.peekMemory(addr, inst, usePma))
+      if (not hart.peekMemory(addr, inst))
 	{
 	  std::cerr << "Address out of bounds: 0x" << std::hex << addr
 		    << '\n' << std::dec;
@@ -1124,22 +1008,6 @@ Interactive<URV>::loadFinishedCommand(Hart<URV>& hart, const std::string& line,
 }
 
 
-template <typename URV>
-bool
-Interactive<URV>::dumpMemoryCommand(const std::string& line,
-                                    const std::vector<std::string>& tokens)
-{
-  if (tokens.size() != 2)
-    {
-      std::cerr << "Invalid dump_memory command: " << line << '\n';
-      std::cerr << "  Expecting: dump_memory path\n";
-      return false;
-    }
-
-  return system_.writeAccessedMemory(tokens[1]);
-}
-
-
 /// If tokens contain a string of the form hart=<id> then remove that
 /// token from tokens and set hartId to <id> returning true. Return
 /// false if no hart=<id> token is found or if there is an error (<id>
@@ -1202,10 +1070,8 @@ printInteractiveHelp()
   cout << "peek <res> <addr>\n";
   cout << "  Print value of resource res (one of r, f, c, m) and address addr.\n";
   cout << "  For memory (m) up to 2 addresses may be provided to define a range\n";
-  cout << "  of memory locations to be printed; also, an optional filename after\n";
-  cout << "  the two addresses writes the command output to that file.\n";
-  cout << "  examples: peek r x1   peek c mtval   peek m 0x4096\n";
-  cout << "            peek m 0x10 0x40 out\n\n";
+  cout << "  of memory locations to be printed.\n";
+  cout << "  examples: peek r x1   peek c mtval   peek m 0x4096\n\n";
   cout << "peek pc\n";
   cout << "  Print value of the program counter.\n\n";
   cout << "peek all\n";
@@ -1308,15 +1174,13 @@ Interactive<URV>::helpCommand(const std::vector<std::string>& tokens)
 	   << "  Addr stands for a register number, register name or memory\n"
 	   << "  address. If resource is memory (m), then an additional address\n"
 	   << "  may be provided to define a range of memory locations to be\n"
-	   << "  display and an optional filename after 2nd address may be\n"
-           << "  provided to write memory contents to a file.  Examples\n"
+	   << "  display.  Examples\n"
 	   << "    peek pc\n"
 	   << "    peek r t0\n"
 	   << "    peek r x12\n"
 	   << "    peek c mtval\n"
 	   << "    peek m 0x80000000\n"
-	   << "    peek m 0x80000000 0x80000010\n"
-      	   << "    peek m 0x80000000 0x80000010 out\n";
+	   << "    peek m 0x80000000 0x80000010\n";
       return;
     }
 
@@ -1336,11 +1200,11 @@ Interactive<URV>::helpCommand(const std::vector<std::string>& tokens)
       return;
     }
 
-  if (tag == "disas" or tag == "disass")
+  if (tag == "disas")
     {
-      cout << "disass opcode <op0> <op1> ...\n"
-	   << "disass func <address>\n"
-	   << "disass <addr1> <addr2>\n"
+      cout << "disas opcode <op0> <op1> ...\n"
+	   << "disas func <address>\n"
+	   << "disas <addr1> <addr2>\n"
 	   << "  The first form will disassemble the given opcodes.\n"
 	   << "  The second form will disassemble the instructions of the\n"
 	   << "  function containing the given address.\n"
@@ -1502,7 +1366,7 @@ Interactive<URV>::executeLine(unsigned& currentHartId,
 
   if (command == "peek")
     {
-      if (not peekCommand(hart, line, tokens, std::cout))
+      if (not peekCommand(hart, line, tokens))
 	return false;
        if (commandLog)
 	 fprintf(commandLog, "%s\n", outLine.c_str());
@@ -1518,7 +1382,7 @@ Interactive<URV>::executeLine(unsigned& currentHartId,
       return true;
     }
 
-  if (command == "d" or command == "disas" or command == "disass")
+  if (command == "d" or command == "disas")
     {
       if (not disassCommand(hart, line, tokens))
 	return false;
@@ -1573,13 +1437,9 @@ Interactive<URV>::executeLine(unsigned& currentHartId,
 
   if (command == "enter_debug")
     {
-      bool force = false;
-      if (tokens.size() == 2)
-        if (not parseCmdLineBool("force", tokens[1], force))
-          return false;
-      hart.enterDebugMode(hart.peekPc(), force);
+      hart.enterDebugMode(hart.peekPc());
       if (commandLog)
-	fprintf(commandLog, "%s %s\n", outLine.c_str(), force? "true" : "false");
+	fprintf(commandLog, "%s\n", outLine.c_str());
       return true;
     }
 
@@ -1631,9 +1491,8 @@ Interactive<URV>::executeLine(unsigned& currentHartId,
 	  std::cerr << "No replay file defined. Use the replay_file to define one\n";
 	  return false;
 	}
-      bool replayDone = false;
       if (not replayCommand(currentHartId, line, tokens, traceFile, commandLog,
-			    replayStream, replayDone))
+			    replayStream, done))
 	return false;
       return true;
     }
@@ -1647,15 +1506,6 @@ Interactive<URV>::executeLine(unsigned& currentHartId,
   if (command == "pagetable")
     {
       hart.printPageTable(std::cout);
-      return true;
-    }
-
-  if (command == "dump_memory")
-    {
-      if (not dumpMemoryCommand(line, tokens))
-        return false;
-      if (commandLog)
-	fprintf(commandLog, "%s\n", outLine.c_str());
       return true;
     }
 

@@ -20,22 +20,15 @@ using namespace WdRiscv;
 
 
 template <typename URV>
-System<URV>::System(unsigned coreCount, unsigned hartsPerCore, size_t memSize,
-                    size_t pageSize)
+System<URV>::System(unsigned coreCount, unsigned hartsPerCore, Memory& memory)
   : hartCount_(coreCount * hartsPerCore), hartsPerCore_(hartsPerCore)
 {
   cores_.resize(coreCount);
 
-  memory_ = std::make_shared<Memory>(memSize, pageSize);
-  sparseMem_ = nullptr;
-
-  Memory& mem = *(memory_.get());
-  mem.setHartCount(hartCount_);
-
   for (unsigned ix = 0; ix < coreCount; ++ix)
     {
       URV hartIdBase = ix * hartsPerCore;
-      cores_.at(ix) = std::make_shared<CoreClass>(hartIdBase, hartsPerCore, mem);
+      cores_.at(ix) = std::make_shared<CoreClass>(hartIdBase, hartsPerCore, memory);
 
       // Maintain a vector of all the harts in the system.
       auto core = cores_.at(ix);
@@ -45,44 +38,12 @@ System<URV>::System(unsigned coreCount, unsigned hartsPerCore, size_t memSize,
           sysHarts_.push_back(hart);
         }
     }
-
-#ifdef MEM_CALLBACKS
-  sparseMem_ = new SparseMem();
-  auto readf = [this](uint64_t addr, unsigned size, uint64_t& value) -> bool {
-                 return sparseMem_->read(addr, size, value); };
-  auto writef = [this](uint64_t addr, unsigned size, uint64_t value) -> bool {
-                  return sparseMem_->write(addr, size, value); };
-
-  mem.defineReadMemoryCallback(readf);
-  mem.defineWriteMemoryCallback(writef);
-#endif
 }
 
 
 template <typename URV>
 System<URV>::~System()
 {
-  delete sparseMem_;
-  sparseMem_ = nullptr;
-}
-
-
-template <typename URV>
-void
-System<URV>::checkUnmappedElf(bool flag)
-{
-  if (memory_)
-    memory_->checkUnmappedElf(flag);
-}
-
-
-template <typename URV>
-bool
-System<URV>::writeAccessedMemory(const std::string& path) const
-{
-  if (not sparseMem_)
-    return false;
-  return sparseMem_->writeHexFile(path);
 }
 
 

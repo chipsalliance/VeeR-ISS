@@ -15,10 +15,8 @@
 
 #pragma once
 
-#include <memory>               // For shared_ptr
-#include <functional>
-#include "Memory.hpp"
-#include "SparseMem.hpp"
+#include <Memory.hpp>
+
 
 namespace WdRiscv
 {
@@ -45,8 +43,7 @@ namespace WdRiscv
     /// Constructor: Construct a system with n (coreCount) cores each
     /// consisting of m (hartsPerCore) harts. The harts in this system
     /// are indexed with 0 to n*m - 1.
-    System(unsigned coreCount, unsigned hartsPerCore, size_t memSize,
-           size_t pageSize);
+    System(unsigned coreCount, unsigned hartsPerCore, Memory& memory);
 
     ~System();
 
@@ -64,65 +61,13 @@ namespace WdRiscv
     { return hartCount_; }
 
     /// Return pointer to the ith hart in the system or null if i is
-    /// out of bounds. A hart index is valid if it is less than the
-    /// value returned by the hartCount method.
+    /// out of bounds.
     std::shared_ptr<HartClass> ithHart(unsigned i)
     {
       if (i >= sysHarts_.size())
 	return std::shared_ptr<HartClass>();
       return sysHarts_.at(i);
     }
-
-    /// Return pointer to the ith core in the system or null if i is
-    /// out of bounds.
-    std::shared_ptr<CoreClass> ithCore(unsigned i)
-    {
-      if (i >= cores_.size())
-	return std::shared_ptr<CoreClass>();
-      return cores_.at(i);
-    }
-
-    /// With a true flag, when loading ELF files, error out if ELF
-    /// file refers to unmapped memory. With a false flag, ignore
-    /// unmapped memory in the ELF file.
-    void checkUnmappedElf(bool flag);
-
-    /// Define read memory callback. This (along with
-    /// defineWriteMemoryCallback) allows the caller to bypass the
-    /// memory model with their own.
-    void defineReadMemoryCallback(
-         std::function<bool(uint64_t, unsigned, uint64_t&)> callback )
-    {
-      memory_->defineReadMemoryCallback(callback);
-    }
-
-    /// Define write memory callback. This (along with
-    /// defineReadMemoryCallback) allows the caller to bypass the
-    /// memory model with their own.
-    void defineWriteMemoryCallback(
-         std::function<bool(uint64_t, unsigned, uint64_t)> callback )
-    {
-      memory_->defineWriteMemoryCallback(callback);
-    }
-
-    /// Break a hart-index-in-system into a core-index and a
-    /// hart-index in core. Return true if successful and false if
-    /// igven hart-index-in-system is out of bounds.
-    bool unpackSystemHartIx(unsigned hartIxInSys, unsigned& coreIx,
-                            unsigned& hartIxInCore)
-    {
-      if (hartIxInSys >= sysHarts_.size())
-        return false;
-      coreIx = hartIxInSys / hartsPerCore_;
-      hartIxInCore = hartIxInSys % hartsPerCore_;
-      return true;
-    }
-
-    /// Write contents of memory accessed by current run in verilog
-    /// hex format to the file at the given path. Return true on
-    /// success and false on failure. Currently this will write the
-    /// contents of accessed pages.
-    bool writeAccessedMemory(const std::string& path) const;
 
   private:
 
@@ -131,7 +76,5 @@ namespace WdRiscv
 
     std::vector< std::shared_ptr<CoreClass> > cores_;
     std::vector< std::shared_ptr<HartClass> > sysHarts_; // All harts in system.
-    std::shared_ptr<Memory> memory_ = nullptr;
-    SparseMem* sparseMem_ = nullptr;
   };
 }

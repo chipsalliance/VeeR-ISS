@@ -72,29 +72,17 @@ namespace WdRiscv
 
     uint64_t mmap_alloc(uint64_t size);
 
-    int mmap_dealloc(uint64_t addr, uint64_t size);
+	 int mmap_dealloc(uint64_t addr, uint64_t size);
 
-    uint64_t mmap_remap(uint64_t addr, uint64_t old_size, uint64_t new_size, bool maymove);
+	 uint64_t mmap_remap(uint64_t addr, uint64_t old_size, uint64_t new_size, bool maymove);
 
-    typedef std::pair<uint64_t, uint64_t> AddrLen;  // Address/length pair
+	 void getUsedMemBlocks(std::vector<std::pair<uint64_t,uint64_t>>& used_blocks);
+	 bool loadUsedMemBlocks(const std::string& filename, std::vector<std::pair<uint64_t,uint64_t>>& used_blocks);
+	 bool saveUsedMemBlocks(const std::string& filename, std::vector<std::pair<uint64_t,uint64_t>>& used_blocks);
 
-    /// Clear memory changes recorded by last emulate call.
-    void clearMemoryChanges()
-    { memChanges_.clear(); }
+	 bool saveMmap(const std::string & filename);
 
-    /// Copy the memory changes recorded by the last emulate call to the
-    /// given vector.
-    void getMemoryChanges(std::vector<AddrLen>& changes) const
-    { changes = memChanges_; }
-
-    void getUsedMemBlocks(std::vector<AddrLen>& used_blocks);
-
-    bool loadUsedMemBlocks(const std::string& path, std::vector<AddrLen>& used_blocks);
-    bool saveUsedMemBlocks(const std::string& path, std::vector<AddrLen>& used_blocks);
-
-    bool saveMmap(const std::string & filename);
-
-    bool loadMmap(const std::string & filename);
+	 bool loadMmap(const std::string & filename);
 
   protected:
 
@@ -142,7 +130,5 @@ namespace WdRiscv
     std::unordered_map<int, std::string> fdPath_;
     std::unordered_set<std::string> readPaths_;
     std::unordered_set<std::string> writePaths_;
-
-    std::vector<AddrLen> memChanges_;  // Memory locations changed by syscall.
   };
 }

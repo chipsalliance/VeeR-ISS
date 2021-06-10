@@ -31,7 +31,7 @@ using namespace WdRiscv;
 
 Memory::Memory(size_t size, size_t pageSize, size_t regionSize)
   : size_(size), data_(nullptr), pageSize_(pageSize), reservations_(1),
-    lastWriteData_(1), pmaMgr_(size)
+    lastWriteData_(1), uart_(0x10000000), pmaMgr_(size, pageSize)
 { 
   assert(size >= pageSize);
   assert(regionSize >= pageSize);
@@ -58,28 +58,22 @@ Memory::Memory(size_t size, size_t pageSize, size_t regionSize)
   if (regionCount_ * regionSize_ < size_)
     regionCount_++;
 
-#ifndef MEM_CALLBACKS
-
 #ifndef __MINGW64__
   void* mem = mmap(nullptr, size_, PROT_READ | PROT_WRITE,
 		   MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
   if (mem == (void*) -1)
     {
       std::cerr << "Failed to map " << size_ << " bytes using mmap.\n";
-      throw std::runtime_error("Out of memory");
-    }
 #else
   void* mem = malloc(size_);
   if (mem == nullptr)
     {
       std::cerr << "Failed to alloc " << size_ << " bytes using malloc.\n";
+#endif
       throw std::runtime_error("Out of memory");
     }
-#endif
 
   data_ = reinterpret_cast<uint8_t*>(mem);
-
-#endif
 
   // Mark all regions as non-configured.
   regionConfigured_.resize(regionCount_);
@@ -118,8 +112,7 @@ Memory::loadHexFile(const std::string& fileName)
       return false;
     }
 
-  size_t addr = 0, errors = 0, unmappedCount = 0;
-  size_t oob = 0; // Out of bounds addresses
+  size_t address = 0, errors = 0, overwrites = 0;
 
   std::string line;
 
@@ -139,7 +132,7 @@ Memory::loadHexFile(const std::string& fileName)
 	      continue;
 	    }
 	  char* end = nullptr;
-	  addr = std::strtoull(line.c_str() + 1, &end, 16);
+	  address = std::strtoull(line.c_str() + 1, &end, 16);
 	  if (end and *end and not isspace(*end))
 	    {
 	      std::cerr << "File " << fileName << ", Line " << lineNum << ": "
@@ -150,7 +143,7 @@ Memory::loadHexFile(const std::string& fileName)
 	}
 
       std::istringstream iss(line);
-      uint32_t value = 0;
+      uint32_t value;
       while (iss)
 	{
 	  iss >> std::hex >> value;
@@ -168,30 +161,22 @@ Memory::loadHexFile(const std::string& fileName)
 			<< std::dec;
 	      errors++;
 	    }
-	  if (addr < size_)
+	  if (address < size_)
 	    {
 	      if (not errors)
 		{
-                  if (not specialInitializeByte(addr, value & 0xff))
-                    {
-                      if (unmappedCount == 0)
-                        std::cerr << "Failed to copy HEX file byte at address 0x"
-                                  << std::hex << addr << std::dec
-                                  << ": corresponding location is not mapped\n";
-                      unmappedCount++;
-                      if (checkUnmappedElf_)
-                        return false;
-                    }
-                  addr++;
+		  if (data_[address] != 0)
+		    overwrites++;
+		  data_[address++] = value & 0xff;
 		}
 	    }
 	  else
 	    {
-              if (not oob)
-                std::cerr << "File " << fileName << ", Line " << lineNum << ": "
-                          << "Warning: Address out of bounds: "
-                          << std::hex << addr << '\n' << std::dec;
-	      oob++;
+	      std::cerr << "File " << fileName << ", Line " << lineNum << ": "
+			<< "Address out of bounds: " << std::hex << address
+			<< '\n' << std::dec;
+	      errors++;
+	      break;
 	    }
 	  if (iss.eof())
 	    break;
@@ -205,21 +190,17 @@ Memory::loadHexFile(const std::string& fileName)
 	}
     }
 
-  if (oob > 1)
-    std::cerr << "File " << fileName << ": Warning: File contained "
-              << oob << " out of bounds addresses.\n";
-
-  // In case writing ELF data modified last-written-data associated
-  // with each hart.
-  for (unsigned hartId = 0; hartId < reservations_.size(); ++hartId)
-    clearLastWriteInfo(hartId);
+  if (overwrites)
+    std::cerr << "File " << fileName << ": Overwrote previously loaded data "
+	      << "changing " << overwrites << " or more bytes\n";
 
   return errors == 0;
 }
 
 
 bool
-Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end)
+Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end,
+                       size_t& overwrites)
 {
   const ELFIO::segment* seg = reader.segments[segIx];
   ELFIO::Elf64_Addr vaddr = seg->get_virtual_address();
@@ -240,10 +221,9 @@ Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end)
 
   size_t unmappedCount = 0;
 
-#if 0
+#if 1
 
-  // Load sections of segment. This is not ideal since it fails to load
-  // orphaned data (data not belonging to any section).
+  // Load sections of segment.
   auto segSecCount = seg->get_sections_num();
   for (int secOrder = 0; secOrder < segSecCount; ++secOrder)
     {
@@ -258,6 +238,9 @@ Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end)
 
       for (size_t i = 0; i < size; ++i)
         {
+          if (data_[addr + i] != 0)
+            overwrites++;
+
           if (not specialInitializeByte(addr + i, secData[i]))
             {
               if (unmappedCount == 0)
@@ -295,6 +278,8 @@ Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end)
   const char* segData = seg->get_data();
   for (size_t i = 0; i < segSize; ++i)
     {
+      if (data_[vaddr + i] != 0)
+        overwrites++;
       if (not specialInitializeByte(vaddr + i, segData[i]))
         {
           if (unmappedCount == 0)
@@ -552,13 +537,16 @@ Memory::loadElfFile(const std::string& fileName, unsigned regWidth,
 
   // Copy loadable ELF segments into memory.
   size_t maxEnd = 0;  // Largest end address of a segment.
-  size_t errors = 0;
+  size_t errors = 0, overwrites = 0;
 
   for (int segIx = 0; segIx < reader.segments.size(); ++segIx)
     {
-      size_t end = 0;
-      if (loadElfSegment(reader, segIx, end))
-        maxEnd = std::max(end, maxEnd);
+      size_t end = 0, segOverwrite = 0;
+      if (loadElfSegment(reader, segIx, end, segOverwrite))
+        {
+          maxEnd = std::max(end, maxEnd);
+          overwrites += segOverwrite;
+        }
       else
         errors++;
     }
@@ -583,6 +571,10 @@ Memory::loadElfFile(const std::string& fileName, unsigned regWidth,
       entryPoint = reader.get_entry();
       end = maxEnd;
     }
+
+  if (overwrites)
+    std::cerr << "File " << fileName << ": Overwrote previously loaded data "
+	      << "changing " << overwrites << " or more bytes\n";
 
   return errors == 0;
 }
@@ -869,7 +861,8 @@ Memory::copy(const Memory& other)
 bool
 Memory::specialInitializeByte(size_t addr, uint8_t value)
 {
-  if (addr >= size_)
+  Pma pma = pmaMgr_.getPma(addr);
+  if (not pma.isMapped())
     return false;
 
   if (pmaMgr_.isAddrMemMapped(addr))
@@ -885,10 +878,7 @@ Memory::specialInitializeByte(size_t addr, uint8_t value)
 
   // We initialize both the memory-mapped-register and the external
   // memory to match/simplify the test-bench.
-  if (writeCallback_)
-    writeCallback_(addr, 1, value);
-  else
-    data_[addr] = value;
+  data_[addr] = value;
   return true;
 }
 
@@ -1041,11 +1031,6 @@ Memory::defineMemoryMappedRegisterArea(size_t addr, size_t size, bool trim)
 
   // Mark as read/write/memory-mapped.
   Pma::Attrib attrib = Pma::Attrib(Pma::Read | Pma::Write | Pma::MemMapped);
-
-  // For elx2s: mark as executable as well.
-  if (not trim)
-    attrib = Pma::Attrib(attrib | Pma::Exec);
-
   pmaMgr_.setAttribute(addr, addr + size - 1, attrib);
 
   pmaMgr_.defineMemMappedArea(addr, size);
@@ -1148,7 +1133,6 @@ Memory::finishCcmConfig(bool iccmRw)
     }
 }
 
-
 bool
 Memory::configureCache(uint64_t size, unsigned lineSize, unsigned setSize)
 {
@@ -1231,3 +1215,14 @@ Memory::getCacheLineAddresses(std::vector<uint64_t>& addresses)
 }
 
 
+void
+Memory::registerIODevices()
+{
+  /* Create the VirtIO console */
+  MMIODevice console;
+  console.device = (IODevice*) &uart_;
+  console.addr_ = 0x10000000;
+  console.size_ = 0x100;
+
+  devices_.push_back(console);
+}

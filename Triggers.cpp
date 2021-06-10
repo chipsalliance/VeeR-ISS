@@ -72,39 +72,13 @@ Triggers<URV>::writeData1(URV trigIx, bool debugMode, URV value)
     return false;
 
   auto& trig = triggers_.at(trigIx);
-
-  Data1Bits d1bits(value); // Unpack value of attempted write.
-
-  // If next trigger has a dmode of 1 (debugger only), then clear
-  // chain bit in attempted wirte if write would also set dmode to 0.
-  // Otherwise we would have a chain with different dmodes.
-  if (trigIx + 1 < triggers_.size())
-    {
-      auto& nextTrig = triggers_.at(trigIx + 1);
-      if (nextTrig.isDebugModeOnly() and not d1bits.dmodeOnly())
-        {
-          d1bits.mcontrol_.chain_ = 0;
-          value = d1bits.value_;
-        }
-    }
-
-  // Write is ignored if it would set dmode and previous trigger has
-  // both dmode=0 and chain=1. Otherwise, we would have a chain with
-  // different dmodes.
-  if (d1bits.dmodeOnly() and trigIx > 0)
-    {
-      auto& prevTrig = triggers_.at(trigIx - 1);
-      if (prevTrig.getChain() and not prevTrig.isDebugModeOnly())
-        return false;
-    }
-
-  bool oldChain = trig.getChain();
+  bool prevChain = trig.getChain();
 
   if (not trig.writeData1(debugMode, value))
     return false;
 
   bool newChain = trig.getChain();
-  if (oldChain != newChain)
+  if (prevChain != newChain)
     defineChainBounds();
 
   return true;
@@ -149,16 +123,13 @@ Triggers<URV>::updateChainHitBit(Trigger<URV>& trigger)
       auto& trig = triggers_.at(i);
       chainHit = chainHit and trig.getLocalHit();
       uniformTiming = uniformTiming and (timing == trig.getTiming());
-      if (chainHit)
-        trig.setHit(true);
     }
 
   if (not chainHit or not uniformTiming)
     return false;
 
   for (size_t i = beginChain; i < endChain; ++i)
-    triggers_.at(i).setTripped(true);
-
+    triggers_.at(i).setHit(true);
   return true;
 }
 
@@ -169,14 +140,10 @@ Triggers<URV>::ldStAddrTriggerHit(URV address, TriggerTiming timing,
 				  bool isLoad, PrivilegeMode mode,
                                   bool interruptEnabled)
 {
-  // Check if we should skip tripping because we are running in
-  // machine mode and interrupts disabled.
-  bool skip = mode == PrivilegeMode::Machine and not interruptEnabled;
-
-  bool chainHit = false;  // Chain hit.
+  bool hit = false;
   for (auto& trigger : triggers_)
     {
-      if (not trigger.isEnterDebugOnHit() and skip)
+      if (not trigger.isEnterDebugOnHit() and not interruptEnabled)
 	continue;
 
       if (not trigger.matchLdStAddr(address, timing, isLoad, mode))
@@ -185,9 +152,9 @@ Triggers<URV>::ldStAddrTriggerHit(URV address, TriggerTiming timing,
       trigger.setLocalHit(true);
 
       if (updateChainHitBit(trigger))
-	chainHit = true;
+	hit = true;
     }
-  return chainHit;
+  return hit;
 }
 
 
@@ -196,14 +163,10 @@ bool
 Triggers<URV>::ldStDataTriggerHit(URV value, TriggerTiming timing, bool isLoad,
 				  PrivilegeMode mode, bool interruptEnabled)
 {
-  // Check if we should skip tripping because we are running in
-  // machine mode and interrupts disabled.
-  bool skip = mode == PrivilegeMode::Machine and not interruptEnabled;
-
-  bool chainHit = false;  // Chain hit.
+  bool hit = false;
   for (auto& trigger : triggers_)
     {
-      if (not trigger.isEnterDebugOnHit() and skip)
+      if (not trigger.isEnterDebugOnHit() and not interruptEnabled)
 	continue;
 
       if (not trigger.matchLdStData(value, timing, isLoad, mode))
@@ -212,10 +175,10 @@ Triggers<URV>::ldStDataTriggerHit(URV value, TriggerTiming timing, bool isLoad,
       trigger.setLocalHit(true);
 
       if (updateChainHitBit(trigger))
-	chainHit = true;
+	hit = true;
     }
 
-  return chainHit;
+  return hit;
 }
 
 
@@ -224,14 +187,10 @@ bool
 Triggers<URV>::instAddrTriggerHit(URV address, TriggerTiming timing,
                                   PrivilegeMode mode, bool interruptEnabled)
 {
-  // Check if we should skip tripping because we are running in
-  // machine mode and interrupts disabled.
-  bool skip = mode == PrivilegeMode::Machine and not interruptEnabled;
-
-  bool chainHit = false;  // Chain hit.
+  bool hit = false;
   for (auto& trigger : triggers_)
     {
-      if (not trigger.isEnterDebugOnHit() and skip)
+      if (not trigger.isEnterDebugOnHit() and not interruptEnabled)
 	continue;
 
       if (not trigger.matchInstAddr(address, timing, mode))
@@ -240,10 +199,9 @@ Triggers<URV>::instAddrTriggerHit(URV address, TriggerTiming timing,
       trigger.setLocalHit(true);
 
       if (updateChainHitBit(trigger))
-	chainHit = true;
+	hit = true;
     }
-
-  return chainHit;
+  return hit;
 }
 
 
@@ -253,14 +211,10 @@ Triggers<URV>::instOpcodeTriggerHit(URV opcode, TriggerTiming timing,
                                     PrivilegeMode mode,
 				    bool interruptEnabled)
 {
-  // Check if we should skip tripping because we are running in
-  // machine mode and interrupts disabled.
-  bool skip = mode == PrivilegeMode::Machine and not interruptEnabled;
-
   bool hit = false;
   for (auto& trigger : triggers_)
     {
-      if (not trigger.isEnterDebugOnHit() and skip)
+      if (not trigger.isEnterDebugOnHit() and not interruptEnabled)
 	continue;
 
       if (not trigger.matchInstOpcode(opcode, timing, mode))
@@ -280,15 +234,11 @@ template <typename URV>
 bool
 Triggers<URV>::icountTriggerHit(PrivilegeMode mode, bool interruptEnabled)
 {
-  // Check if we should skip tripping because we are running in
-  // machine mode and interrupts disabled.
-  bool skip = mode == PrivilegeMode::Machine and not interruptEnabled;
-
   bool hit = false;
 
   for (auto& trig : triggers_)
     {
-      if (not trig.isEnterDebugOnHit() and skip)
+      if (not trig.isEnterDebugOnHit() and not interruptEnabled)
 	continue;
 
       if (trig.isModified())
@@ -307,19 +257,18 @@ Triggers<URV>::icountTriggerHit(PrivilegeMode mode, bool interruptEnabled)
 
 template <typename URV>
 bool
-Triggers<URV>::config(unsigned trigger,
-                      uint64_t rv1, uint64_t rv2, uint64_t rv3,
-		      uint64_t wm1, uint64_t wm2, uint64_t wm3,
-		      uint64_t pm1, uint64_t pm2, uint64_t pm3)
+Triggers<URV>::config(unsigned trigger, URV reset1, URV reset2, URV reset3,
+		      URV wm1, URV wm2, URV wm3,
+		      URV pm1, URV pm2, URV pm3)
 {
   if (trigger <= triggers_.size())
     triggers_.resize(trigger + 1);
 
-  triggers_.at(trigger).configData1(rv1, wm1, pm1);
-  triggers_.at(trigger).configData2(rv2, wm2, pm2);
-  triggers_.at(trigger).configData3(rv3, wm3, pm3);
+  triggers_.at(trigger).configData1(reset1, wm1, pm1);
+  triggers_.at(trigger).configData2(reset2, wm2, pm2);
+  triggers_.at(trigger).configData3(reset3, wm3, pm3);
 
-  triggers_.at(trigger).writeData2(true, rv2);  // Define compare mask.
+  triggers_.at(trigger).writeData2(true, reset2);  // Define compare mask.
 
   defineChainBounds();
 
@@ -340,8 +289,7 @@ Triggers<URV>::reset()
 
 template <typename URV>
 bool
-Triggers<URV>::peek(unsigned trigger, uint64_t& data1, uint64_t& data2,
-                    uint64_t& data3) const
+Triggers<URV>::peek(URV trigger, URV& data1, URV& data2, URV& data3) const
 {
   if (trigger >= triggers_.size())
     return false;
@@ -352,10 +300,9 @@ Triggers<URV>::peek(unsigned trigger, uint64_t& data1, uint64_t& data2,
 
 template <typename URV>
 bool
-Triggers<URV>::peek(unsigned trigger,
-                    uint64_t& data1, uint64_t& data2, uint64_t& data3,
-		    uint64_t& wm1, uint64_t& wm2, uint64_t& wm3,
-		    uint64_t& pm1, uint64_t& pm2, uint64_t& pm3) const
+Triggers<URV>::peek(URV trigger, URV& data1, URV& data2, URV& data3,
+		    URV& wm1, URV& wm2, URV& wm3,
+		    URV& pm1, URV& pm2, URV& pm3) const
 {
   if (trigger >= triggers_.size())
     return false;
@@ -384,44 +331,18 @@ Triggers<URV>::poke(URV trigger, URV v1, URV v2, URV v3)
 
 template <typename URV>
 bool
-Triggers<URV>::pokeData1(URV trigIx, URV value)
+Triggers<URV>::pokeData1(URV trigger, URV val)
 {
-  if (trigIx >= triggers_.size())
+  if (trigger >= triggers_.size())
     return false;
 
-  auto& trig = triggers_.at(trigIx);
+  auto& trig = triggers_.at(trigger);
+  bool prevChain = trig.getChain();
 
-  Data1Bits d1bits(value); // Unpack value of attempted write.
-
-  // If next trigger has a dmode of 1 (debugger only), then clear
-  // chain bit in attempted wirte if write would also set dmode to 0.
-  // Otherwise we would have a chain with different dmodes.
-  if (trigIx + 1 < triggers_.size())
-    {
-      auto& nextTrig = triggers_.at(trigIx + 1);
-      if (nextTrig.isDebugModeOnly() and not d1bits.dmodeOnly())
-        {
-          d1bits.mcontrol_.chain_ = 0;
-          value = d1bits.value_;
-        }
-    }
-
-  // Write is ignored if it would set dmode and previous trigger has
-  // both dmode=0 and chain=1. Otherwise, we would have a chain with
-  // different dmodes.
-  if (d1bits.dmodeOnly() and trigIx > 0)
-    {
-      auto& prevTrig = triggers_.at(trigIx - 1);
-      if (prevTrig.getChain() and not prevTrig.isDebugModeOnly())
-        return false;
-    }
-
-  bool oldChain = trig.getChain();
-
-  trig.pokeData1(value);
+  trig.pokeData1(val);
 
   bool newChain = trig.getChain();
-  if (oldChain != newChain)
+  if (prevChain != newChain)
     defineChainBounds();
 
   return true;
@@ -466,7 +387,7 @@ Triggers<URV>::defineChainBounds()
       for  (size_t i = 0; i < triggers_.size(); ++i)
 	triggers_.at(i).setChainBounds(i, i+1);
 
-      // Only chain consecutive even/odd pairs if chain bit of even is set.
+      // Only chain consecutive even/odd pairs of chain bit of even is set.
       for (size_t i = 0; i < triggers_.size(); i += 2)
 	{
 	  if (triggers_.at(i).getChain() and i + 1 < triggers_.size())
@@ -502,7 +423,7 @@ bool
 Trigger<URV>::matchLdStAddr(URV address, TriggerTiming timing, bool isLoad,
                             PrivilegeMode mode) const
 {
-  if (not data1_.isAddrData())
+  if (TriggerType(data1_.data1_.type_) != TriggerType::AddrData)
     return false;  // Not an address trigger.
 
   const Mcontrol<URV>& ctl = data1_.mcontrol_;
@@ -536,7 +457,7 @@ bool
 Trigger<URV>::matchLdStData(URV value, TriggerTiming timing, bool isLoad,
                             PrivilegeMode mode) const
 {
-  if (not data1_.isAddrData())
+  if (TriggerType(data1_.data1_.type_) != TriggerType::AddrData)
     return false;  // Not an address trigger.
 
   const Mcontrol<URV>& ctl = data1_.mcontrol_;
@@ -618,7 +539,7 @@ bool
 Trigger<URV>::matchInstAddr(URV address, TriggerTiming timing,
                             PrivilegeMode mode) const
 {
-  if (not data1_.isAddrData())
+  if (TriggerType(data1_.data1_.type_) != TriggerType::AddrData)
     return false;  // Not an address trigger.
 
   const Mcontrol<URV>& ctl = data1_.mcontrol_;
@@ -650,7 +571,7 @@ bool
 Trigger<URV>::matchInstOpcode(URV opcode, TriggerTiming timing,
                               PrivilegeMode mode) const
 {
-  if (not data1_.isAddrData())
+  if (TriggerType(data1_.data1_.type_) != TriggerType::AddrData)
     return false;  // Not an address trigger.
 
   const Mcontrol<URV>& ctl = data1_.mcontrol_;

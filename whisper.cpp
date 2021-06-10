@@ -16,18 +16,11 @@
 #include <fstream>
 #include <sstream>
 #include <thread>
-#include <atomic>
-#if defined(__cpp_lib_filesystem)
-  #include <filesystem>
-  namespace FileSystem = std::filesystem;
-#else
-  #include <experimental/filesystem>
-  namespace FileSystem = std::experimental::filesystem;
-#endif
-
+#include <experimental/filesystem>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
+
 
 #ifdef __MINGW64__
 #include <winsock2.h>
@@ -199,7 +192,6 @@ struct Args
   std::optional<uint64_t> alarmInterval;
   std::optional<uint64_t> swInterrupt;  // Sotware interrupt mem mapped address
   std::optional<uint64_t> clint;  // Clint mem mapped address
-  std::optional<uint64_t> syscallSlam;
 
   unsigned regWidth = 32;
   unsigned harts = 1;
@@ -254,7 +246,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 681;
+  unsigned subversion = 559;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -364,13 +356,6 @@ collectCommandLineValues(const boost::program_options::variables_map& varMap,
           std::cerr << "Error: softinterrupt address must be a multiple of 4\n";
           ok = false;
         }
-    }
-
-  if (varMap.count("syscallslam"))
-    {
-      auto numStr = varMap["syscallslam"].as<std::string>();
-      if (not parseCmdLineNumber("syscallslam", numStr, args.syscallSlam))
-        ok = false;
     }
 
   if (args.interactive)
@@ -528,14 +513,6 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
          "of these double words sets the timer-limit of the corresponding hart. "
          "A timer interrupt in such a hart becomes pending when the timer value "
          "equals or exceeds the timer limit.")
-        ("syscallslam", po::value<std::string>(),
-         "Define address, a, of a non-cached memory area in which the "
-         "memory changes of an emulated system call will be slammed. This "
-         "is used in server mode to relay the effects of a system call "
-         "to the RTL simulator. The memory area at location a will be filled "
-         "with a sequence of pairs of double words designating addresses and "
-         "corresponding values. A zero/zero pair will indicate the end of "
-         "sequence.")
         ("iccmrw", po::bool_switch(&args.iccmRw),
          "Temporary switch to make ICCM region available to ld/st isntructions.")
         ("quitany", po::bool_switch(&args.quitOnAnyHart),
@@ -752,9 +729,8 @@ applyIsaString(const std::string& isaStr, Hart<URV>& hart)
 	case 'f':
 	case 'i':
 	case 'm':
-	case 's':
 	case 'u':
-        case 'v':
+	case 's':
 	  isa |= URV(1) << (c -  'a');
 	  break;
 
@@ -884,23 +860,24 @@ bool
 loadSnapshot(Hart<URV>& hart, const std::string& snapDir)
 {
   using std::cerr;
+  using namespace std::experimental;
 
-  if (not FileSystem::is_directory(snapDir))
+  if (not filesystem::is_directory(snapDir))
     {
       cerr << "Error: Path is not a snapshot directory: " << snapDir << '\n';
       return false;
     }
 
-  FileSystem::path path(snapDir);
-  FileSystem::path regPath = path / "registers";
-  if (not FileSystem::is_regular_file(regPath))
+  filesystem::path path(snapDir);
+  filesystem::path regPath = path / "registers";
+  if (not filesystem::is_regular_file(regPath))
     {
       cerr << "Error: Snapshot file does not exists: " << regPath << '\n';
       return false;
     }
 
-  FileSystem::path memPath = path / "memory";
-  if (not FileSystem::is_regular_file(regPath))
+  filesystem::path memPath = path / "memory";
+  if (not filesystem::is_regular_file(regPath))
     {
       cerr << "Error: Snapshot file does not exists: " << memPath << '\n';
       return false;
@@ -1114,9 +1091,6 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
       configureClint(hart, system, swAddr, clintLimit, timerAddr);
     }
 
-  if (args.syscallSlam)
-    hart.defineSyscallSlam(*args.syscallSlam);
-
   // Set instruction count limit.
   if (args.instCountLim)
     hart.setInstructionCountLimit(*args.instCountLim);
@@ -1210,7 +1184,7 @@ runServer(System<URV>& system, const std::string& serverFile,
     }
 
   sockaddr_in serverAddr;
-  memset(&serverAddr, 0, sizeof(serverAddr));
+  memset(&serverAddr, '0', sizeof(serverAddr));
   serverAddr.sin_family = AF_INET;
   serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
   serverAddr.sin_port = htons(0);
@@ -1291,8 +1265,6 @@ reportInstructionFrequency(Hart<URV>& hart, const std::string& outPath)
   hart.reportTrapStat(outFile);
   fprintf(outFile, "\n");
   hart.reportPmpStat(outFile);
-  fprintf(outFile, "\n");
-  hart.reportLrScStat(outFile);
 
   fclose(outFile);
   return true;
@@ -1401,18 +1373,11 @@ batchRun(System<URV>& system, FILE* traceFile, bool waitAll)
 
   std::atomic<bool> result = true;
   std::atomic<unsigned> finished = 0;  // Count of finished threads. 
-  std::atomic<bool> hart0Done = false;
 
-  auto threadFunc = [&traceFile, &result, &finished, &hart0Done] (Hart<URV>* hart) {
-                      // In multi-hart system, wait till hart is started by hart0.
-                      while (not hart->isStarted())
-                        if (hart0Done)
-                          return;  // We are not going to be started.
+  auto threadFunc = [&traceFile, &result, &finished] (Hart<URV>* hart) {
 		      bool r = hart->run(traceFile);
 		      result = result and r;
                       finished++;
-                      if (hart->sysHartIndex() == 0)
-                        hart0Done = true;
 		    };
 
   for (unsigned i = 0; i < system.hartCount(); ++i)
@@ -1453,6 +1418,8 @@ bool
 snapshotRun(System<URV>& system, FILE* traceFile,
             const std::string& snapDir, uint64_t snapPeriod)
 {
+  using namespace std::experimental;
+
   if (not snapPeriod)
     {
       std::cerr << "Warning: Zero snap period ignored.\n";
@@ -1478,9 +1445,9 @@ snapshotRun(System<URV>& system, FILE* traceFile,
       if (not done)
         {
           unsigned index = hart.snapshotIndex();
-          FileSystem::path path(snapDir + std::to_string(index));
-          if (not FileSystem::is_directory(path))
-            if (not FileSystem::create_directories(path))
+          filesystem::path path(snapDir + std::to_string(index));
+          if (not filesystem::is_directory(path))
+            if (not filesystem::create_directories(path))
               {
                 std::cerr << "Error: Failed to create snapshot directory " << path << '\n';
                 return false;
@@ -1658,12 +1625,12 @@ checkAndRepairMemoryParams(size_t& memSize, size_t& pageSize,
 }
 
 
+template <typename URV>
 static
 bool
-getPrimaryConfigParameters(const Args& args, const HartConfig& config,
-                           unsigned& hartsPerCore, unsigned& coreCount,
-                           size_t& pageSize, size_t& memorySize)
+session(const Args& args, const HartConfig& config)
 {
+  unsigned hartsPerCore = 1;
   config.getHartsPerCore(hartsPerCore);
   if (args.hasHarts)
     hartsPerCore = args.harts;
@@ -1674,6 +1641,7 @@ getPrimaryConfigParameters(const Args& args, const HartConfig& config,
       return false;
     }
 
+  unsigned coreCount = 1;
   config.getCoreCount(coreCount);
   if (args.hasCores)
     coreCount = args.cores;
@@ -1686,50 +1654,45 @@ getPrimaryConfigParameters(const Args& args, const HartConfig& config,
 
   // Determine simulated memory size. Default to 4 gigs.
   // If running a 32-bit machine (pointer size = 32 bits), try 2 gigs.
+  size_t memorySize = size_t(1) << 32;  // 4 gigs
   if (memorySize == 0)
     memorySize = size_t(1) << 31;  // 2 gigs
   config.getMemorySize(memorySize);
   if (args.memorySize)
     memorySize = *args.memorySize;
 
+  size_t pageSize = 4*1024;
   if (not config.getPageSize(pageSize))
     pageSize = args.pageSize;
 
-  return true;
-}
-
-
-template <typename URV>
-static
-bool
-session(const Args& args, const HartConfig& config)
-{
-  // Collect primary configuration paramters.
-  unsigned hartsPerCore = 1;
-  unsigned coreCount = 1;
-  size_t pageSize = 4*1024;
   size_t regionSize = 256*1024*1024;
-  size_t memorySize = size_t(1) << 32;  // 4 gigs
-
-  if (not getPrimaryConfigParameters(args, config, hartsPerCore, coreCount,
-                                     pageSize, memorySize))
-    return false;
-
+  //if (not config.getRegionSize(regionSize))
+  //regionSize = args.regionSize;
   checkAndRepairMemoryParams(memorySize, pageSize, regionSize);
 
+  unsigned hartCount = coreCount*hartsPerCore;
+
+  Memory memory(memorySize, pageSize);
+  memory.setHartCount(hartCount);
+  memory.checkUnmappedElf(not args.unmappedElfOk);
+  memory.registerIODevices();
+
   // Create cores & harts.
-  System<URV> system(coreCount, hartsPerCore, memorySize, pageSize);
-  assert(system.hartCount() == coreCount*hartsPerCore);
+  System<URV> system(coreCount, hartsPerCore, memory);
+  assert(system.hartCount() == hartCount);
   assert(system.hartCount() > 0);
 
   // Configure harts. Define callbacks for non-standard CSRs.
-  if (not config.configHarts(system, args.isa, args.verbose))
+  if (not config.configHarts(system, args.verbose))
     if (not args.interactive)
       return false;
 
   // Configure memory.
-  if (not config.configMemory(system, args.iccmRw, args.unmappedElfOk, args.verbose))
+  auto& hart0 = *system.ithHart(0);
+  if (not config.applyMemoryConfig(hart0, args.iccmRw, args.verbose))
     return false;
+  for (unsigned i = 1; i < system.hartCount(); ++i)
+    system.ithHart(i)->copyMemRegionConfig(hart0);
 
   if (args.hexFiles.empty() and args.expandedTargets.empty()
       and not args.interactive)
@@ -1753,7 +1716,6 @@ session(const Args& args, const HartConfig& config)
 
   bool result = sessionRun(system, args, traceFile, commandLog);
 
-  auto& hart0 = *system.ithHart(0);
   if (not args.instFreqFile.empty())
     result = reportInstructionFrequency(hart0, args.instFreqFile) and result;
 

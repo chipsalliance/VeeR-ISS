@@ -17,7 +17,6 @@
 #include <cstdint>
 #include <vector>
 #include <unordered_map>
-#include <unordered_set>
 #include <string>
 #include <functional>
 #include <cassert>
@@ -29,7 +28,7 @@ namespace WdRiscv
 {
 
   /// Control and status register number.
-  enum class CsrNumber : uint32_t
+  enum class CsrNumber
     {
       // Machine mode registers.
 
@@ -290,18 +289,6 @@ namespace WdRiscv
       DPC      = 0x7b1,
       DSCRATCH = 0x7b2,
 
-#ifdef __CYGWIN__
-#undef VSTART
-#endif
-      // Vector extension register.
-      VSTART   = 0x008,
-      VXSAT    = 0x009,
-      VXRM     = 0x00a,
-      VCSR     = 0x00f,
-      VL       = 0xc20,
-      VTYPE    = 0xc21,
-      VLENB    = 0xc22,
-
       // Non-standard registers.
       MRAC     = 0x7c0,
       MDSEAC   = 0xfc0,
@@ -314,6 +301,7 @@ namespace WdRiscv
       MSPCTA   = 0x7f5, // Stack pointer checker top address
       MSPCC    = 0x7f6, // Stack pointer checker control
 
+      MDBAC   = 0xbc1,  // D-Bus 64-bit access control
       MDBHD   = 0xbc7,  // D-Bus 64-bit high data
 
       MSCAUSE  = 0x7ff, // Secondary exception cause
@@ -328,7 +316,7 @@ namespace WdRiscv
 
   /// Model a control and status register. The template type URV
   /// (unsigned register value) is the type of the register value. It
-  /// must be uint32_t for 32-bit implementations and uint64_t for
+  /// should be uint32_t for 32-bit implementations and uint64_t for
   /// 64-bit.
   template <typename URV>
   class Csr
@@ -383,7 +371,7 @@ namespace WdRiscv
     bool isDebug() const
     { return debug_; }
 
-    /// Return true if this register is shared among harts.
+    /// Return true if this register is shared between harts.
     bool isShared() const
     { return shared_; }
 
@@ -398,7 +386,7 @@ namespace WdRiscv
     URV getWriteMask() const
     { return writeMask_; }
 
-    /// Return the poke mask associated with this register. A register
+    /// Return the mask associated with this register. A register
     /// value bit is modifiable if and only if the corresponding bit
     /// in the mask is 1; otherwise, the bit is preserved. The write
     /// mask is used by the CSR write instructions. The poke mask
@@ -406,9 +394,6 @@ namespace WdRiscv
     /// instructions but are modifiable by the hardware.
     URV getPokeMask() const
     { return pokeMask_; }
-
-    URV getReadMask() const
-    { return readMask_; }
 
     /// Return the reset value of this CSR.
     URV getResetValue() const
@@ -457,6 +442,12 @@ namespace WdRiscv
     void definePrivilegeMode(PrivilegeMode mode)
     { initialMode_ = mode; privMode_ = mode; }
 
+    /// Restore CSR value to that written by a csrwr instruction before.
+    /// This is done to restore value clobbered by performance counters
+    /// counting out of order.
+    void undoCountUp() const
+    { *valuePtr_ = nextValue_; }
+
     /// Associate given location with the value of this CSR. The
     /// previous value of the CSR is lost. If given location is null
     /// then the default location defined in this object is restored.
@@ -494,13 +485,13 @@ namespace WdRiscv
     void setPokeMask(URV mask)
     { pokeMask_ = mask; }
 
-    /// Mark register as a debug-mode register. Accessing a debug-mode
+    /// Mark register as a debug-mode register. Assessing a debug-mode
     /// register when the processor is not in debug mode will trigger an
     /// illegal instruction exception.
     void setIsDebug(bool flag)
     { debug_ = flag; }
 
-    /// Mark register as shared among harts.
+    /// Mark regiser as shared between harts.
     void setIsShared(bool flag)
     { shared_ = flag; }
 
@@ -546,6 +537,8 @@ namespace WdRiscv
 
       for (auto func : postWrite_)
         func(*this, newVal);
+
+      nextValue_ = *valuePtr_;
     }
 
     /// Similar to the write method but using the poke mask instead of
@@ -562,6 +555,8 @@ namespace WdRiscv
 
       for (auto func : postPoke_)
         func(*this, newVal);
+
+      nextValue_ = *valuePtr_;
     }
 
     /// Return the value of this register before last sequence of
@@ -583,11 +578,12 @@ namespace WdRiscv
     bool implemented_ = false; // True if register is implemented.
     bool defined_ = false;
     bool debug_ = false;       // True if this is a debug-mode register.
-    bool shared_ = false;      // True if this is shared among harts.
+    bool shared_ = false;      // True if this is shared between harts.
     URV initialValue_ = 0;
     PrivilegeMode initialMode_ = PrivilegeMode::Machine;
     PrivilegeMode privMode_ = PrivilegeMode::Machine;
     URV value_ = 0;
+    URV nextValue_ = 0;
     URV prev_ = 0;
     bool hasPrev_ = false;
 
@@ -649,6 +645,10 @@ namespace WdRiscv
     /// in the given mode.
     bool isWriteable(CsrNumber number, PrivilegeMode mode) const;
 
+    /// Return the number of bits in a register in this register file.
+    static constexpr uint32_t regWidth()
+    { return sizeof(URV)*8; }
+
   protected:
 
     /// Define csr with given name and number. Return pointer to csr
@@ -707,17 +707,15 @@ namespace WdRiscv
     /// Get the values of the three components of the given debug
     /// trigger. Return true on success and false if trigger is out of
     /// bounds.
-    bool peekTrigger(unsigned trigger, uint64_t& data1, uint64_t& data2,
-                     uint64_t& data3) const
+    bool peekTrigger(URV trigger, URV& data1, URV& data2, URV& data3) const
     { return triggers_.peek(trigger, data1, data2, data3); }
 
     /// Get the values of the three components of the given debug
     /// trigger as well as the components write and poke masks. Return
     /// true on success and false if trigger is out of bounds.
-    bool peekTrigger(unsigned trigger,
-                     uint64_t& data1, uint64_t& data2, uint64_t& data3,
-		     uint64_t& wm1, uint64_t& wm2, uint64_t& wm3,
-		     uint64_t& pm1, uint64_t& pm2, uint64_t& pm3) const
+    bool peekTrigger(URV trigger, URV& data1, URV& data2, URV& data3,
+		     URV& wm1, URV& wm2, URV& wm3,
+		     URV& pm1, URV& pm2, URV& pm3) const
     { return triggers_.peek(trigger, data1, data2, data3, wm1, wm2, wm3,
 			    pm1, pm2, pm3); }
 
@@ -727,7 +725,7 @@ namespace WdRiscv
     bool pokeTrigger(URV trigger, URV data1, URV data2, URV data3)
     { return triggers_.poke(trigger, data1, data2, data3); }
 
-    /// Return true if any of the load (store if isLoad is false)
+    /// Return true if any of the load (store if isLoad is true)
     /// triggers trips. A load/store trigger trips if it matches the
     /// given address and timing and if all the remaining triggers in
     /// its chain have tripped. Set the local-hit bit of any
@@ -737,48 +735,40 @@ namespace WdRiscv
     bool ldStAddrTriggerHit(URV addr, TriggerTiming t, bool isLoad,
                             PrivilegeMode mode, bool ie)
     {
-      bool chainHit = triggers_.ldStAddrTriggerHit(addr, t, isLoad, mode, ie);
-      URV tselect = 0;
-      peek(CsrNumber::TSELECT, tselect);
-      if (triggers_.getLocalHit(tselect))
+      bool hit = triggers_.ldStAddrTriggerHit(addr, t, isLoad, mode, ie);
+      if (hit)
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
-      return chainHit;
+      return hit;
     }
 
     /// Similar to ldStAddrTriggerHit but for data match.
     bool ldStDataTriggerHit(URV data, TriggerTiming t, bool isLoad,
                             PrivilegeMode mode, bool ie)
     {
-      bool chainHit = triggers_.ldStDataTriggerHit(data, t, isLoad, mode, ie);
-      URV tselect = 0;
-      peek(CsrNumber::TSELECT, tselect);
-      if (triggers_.getLocalHit(tselect))
+      bool hit = triggers_.ldStDataTriggerHit(data, t, isLoad, mode, ie);
+      if (hit)
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
-      return chainHit;
+      return hit;
     }
 
     /// Similar to ldStAddrTriggerHit but for instruction address.
     bool instAddrTriggerHit(URV addr, TriggerTiming t, PrivilegeMode mode,
                             bool ie)
     {
-      bool chainHit = triggers_.instAddrTriggerHit(addr, t, mode, ie);
-      URV tselect = 0;
-      peek(CsrNumber::TSELECT, tselect);
-      if (triggers_.getLocalHit(tselect))
+      bool hit = triggers_.instAddrTriggerHit(addr, t, mode, ie);
+      if (hit)
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
-      return chainHit;
+      return hit;
     }
 
     /// Similar to instAddrTriggerHit but for instruction opcode.
     bool instOpcodeTriggerHit(URV opcode, TriggerTiming t, PrivilegeMode mode,
                               bool ie)
     {
-      bool chainHit = triggers_.instOpcodeTriggerHit(opcode, t, mode, ie);
-      URV tselect = 0;
-      peek(CsrNumber::TSELECT, tselect);
-      if (triggers_.getLocalHit(tselect))
+      bool hit = triggers_.instOpcodeTriggerHit(opcode, t, mode, ie);
+      if (hit)
 	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
-      return chainHit;
+      return hit;
     }
 
     /// Make every active icount trigger count down unless it was
@@ -789,10 +779,8 @@ namespace WdRiscv
     bool icountTriggerHit(PrivilegeMode mode, bool ie)
     {
       bool hit = triggers_.icountTriggerHit(mode, ie);
-      URV tselect = 0;
-      peek(CsrNumber::TSELECT, tselect);
-      if (triggers_.getLocalHit(tselect))
-	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDATA1 changed.
+      if (hit)
+	recordWrite(CsrNumber::TDATA1);  // Hit bit in TDTA1 changed.
       return hit;
     }
 
@@ -800,12 +788,6 @@ namespace WdRiscv
     /// that tripped by the last executed instruction.
     void countTrippedTriggers(unsigned& pre, unsigned& post) const
     { triggers_.countTrippedTriggers(pre, post); }
-
-    /// Set t1, t2, and t3 to true if corresponding component (tdata1,
-    /// tdata2, an tdata3) of given trigger was changed by the current
-    /// instruction.
-    void getTriggerChange(URV trigger, bool& t1, bool& t2, bool& t3) const
-    { triggers_.getTriggerChange(trigger, t1, t2, t3); }
 
     /// Associate given event number with given counter.  Subsequent
     /// calls to updatePerofrmanceCounters(en) will cause given
@@ -872,14 +854,6 @@ namespace WdRiscv
     /// Update fcsr after frm/fflags is poked.
     void updateFcsrGroupForPoke(CsrNumber number, URV value);
 
-    /// Helper to write method. Update vxrm/vxsat after vscr is written.
-    /// Update vcsr after vxrm/vxsat is written.
-    void updateVcsrGroupForWrite(CsrNumber number, URV value);
-
-    /// Helper to poke method. Update vxrm/vxsat after vscr is poked.
-    /// Update vcsr after vxrm/vxsat is poked.
-    void updateVcsrGroupForPoke(CsrNumber number, URV value);
-
     /// Helper to construtor. Define machine-mode CSRs
     void defineMachineRegs();
 
@@ -891,9 +865,6 @@ namespace WdRiscv
 
     /// Helper to construtor. Define debug-mode CSRs
     void defineDebugRegs();
-
-    /// Helper to construtor. Define vector CSRs
-    void defineVectorRegs();
 
     /// Helper to construtor. Define non-standard CSRs
     void defineNonStandardRegs();
@@ -943,9 +914,11 @@ namespace WdRiscv
     }
 
     /// Set the current integer-register/CSR width.
-    void turnOn32BitMode(bool flag)
+    void setXlen(unsigned xlen)
     {
-      rv32_ = flag;
+      assert(xlen == 32 or xlen == 64);
+      assert(xlen <= 4*sizeof(URV));
+      xlen_ = xlen;
     }
 
     /// Return the byte of the PMPCFG register associated with the
@@ -971,12 +944,11 @@ namespace WdRiscv
 
     /// Configure given trigger with given reset values, write and
     /// poke masks. Return true on success and false on failure.
-    bool configTrigger(unsigned trigger,
-                       uint64_t rv1, uint64_t rv2, uint64_t rv3,
-		       uint64_t wm1, uint64_t wm2, uint64_t wm3,
-		       uint64_t pm1, uint64_t pm2, uint64_t pm3)
+    bool configTrigger(unsigned trigger, URV val1, URV val2, URV val3,
+		       URV wm1, URV wm2, URV wm3,
+		       URV pm1, URV pm2, URV pm3)
     {
-      return triggers_.config(trigger, rv1, rv2, rv3,
+      return triggers_.config(trigger, val1, val2, val3,
 			      wm1, wm2, wm3, pm1, pm2, pm3);
     }
 
@@ -1009,17 +981,6 @@ namespace WdRiscv
     void setMaxEventId(URV maxId)
     { maxEventId_ = maxId; }
 
-    /// Configure valid event. If this is used then events outside the
-    /// given vector are replaced by zero before being assigned to an
-    /// MHPMEVENT register. Otherwise, events greater that
-    /// max-event-id are clamped to max-event-id before being assigned
-    /// to an MHPMEVENT register.
-    void configPerfEvents(std::vector<unsigned>& eventVec)
-    {
-      hasPerfEventSet_ = true;
-      perfEventSet_.insert(eventVec.begin(), eventVec.end());
-    }
-
     /// Lock/unlock mdseac. This supports imprecise load/store exceptions.
     void lockMdseac(bool flag)
     { mdseacLocked_ = flag; }
@@ -1051,7 +1012,7 @@ namespace WdRiscv
     { pmpG_ = value; }
 
     /// Return the physical memory protection G parameter. See setPmpG.
-    unsigned getPmpG() const
+    unsigned getPmpG()
     { return pmpG_; }
 
     /// Enable user mode.
@@ -1068,13 +1029,9 @@ namespace WdRiscv
     /// Return legalized value.
     URV legalizeMhpmevent(CsrNumber number, URV value);
 
-    /// Enable per-privilege-mode performance-counter control.
-    void enablePerModeCounterControl(bool flag)
-    { perModeCounterControl_ = flag; }
-
   private:
 
-    bool rv32_ = sizeof(URV) == 4;
+    unsigned xlen_ = 8*sizeof(URV);
     std::vector< Csr<URV> > regs_;
     std::unordered_map<std::string, CsrNumber> nameToNumber_;
 
@@ -1095,16 +1052,12 @@ namespace WdRiscv
 
     bool mdseacLocked_ = false; // Once written, MDSEAC persists until
                                 // MDEAU is written.
-    URV maxEventId_ = 16*1024;
-    bool hasPerfEventSet_ = false;
-    std::unordered_set<unsigned> perfEventSet_;
+    URV maxEventId_ = ~URV(0);
 
     unsigned pmpG_ = 0;  // PMP G value: ln2(pmpGrain) - 2
 
     bool userModeEnabled_ = false;
     bool supervisorModeEnabled_ = false;
-
-    bool perModeCounterControl_ = false;
   };
 
 
@@ -1133,7 +1086,7 @@ namespace WdRiscv
       unsigned UBE      : 1;
       unsigned MPIE     : 1;
       unsigned SPP      : 1;
-      unsigned VS       : 2;
+      unsigned res1     : 2;
       unsigned MPP      : 2;
       unsigned FS       : 2;
       unsigned XS       : 2;
@@ -1168,7 +1121,7 @@ namespace WdRiscv
       unsigned UBE      : 1;
       unsigned MPIE     : 1;
       unsigned SPP      : 1;
-      unsigned VS       : 2;
+      unsigned res1     : 2;
       unsigned MPP      : 2;
       unsigned FS       : 2;
       unsigned XS       : 2;
