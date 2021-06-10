@@ -1109,8 +1109,7 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
 
       if (li.tag_ == tag)
 	{
-	  if (li.isValid())
-            matchIx = i;
+          matchIx = i;
           matches++;
 	}
     }
