@@ -44,9 +44,13 @@ namespace WdRiscv
 
     /// Constructor: Construct a system with n (coreCount) cores each
     /// consisting of m (hartsPerCore) harts. The harts in this system
-    /// are indexed with 0 to n*m - 1.
-    System(unsigned coreCount, unsigned hartsPerCore, size_t memSize,
-           size_t pageSize);
+    /// are indexed with 0 to n*m - 1.  Each core is assigned a
+    /// hart-id start from the sequence 0, hartIdOffset,
+    /// 2*hartIdOffset, ...  Harts in a core are assigned consecutive
+    /// hart-ids (values of MHARTID CSRs) starting with the start if
+    /// od the core.
+    System(unsigned coreCount, unsigned hartsPerCore, unsigned hartIdOffset,
+           size_t memSize, size_t pageSize);
 
     ~System();
 
@@ -66,11 +70,21 @@ namespace WdRiscv
     /// Return pointer to the ith hart in the system or null if i is
     /// out of bounds. A hart index is valid if it is less than the
     /// value returned by the hartCount method.
-    std::shared_ptr<HartClass> ithHart(unsigned i)
+    std::shared_ptr<HartClass> ithHart(unsigned i) const
     {
       if (i >= sysHarts_.size())
 	return std::shared_ptr<HartClass>();
       return sysHarts_.at(i);
+    }
+
+    /// Return pointer to this system hart having the given value as
+    /// its hart-id (value of MHARTID CSR) or null if no such hart.
+    std::shared_ptr<HartClass> findHartByHartId(URV hartId) const
+    {
+      const auto& iter = hartIdToIndex_.find(hartId);
+      if (iter != hartIdToIndex_.end())
+        return ithHart(iter->second);
+      return std::shared_ptr<HartClass>();
     }
 
     /// Return pointer to the ith core in the system or null if i is
@@ -131,6 +145,7 @@ namespace WdRiscv
 
     std::vector< std::shared_ptr<CoreClass> > cores_;
     std::vector< std::shared_ptr<HartClass> > sysHarts_; // All harts in system.
+    std::unordered_map<URV, unsigned> hartIdToIndex_;
     std::shared_ptr<Memory> memory_ = nullptr;
     SparseMem* sparseMem_ = nullptr;
   };

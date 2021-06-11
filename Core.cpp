@@ -19,14 +19,15 @@ using namespace WdRiscv;
 
 
 template <typename URV>
-Core<URV>::Core(URV idBase, unsigned hartsPerCore, Memory& memory)
+Core<URV>::Core(URV hartIdBase, unsigned coreIx, unsigned hartsPerCore, Memory& memory)
 {
   harts_.resize(hartsPerCore);
 
   for (unsigned ix = 0; ix < hartsPerCore; ++ix)
     {
-      URV hartId = idBase + ix;
-      harts_.at(ix) = std::make_shared<HartClass>(hartId, memory);
+      URV hartId = hartIdBase + ix;  // Value in MHARTID of hart.
+      unsigned hartIx = coreIx * hartsPerCore + ix;  // Rank of hart in system.
+      harts_.at(ix) = std::make_shared<HartClass>(hartIx, hartId, memory);
     }
 }
 

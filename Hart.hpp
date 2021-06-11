@@ -111,9 +111,10 @@ namespace WdRiscv
     typedef typename std::make_signed_t<URV> SRV;
 
     /// Constructor: Define a hart with the given index (unique index
-    /// within cluster of cores) and associate it with the given
-    /// memory.
-    Hart(unsigned hartIx, Memory& memory);
+    /// within a system of cores -- see sysHartIndex method) and
+    /// associate it with the given memory. The MHARTID is configured as
+    /// a read-only CSR with a reset value of hartId.
+    Hart(unsigned hartIx, URV hartId, Memory& memory);
 
     /// Destructor.
     ~Hart();
@@ -2874,7 +2875,7 @@ namespace WdRiscv
 
   private:
 
-    unsigned hartIx_ = 0;        // Hardware thread id within cluster.
+    unsigned hartIx_ = 0;        // Hart ix in system, see sysHartIndex method.
     std::atomic<bool> hartStarted_ = true;    // True if hart is running. WD special.
     Memory& memory_;
     IntRegs<URV> intRegs_;       // Integer register file.

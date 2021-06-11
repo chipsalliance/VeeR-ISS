@@ -89,7 +89,7 @@ parseNumber(const std::string& numberStr, TYPE& number)
 
 
 template <typename URV>
-Hart<URV>::Hart(unsigned hartIx, Memory& memory)
+Hart<URV>::Hart(unsigned hartIx, URV hartId, Memory& memory)
   : hartIx_(hartIx), memory_(memory), intRegs_(32),
     fpRegs_(32), vecRegs_(), syscall_(*this),
     pmpManager_(memory.size(), 1024*1024),
@@ -161,14 +161,10 @@ Hart<URV>::Hart(unsigned hartIx, Memory& memory)
   // Tie the FCSR register to variable held in the hart.
   csRegs_.regs_.at(size_t(CsrNumber::FCSR)).tie(&fcsrValue_);
 
-  // Add local hart-id to the base-hart-id when MHARTID CSR is
-  // constructed.  This will be over-written if MHARTID is configured
-  // in the JSON configuration file.
+  // Configure MHARTID CSR.
   bool implemented = true, debug = false, shared = false;
-  URV base = 0, reset = 0, mask = 0, pokeMask = 0;
+  URV mask = 0, pokeMask = 0;
 
-  peekCsr(CsrNumber::MHARTID, base, reset, mask, pokeMask);
-  URV hartId = base + hartIx;
   csRegs_.configCsr(CsrNumber::MHARTID, implemented, hartId, mask, pokeMask,
                     debug, shared);
 }

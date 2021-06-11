@@ -20,7 +20,8 @@ using namespace WdRiscv;
 
 
 template <typename URV>
-System<URV>::System(unsigned coreCount, unsigned hartsPerCore, size_t memSize,
+System<URV>::System(unsigned coreCount, unsigned hartsPerCore,
+                    unsigned hartIdOffset, size_t memSize,
                     size_t pageSize)
   : hartCount_(coreCount * hartsPerCore), hartsPerCore_(hartsPerCore)
 {
@@ -34,15 +35,19 @@ System<URV>::System(unsigned coreCount, unsigned hartsPerCore, size_t memSize,
 
   for (unsigned ix = 0; ix < coreCount; ++ix)
     {
-      URV hartIdBase = ix * hartsPerCore;
-      cores_.at(ix) = std::make_shared<CoreClass>(hartIdBase, hartsPerCore, mem);
+      URV coreHartId = ix * hartIdOffset;
+      cores_.at(ix) = std::make_shared<CoreClass>(coreHartId, ix, hartsPerCore, mem);
 
-      // Maintain a vector of all the harts in the system.
+      // Maintain a vector of all the harts in the system.  Map hart-id to index
+      // of hart in system.
       auto core = cores_.at(ix);
       for (unsigned i = 0; i < hartsPerCore; ++i)
         {
           auto hart = core->ithHart(i);
           sysHarts_.push_back(hart);
+          URV hartId = coreHartId + i;
+          unsigned hartIx = ix*hartsPerCore + i;
+          hartIdToIndex_[hartId] = hartIx;
         }
     }
 
