@@ -17,6 +17,7 @@
 #include <iostream>
 #include "HartConfig.hpp"
 #include "System.hpp"
+#include "Core.hpp"
 #include "Hart.hpp"
 
 
@@ -1938,12 +1939,25 @@ HartConfig::finalizeCsrConfig(System<URV>& system) const
   if (system.hartCount() == 0)
     return false;
 
-  // Make shared CSRs in each hart with hart-id greater than zero
-  // point to the corresponding values in hart zero.
-  auto hart0 = system.ithHart(0);
-  assert(hart0);
-  for (unsigned i = 1; i < system.hartCount(); ++i)
-    system.ithHart(i)->tieSharedCsrsTo(*hart0);
+  // Make shared CSRs in each hart except first one in core point to
+  // the corresponding values in the first hart zero.
+  for (unsigned ci = 0; ci < system.coreCount(); ++ci)
+    {
+      auto corePtr = system.ithCore(ci);
+      if (not corePtr)
+        continue;
+
+      auto hart0 = corePtr->ithHart(0);
+      if (not hart0)
+        continue;
+
+      for (unsigned hi = 1; hi < corePtr->hartCount(); ++hi)
+        {
+          auto hartPtr = corePtr->ithHart(hi);
+          if (hartPtr)
+            hartPtr->tieSharedCsrsTo(*hart0);
+        }
+    }
 
   // The following are WD non-standard CSRs. We implement their
   // actions by associating callbacks with the write/poke CSR methods.
