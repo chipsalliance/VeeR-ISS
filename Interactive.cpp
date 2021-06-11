@@ -1436,27 +1436,37 @@ Interactive<URV>::executeLine(unsigned& currentHartId,
     return false;
 
   if (hasHart)
-    outLine = line;
+    {
+      outLine = line;
+      currentHartId = hartId;
+    }
   else
     {
       hartId = currentHartId;
       outLine = std::string("hart=") + std::to_string(hartId) + " " + line;
     }
 
-  if (hartId >= system_.hartCount())
+  const std::string& command = tokens.front();
+  if (command == "q" or command == "quit")
+    {
+      if (commandLog)
+	fprintf(commandLog, "%s\n", outLine.c_str());
+      done = true;
+      return true;
+    }
+
+  auto hartPtr = system_.findHartByHartId(hartId);
+  if (not hartPtr)
     {
       std::cerr << "Hart id out of bounds: " << hartId << '\n';
       return false;
     }
 
-  Hart<URV>& hart = *(system_.ithHart(hartId));
-
-  const std::string& command = tokens.front();
+  Hart<URV>& hart = *hartPtr;
 
   if (not hart.isStarted())
     {
-      if (command != "peek" and command != "poke" and command != "reset" and
-          command != "quit")
+      if (command != "peek" and command != "poke" and command != "reset")
         {
           std::cerr << "Error: Command " << command << " received for a "
                     << "non-started hart.\n";
@@ -1542,14 +1552,6 @@ Interactive<URV>::executeLine(unsigned& currentHartId,
 	return false;
       if (commandLog)
 	fprintf(commandLog, "%s\n", outLine.c_str());
-      return true;
-    }
-
-  if (command == "q" or command == "quit")
-    {
-      if (commandLog)
-	fprintf(commandLog, "%s\n", outLine.c_str());
-      done = true;
       return true;
     }
 
@@ -1750,6 +1752,14 @@ Interactive<URV>::interact(FILE* traceFile, FILE* commandLog)
   std::ifstream replayStream;
 
   const char* prompt = isatty(0) ? "whisper> " : "";
+
+  auto hartPtr = system_.ithHart(0);
+  if (hartPtr)
+    {
+      URV value = 0;
+      if (hartPtr->peekCsr(CsrNumber::MHARTID, value))
+        currentHartId = value;
+    }
 
   bool done = false;
   while (not done)

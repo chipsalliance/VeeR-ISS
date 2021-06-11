@@ -33,8 +33,10 @@ namespace WdRiscv
     typedef Hart<URV> HartClass;
 
     /// Constructor: construct a core with n (hartsPerCore) harts
-    /// assigning to them hart-ids idBase to idBase + n - 1.
-    Core(URV idBase, unsigned hartsPerCore, Memory& memory);
+    /// assigning to them hart-ids (value in mhartid CSR) idBase to
+    /// idBase + n - 1. CoreIx the index of this core in the system
+    /// (cores are indexed 0 to m-1 where m is the number of cores).
+    Core(URV idBase, unsigned coreIx, unsigned hartsPerCore, Memory& memory);
 
     ~Core();
 

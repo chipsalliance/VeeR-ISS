@@ -267,7 +267,7 @@ Server<URV>::pokeCommand(const WhisperMessage& req, WhisperMessage& reply)
     return false;
 
   uint32_t hartId = req.hart;
-  auto hartPtr = system_.ithHart(hartId);
+  auto hartPtr = system_.findHartByHartId(hartId);
   if (not hartPtr)
     return false;
   auto& hart = *hartPtr;
@@ -333,7 +333,7 @@ Server<URV>::peekCommand(const WhisperMessage& req, WhisperMessage& reply)
     return false;
 
   uint32_t hartId = req.hart;
-  auto hartPtr = system_.ithHart(hartId);
+  auto hartPtr = system_.findHartByHartId(hartId);
   if (not hartPtr)
     return false;
   auto& hart = *hartPtr;
@@ -668,7 +668,8 @@ bool
 Server<URV>::checkHartId(const WhisperMessage& req, WhisperMessage& reply)
 {
   uint32_t hartId = req.hart;
-  if (hartId >= system_.hartCount())
+  auto hartPtr = system_.findHartByHartId(hartId);
+  if (not hartPtr)
     {
       std::cerr << "Error: Hart ID (" << std::dec << hartId
                 << ") out of bounds\n";
@@ -688,7 +689,7 @@ Server<URV>::checkHart(const WhisperMessage& req, const std::string& command,
     return false;
 
   uint32_t hartId = req.hart;
-  auto hartPtr = system_.ithHart(hartId);
+  auto hartPtr = system_.findHartByHartId(hartId);
   if (not hartPtr)
     return false;
 
@@ -720,7 +721,7 @@ Server<URV>::stepCommand(const WhisperMessage& req,
     return false;
 
   uint32_t hartId = req.hart;
-  auto hartPtr = system_.ithHart(hartId);
+  auto hartPtr = system_.findHartByHartId(hartId);
   if (not hartPtr)
     return false;
   auto& hart = *hartPtr;
@@ -778,7 +779,7 @@ Server<URV>::exceptionCommand(const WhisperMessage& req,
     return false;
 
   uint32_t hartId = req.hart;
-  auto hartPtr = system_.ithHart(hartId);
+  auto hartPtr = system_.findHartByHartId(hartId);
   if (not hartPtr)
     return false;
   auto& hart = *hartPtr;
@@ -900,7 +901,7 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
           std::string timeStamp = std::to_string(msg.rank);
 
           uint32_t hartId = msg.hart;
-          auto hartPtr = system_.ithHart(hartId);
+          auto hartPtr = system_.findHartByHartId(hartId);
           assert(hartPtr);
           auto& hart = *hartPtr;
 

@@ -89,7 +89,7 @@ parseNumber(const std::string& numberStr, TYPE& number)
 
 
 template <typename URV>
-Hart<URV>::Hart(unsigned hartIx, Memory& memory)
+Hart<URV>::Hart(unsigned hartIx, URV hartId, Memory& memory)
   : hartIx_(hartIx), memory_(memory), intRegs_(32),
     fpRegs_(32), vecRegs_(), syscall_(*this),
     pmpManager_(memory.size(), 1024*1024),
@@ -161,14 +161,10 @@ Hart<URV>::Hart(unsigned hartIx, Memory& memory)
   // Tie the FCSR register to variable held in the hart.
   csRegs_.regs_.at(size_t(CsrNumber::FCSR)).tie(&fcsrValue_);
 
-  // Add local hart-id to the base-hart-id when MHARTID CSR is
-  // constructed.  This will be over-written if MHARTID is configured
-  // in the JSON configuration file.
+  // Configure MHARTID CSR.
   bool implemented = true, debug = false, shared = false;
-  URV base = 0, reset = 0, mask = 0, pokeMask = 0;
+  URV mask = 0, pokeMask = 0;
 
-  peekCsr(CsrNumber::MHARTID, base, reset, mask, pokeMask);
-  URV hartId = base + hartIx;
   csRegs_.configCsr(CsrNumber::MHARTID, implemented, hartId, mask, pokeMask,
                     debug, shared);
 }
@@ -851,6 +847,7 @@ Hart<URV>::putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
       return;
     }
 
+  size_t newIx = 0;  // Index of new entry.
   if (loadQueue_.size() >= maxLoadQueueSize_)
     {
       std::cerr << "At #" << instCounter_ << ": Load queue full.\n";
@@ -858,10 +855,30 @@ Hart<URV>::putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
 	loadQueue_[i-1] = loadQueue_[i];
       loadQueue_[maxLoadQueueSize_-1] = LoadInfo(size, addr, regIx, data,
 						 isWide, instCounter_, fp);
+      newIx = maxLoadQueueSize_ - 1;
     }
   else
-    loadQueue_.push_back(LoadInfo(size, addr, regIx, data, isWide,
-				  instCounter_, fp));
+    {
+      loadQueue_.push_back(LoadInfo(size, addr, regIx, data, isWide,
+                                    instCounter_, fp));
+      newIx = loadQueue_.size() - 1;
+    }
+
+  uint64_t prev = loadQueue_.at(newIx).prevData_;
+
+  for (size_t i = 0; i < newIx; ++i)
+    {
+      auto& entry = loadQueue_.at(i);
+      if (entry.isValid() and entry.regIx_ == regIx and entry.fp_ == fp)
+        {
+          if (entry.wide_ and not loadQueue_.at(newIx).wide_)
+            pokeCsr(CsrNumber::MDBHD, entry.prevData_ >> 32); // Revert MDBHD.
+          prev = entry.prevData_;
+          entry.makeInvalid();
+        }
+    }
+
+  loadQueue_.at(newIx).prevData_ = prev;
 }
 
 
@@ -1079,31 +1096,20 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
       return true;
     }
 
-  // Count matching records. Determine if there is an entry with the
-  // same register as the first match but younger.
-  bool hasYounger = false, fp = false;
-  unsigned targetReg = 0;  // Register of 1st match.
+  // Count matching records.
   matches = 0;
-  unsigned iMatches = 0;  // Invalid matching entries.
-  for (const LoadInfo& li : loadQueue_)
+  size_t matchIx = 0;     // Index of matching entry.
+  for (size_t i = 0; i < loadQueue_.size(); ++i)
     {
-      if (matches and li.isValid() and targetReg == li.regIx_ and fp == li.fp_)
-	hasYounger = true;
+      const LoadInfo& li = loadQueue_.at(i);
 
       if (li.tag_ == tag)
 	{
-	  if (li.isValid())
-	    {
-	      targetReg = li.regIx_;
-              fp = li.fp_;
-	      matches++;
-	    }
-	  else
-	    iMatches++;
+          matchIx = i;
+          matches++;
 	}
     }
 
-  matches += iMatches;
   if (matches != 1)
     {
       std::cerr << "Error: Load exception addr:0x" << std::hex << addr << std::dec;
@@ -1116,64 +1122,21 @@ Hart<URV>::applyLoadException(URV addr, unsigned tag, unsigned& matches)
       return false;
     }
 
-  // Revert register of matching item unless there are younger entries
-  // with same resister. Revert with value of older entry with same
-  // target register (if multiple such entry, use oldest). Invalidate
-  // all older entries with same target. Remove item from queue.
-  // Update prev-data of 1st younger item with same target register.
-  size_t removeIx = loadQueue_.size();
-  for (size_t ix = 0; ix < loadQueue_.size(); ++ix)
+  // Revert register of matching item.
+  auto& entry = loadQueue_.at(matchIx);
+  if (entry.isValid())
     {
-      auto& entry = loadQueue_.at(ix);
-      if (entry.tag_ != tag or entry.fp_ != fp)
-        continue;  // Not a match.
-
-      removeIx = ix;
-      if (not entry.isValid())
-        continue;
-
-      uint64_t prev = entry.prevData_;
-
-      // Revert to oldest entry with same target reg. Invalidate older
-      // entries with same target reg.
-      for (size_t ix2 = removeIx; ix2 > 0; --ix2)
-	{
-	  auto& entry2 = loadQueue_.at(ix2-1);
-	  if (entry2.isValid() and entry2.regIx_ == entry.regIx_ and entry2.fp_ == fp)
-	    {
-	      prev = entry2.prevData_;
-	      entry2.makeInvalid();
-	    }
-	}
-
-      if (not hasYounger)
-	{
-          if (fp)
-            pokeFpReg(entry.regIx_, prev);
-          else
-            {
-              pokeIntReg(entry.regIx_, prev);
-              if (entry.wide_)
-                pokeCsr(CsrNumber::MDBHD, entry.prevData_ >> 32);
-            }
-	}
-
-      // Update prev-data of 1st younger item with same target reg.
-      for (size_t ix2 = removeIx + 1; ix2 < loadQueue_.size(); ++ix2)
-	{
-	  auto& entry2 = loadQueue_.at(ix2);
- 	  if (entry2.isValid() and entry2.regIx_ == entry.regIx_ and entry.fp_ == fp)
- 	    {
-	      entry2.prevData_ = prev;
-	      break;
-	    }
-	}
-
-      break;
+      if (entry.fp_)
+        pokeFpReg(entry.regIx_, entry.prevData_);
+      else
+        {
+          pokeIntReg(entry.regIx_, entry.prevData_);
+          if (entry.wide_)
+            pokeCsr(CsrNumber::MDBHD, entry.prevData_ >> 32);
+        }
     }
 
-  if (removeIx < loadQueue_.size())
-    loadQueue_.erase(loadQueue_.begin() + removeIx);
+  loadQueue_.erase(loadQueue_.begin() + matchIx);
 
   return true;
 }
@@ -1217,60 +1180,8 @@ Hart<URV>::applyLoadFinished(URV addr, unsigned tag, unsigned& matches)
       std::cerr << " matches multiple intries in the load queue\n";
     }
 
-  LoadInfo& entry = loadQueue_.at(matchIx);
-  bool fp = entry.fp_;
-
-  // Process entries in reverse order (start with oldest)
-  // Mark all earlier entries with same target register as invalid.
-  // Identify earliest previous value of target register.
-  unsigned targetReg = entry.regIx_;
-  size_t prevIx = matchIx;
-  uint64_t prev = entry.prevData_;  // Previous value of target reg.
-  for (size_t j = 0; j < matchIx; ++j)
-    {
-      LoadInfo& li = loadQueue_.at(j);
-      if (not li.isValid())
-	continue;
-      if (li.regIx_ != targetReg or li.fp_ != fp)
-	continue;
-
-      li.makeInvalid();
-      if (j < prevIx)
-	{
-	  prevIx = j;
-	  prev = li.prevData_;
-	}
-    }
-
-  // Update prev-data of 1st subsequent entry with same target.
-  if (entry.isValid())
-    for (size_t j = matchIx + 1; j < size; ++j)
-      {
-	LoadInfo& li = loadQueue_.at(j);
-	if (li.isValid() and li.regIx_ == targetReg and li.fp_ == fp)
-	  {
-	    // Preserve upper 32 bits if wide (64-bit) load.
-	    if (li.wide_)
-	      prev = ((prev << 32) >> 32) | ((li.prevData_ >> 32) << 32);
-	    li.prevData_ = prev;
-	    break;
-	  }
-      }
-
   // Remove matching entry from queue.
-  size_t newSize = 0;
-  for (size_t i = 0; i < size; ++i)
-    {
-      auto& li = loadQueue_.at(i);
-      bool remove = i == matchIx;
-      if (remove)
-	continue;
-
-      if (newSize != i)
-	loadQueue_.at(newSize) = li;
-      newSize++;
-    }
-  loadQueue_.resize(newSize);
+  loadQueue_.erase(loadQueue_.begin() + matchIx);
 
   return true;
 }

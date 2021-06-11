@@ -254,7 +254,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 681;
+  unsigned subversion = 683;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -1718,7 +1718,15 @@ session(const Args& args, const HartConfig& config)
   checkAndRepairMemoryParams(memorySize, pageSize, regionSize);
 
   // Create cores & harts.
-  System<URV> system(coreCount, hartsPerCore, memorySize, pageSize);
+  unsigned hartIdOffset = hartsPerCore;
+  config.getHartIdOffset(hartIdOffset);
+  if (hartIdOffset < hartsPerCore)
+    {
+      std::cerr << "Invalid core_hart_id_offset: " << hartIdOffset
+                << ",  must be greater than harts_per_core: " << hartsPerCore << '\n';
+      return false;
+    }
+  System<URV> system(coreCount, hartsPerCore, hartIdOffset, memorySize, pageSize);
   assert(system.hartCount() == coreCount*hartsPerCore);
   assert(system.hartCount() > 0);
 

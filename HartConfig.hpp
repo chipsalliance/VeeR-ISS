@@ -93,6 +93,13 @@ namespace WdRiscv
     /// not contain a memory size configuration.
     bool getMemorySize(size_t& memSize) const;
 
+    /// Set hartIdOffset to the hart-id offset configuration field
+    /// returning true on success and false on failure. Cores will be
+    /// associated with start ids 0, hartIdOffset, 2*hartIdOffset, ...
+    /// Harts within a core will get consecutive MHARTID values
+    /// starting with the start id associated with that core.
+    bool getHartIdOffset(unsigned& offset) const;
+
     /// Return true if the reset value of the MISA CSR has the user
     /// extension enabled. Return false if MISA CSR is not present in
     /// this configuration or if user extension is not enabled.

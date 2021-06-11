@@ -378,7 +378,11 @@ applyCsrConfig(Hart<URV>& hart, const nlohmann::json& config, bool verbose)
       // Add hart-index to the base-hart-id (which is common to all
       // the harts in the core).
       if (csrName == "mhartid")
-        reset += hart.sysHartIndex();
+        {
+          std::cerr << "CSR mhartid cannot be configured.\n";
+          std::cerr << "Ignoring mhartid CSR configuration in config file.\n";
+          continue;
+        }
 
       if (not hart.configCsr(csrName, exists, reset, mask, pokeMask,
 			     isDebug, shared))
@@ -1408,6 +1412,17 @@ HartConfig::getPageSize(size_t& pageSize) const
     return false;
 
   return getJsonUnsigned("memmap.page_size", mem.at("page_size"), pageSize);
+}
+
+
+bool
+HartConfig::getHartIdOffset(unsigned& offset) const
+{
+  std::string tag = "core_hart_id_offset";
+  if (not config_ -> count(tag))
+    return false;
+
+  return getJsonUnsigned(tag, config_->at(tag), offset);
 }
 
 
