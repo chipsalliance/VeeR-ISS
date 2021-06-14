@@ -759,7 +759,14 @@ Server<URV>::stepCommand(const WhisperMessage& req,
   processStepCahnges(hart, inst, pendingChanges, interrupted, hasPre,
 		     hasPost, reply);
 
+  // Send privilege mode in reply.flags
   reply.flags = privMode;
+
+#if 0
+  // Send floating point flags and privilege mode in reply.flags.
+  unsigned fpFlags = 0;
+  reply.flags |= (fpFlags << 16);
+#endif
 
   hart.clearTraceData();
   return true;

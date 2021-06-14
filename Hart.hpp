@@ -1674,9 +1674,9 @@ namespace WdRiscv
     /// otherwise.
     bool processExternalInterrupt(FILE* traceFile, std::string& insStr);
 
-    /// Helper to FP execution: Set the given flag value (ored values
-    /// ok) in FCSR. No-op if a trigger has already tripped.
-    void setFcsrFlags(FpFlags value);
+    /// Helper to FP execution: Or the given flags values to FCSR
+    /// recording a write. No-op if a trigger has already tripped.
+    void orFcsrFlags(FpFlags value);
 
     /// Execute decoded instruction. Branch/jump instructions will
     /// modify pc_.

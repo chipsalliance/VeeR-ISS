@@ -279,7 +279,7 @@ namespace WdRiscv
 
     /// Clear the number denoting the last written register.
     void clearLastWrittenReg()
-    { lastWrittenReg_ = -1; }
+    { lastWrittenReg_ = -1; lastFpFlags_ = 0; }
 
     /// Return the number of the last written register or -1 if no register has
     /// been written since the last clearLastWrittenReg.
@@ -307,6 +307,17 @@ namespace WdRiscv
 
       return true;
     }
+
+    /// Return the incremental floating point flag values resulting from
+    /// the execution of the last instruction. Return 0 if last instructions
+    /// is not an FP instruction or if it does not set any of the FP flags.
+    unsigned getLastFpFlags() const
+    { return lastFpFlags_; }
+
+    /// Set the incremental FP flags produced by the last executed FP
+    /// instruction.
+    void setLastFpFlags(unsigned flags)
+    { lastFpFlags_ = flags; }
 
     /// Set width of floating point register (flen). Internal
     /// representation always uses 64-bits. If flen is set to 32 then
@@ -349,6 +360,7 @@ namespace WdRiscv
 
     std::vector<double> regs_;
     int lastWrittenReg_ = -1;    // Register accessed in most recent write.
+    unsigned lastFpFlags_ = 0;
     double originalValue_ = 0;   // Original value of last written reg.
     unsigned flen_ = 64;         // Floating point register width.
     bool nanBox_ = true;
