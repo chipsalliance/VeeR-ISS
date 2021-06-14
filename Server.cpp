@@ -763,7 +763,7 @@ Server<URV>::stepCommand(const WhisperMessage& req,
   reply.flags = privMode;
 
 #if 0
-  // Send floating point flags and privilege mode in reply.flags.
+  // Send floating point flags in bits 16 to 19 of reply.flags.
   unsigned fpFlags = 0;
   reply.flags |= (fpFlags << 16);
 #endif
