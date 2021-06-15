@@ -945,17 +945,7 @@ HartConfig::applyMemoryConfig(Hart<URV>& hart, bool iccmRw, bool /*verbose*/) co
 	  errors++;
     }
 
-  std::string tag = "physical_memory_protection_grain";
-  if (config_ -> count(tag))
-    {
-      uint64_t size = 0;
-      if (getJsonUnsigned<uint64_t>(tag, config_ -> at(tag), size))
-        hart.configMemoryProtectionGrain(size);
-      else
-        errors++;
-    }
-
-  tag = "enable_misaligned_data";
+  std::string tag = "enable_misaligned_data";
   if (config_ -> count(tag))
     {
       bool misal = true;
@@ -1331,6 +1321,16 @@ HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
       uint64_t addr = 0;
       if (getJsonUnsigned(tag, config_ -> at(tag), addr))
         hart.defineSyscallSlam(addr);
+      else
+        errors++;
+    }
+
+  tag = "physical_memory_protection_grain";
+  if (config_ -> count(tag))
+    {
+      uint64_t size = 0;
+      if (getJsonUnsigned<uint64_t>(tag, config_ -> at(tag), size))
+        hart.configMemoryProtectionGrain(size);
       else
         errors++;
     }
