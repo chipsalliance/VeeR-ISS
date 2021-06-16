@@ -945,16 +945,6 @@ HartConfig::applyMemoryConfig(Hart<URV>& hart, bool iccmRw, bool /*verbose*/) co
 	  errors++;
     }
 
-  std::string tag = "enable_misaligned_data";
-  if (config_ -> count(tag))
-    {
-      bool misal = true;
-      if (getJsonBoolean(tag, config_ ->at(tag), misal))
-        hart.enableMisalignedData(misal);
-      else
-        errors++;
-    }
-
   return errors == 0;
 }
 
@@ -1331,6 +1321,16 @@ HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
       uint64_t size = 0;
       if (getJsonUnsigned<uint64_t>(tag, config_ -> at(tag), size))
         hart.configMemoryProtectionGrain(size);
+      else
+        errors++;
+    }
+
+  tag = "enable_misaligned_data";
+  if (config_ -> count(tag))
+    {
+      bool misal = true;
+      if (getJsonBoolean(tag, config_ ->at(tag), misal))
+        hart.enableMisalignedData(misal);
       else
         errors++;
     }
