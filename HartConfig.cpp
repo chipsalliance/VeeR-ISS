@@ -1310,7 +1310,10 @@ HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
     {
       uint64_t addr = 0;
       if (getJsonUnsigned(tag, config_ -> at(tag), addr))
-        hart.defineSyscallSlam(addr);
+        {
+          hart.defineSyscallSlam(addr);
+          hart.enableLinux(true);
+        }
       else
         errors++;
     }
