@@ -1127,16 +1127,13 @@ Hart<URV>::execFcvt_wu_s(const DecodedInst* di)
         }
     }
 
-  URV incFlags = 0;
+  uint32_t incFlags = 0;
   if (not valid)
-    incFlags |= FpFlags::Invalid;
+    incFlags |= uint32_t(FpFlags::Invalid);
   if (not exact)
-    incFlags |= FpFlags::Inexact;
+    incFlags |= uint32_t(FpFlags::Inexact);
   if (incFlags != 0)
-    {
-      orFcsrFlags(incFlags);
-      fpRegs_.setLastFpFlags(incFlags);
-    }
+    orFcsrFlags(FpFlags(incFlags));
 
 #endif
 
@@ -1534,13 +1531,13 @@ Hart<uint64_t>::execFcvt_lu_s(const DecodedInst* di)
     }
 
 
-  URV incFlags = 0;  // Incremental FP flags.
+  uint32_t incFlags = 0;  // Incremental FP flags.
   if (not valid)
-    incFlags |= FpFlags::Invalid;
+    incFlags |= uint32_t(FpFlags::Invalid);
   if (not exact)
-    incFlags |= (FpFlags::Inexact);
+    incFlags |= uint32_t(FpFlags::Inexact);
   if (incFlags)
-    orFcsrFlags(incFlags);
+    orFcsrFlags(FpFlags(incFlags));
 
 #endif
 
@@ -2318,13 +2315,13 @@ Hart<URV>::execFcvt_wu_d(const DecodedInst* di)
         }
     }
 
-  URV incFlags = 0;
+  uint32_t incFlags = 0;
   if (not valid)
-    incFlags |= FpFlags::Invalid;
+    incFlags |= uint32_t(FpFlags::Invalid);
   if (not exact)
-    incFlags = FpFlags::Inexact;
+    incFlags |= uint32_t(FpFlags::Inexact);
   if (incFlags)
-    orFcsrFlags(incFlags);
+    orFcsrFlags(FpFlags(incFlags));
 
 #endif
 
@@ -2591,13 +2588,13 @@ Hart<uint64_t>::execFcvt_lu_d(const DecodedInst* di)
     }
 
 
-  URV incFlags = 0;
+  uint32_t incFlags = 0;
   if (not valid)
-    incFlags |= FpFlags::Invalid;
+    incFlags |= uint32_t(FpFlags::Invalid);
   if (not exact)
-    incFlags |= FpFlags::Inexact;
+    incFlags |= uint32_t(FpFlags::Inexact);
   if (incFlags)
-    setFcsrFlags(FpFlags::Inexact);
+    orFcsrFlags(FpFlags(incFlags));
 
 #endif
 
