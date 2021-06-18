@@ -90,7 +90,7 @@ namespace WdRiscv
     uint64_t fpRegValue = 0;   // Value of changed fp register if any.
     
     unsigned memSize = 0;      // Size of changed memory (0 if none).
-    size_t memAddr = 0;        // Address of changed memory if any.
+    uint64_t memAddr = 0;      // Address of changed memory if any.
     uint64_t memValue = 0;     // Value of changed memory if any.
 
     // An exception will result in changing multiple CSRs.
