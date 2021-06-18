@@ -816,11 +816,12 @@ Syscall<URV>::emulate()
       {
 	int fd = effectiveFd(SRV(a0));
 	int req = SRV(a1);
-        URV rvArg = a2;
 
         std::vector<char> tmp;
         char* arg = nullptr;
 
+#ifndef __APPLE_
+        URV rvArg = a2;
 	if (rvArg != 0)
           {
             size_t size = _IOC_SIZE(req);
@@ -829,6 +830,7 @@ Syscall<URV>::emulate()
               return SRV(-EINVAL);
             arg = tmp.data();
           }
+#endif
 
 	errno = 0;
 	int rc = ioctl(fd, req, arg);
