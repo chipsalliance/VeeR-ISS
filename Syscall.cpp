@@ -820,7 +820,7 @@ Syscall<URV>::emulate()
         std::vector<char> tmp;
         char* arg = nullptr;
 
-#ifndef __APPLE_
+#ifndef __APPLE__
         URV rvArg = a2;
 	if (rvArg != 0)
           {
