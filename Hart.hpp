@@ -90,7 +90,7 @@ namespace WdRiscv
     uint64_t fpRegValue = 0;   // Value of changed fp register if any.
     
     unsigned memSize = 0;      // Size of changed memory (0 if none).
-    size_t memAddr = 0;        // Address of changed memory if any.
+    uint64_t memAddr = 0;      // Address of changed memory if any.
     uint64_t memValue = 0;     // Value of changed memory if any.
 
     // An exception will result in changing multiple CSRs.
@@ -1639,8 +1639,8 @@ namespace WdRiscv
     /// execution. Tag is the record tag (the retired instruction
     /// count after instruction is executed). Tmp is a temporary
     /// string (for performance).
-    void printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
-			FILE* out, bool interrupt = false);
+    void printDecodedInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
+                               FILE* out, bool interrupt = false);
 
     /// Variant of the preceding method for cases where the trace is
     /// printed before decode. If the instruction is not available
