@@ -3391,14 +3391,14 @@ Hart<URV>::printInstTrace(uint32_t inst, uint64_t tag, std::string& tmp,
   DecodedInst di;
   decode(pc_, inst, di);
 
-  printInstTrace(di, tag, tmp, out, interrupt);
+  printDecodedInstTrace(di, tag, tmp, out, interrupt);
 }
 
 
 template <typename URV>
 void
-Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
-			  FILE* out, bool interrupt)
+Hart<URV>::printDecodedInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
+                                 FILE* out, bool interrupt)
 {
   // Serialize to avoid jumbled output.
   std::lock_guard<std::mutex> guard(printInstTraceMutex);
@@ -3460,7 +3460,7 @@ Hart<URV>::printInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
     }
 
   // Process memory diff.
-  size_t address = 0;
+  uint64_t address = 0;
   uint64_t memValue = 0;
   unsigned writeSize = memory_.getLastWriteNewValue(hartIx_, address, memValue);
   if (writeSize > 0)
@@ -4552,7 +4552,7 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
                 accumulateInstructionStats(*di);
 	      if (traceFile)
 		{
-		  printInstTrace(*di, instCounter_, instStr, traceFile);
+		  printDecodedInstTrace(*di, instCounter_, instStr, traceFile);
 		  clearTraceData();
 		}
 	      continue;
@@ -4575,7 +4575,7 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
 	  if (trace)
 	    {
 	      if (traceFile)
-		printInstTrace(*di, instCounter_, instStr, traceFile);
+		printDecodedInstTrace(*di, instCounter_, instStr, traceFile);
 	      clearTraceData();
 	    }
 
@@ -5076,7 +5076,7 @@ Hart<URV>::singleStep(FILE* traceFile)
 	  if (doStats)
 	    accumulateInstructionStats(di);
 	  if (traceFile)
-	    printInstTrace(di, instCounter_, instStr, traceFile);
+	    printDecodedInstTrace(di, instCounter_, instStr, traceFile);
 	  if (dcsrStep_ and not ebreakInstDebug_)
 	    enterDebugMode_(DebugModeCause::STEP, pc_);
 	  return;
