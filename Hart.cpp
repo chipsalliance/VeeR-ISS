@@ -294,6 +294,8 @@ Hart<URV>::processExtensions()
 	    csRegs_.configCsr("frm", true, 0, 0x7, 0x7, isDebug, shared);
 	  if (not csRegs_.isImplemented(CsrNumber::FFLAGS))
 	    csRegs_.configCsr("fflags", true, 0, 0x1f, 0x1f, isDebug, shared);
+	  if (not csRegs_.isImplemented(CsrNumber::DVFFLAGS))
+	  	    csRegs_.configCsr("dvfflags", true, 0, 0x1f, 0x1f, isDebug, shared);
 	}
 
       if (value & (URV(1) << ('d' - 'a')))  // Double precision FP.

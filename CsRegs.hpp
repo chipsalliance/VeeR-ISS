@@ -317,8 +317,8 @@ namespace WdRiscv
       MDBHD   = 0xbc7,  // D-Bus 64-bit high data
 
       MSCAUSE  = 0x7ff, // Secondary exception cause
-
-      MAX_CSR_ = 0xfff,
+	  DVFFLAGS = 0x1001,
+      MAX_CSR_ = 0x1fff,
       MIN_CSR_ = 0      // csr with smallest number
     };
 
