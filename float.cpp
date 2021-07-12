@@ -115,6 +115,9 @@ inline
 RoundingMode
 Hart<URV>::effectiveRoundingMode(RoundingMode instMode)
 {
+  if (forceRounding_)
+    return forcedRounding_;
+
   if (instMode != RoundingMode::Dynamic)
     return instMode;
 

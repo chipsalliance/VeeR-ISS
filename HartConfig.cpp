@@ -1338,6 +1338,27 @@ HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
         errors++;
     }
 
+  tag = "force_rounding_mode";
+  if (config_ -> count(tag))
+    {
+      std::string str = config_->at(tag).get<std::string>();
+      if (str == "rne")
+	hart.forceRoundingMode(RoundingMode::NearestEven);
+      else if (str == "rtz")
+	hart.forceRoundingMode(RoundingMode::Zero);
+      else if (str == "rdn")
+	hart.forceRoundingMode(RoundingMode::Down);
+      else if (str == "rup")
+	hart.forceRoundingMode(RoundingMode::Up);
+      else if (str == "rmm")
+	hart.forceRoundingMode(RoundingMode::NearestMax);
+      else
+	{
+	  std::cerr << "Invalid force_rounding_mode config: " << str << '\n';
+	  errors++;
+	}
+    }
+
   return errors == 0;
 }
 

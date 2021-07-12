@@ -407,8 +407,8 @@ Interactive<URV>::peekCommand(Hart<URV>& hart, const std::string& line,
     {
       std::cerr << "Invalid peek command: " << line << '\n';
       std::cerr << "Expecting: peek <item> <addr>  or  peek pc  or  peek all\n";
-      std::cerr << "  Item is one of r, f, c, t or m for integer, floating point,\n";
-      std::cerr << "  CSR, trigger register or memory location respective\n";
+      std::cerr << "  Item is one of r, f, c, t , pc, or m for integer, floating point,\n";
+      std::cerr << "  CSR, trigger register, program counter, or memory location respectively\n";
 
       std::cerr << "  example:  peek r x3\n";
       std::cerr << "  example:  peek c mtval\n";
@@ -595,7 +595,7 @@ Interactive<URV>::pokeCommand(Hart<URV>& hart, const std::string& line,
       std::cerr << "  Expecting: poke pc <value>\n";
       std::cerr << "    or       poke <resource> <address> <value>\n";
       std::cerr << "    or       poke t <number> <value1> <value2> <value3>\n";
-      std::cerr << "  where <resource> is one of r, f, c, t or m\n";
+      std::cerr << "  where <resource> is one of r, f, c, t, pc or m\n";
       return false;
     }
 
@@ -616,7 +616,7 @@ Interactive<URV>::pokeCommand(Hart<URV>& hart, const std::string& line,
       std::cerr << "Invalid poke command: " << line << '\n';
       std::cerr << "  Expecting: poke <resource> <address> <value>\n";
       std::cerr << "    or       poke t <number> <value1> <value2> <value3>\n";
-      std::cerr << "  where <resource> is one of r, c, or m\n";
+      std::cerr << "  where <resource> is one of r, f, c, t, pc, or m\n";
       return false;
     }
 

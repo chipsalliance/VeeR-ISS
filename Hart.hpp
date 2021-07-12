@@ -1284,6 +1284,9 @@ namespace WdRiscv
     URV syscallSlam() const
     { return syscallSlam_; }
 
+    void forceRoundingMode(RoundingMode mode)
+    { forcedRounding_ = mode; forceRounding_ = true; }
+
   protected:
 
     /// Helper to reset: reset floating point related structures.
@@ -2885,6 +2888,9 @@ namespace WdRiscv
 
     Syscall<URV> syscall_;
     URV syscallSlam_ = 0;        // Area in which to slam syscall mem changes.
+
+    bool forceRounding_ = false;
+    RoundingMode forcedRounding_ = RoundingMode::NearestEven;
 
     bool rv64_ = sizeof(URV)==8; // True if 64-bit base (RV64I).
     bool rva_ = false;           // True if extension A (atomic) enabled.
