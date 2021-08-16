@@ -1691,7 +1691,7 @@ Hart<URV>::checkStackLoad(URV base, URV addr, unsigned loadSize)
   URV low = addr;
   URV high = addr + loadSize - 1;
   URV spVal = intRegs_.read(RegSp);
-  bool ok = high <= stackMax_ and low >= spVal;
+  bool ok = high < stackMax_ and low >= spVal;
   ok = ok and base <= stackMax_ and base >= stackMin_;
   return ok;
 }
@@ -1703,7 +1703,7 @@ Hart<URV>::checkStackStore(URV base, URV addr, unsigned storeSize)
 {
   URV low = addr;
   URV high = addr + storeSize - 1;
-  bool ok = high <= stackMax_ and low >= stackMin_;
+  bool ok = high < stackMax_ and low >= stackMin_;
   ok = ok and base <= stackMax_ and base >= stackMin_;
   return ok;
 }
