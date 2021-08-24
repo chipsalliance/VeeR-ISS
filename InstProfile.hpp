@@ -43,6 +43,8 @@ namespace WdRiscv
     std::vector< std::vector<uint64_t> > srcRegFreq_;
 
     std::vector< std::vector<uint64_t> > srcHisto_;
+    
+    std::vector< std::vector<uint64_t> > dstHisto_;
 
     bool hasImm_ = false;
     int32_t minImm_ = 0;  // Minimum immediate operand value.

@@ -1254,6 +1254,33 @@ printSignedHisto(const char* tag, const std::vector<uint64_t>& histo,
 enum class FpKinds { PosInf, NegInf, PosNormal, NegNormal, PosSubnormal, NegSubnormal,
                      PosZero, NegZero, QuietNan, SignalingNan };
 
+static
+void
+printFpRmHisto(const char* tag, const std::vector<uint64_t>& histo, FILE* file)
+{
+    static std::vector<std::string> rmString = {"nearest_even", "zero", "down", "up", "nearest_max", "invalid1", "invalid2"}; 
+    for(unsigned i=0; i<=unsigned(RoundingMode::Invalid2); ++i)
+        {
+            uint64_t freq = histo.at(i);
+            if (not freq) continue;
+            fprintf(file, "  %s %s %" PRId64 "\n", tag, rmString.at(i).c_str(), freq);
+        }
+}
+
+
+static
+void
+printFflagsHisto(const char* tag, const std::vector<uint64_t>& histo, FILE* file)
+{
+    static std::vector<std::string> fflagsString = {"inexact", "underflow", "overflow", "div_by_zero", "invalid"}; 
+    for(unsigned i=0; i<fflagsString.size(); ++i)
+        {
+            uint64_t freq = histo.at(i);
+            if (not freq) continue;
+            fprintf(file, "  %s %s %" PRId64 "\n", tag, fflagsString.at(i).c_str(), freq);
+        }
+}
+
 
 static
 void
@@ -1356,6 +1383,10 @@ Hart<URV>::reportInstructionFrequency(FILE* file) const
 	    if (prof.destRegFreq_.at(i))
 	      fprintf(file, " %d:%" PRId64, i, prof.destRegFreq_.at(i));
 	  fprintf(file, "\n");
+      if(not prof.hasImm_ and entry.ithOperandType(0) == OperandType::FpReg) {
+	    printFpRmHisto("  +hist1 ", prof.dstHisto_[0], file);
+	    printFflagsHisto("  +hist2 ", prof.dstHisto_[1], file);
+      }
 	}
 
       unsigned srcIx = 0;
@@ -1392,11 +1423,12 @@ Hart<URV>::reportInstructionFrequency(FILE* file) const
             }
 	}
 
-      if (prof.hasImm_)
+    if (prof.hasImm_)
 	{
 	  fprintf(file, "  +imm  min:%d max:%d\n", prof.minImm_, prof.maxImm_);
 	  printSignedHisto("+hist ", prof.srcHisto_.back(), file);
 	}
+    
 
       if (prof.user_)
         fprintf(file, "  +user %" PRIu64 "\n", prof.user_);
@@ -3965,6 +3997,13 @@ Hart<URV>::accumulateInstructionStats(const DecodedInst& di)
             {
               fpRegs_.getLastWrittenReg(rd, frdOrigVal);
               assert(rd == di.op0());
+              prof.dstHisto_[0].at(unsigned(effectiveRoundingMode(di.roundingMode())))++;
+              if(auto dvfflags = csRegs_.getImplementedCsr(CsrNumber::DVFFLAGS)) {
+	                auto fflags = dvfflags->read();
+                    for(int i=0; i<5; i++)
+                        if(fflags & (1<<i))
+                            prof.dstHisto_[1].at(i)++;
+                }
             }
         }
     }
@@ -8100,6 +8139,10 @@ Hart<URV>::enableInstructionFrequency(bool b)
             vec.resize(regCount);
 
           inst.srcHisto_.resize(3);  // Up to 3 source historgrams
+          inst.dstHisto_.resize(2);  // Up to 2 destination historgrams
+
+          for (auto& vec : inst.dstHisto_)
+            vec.resize(13);
           for (auto& vec : inst.srcHisto_)
             vec.resize(13);  // FIX: avoid magic 13
 	}
