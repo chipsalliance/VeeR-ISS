@@ -1011,7 +1011,7 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
   std::string isa = args.isa;
 
   // Handle linux/newlib adjusting stack if needed.
-  bool clib = enableNewlibOrLinuxFromElf(args, hart);
+  bool clib = enableNewlibOrLinuxFromElf(args, hart) or (args.syscallSlam!=0);
 
   // TBD: Do this once.  Do not do it for each hart.
   if (isa.empty() and args.elfisa)
@@ -1041,6 +1041,8 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
   if (args.consoleIoSym)
     hart.setConsoleIoSymbol(*args.consoleIoSym);
 
+  if (args.syscallSlam)
+      hart.defineSyscallSlam(*args.syscallSlam);
   // Load ELF files.
   for (const auto& target : args.expandedTargets)
     {
@@ -1065,10 +1067,6 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
 
   if (not args.instFreqFile.empty())
     hart.enableInstructionFrequency(true);
-
-  if (not args.loadFrom.empty())
-    if (not loadSnapshot(hart, args.loadFrom))
-      errors++;
 
   if (not args.stdoutFile.empty())
     if (not hart.redirectOutputDescriptor(STDOUT_FILENO, args.stdoutFile))
@@ -1114,8 +1112,7 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
       configureClint(hart, system, swAddr, clintLimit, timerAddr);
     }
 
-  if (args.syscallSlam)
-    hart.defineSyscallSlam(*args.syscallSlam);
+
 
   // Set instruction count limit.
   if (args.instCountLim)
@@ -1146,6 +1143,10 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
   // Apply register initialization.
   if (not applyCmdLineRegInit(args, hart))
     errors++;
+
+  if (not args.loadFrom.empty())
+    if (not loadSnapshot(hart, args.loadFrom))
+      errors++;
 
   if (args.expandedTargets.empty())
     return errors == 0;
@@ -1473,6 +1474,8 @@ snapshotRun(System<URV>& system, FILE* traceFile,
       nextLimit = std::min(nextLimit, globalLimit);
       hart.setInstructionCountLimit(nextLimit);
       hart.run(traceFile);
+      while(hart.privilegeMode() != PrivilegeMode::User and not hart.hasTargetProgramFinished())
+    	  hart.singleStep(traceFile);
       if (hart.hasTargetProgramFinished())
         done = true;
       if (not done)

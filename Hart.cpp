@@ -652,6 +652,8 @@ Hart<URV>::loadElfFile(const std::string& file, size_t& entryPoint)
   if (this->findElfSymbol("__global_pointer$", sym))
     this->pokeIntReg(RegGp, URV(sym.addr_));
 
+  if (syscallSlam_!=0 and this->findElfSymbol("stack_top", sym))
+     this->pokeIntReg(RegSp, URV(sym.addr_));
   if (this->findElfSymbol("_end", sym))   // For newlib/linux emulation.
     this->setTargetProgramBreak(URV(sym.addr_));
   else
@@ -1658,7 +1660,7 @@ Hart<URV>::determineMisalStoreException(URV addr, unsigned accessSize,
   size_t addr2 = addr + accessSize - 1;
 
   // Misaligned access to PIC.
-  if (isAddrMemMapped(addr))
+  if (isAddrMemMapped(addr)) // AT: only if it's internal or not error rollback
     {
       secCause = SecondaryCause::STORE_ACC_PIC;
       return ExceptionCause::STORE_ACC_FAULT;
@@ -2307,7 +2309,7 @@ Hart<URV>::defineMemoryMappedRegisterArea(size_t addr, size_t size)
   // If mpicbaddr CSR is present, then nothing special is done for 256
   // MB region containing memory-mapped-registers. Otherwise, region
   // is marked non accessible except for memory-mapped-register area.
-  bool trim = this->findCsr("mpicbaddr") == nullptr;
+  bool trim = this->findCsr("mpicbaddr") == nullptr; // or num-regions=1
 
   bool ok = memory_.defineMemoryMappedRegisterArea(addr, size, trim);
   if (ok and trim)
@@ -3522,6 +3524,7 @@ Hart<URV>::printDecodedInstTrace(const DecodedInst& di, uint64_t tag, std::strin
       for (auto al: scVec)
         {
           uint64_t addr = al.first, len = al.second;
+          if(not addr) continue;
           for (uint64_t ix = 0; ix < len; ix += 8, addr += 8)
             {
               uint64_t val = 0;
@@ -4148,6 +4151,24 @@ Hart<URV>::setTargetProgramArgs(const std::vector<std::string>& args)
   // Make sp 16-byte aligned.
   if ((sp & 0xf) != 0)
     sp -= (sp & 0xf);
+  if(syscallSlam_) {
+
+	  URV initSize = 0;
+
+	  for (const auto& arg : args)
+		  initSize += arg.size() + sizeof(URV)+1; // strlen+null + address
+
+	  initSize += sizeof(URV)*4; // env null, aux null, argv null, argc
+
+	  URV initOffset = initSize&0xf;
+
+	  if(initOffset)
+		  initSize += 0x10-initOffset;
+
+	  sp += initSize;
+	  initSpVal_ = std::make_pair(sp,initSize);
+
+  }
 
   // Push the arguments on the stack recording their addresses.
   std::vector<URV> addresses;  // Address of the argv strings.
@@ -4178,8 +4199,9 @@ Hart<URV>::setTargetProgramArgs(const std::vector<std::string>& args)
 
   // Push argv entries on the stack.
   sp -= URV(addresses.size() + 1) * sizeof(URV); // Make room for argv & argc
-  if ((sp & 0xf) != 0)
+  if ((sp & 0xf) != 0) {
     sp -= (sp & 0xf);  // Make sp 16-byte aligned.
+  }
 
   URV ix = 1;  // Index 0 is for argc
   for (const auto addr : addresses)
@@ -9344,7 +9366,7 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
           secCause = SecondaryCause::STORE_ACC_LOCAL_UNMAPPED;
 	  return ExceptionCause::STORE_ACC_FAULT;
         }
-      if (not writeOk)
+      if (not writeOk) // AT: if it's external and memory rollback enable, mark as NMI
         {
           secCause = SecondaryCause::STORE_ACC_PIC;
           return ExceptionCause::STORE_ACC_FAULT;

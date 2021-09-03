@@ -216,7 +216,15 @@ Memory::loadHexFile(const std::string& fileName)
 
   return errors == 0;
 }
-
+bool Memory::getElfSymAddrByName(const std::string& name, uint64_t& addr) const {
+	auto it = symbols_.find(name);
+	if(it == symbols_.end()) {
+		addr = uint64_t(-1);
+		return false;
+	}
+	addr = it->second.addr_;
+	return true;
+}
 
 bool
 Memory::loadElfSegment(ELFIO::elfio& reader, int segIx, size_t& end)

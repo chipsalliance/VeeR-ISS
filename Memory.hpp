@@ -688,6 +688,8 @@ namespace WdRiscv
     /// This is a helper to loadElfFile.
     bool loadElfSegment(ELFIO::elfio& reader, int segment, size_t& end);
 
+    /// Find the address of an Elf symbol
+    bool getElfSymAddrByName(const std::string& name, uint64_t& addr) const;
     /// Helper to loadElfFile: Collet ELF symbols.
     void collectElfSymbols(ELFIO::elfio& reader);
 

@@ -454,7 +454,7 @@ collectSyscallMemChanges(Hart<URV>& hart,
     {
       uint64_t addr = al.first;
       uint64_t len = al.second;
-
+      if(not addr) continue;
       uint64_t offset = addr & 7;  // Offset from double word address.
       if (offset)
         {

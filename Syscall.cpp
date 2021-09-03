@@ -737,6 +737,14 @@ Syscall<URV>::emulate()
   URV a2 = hart_.peekIntReg(RegA2);
 
   memChanges_.clear();
+  memChanges_.push_back(AddrLen{0,0});
+  if(isFirstSysCall_) {
+	  isFirstSysCall_ = false;
+	  std::pair<URV, URV> origSpVal = hart_.getInitSpVal();
+	  if(origSpVal.second) {
+		  memChanges_.push_back(AddrLen{origSpVal.first-origSpVal.second,origSpVal.second});
+	  }
+  }
 
 #ifndef __MINGW64__
   URV a3 = hart_.peekIntReg(RegA3);
@@ -1301,7 +1309,12 @@ Syscall<URV>::emulate()
     	bool maymove = a3 & MREMAP_MAYMOVE;
     	return  mmap_remap(addr,old_size,new_size, maymove);
       }
-
+    case 221: // execv
+    {
+    	if(not a0)
+    		return 0;
+    	break;
+    }
     case 222: // mmap2
       {
         URV start = a0;

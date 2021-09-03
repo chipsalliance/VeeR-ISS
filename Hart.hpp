@@ -147,6 +147,8 @@ namespace WdRiscv
     size_t memorySize() const
     { return memory_.size(); }
 
+    /// Return the initial stack pointer value
+     std::pair<URV,URV> getInitSpVal() const { return initSpVal_; }
     /// Return the value of the program counter.
     URV peekPc() const;
 
@@ -3079,6 +3081,8 @@ namespace WdRiscv
 
     bool defaultCacheable_ = false;
     bool hasDefaultCacheable_ = false;
+
+    std::pair<URV, URV> initSpVal_ = std::make_pair(URV(0), URV(0));
 
     bool pmaOverride_ = false;
     std::vector<PmaOverride> pmaOverrideVec_;

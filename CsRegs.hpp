@@ -318,7 +318,7 @@ namespace WdRiscv
 
       MSCAUSE  = 0x7ff, // Secondary exception cause
 	  DVFFLAGS = 0x1001,
-      MAX_CSR_ = 0x1fff,
+      MAX_CSR_ = 0x1001,
       MIN_CSR_ = 0      // csr with smallest number
     };
 
