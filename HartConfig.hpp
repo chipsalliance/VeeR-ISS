@@ -93,6 +93,11 @@ namespace WdRiscv
     /// not contain a memory size configuration.
     bool getMemorySize(size_t& memSize) const;
 
+    /// Set regionSize to the memory region configuration held in this
+    /// object returning true on success and false if this object does
+    /// not contain a memory size configuration.
+    bool getRegionSize(size_t& regionSize) const;
+
     /// Set hartIdOffset to the hart-id offset configuration field
     /// returning true on success and false on failure. Cores will be
     /// associated with start ids 0, hartIdOffset, 2*hartIdOffset, ...

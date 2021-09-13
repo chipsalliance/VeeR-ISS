@@ -635,11 +635,13 @@ namespace WdRiscv
     bool defineDccm(size_t addr, size_t size);
 
     /// Define an area of memory mapped registers.
-    bool defineMemoryMappedRegisterArea(size_t addr, size_t size);
+    bool defineMemoryMappedRegisterArea(size_t addr, size_t size, bool internal);
 
     /// Define a memory mapped register. Address must be within an
     /// area already defined using defineMemoryMappedRegisterArea.
-    bool defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask);
+    bool defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask, unsigned size);
+
+    bool changeMemMappedBase(uint64_t newBase) { return memory_.changeMemMappedBase(newBase); }
 
     /// Called after memory is configured to refine memory access to
     /// sections of regions containing ICCM, DCCM or PIC-registers.
@@ -1153,13 +1155,34 @@ namespace WdRiscv
     void enableMisalignedData(bool flag)
     { misalDataOk_ = flag; }
 
-    /// Change the base address of the memory-mapped-register area.
-    bool changeMemMappedBase(uint64_t newBase)
-    { return memory_.pmaMgr_.changeMemMappedBase(newBase); }
-
     /// Return current privilege mode.
     PrivilegeMode privilegeMode() const
     { return privMode_; }
+    ///
+    enum class MemMappedAcc {none, internal, external, exc, nmi};
+
+    MemMappedAcc getMemMappedAccType(URV addr, bool ld_nst, unsigned size, bool isAmo=false) {
+    	uint8_t regSize;
+    	bool intMma;
+    	bool isMemMapped = memory_.getMemMappedType(addr, intMma, regSize);
+    	if(isMemMapped and intMma)
+    		return MemMappedAcc::internal;
+
+    	if(not isMemMapped or isAddrCacheable(addr))
+    		return MemMappedAcc::none;
+
+    	bool err = (size != regSize) or
+    			((addr & (regSize-1))!=0 ) or
+    			(privMode_ != PrivilegeMode::Machine);
+
+    	if(err) {
+        	bool precise = (isAddrIdempotent(addr) and ld_nst) or isAmo;
+    		return precise ? MemMappedAcc::exc: MemMappedAcc::nmi;
+    	}
+    	else {
+    		return MemMappedAcc::external;
+    	}
+    }
 
     /// This is for performance modeling. Enable a highest level cache
     /// with given size, line size, and set associativity.  Any
@@ -1482,12 +1505,13 @@ namespace WdRiscv
     template<typename LOAD_TYPE>
     bool fastLoad(uint32_t rd, uint32_t rs1, int32_t imm);
 
+
     /// Helper to load method: Return possible load exception (wihtout
     /// taking any exception). If supervisor mode is enabled, and
     /// address translation is successful, then addr is changed to the
     /// translated physical address.
     ExceptionCause determineLoadException(unsigned rs1, URV base, uint64_t& addr,
-					  unsigned ldSize, SecondaryCause& secCause);
+					  unsigned ldSize, SecondaryCause& secCause, MemMappedAcc memMappedAcc);
 
     /// Helper to sb, sh, sw ... Sore type should be uint8_t, uint16_t
     /// etc... for sb, sh, etc...
@@ -1505,8 +1529,9 @@ namespace WdRiscv
     /// mapped register masking.
     template<typename STORE_TYPE>
     ExceptionCause determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
-					   STORE_TYPE& storeVal,
-                                           SecondaryCause& secCause, bool& forced);
+					   	   	   	   	   	   STORE_TYPE& storeVal,
+										   SecondaryCause& secCause, bool& forced,
+										   MemMappedAcc memMappedAccType);
 
     /// Helper to execLr. Load type must be int32_t, or int64_t.
     /// Return true if instruction is successful. Return false if an
@@ -1744,7 +1769,7 @@ namespace WdRiscv
     /// given virtual addr is replaced by the translated physical
     /// address.
     ExceptionCause validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
-                                   SecondaryCause& secCause);
+                                   SecondaryCause& secCause, MemMappedAcc mma);
 
     /// Do the load value part of a word-sized AMO instruction. Return
     /// true on success putting the loaded value in val. Return false
@@ -2812,13 +2837,13 @@ namespace WdRiscv
     {
       LoadInfo()
 	: size_(0), addr_(0), regIx_(0), prevData_(0), valid_(false),
-	  wide_(false), fp_(false)
+	  wide_(false), fp_(false), nmi_(false)
       { }
 
       LoadInfo(unsigned size, size_t addr, unsigned regIx, uint64_t prev,
-	       bool isWide, unsigned tag, bool fp)
+	       bool isWide, unsigned tag, bool fp, bool nmi)
 	: size_(size), addr_(addr), regIx_(regIx), tag_(tag), prevData_(prev),
-	  valid_(true), wide_(isWide), fp_(fp)
+	  valid_(true), wide_(isWide), fp_(fp), nmi_(nmi)
       { }
 
       bool isValid() const  { return valid_; }
@@ -2832,6 +2857,7 @@ namespace WdRiscv
       bool valid_ = false;
       bool wide_ = false;
       bool fp_ = false;
+      bool nmi_ = false;
     };
 
     struct PmaOverride
@@ -2856,7 +2882,7 @@ namespace WdRiscv
 
     void putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
 			uint64_t prevData, bool isWide = false,
-                        bool fp = false);
+                        bool fp = false, bool nmi=false);
 
     void removeFromLoadQueue(unsigned regIx, bool isDiv, bool fp = false);
 

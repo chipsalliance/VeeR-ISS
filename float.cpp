@@ -469,8 +469,8 @@ Hart<URV>::execFlw(const DecodedInst* di)
       if (triggerTripped_)
 	return;
     }
-
-  cause = determineLoadException(rs1, base, addr, ldSize, secCause);
+  auto mma = getMemMappedAccType(addr,true,ldSize);
+  cause = determineLoadException(rs1, base, addr, ldSize, secCause, mma);
   if (cause != ExceptionCause::NONE)
     {
       if (not triggerTripped_)
@@ -480,26 +480,27 @@ Hart<URV>::execFlw(const DecodedInst* di)
 #endif
 
   uint32_t word = 0;
-  if (memory_.read(addr, word))
+  if (memory_.read(addr, word, mma == MemMappedAcc::none))
     {
       if (loadQueueEnabled_)
         {
           uint64_t prevRdVal = 0;
           peekFpReg(rd, prevRdVal);
-          putInLoadQueue(ldSize, addr, rd, prevRdVal, false /*wide*/, true /*fp*/);
+          putInLoadQueue(ldSize, addr, rd, prevRdVal, false /*wide*/, true /*fp*/, mma == MemMappedAcc::nmi);
         }
       Uint32FloatUnion ufu(word);
       fpRegs_.writeSingle(rd, ufu.f);
       markFsDirty();
       return;
     }
+  if(mma != MemMappedAcc::nmi) {
+	  cause = ExceptionCause::LOAD_ACC_FAULT;
+	  secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
+	  if (isAddrMemMapped(addr))
+		secCause = SecondaryCause::LOAD_ACC_PIC;
 
-  cause = ExceptionCause::LOAD_ACC_FAULT;
-  secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
-  if (isAddrMemMapped(addr))
-    secCause = SecondaryCause::LOAD_ACC_PIC;
-
-  initiateLoadException(cause, virtAddr, secCause);
+	  initiateLoadException(cause, virtAddr, secCause);
+  }
 }
 
 
@@ -1625,8 +1626,8 @@ Hart<URV>::execFld(const DecodedInst* di)
       if (triggerTripped_)
 	return;
     }
-
-  cause = determineLoadException(rs1, base, addr, ldSize, secCause);
+  auto mma = getMemMappedAccType(addr,true,ldSize);
+  cause = determineLoadException(rs1, base, addr, ldSize, secCause, mma);
   if (cause != ExceptionCause::NONE)
     {
       if (not triggerTripped_)
@@ -1642,13 +1643,13 @@ Hart<URV>::execFld(const DecodedInst* di)
   };
 
   uint64_t val64 = 0;
-  if (memory_.read(addr, val64))
+  if (memory_.read(addr, val64, mma==MemMappedAcc::none))
     {
       if (loadQueueEnabled_)
         {
           uint64_t prevRdVal = 0;
           peekFpReg(rd, prevRdVal);
-          putInLoadQueue(ldSize, addr, rd, prevRdVal, false /*wide*/, true /*fp*/);
+          putInLoadQueue(ldSize, addr, rd, prevRdVal, false /*wide*/, true /*fp*/, mma==MemMappedAcc::nmi);
         }
 
       UDU udu;
@@ -1658,13 +1659,14 @@ Hart<URV>::execFld(const DecodedInst* di)
       markFsDirty();
       return;
     }
+  if(mma != MemMappedAcc::nmi) {
+	  cause = ExceptionCause::LOAD_ACC_FAULT;
+	  secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
+	  if (isAddrMemMapped(addr))
+		secCause = SecondaryCause::LOAD_ACC_PIC;
 
-  cause = ExceptionCause::LOAD_ACC_FAULT;
-  secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
-  if (isAddrMemMapped(addr))
-    secCause = SecondaryCause::LOAD_ACC_PIC;
-
-  initiateLoadException(cause, virtAddr, secCause);
+	  initiateLoadException(cause, virtAddr, secCause);
+  }
 }
 
 

@@ -33,6 +33,8 @@ Memory::Memory(size_t size, size_t pageSize, size_t regionSize)
   : size_(size), data_(nullptr), pageSize_(pageSize), reservations_(1),
     lastWriteData_(1), pmaMgr_(size)
 { 
+  if(not regionSize)
+	  regionSize = size;
   assert(size >= pageSize);
   assert(regionSize >= pageSize);
   assert(pageSize >= 64);
@@ -882,12 +884,9 @@ Memory::specialInitializeByte(size_t addr, uint8_t value)
 
   if (pmaMgr_.isAddrMemMapped(addr))
     {
-      // Perform masking for memory mapped registers.
-      uint32_t mask = getMemoryMappedMask(addr);
-      unsigned byteIx = addr & 3;
-      uint8_t masked = value & uint8_t((mask >> (byteIx*8)));
 
-      if (not pmaMgr_.writeRegisterByte(addr, masked))
+
+      if (not pmaMgr_.writeRegisterByte(addr, value))
         return false;
     }
 
@@ -1035,7 +1034,7 @@ Memory::defineDccm(size_t addr, size_t size, bool trim)
 
 
 bool
-Memory::defineMemoryMappedRegisterArea(size_t addr, size_t size, bool trim)
+Memory::defineMemoryMappedRegisterArea(size_t addr, size_t size, bool trim, bool internal)
 {
   if (not checkCcmConfig("PIC memory", addr, size))
     return false;
@@ -1056,7 +1055,7 @@ Memory::defineMemoryMappedRegisterArea(size_t addr, size_t size, bool trim)
 
   pmaMgr_.setAttribute(addr, addr + size - 1, attrib);
 
-  pmaMgr_.defineMemMappedArea(addr, size);
+  pmaMgr_.defineMemMappedArea(addr, size, internal);
 
   return true;
 }
@@ -1070,9 +1069,9 @@ Memory::resetMemoryMappedRegisters()
 
 
 bool
-Memory::defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask)
+Memory::defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask, uint8_t size)
 {
-  if ((addr & 3) != 0)
+  if ((addr & (size-1)) != 0)
     {
       std::cerr << "Memory mapped register address 0x" << std::hex << addr
                 << std::dec << " is not word aligned\n";
@@ -1087,7 +1086,7 @@ Memory::defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask)
       return false;
     }
 
-  pmaMgr_.setMemMappedMask(addr, mask);
+  pmaMgr_.setMemMappedMask(addr, mask, size);
 
   return true;
 }

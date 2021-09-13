@@ -62,8 +62,7 @@ namespace WdRiscv
     /// otherwise, it is truncated to a multiple of 4. The memory
     /// is partitioned into regions according to the region size which
     /// must be a power of 2.
-    Memory(size_t size, size_t pageSize = 4*1024,
-	   size_t regionSize = 256*1024*1024);
+    Memory(size_t size, size_t pageSize = 4*1024, size_t regionSize = 0);
 
     /// Destructor.
     ~Memory();
@@ -84,38 +83,34 @@ namespace WdRiscv
     /// memory, are in a region marked non-read, or if is to a
     /// memory-mapped-register aht the access size is different than
     /// 4.
+
     template <typename T>
-    bool read(size_t address, T& value) const
+    bool read(size_t address, T& value, bool toMain=false) const
     {
 #ifdef FAST_SLOPPY
       if (address + sizeof(T) > size_)
         return false;
 #else
       Pma pma1 = pmaMgr_.getPma(address);
-      if (not pma1.isRead())
-	return false;
+      if (not pma1.isRead()) {
+	return false;}
 
       if (address & (sizeof(T) - 1))  // If address is misaligned
 	{
           Pma pma2 = pmaMgr_.getPma(address + sizeof(T) - 1);
-          if (not pma2.isRead())
-            return false;
+          if (not pma2.isRead()) {
+            return false; }
         }
 
       // Memory mapped region accessible only with word-size read.
-      if (pma1.isMemMappedReg())
-        {
-          if constexpr (sizeof(T) == 4)
-            return readRegister(address, value);
-          else
-            return false;
-        }
+      if (not toMain and pma1.isMemMappedReg()) {
+            return readRegister(address, value);}
 #endif
 
 #ifdef MEM_CALLBACKS
       uint64_t val = 0;
-      if (not readCallback_(address, sizeof(T), val))
-        return false;
+      if (not readCallback_(address, sizeof(T), val)){
+        return false;}
       value = val;
 #else
       value = *(reinterpret_cast<const T*>(data_ + address));
@@ -163,7 +158,7 @@ namespace WdRiscv
     /// write.  Change value to the maksed value if write is to a
     /// memory mapped register.
     template <typename T>
-    bool checkWrite(size_t address, T& value)
+    bool checkWrite(size_t address, T& value, bool toMain=false)
     {
       Pma pma1 = pmaMgr_.getPma(address);
       if (not pma1.isWrite())
@@ -177,16 +172,20 @@ namespace WdRiscv
 	}
 
       // Memory mapped region accessible only with word-size write.
-      if (pma1.isMemMappedReg())
+      if (pma1.isMemMappedReg() and not toMain)
         {
-          if constexpr (sizeof(T) != 4)
-            return false;
-          if ((address & 3) != 0)
-            return false;
-          value = doRegisterMasking(address, value);
+          uint64_t size;
+          value = doRegisterMasking(address, value, size);
+          if((address & (size-1)) or (sizeof(T) != size)) {
+        	  return false;
+          }
         }
 
       return true;
+    }
+
+    bool getMemMappedType(uint64_t addr, bool& internal, uint8_t& size) {
+    	return pmaMgr_.getMemMappedType(addr, internal, size);
     }
 
     /// Write given unsigned integer value of type T into memory
@@ -196,7 +195,7 @@ namespace WdRiscv
     /// inaccessible regions or if the write crosses memory region of
     /// different attributes.
     template <typename T>
-    bool write(unsigned sysHartIx, size_t address, T value)
+    bool write(unsigned sysHartIx, size_t address, T value, bool toMain=false)
     {
 #ifdef FAST_SLOPPY
       if (address + sizeof(T) > size_)
@@ -218,10 +217,8 @@ namespace WdRiscv
 	}
 
       // Memory mapped region accessible only with word-size write.
-      if (pma1.isMemMappedReg())
+      if (pma1.isMemMappedReg() and not toMain)
         {
-          if constexpr (sizeof(T) != 4)
-            return false;
           return writeRegister(sysHartIx, address, value);
 	}
 
@@ -269,7 +266,7 @@ namespace WdRiscv
     /// Similar to read but ignore physical-memory-attributes if
     /// usePma is false.
     template <typename T>
-    bool peek(size_t address, T& value, bool usePma) const
+    bool peek(size_t address, T& value, bool usePma, bool toMain=false) const
     {
       if (address + sizeof(T) > size_)
         return false;
@@ -281,12 +278,9 @@ namespace WdRiscv
 
       // Memory mapped region accessible only with word-size read.
       Pma pma1 = pmaMgr_.getPma(address);
-      if (pma1.isMemMappedReg())
+      if (pma1.isMemMappedReg() and not toMain)
         {
-          if constexpr (sizeof(T) == 4)
             return readRegister(address, value);
-          else
-            return false;
         }
 
       if (usePma)
@@ -420,23 +414,21 @@ namespace WdRiscv
     {
       writeCallback_ = callback;
     }
-
+    bool changeMemMappedBase(uint64_t newBase) { return pmaMgr_.changeMemMappedBase(newBase); }
   protected:
 
     /// Same as write but effects not recorded in last-write info and
     /// physical memory attributes are ignored if usePma is false.
     template <typename T>
-    bool poke(size_t address, T value, bool usePma = true)
+    bool poke(size_t address, T value, bool usePma = true, bool toMain=false)
     {
       if (address + sizeof(T) > size_)
         return false;
 
       // Memory mapped region accessible only with word-size poke.
       Pma pma1 = pmaMgr_.getPma(address);
-      if (pma1.isMemMappedReg())
+      if (pma1.isMemMappedReg() and not toMain)
         {
-          if constexpr (sizeof(T) != 4)
-            return false;
           return pmaMgr_.writeRegisterNoMask(address, value);
         }
 
@@ -554,7 +546,7 @@ namespace WdRiscv
     /// on success and false if offset or size are not properly
     /// aligned or sized. If trim is true then region containing MMR
     /// is marked inaccessible except for the MMR area.
-    bool defineMemoryMappedRegisterArea(size_t addr, size_t size, bool trim );
+    bool defineMemoryMappedRegisterArea(size_t addr, size_t size, bool trim, bool internal );
 
     /// Reset (to zero) all memory mapped registers.
     void resetMemoryMappedRegisters();
@@ -563,7 +555,7 @@ namespace WdRiscv
     /// address.  Return true on success and false if the address is
     /// not within a memory-mapped area (see
     /// defineMemoryMappedRegisterArea).
-    bool defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask);
+    bool defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask, uint8_t size);
 
     /// Called after memory is configured to refine memory access to
     /// sections of regions containing ICCM, DCCM or memory mapped
@@ -571,7 +563,8 @@ namespace WdRiscv
     void finishCcmConfig(bool iccmRw);
 
     /// Read a memory mapped register.
-    bool readRegister(size_t addr, uint32_t& value) const
+    template<typename T>
+    bool readRegister(size_t addr, T& value) const
     {
       return pmaMgr_.readRegister(addr, value);
     }
@@ -579,33 +572,37 @@ namespace WdRiscv
     /// Return memory mapped mask associated with the word containing
     /// the given address. Return all 1 if given address is not a
     /// memory mapped register.
-    uint32_t getMemoryMappedMask(size_t addr) const
-    { return pmaMgr_.getMemMappedMask(addr); }
+    uint64_t getMemoryMappedMask(size_t addr, uint64_t& size) const
+    { return pmaMgr_.getMemMappedMask(addr, size); }
 
     /// Perform masking for a write to a memory mapped register.
     /// Return masked value.
-    uint32_t doRegisterMasking(size_t addr, uint32_t value) const
+    uint64_t doRegisterMasking(size_t addr, uint64_t value, uint64_t& size) const
     {
-      uint32_t mask = getMemoryMappedMask(addr);
+      uint64_t mask = getMemoryMappedMask(addr, size);
       value = value & mask;
       return value;
     }
 
     /// Write a memory mapped register.
-    bool writeRegister(unsigned sysHartIx, size_t addr, uint32_t value)
+    template<typename T>
+    bool writeRegister(unsigned sysHartIx, size_t addr, T value)
     {
-      uint32_t prev = 0;
-      if (not readRegister(addr, prev))
+      uint64_t size;
+      T prev = 0;
+      if (not readRegister(addr, prev)) {
         return false;
+      }
 
-      value = doRegisterMasking(addr, value);
+      value = doRegisterMasking(addr, value, size);
 
-      if (not pmaMgr_.writeRegister(addr, value))
+      if (not pmaMgr_.writeRegister(addr, value)) {
         return false;
+      }
 
       auto& lwd = lastWriteData_.at(sysHartIx);
       lwd.prevValue_ = prev;
-      lwd.size_ = 4;
+      lwd.size_ = size;
       lwd.addr_ = addr;
       lwd.value_ = value;
       return true;
@@ -618,8 +615,7 @@ namespace WdRiscv
     /// Return true if given data address is external to the core.
     bool isDataAddressExternal(size_t addr) const
     {
-      Pma pma = pmaMgr_.getPma(addr);
-      return not (pma.isDccm() or pma.isMemMappedReg());
+      return pmaMgr_.isExternalAddr(addr);
     }
 
     /// Track LR instructin resrvations.

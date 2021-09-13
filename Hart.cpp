@@ -838,12 +838,12 @@ Hart<URV>::clearToHostAddress()
 template <typename URV>
 void
 Hart<URV>::putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
-			  uint64_t data, bool isWide, bool fp)
+			  uint64_t data, bool isWide, bool fp, bool nmi)
 {
   if (not loadQueueEnabled_)
     return;
 
-  if (isAddrInDccm(addr) or isAddrMemMapped(addr))
+  if (not memory_.isDataAddressExternal(addr))
     {
       // Blocking load. Invalidate target register in load queue so
       // that it will not be reverted.
@@ -858,13 +858,13 @@ Hart<URV>::putInLoadQueue(unsigned size, size_t addr, unsigned regIx,
       for (size_t i = 1; i < maxLoadQueueSize_; ++i)
 	loadQueue_[i-1] = loadQueue_[i];
       loadQueue_[maxLoadQueueSize_-1] = LoadInfo(size, addr, regIx, data,
-						 isWide, instCounter_, fp);
+						 isWide, instCounter_, fp, nmi);
       newIx = maxLoadQueueSize_ - 1;
     }
   else
     {
       loadQueue_.push_back(LoadInfo(size, addr, regIx, data, isWide,
-                                    instCounter_, fp));
+                                    instCounter_, fp, nmi));
       newIx = loadQueue_.size() - 1;
     }
 
@@ -1615,7 +1615,7 @@ Hart<URV>::determineMisalLoadException(URV addr, unsigned accessSize,
   size_t addr2 = addr + accessSize - 1;
 
   // Misaligned access to PIC.
-  if (isAddrMemMapped(addr))
+  if (isAddrMemMapped(addr) and not memory_.isDataAddressExternal(addr))
     {
       secCause = SecondaryCause::LOAD_ACC_PIC;
       return ExceptionCause::LOAD_ACC_FAULT;
@@ -1781,11 +1781,10 @@ Hart<URV>::wideLoad(uint32_t rd, URV addr)
   return true;
 }
 
-
 template <typename URV>
 ExceptionCause
 Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
-				  unsigned ldSize, SecondaryCause& secCause)
+				  unsigned ldSize, SecondaryCause& secCause, MemMappedAcc mma)
 {
   secCause = SecondaryCause::NONE;
 
@@ -1860,7 +1859,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
             }
           else if (regionHasLocalDataMem_.at(region))
             {
-              if (not isAddrMemMapped(addr))
+              if (mma != MemMappedAcc::internal)
                 {
                   secCause = SecondaryCause::LOAD_ACC_LOCAL_UNMAPPED;
                   return ExceptionCause::LOAD_ACC_FAULT;
@@ -1879,7 +1878,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
     }
 
   // PIC access
-  if (isAddrMemMapped(addr))
+  if (mma == MemMappedAcc::internal)
     {
       if (privMode_ != PrivilegeMode::Machine)
         {
@@ -1902,7 +1901,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
     {
       Pmp pmp = pmpManager_.accessPmp(addr);
       if (not pmp.isRead(privMode_, mstatusMpp_, mstatusMprv_) and
-          not isAddrMemMapped(addr))
+    		  mma != MemMappedAcc::internal)
         {
           secCause = SecondaryCause::LOAD_ACC_PMP;
           return ExceptionCause::LOAD_ACC_FAULT;
@@ -1913,6 +1912,10 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
   if (forceAccessFail_)
     {
       secCause = forcedCause_;
+      return ExceptionCause::LOAD_ACC_FAULT;
+    }
+  if(mma == MemMappedAcc::exc) {
+      secCause = SecondaryCause::NONE;
       return ExceptionCause::LOAD_ACC_FAULT;
     }
 
@@ -1980,7 +1983,10 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
 
   auto secCause = SecondaryCause::NONE;
   uint64_t addr = virtAddr;
-  auto cause = determineLoadException(rs1, base, addr, ldSize, secCause);
+
+  auto mma = getMemMappedAccType(addr,true,ldSize);
+
+  auto cause = determineLoadException(rs1, base, addr, ldSize, secCause, mma);
   if (cause != ExceptionCause::NONE)
     {
       if (triggerTripped_)
@@ -2001,7 +2007,7 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
     }
 
   ULT uval = 0;
-  if (memory_.read(addr, uval))
+  if (memory_.read(addr, uval, mma==MemMappedAcc::none))
     {
       URV value;
       if constexpr (std::is_same<ULT, LOAD_TYPE>::value)
@@ -2033,7 +2039,7 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
           if (loadQueueEnabled_)
             {
               URV prevRdVal = peekIntReg(rd);
-              putInLoadQueue(ldSize, addr, rd, prevRdVal);
+              putInLoadQueue(ldSize, addr, rd, prevRdVal,false,false,mma==MemMappedAcc::nmi);
             }
           intRegs_.write(rd, value);
           return true;  // Success.
@@ -2042,9 +2048,9 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
 
   if (triggerTripped_)
     return false;
-
-  assert(0);
-  return false;
+  bool isNmi = mma == MemMappedAcc::nmi;
+  assert(not isNmi);
+  return not isNmi;
 #endif
 }
 
@@ -2119,8 +2125,10 @@ Hart<URV>::store(uint32_t rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
   auto secCause = SecondaryCause::NONE;
   uint64_t addr = virtAddr;
   bool forcedFail = false;
+  auto mma = getMemMappedAccType(addr, false, sizeof(STORE_TYPE));
+
   ExceptionCause cause = determineStoreException(rs1, base, addr, maskedVal,
-                                                 secCause, forcedFail);
+                                                 secCause, forcedFail, mma);
 
   // Consider store-data trigger if there is no trap or if the trap is
   // due to an external cause.
@@ -2177,8 +2185,11 @@ Hart<URV>::store(uint32_t rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
     }
 
   // Store failed: Take exception. Should not happen but we are paranoid.
-  initiateStoreException(ExceptionCause::STORE_ACC_FAULT, virtAddr, secCause);
-  return false;
+  if(mma != MemMappedAcc::nmi) {
+	  initiateStoreException(ExceptionCause::STORE_ACC_FAULT, virtAddr, secCause);
+	  return false;
+  }
+  return true;
 #endif
 }
 
@@ -2304,14 +2315,14 @@ Hart<URV>::defineDccm(size_t addr, size_t size)
 
 template <typename URV>
 bool
-Hart<URV>::defineMemoryMappedRegisterArea(size_t addr, size_t size)
+Hart<URV>::defineMemoryMappedRegisterArea(size_t addr, size_t size, bool internal)
 {
   // If mpicbaddr CSR is present, then nothing special is done for 256
   // MB region containing memory-mapped-registers. Otherwise, region
   // is marked non accessible except for memory-mapped-register area.
-  bool trim = this->findCsr("mpicbaddr") == nullptr; // or num-regions=1
+  bool trim = this->findCsr("mpicbaddr") == nullptr and internal; // or num-regions=1
 
-  bool ok = memory_.defineMemoryMappedRegisterArea(addr, size, trim);
+  bool ok = memory_.defineMemoryMappedRegisterArea(addr, size, trim, internal);
   if (ok and trim)
     {
       size_t region = memory_.getRegionIndex(addr);
@@ -2325,9 +2336,9 @@ Hart<URV>::defineMemoryMappedRegisterArea(size_t addr, size_t size)
 
 template <typename URV>
 bool
-Hart<URV>::defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask)
+Hart<URV>::defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask, unsigned size)
 {
-  return memory_.defineMemoryMappedRegisterWriteMask(addr, mask);
+  return memory_.defineMemoryMappedRegisterWriteMask(addr, mask, size);
 }
 
 
@@ -9271,7 +9282,7 @@ template <typename STORE_TYPE>
 ExceptionCause
 Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
 				   STORE_TYPE& storeVal, SecondaryCause& secCause,
-                                   bool& forcedFail)
+                                   bool& forcedFail, MemMappedAcc mma)
 {
   forcedFail = false;
   unsigned stSize = sizeof(STORE_TYPE);
@@ -9340,7 +9351,7 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
 
       // DCCM unmapped or out of MPU windows. Invalid PIC access handled later.
       writeOk = memory_.checkWrite(addr, storeVal);
-      if (not writeOk and not isAddrMemMapped(addr))
+      if (not writeOk and mma == MemMappedAcc::none)
         {
           secCause = SecondaryCause::STORE_ACC_MEM_PROTECTION;
           if (addr > memory_.size() - stSize)
@@ -9359,7 +9370,7 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
     }
 
   // PIC access
-  if (isAddrMemMapped(addr))
+  if (mma == MemMappedAcc::internal)
     {
       if (privMode_ != PrivilegeMode::Machine)
         {
@@ -9373,7 +9384,7 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
         }
     }
 
-  if (not writeOk)
+  if (not writeOk and mma == MemMappedAcc::none)
     {
       secCause = SecondaryCause::STORE_ACC_MEM_PROTECTION;
       return ExceptionCause::STORE_ACC_FAULT;
@@ -9387,12 +9398,13 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
     {
       Pmp pmp = pmpManager_.accessPmp(addr);
       if (not pmp.isWrite(privMode_, mstatusMpp_, mstatusMprv_) and
-          not isAddrMemMapped(addr))
+          mma != MemMappedAcc::internal)
         {
           secCause = SecondaryCause::STORE_ACC_PMP;
           return ExceptionCause::STORE_ACC_FAULT;
         }
     }
+
 
   // Fault dictated by test-bench
   if (forceAccessFail_)
@@ -9404,6 +9416,10 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
   else
     forcedCause_ = SecondaryCause::NONE;
 
+  if(mma == MemMappedAcc::exc) {
+  	  secCause = SecondaryCause::NONE;
+  	  return ExceptionCause::STORE_ACC_FAULT;
+    }
   return ExceptionCause::NONE;
 }
 
@@ -10061,35 +10077,35 @@ WdRiscv::Hart<uint64_t>::store<uint64_t>(uint32_t, uint64_t, uint64_t, uint64_t)
 
 template
 ExceptionCause
-WdRiscv::Hart<uint32_t>::determineStoreException<uint8_t>(uint32_t, uint32_t, uint64_t&, uint8_t&, WdRiscv::SecondaryCause&, bool&);
+WdRiscv::Hart<uint32_t>::determineStoreException<uint8_t>(uint32_t, uint32_t, uint64_t&, uint8_t&, WdRiscv::SecondaryCause&, bool&, MemMappedAcc);
 
 template
 ExceptionCause
-WdRiscv::Hart<uint64_t>::determineStoreException<uint8_t>(uint32_t, uint64_t, uint64_t&, uint8_t&, WdRiscv::SecondaryCause&, bool&);
+WdRiscv::Hart<uint64_t>::determineStoreException<uint8_t>(uint32_t, uint64_t, uint64_t&, uint8_t&, WdRiscv::SecondaryCause&, bool&, MemMappedAcc);
 
 template
 ExceptionCause
-WdRiscv::Hart<uint32_t>::determineStoreException<uint16_t>(uint32_t, uint32_t, uint64_t&, uint16_t&, WdRiscv::SecondaryCause&, bool&);
+WdRiscv::Hart<uint32_t>::determineStoreException<uint16_t>(uint32_t, uint32_t, uint64_t&, uint16_t&, WdRiscv::SecondaryCause&, bool&, MemMappedAcc);
 
 template
 ExceptionCause
-WdRiscv::Hart<uint64_t>::determineStoreException<uint16_t>(uint32_t, uint64_t, uint64_t&, uint16_t&, WdRiscv::SecondaryCause&, bool&);
+WdRiscv::Hart<uint64_t>::determineStoreException<uint16_t>(uint32_t, uint64_t, uint64_t&, uint16_t&, WdRiscv::SecondaryCause&, bool&, MemMappedAcc);
 
 template
 ExceptionCause
-WdRiscv::Hart<uint32_t>::determineStoreException<uint32_t>(uint32_t, uint32_t, uint64_t&, uint32_t&, WdRiscv::SecondaryCause&, bool&);
+WdRiscv::Hart<uint32_t>::determineStoreException<uint32_t>(uint32_t, uint32_t, uint64_t&, uint32_t&, WdRiscv::SecondaryCause&, bool&, MemMappedAcc);
 
 template
 ExceptionCause
-WdRiscv::Hart<uint64_t>::determineStoreException<uint32_t>(uint32_t, uint64_t, uint64_t&, uint32_t&, WdRiscv::SecondaryCause&, bool&);
+WdRiscv::Hart<uint64_t>::determineStoreException<uint32_t>(uint32_t, uint64_t, uint64_t&, uint32_t&, WdRiscv::SecondaryCause&, bool&, MemMappedAcc);
 
 template
 ExceptionCause
-WdRiscv::Hart<uint32_t>::determineStoreException<uint64_t>(uint32_t, uint32_t, uint64_t&, uint64_t&, WdRiscv::SecondaryCause&, bool&);
+WdRiscv::Hart<uint32_t>::determineStoreException<uint64_t>(uint32_t, uint32_t, uint64_t&, uint64_t&, WdRiscv::SecondaryCause&, bool&, MemMappedAcc);
 
 template
 ExceptionCause
-WdRiscv::Hart<uint64_t>::determineStoreException<uint64_t>(uint32_t, uint64_t, uint64_t&, uint64_t&, WdRiscv::SecondaryCause&, bool&);
+WdRiscv::Hart<uint64_t>::determineStoreException<uint64_t>(uint32_t, uint64_t, uint64_t&, uint64_t&, WdRiscv::SecondaryCause&, bool&, MemMappedAcc);
 
 
 template class WdRiscv::Hart<uint32_t>;

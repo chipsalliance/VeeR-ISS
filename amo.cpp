@@ -28,7 +28,7 @@ using namespace WdRiscv;
 template <typename URV>
 ExceptionCause
 Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
-                           SecondaryCause& secCause)
+                           SecondaryCause& secCause, MemMappedAcc mma)
 {
   URV mask = URV(accessSize) - 1;
 
@@ -37,12 +37,12 @@ Hart<URV>::validateAmoAddr(uint32_t rs1, uint64_t& addr, unsigned accessSize,
   if (accessSize == 4)
     {
       uint32_t storeVal = 0;
-      cause = determineStoreException(rs1, addr, addr, storeVal, secCause, forcedFail);
+      cause = determineStoreException(rs1, addr, addr, storeVal, secCause, forcedFail, mma);
     }
   else
     {
       uint64_t storeVal = 0;
-      cause = determineStoreException(rs1, addr, addr, storeVal, secCause, forcedFail);
+      cause = determineStoreException(rs1, addr, addr, storeVal, secCause, forcedFail, mma);
     }
 
   if (cause == ExceptionCause::STORE_ADDR_MISAL and
@@ -111,7 +111,8 @@ Hart<URV>::amoLoad32(uint32_t rd, uint32_t rs1, uint32_t rs2, URV& value)
   auto secCause = SecondaryCause::STORE_ACC_AMO;
   
   uint64_t addr = virtAddr;
-  auto cause = validateAmoAddr(rs1, addr, ldSize, secCause);
+  auto mma = getMemMappedAccType(addr, true, ldSize, true);
+  auto cause = validateAmoAddr(rs1, addr, ldSize, secCause, mma);
 
   if (cause != ExceptionCause::NONE)
     {
@@ -130,7 +131,6 @@ Hart<URV>::amoLoad32(uint32_t rd, uint32_t rs1, uint32_t rs2, URV& value)
 
       return true;  // Success.
     }
-
   cause = ExceptionCause::STORE_ACC_FAULT;
   initiateLoadException(cause, virtAddr, secCause);
   return false;
@@ -163,7 +163,8 @@ Hart<URV>::amoLoad64(uint32_t rd, uint32_t rs1, uint32_t rs2, URV& value)
 
   auto secCause = SecondaryCause::STORE_ACC_AMO;
   uint64_t addr = virtAddr;
-  auto cause = validateAmoAddr(rs1, addr, ldSize, secCause);
+  auto mma = getMemMappedAccType(addr, true, ldSize, true);
+  auto cause = validateAmoAddr(rs1, addr, ldSize, secCause, mma);
 
   if (cause != ExceptionCause::NONE)
     {
@@ -220,7 +221,8 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
   auto secCause = SecondaryCause::NONE;
   unsigned ldSize = sizeof(LOAD_TYPE);
   uint64_t addr = virtAddr;
-  auto cause = determineLoadException(rs1, virtAddr, addr, ldSize, secCause);
+  auto memMappedAcc = getMemMappedAccType(addr, true, ldSize, true);
+  auto cause = determineLoadException(rs1, virtAddr, addr, ldSize, secCause, memMappedAcc);
   if (cause != ExceptionCause::NONE)
     {
       if (cause == ExceptionCause::LOAD_ADDR_MISAL and
@@ -265,7 +267,7 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
     }
 
   ULT uval = 0;
-  if (not memory_.read(addr, uval))
+  if (not memory_.read(addr, uval, memMappedAcc==MemMappedAcc::none))
     {  // Should never happen.
       initiateLoadException(cause, virtAddr, secCause);
       return false;
@@ -277,7 +279,7 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
 
   // Put entry in load queue with value of rd before this load.
   if (loadQueueEnabled_)
-    putInLoadQueue(ldSize, addr, rd, peekIntReg(rd));
+    putInLoadQueue(ldSize, addr, rd, peekIntReg(rd),false,false,memMappedAcc==MemMappedAcc::nmi);
 
   intRegs_.write(rd, value);
 
@@ -334,8 +336,10 @@ Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
   auto secCause = SecondaryCause::NONE;
   uint64_t addr = virtAddr;
   bool forcedFail = false;
+  auto mma = getMemMappedAccType(addr, false, sizeof(STORE_TYPE), true);
+
   auto cause = determineStoreException(rs1, virtAddr, addr, storeVal, secCause,
-                                       forcedFail);
+                                       forcedFail, mma);
 
   if (cause == ExceptionCause::STORE_ADDR_MISAL and
       misalAtomicCauseAccessFault_)

@@ -146,122 +146,81 @@ PmaManager::setAttribute(uint64_t a0, uint64_t a1, Pma::Attrib attrib)
 }
 
 
+bool
+PmaManager::changeMemMappedBase(uint64_t newBase)
+{
+	if(memMappedSections_.size() != 1)
+		return false;
+	auto mms = memMappedSections_[0];
+	uint64_t currBase = mms.base;
+	if (newBase == currBase)
+		return true;
+	if (memSize_ - mms.size < newBase)
+	    return false;
+	std::unordered_map<uint64_t, MemMappedRegister> tmp;
+	tmp.insert(memMappedRegs_.begin(), memMappedRegs_.end());
+	memMappedRegs_.clear();
+	for(auto& r: tmp)
+		memMappedRegs_.insert(std::make_pair(uint64_t(newBase+currBase-r.first), r.second));
+
+	// Mark old area as non-memory-mapped.
+	disable(mms.base, mms.base+mms.size - 1, Pma::MemMapped);
+
+	// Mark new area as memory-mapped.
+	enable(newBase, newBase + mms.size - 1, Pma::MemMapped);
+
+	mms.base = newBase;
+	return true;
+}
+
+
 void
-PmaManager::setMemMappedMask(uint64_t addr, uint32_t mask)
+PmaManager::setMemMappedMask(uint64_t addr, uint32_t mask, uint8_t size)
 {
-  assert(addr >= memMappedBase_);
-  uint64_t wordIx = (addr - memMappedBase_) / 4;
-  assert(wordIx < memMappedMasks_.size());
-  memMappedMasks_.at(wordIx) = mask;
+	assert((addr & (size-1)) == 0);
+	assert(getMemMappedSection(addr)>=0);
+	memMappedRegs_.insert(std::make_pair(addr, MemMappedRegister(mask, size)));
+
 }
 
 
-uint32_t
-PmaManager::getMemMappedMask(uint64_t addr) const
+uint64_t
+PmaManager::getMemMappedMask(uint64_t addr, uint64_t& size) const
 {
-  if (addr < memMappedBase_)
-    return 0xffffffff;
-  uint64_t wordIx = (addr - memMappedBase_) / 4;
-  if (wordIx < memMappedMasks_.size())
-    return memMappedMasks_[wordIx];
-  return 0xffffffff;
-}
-
-
-bool
-PmaManager::defineMemMappedArea(uint64_t base, uint64_t size)
-{
-  memMappedBase_ = base;
-  memMappedSize_ = (size >> 2) << 2;
-  uint64_t wordCount = memMappedSize_ / 4;
-  memMappedMasks_.resize(wordCount);
-  memMappedRegs_.resize(wordCount);
-  return size == memMappedSize_;
+	auto t = memMappedRegs_.find(addr);
+	if(t != memMappedRegs_.end()) {
+		size = t->second.size;
+		return t->second.mask;
+	}
+	size =  4;
+	return 0;
 }
 
 
 bool
-PmaManager::readRegister(uint64_t addr, uint32_t& value) const
+PmaManager::defineMemMappedArea(uint64_t base, uint64_t size, bool isInternal)
 {
-  if ((addr & 3) != 0)
-    return false;  // Address must be workd-aligned.
-  if (addr < memMappedBase_)
-    return false;
-  uint64_t wordIx = (addr - memMappedBase_) / 4;
-  if (wordIx >= memMappedRegs_.size())
-    return false;
-  value = memMappedRegs_[wordIx];
-  return true;
+	if(size & 3) return false;
+	memMappedSections_.push_back(MemMappedSection(base, size, isInternal));
+	return true;
 }
 
-
-bool
-PmaManager::writeRegister(uint64_t addr, uint32_t value)
-{
-  if ((addr & 3) != 0)
-    return false;  // Address must be workd-aligned.
-  if (addr < memMappedBase_)
-    return false;
-  uint64_t wordIx = (addr - memMappedBase_) / 4;
-  if (wordIx >= memMappedRegs_.size())
-    return false;
-  uint32_t mask = memMappedMasks_.at(wordIx);
-  memMappedRegs_.at(wordIx) = value & mask;
-  return true;
-}
-
-
-bool
-PmaManager::writeRegisterNoMask(uint64_t addr, uint32_t value)
-{
-  if ((addr & 3) != 0)
-    return false;  // Address must be workd-aligned.
-  if (addr < memMappedBase_)
-    return false;
-  uint64_t wordIx = (addr - memMappedBase_) / 4;
-  if (wordIx >= memMappedRegs_.size())
-    return false;
-  memMappedRegs_.at(wordIx) = value;
-  return true;
-}
 
 
 bool
 PmaManager::writeRegisterByte(uint64_t addr, uint8_t value)
 {
-  if (addr < memMappedBase_)
-    return false;
-  uint64_t wordIx = (addr - memMappedBase_) / 4;
-  if (wordIx >= memMappedRegs_.size())
-    return false;
-  unsigned byteIx = addr & 3;
-  unsigned shift = byteIx * 8;
-  uint32_t byteMask = 0xff << shift;
-  uint32_t vv = (uint32_t(value) << shift) & memMappedMasks_.at(wordIx);
-  memMappedRegs_.at(wordIx) = memMappedRegs_.at(wordIx) & ~byteMask;
-  memMappedRegs_.at(wordIx) = memMappedRegs_.at(wordIx) | vv;
-  return true;
+    uint64_t wordAddr;
+    if(auto r = getRegister(addr, wordAddr)) {
+		unsigned shift = (addr & (r->size-1))*8;
+		uint64_t mask =  uint64_t(0xff) << shift;
+		r->data = ((int64_t(value)<<shift) | (r->data & ~mask)) & r->mask;
+		return true;
+    }
+	return getMemMappedSection(addr) >= 0;
 }
 
 
-bool
-PmaManager::changeMemMappedBase(uint64_t newBase)
-{
-  if (newBase == memMappedBase_)
-    return true;
-
-  if (memSize_ - memMappedSize_ < newBase)
-    return false;
-
-  // Mark old area as non-memory-mapped.
-  disable(memMappedBase_, memMappedBase_ + memMappedSize_ - 1, Pma::MemMapped);
-
-  // Mark new area as memory-mapped.
-  enable(newBase, newBase + memMappedSize_ - 1, Pma::MemMapped);
-
-  memMappedBase_ = newBase;
-  return true;
-}
 
 
 void

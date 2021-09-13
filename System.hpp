@@ -50,7 +50,7 @@ namespace WdRiscv
     /// hart-ids (values of MHARTID CSRs) starting with the start if
     /// od the core.
     System(unsigned coreCount, unsigned hartsPerCore, unsigned hartIdOffset,
-           size_t memSize, size_t pageSize);
+           size_t memSize, size_t pageSize, size_t regionSize);
 
     ~System();
 

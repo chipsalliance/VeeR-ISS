@@ -446,29 +446,52 @@ applyMemMappedRegConfig(Hart<URV>& hart, const nlohmann::json& config)
 
   unsigned errors = 0;
 
+  if(mmr.count("address") == 0 or mmr.count("size") == 0)
+	  errors++;
+  else {
+	auto& jaddr = mmr.at("address");
+	auto& jsize = mmr.at("size");
+	bool internal = true;
+	std::vector<URV> addrVec, sizeVec;
 
-  // Define memory-mapped-register region.
-  uint64_t addr = 0, size = 0;
-  if (getJsonUnsigned("address", mmr.at("address"), addr) and
-      getJsonUnsigned("size", mmr.at("size"), size))
-    {
-      if (not hart.defineMemoryMappedRegisterArea(addr, size))
-        return false;
-    }
-  else
-    errors++;
 
-  // Start by giving all registers in region a default mask.
-  size_t possibleRegCount = size / 4;
-  if (mmr.count("default_mask"))
-    {
-      uint32_t mask = 0;
-      if (getJsonUnsigned("default_mask", mmr.at("default_mask"), mask))
-        for (size_t ix = 0; ix < possibleRegCount; ++ix)
-          hart.defineMemoryMappedRegisterWriteMask(addr + ix*4, mask);
-      else
-        errors++;
-    }
+	if(mmr.count("internal")) {
+		if(not getJsonBoolean("internal", mmr.at("internal"),internal))
+			errors++;
+	}
+
+	if(jaddr.is_array()) {
+		if(not getJsonUnsignedVec("address", mmr.at("address"),addrVec))
+			errors++;
+	}
+	else {
+		URV addr;
+		if(getJsonUnsigned("address", mmr.at("address"), addr))
+			addrVec.push_back(addr);
+		else
+			errors++;
+	}
+	if(jsize.is_array()) {
+		if(not getJsonUnsignedVec("size", mmr.at("size"),sizeVec))
+			errors++;
+	}
+	else {
+		URV size;
+		if(getJsonUnsigned("size", mmr.at("size"), size))
+			sizeVec.push_back(size);
+		else
+			errors++;
+	}
+	if(addrVec.size() == sizeVec.size()) {
+		for(size_t i=0; i<addrVec.size(); ++i)
+			if (not hart.defineMemoryMappedRegisterArea(addrVec[i], sizeVec[i], internal))
+					return false;
+	}
+	else
+		errors++;
+  }
+
+
 
   if (not mmr.count("registers"))
     return true;
@@ -494,13 +517,15 @@ applyMemMappedRegConfig(Hart<URV>& hart, const nlohmann::json& config)
           errors++;
           continue;
         }
-      URV count = 0, mask = 0, addr = 0;
+      URV count = 0, mask = 0, addr = 0, size=4;
+      if(conf.count("size"))
+    	  getJsonUnsigned("size", conf.at("size"), size);
       if (getJsonUnsigned("count", conf.at("count"), count) and
           getJsonUnsigned("mask", conf.at("mask"), mask) and
           getJsonUnsigned("address", conf.at("address"), addr))
         {
           for (URV ix = 0; ix < count; ++ix)
-            if (not hart.defineMemoryMappedRegisterWriteMask(addr + ix*4, mask))
+            if (not hart.defineMemoryMappedRegisterWriteMask(addr + ix*size, mask, size))
               errors++;
         }
       else
@@ -1441,6 +1466,20 @@ HartConfig::getMemorySize(size_t& memSize) const
     return false;
 
   return getJsonUnsigned("memmap.size", mem.at("size"), memSize);
+}
+
+
+bool
+HartConfig::getRegionSize(size_t& regionSize) const
+{
+  if (not config_ -> count("memmap"))
+    return false;
+
+  auto& mem = config_ -> at("memmap");
+  if (not mem.count("region_size"))
+    return false;
+
+  return getJsonUnsigned("memmap.size", mem.at("region_size"), regionSize);
 }
 
 

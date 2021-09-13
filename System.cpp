@@ -22,12 +22,12 @@ using namespace WdRiscv;
 template <typename URV>
 System<URV>::System(unsigned coreCount, unsigned hartsPerCore,
                     unsigned hartIdOffset, size_t memSize,
-                    size_t pageSize)
+                    size_t pageSize, size_t regionSize)
   : hartCount_(coreCount * hartsPerCore), hartsPerCore_(hartsPerCore)
 {
   cores_.resize(coreCount);
 
-  memory_ = std::make_shared<Memory>(memSize, pageSize);
+  memory_ = std::make_shared<Memory>(memSize, pageSize, regionSize);
   sparseMem_ = nullptr;
 
   Memory& mem = *(memory_.get());

@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <vector>
 #include <unordered_map>
+#include <map>
 
 namespace WdRiscv
 {
@@ -115,7 +116,7 @@ namespace WdRiscv
 
     friend class Memory;
 
-    PmaManager(uint64_t memorySize, uint64_t sectionSize = 32*1024);
+    PmaManager(uint64_t memorySize, uint64_t sectionSize=32*1024);
 
     /// Return the physical memory attribute associated with the
     /// word-aligned word designated by the given address. Return an
@@ -147,12 +148,12 @@ namespace WdRiscv
     void setAttribute(uint64_t addr0, uint64_t addr1, Pma::Attrib attrib);
 
     /// Associate a mask with the word-aligned word at the given address.
-    void setMemMappedMask(uint64_t addr, uint32_t mask);
+    void setMemMappedMask(uint64_t addr, uint32_t mask, uint8_t size=4);
 
     /// Return mask associated with the word-aligned word at the given
     /// address.  Return 0xffffffff if no mask was ever associated
     /// with given address.
-    uint32_t getMemMappedMask(uint64_t addr) const;
+    uint64_t getMemMappedMask(uint64_t addr, uint64_t& size) const;
 
     /// Return true if the word-algined word containing given address
     /// is in data closed coupled memory.
@@ -163,11 +164,55 @@ namespace WdRiscv
     bool isAddrMemMapped(size_t addr) const
     { Pma pma = getPma(addr); return pma.isMemMappedReg(); }
 
-    /// Change the base address of the memory mapped register area to
-    /// the given new base. Return true on success and false if new
-    /// base cannot accomodate the size of the memory mapped area (new
-    /// base too close to end of memory).
+    int getMemMappedSection(size_t addr) const {
+    	for(size_t i=0; i<memMappedSections_.size(); ++i)
+    		if(memMappedSections_[i].base<=addr and
+    				memMappedSections_[i].size+memMappedSections_[i].base>addr)
+    			return i;
+    	return -1;
+    }
+
+    bool isExternalAddr(size_t addr) const {
+    	int memMappedIx = getMemMappedSection(addr);
+    	return not isAddrInDccm(addr) and not (memMappedIx>=0 and
+    			memMappedSections_.at(memMappedIx).isInternal);
+    }
+
+    bool isExternalMemMapped(size_t addr) const {
+		int memMappedIx = getMemMappedSection(addr);
+		return (memMappedIx>=0 and not memMappedSections_.at(memMappedIx).isInternal);
+   }
+
+    bool getMemMappedType(uint64_t addr, bool& internal, uint8_t& size) {
+    	auto ix = getMemMappedSection(addr);
+    	if(ix >=0) {
+    		internal = memMappedSections_[ix].isInternal;
+    		auto it = memMappedRegs_.find(addr);
+    		if(it != memMappedRegs_.end())
+    			size = it->second.size;
+    		else
+    			size = 4;
+    		return true;
+    	}
+    	internal = false;
+    	return false;
+    }
     bool changeMemMappedBase(uint64_t newBase);
+
+  private:
+    struct MemMappedRegister {
+      	uint64_t data;
+      	uint64_t mask;
+      	uint8_t size;
+      	MemMappedRegister(uint64_t mask, uint8_t size, uint64_t data=0): data(data), mask(mask), size(size) {}
+      };
+      struct MemMappedSection {
+      	uint64_t base;
+      	uint64_t size;
+      	bool isInternal;
+      	MemMappedSection(uint64_t base, uint64_t size, bool isInternal=true):
+      		base(base), size(size), isInternal(isInternal) {}
+      };
 
   protected:
 
@@ -180,38 +225,123 @@ namespace WdRiscv
 
     /// Reset (to zero) all memory mapped registers.
     void resetMemMapped()
-    { memMappedRegs_.assign(memMappedRegs_.size(), 0); }
+    { for(auto& mr: memMappedRegs_) mr.second.data = 0; }
 
     /// Bool an aread for memory mapped registers. Size is in bytes.
     /// Size must be a multiple of 4.
-    bool defineMemMappedArea(uint64_t base, uint64_t size);
+    bool defineMemMappedArea(uint64_t base, uint64_t size, bool isInternal);
 
     /// Set value to the value of the memory mapped regiser at addr
     /// returning true if addr is valid. Return false if addr is not word
     /// aligned or is outside of the memory-mapped-regiser area.
-    bool readRegister(uint64_t addr, uint32_t& value) const;
+
+    template<typename T>
+    bool
+    readRegister(uint64_t addr, T& value) const
+    {
+    	if ((addr & 3) != 0)
+    	    return false;  // Address must be workd-aligned.
+    	auto ix = getMemMappedSection(addr);
+    	if(ix >=0) {
+			auto it = memMappedRegs_.find(addr);
+			if(it != memMappedRegs_.end()) {
+				if(addr & (it->second.size-1))
+					return false;
+				if(sizeof(T) != it->second.size)
+					return false;
+				value = it->second.data;
+			}
+			else
+				value = 0;
+			return (sizeof(T) == 4);
+    	}
+
+    	return false;
+
+    }
+
+    const class MemMappedRegister* getRegister(uint64_t byteAddr, uint64_t& regAddr) const {
+    	regAddr = byteAddr;
+    	while(regAddr&0x7) {
+    		auto it = memMappedRegs_.find(regAddr);
+    		if(it!=memMappedRegs_.end()) {
+    			return &it->second;
+    		}
+    		regAddr--;
+    	}
+    	return nullptr;
+    }
+
+    class MemMappedRegister* getRegister(uint64_t byteAddr, uint64_t& regAddr) {
+		regAddr = byteAddr;
+		while(regAddr&0x7) {
+			auto it = memMappedRegs_.find(regAddr);
+			if(it!=memMappedRegs_.end()) {
+				return &it->second;
+			}
+			regAddr--;
+		}
+		return nullptr;
+	}
 
     /// Set value to the value of the memory mapped regiser byte at
     /// addr returning true if addr is valid. Return false if addr is
     /// is outside of the memory-mapped-regiser area.
     bool readRegisterByte(uint64_t addr, uint8_t& value) const
     {
-      uint32_t word = 0;
-      uint64_t wordAddr = (addr >> 2) << 2;
-      if (not readRegister(wordAddr, word))
-        return false;
-      unsigned byteInWord = addr & 3;
-      value = (word >> (byteInWord*8)) & 0xff;
-      return true;
+      uint64_t word = 0;
+      uint64_t wordAddr;
+      if(auto r = getRegister(addr, wordAddr)) {
+		  if (not readRegister(wordAddr, word))
+			return false;
+		  unsigned byteInWord = addr & (r->size-1);
+		  value = (word >> (byteInWord*8)) & 0xff;
+		  return true;
+      }
+      return false;
     }
 
     /// Set the value of the memory mapped regiser at addr to the
     /// given value returning true if addr is valid. Return false if
     /// addr is not a memory mapped reg leaving vlaue unmodified.
-    bool writeRegister(uint64_t addr, uint32_t value);
+    template<typename T>
+    bool writeRegister(uint64_t addr, T value) {
+    	if ((addr & 3) != 0)
+    	    return false;  // Address must be workd-aligned.
+    	auto ix = getMemMappedSection(addr);
+    	if(ix>=0) {
+    		auto it = memMappedRegs_.find(addr);
+    		if(it != memMappedRegs_.end()) {
+    			if(addr & (it->second.size-1))
+    				return false;
+    			if(sizeof(T) != it->second.size)
+    				return false;
+    			it->second.data = value & it->second.mask;
+    		}
+    		return sizeof(T) == 4;
+    	}
+    	return false;
+    }
 
     /// Similar to writeRgister but no masking is applied to value.
-    bool writeRegisterNoMask(uint64_t addr, uint32_t value);
+    template<typename T>
+    bool writeRegisterNoMask(uint64_t addr, T value) {
+    	if ((addr & 3) != 0)
+    	    return false;  // Address must be workd-aligned.
+    	auto ix = getMemMappedSection(addr);
+    	if(ix>=0) {
+    		auto it = memMappedRegs_.find(addr);
+    		if(it != memMappedRegs_.end()) {
+    			if(addr & (it->second.size-1))
+    				return false;
+    			if(sizeof(T) != it->second.size)
+    				return false;
+    			it->second.data = value;
+    		}
+    		return sizeof(T) == 4;
+    	}
+    	return false;
+    }
 
     /// Set the value of the memory mapped regiser byte at addr to the
     /// given value applying masking and returning true if addr is
@@ -241,9 +371,9 @@ namespace WdRiscv
     uint64_t sectionSize_ = 32*1024;
     unsigned sectionShift_ = 15;
 
-    uint64_t memMappedBase_ = 0;
-    uint64_t memMappedSize_ = 0;
-    std::vector<uint32_t> memMappedMasks_;  // One entry per register.
-    std::vector<uint32_t> memMappedRegs_;  // One entry per register.
+
+    std::vector<MemMappedSection> memMappedSections_;
+    std::unordered_map<uint64_t, MemMappedRegister> memMappedRegs_;
+
   };
 }

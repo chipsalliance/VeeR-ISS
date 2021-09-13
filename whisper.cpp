@@ -1011,7 +1011,7 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
   std::string isa = args.isa;
 
   // Handle linux/newlib adjusting stack if needed.
-  bool clib = enableNewlibOrLinuxFromElf(args, hart) or (args.syscallSlam!=0);
+  bool clib = enableNewlibOrLinuxFromElf(args, hart) or (args.syscallSlam);
 
   // TBD: Do this once.  Do not do it for each hart.
   if (isa.empty() and args.elfisa)
@@ -1665,7 +1665,7 @@ static
 bool
 getPrimaryConfigParameters(const Args& args, const HartConfig& config,
                            unsigned& hartsPerCore, unsigned& coreCount,
-                           size_t& pageSize, size_t& memorySize)
+                           size_t& pageSize, size_t& memorySize, size_t regionSize)
 {
   config.getHartsPerCore(hartsPerCore);
   if (args.hasHarts)
@@ -1692,6 +1692,8 @@ getPrimaryConfigParameters(const Args& args, const HartConfig& config,
   if (memorySize == 0)
     memorySize = size_t(1) << 31;  // 2 gigs
   config.getMemorySize(memorySize);
+  config.getRegionSize(regionSize);
+
   if (args.memorySize)
     memorySize = *args.memorySize;
 
@@ -1715,7 +1717,7 @@ session(const Args& args, const HartConfig& config)
   size_t memorySize = size_t(1) << 32;  // 4 gigs
 
   if (not getPrimaryConfigParameters(args, config, hartsPerCore, coreCount,
-                                     pageSize, memorySize))
+                                     pageSize, memorySize, regionSize))
     return false;
 
   checkAndRepairMemoryParams(memorySize, pageSize, regionSize);
@@ -1729,7 +1731,7 @@ session(const Args& args, const HartConfig& config)
                 << ",  must be greater than harts_per_core: " << hartsPerCore << '\n';
       return false;
     }
-  System<URV> system(coreCount, hartsPerCore, hartIdOffset, memorySize, pageSize);
+  System<URV> system(coreCount, hartsPerCore, hartIdOffset, memorySize, pageSize, regionSize);
   assert(system.hartCount() == coreCount*hartsPerCore);
   assert(system.hartCount() > 0);
 
