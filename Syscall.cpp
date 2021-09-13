@@ -738,13 +738,6 @@ Syscall<URV>::emulate()
 
   memChanges_.clear();
   memChanges_.push_back(AddrLen{0,0});
-  if(isFirstSysCall_) {
-	  isFirstSysCall_ = false;
-	  std::pair<URV, URV> origSpVal = hart_.getInitSpVal();
-	  if(origSpVal.second) {
-		  memChanges_.push_back(AddrLen{origSpVal.first-origSpVal.second,origSpVal.second});
-	  }
-  }
 
 #ifndef __MINGW64__
   URV a3 = hart_.peekIntReg(RegA3);
@@ -1050,7 +1043,6 @@ Syscall<URV>::emulate()
 
 	if (rc < 0)
           {
-            perror("fstatat error: ");
             return SRV(-errno);
           }
 
@@ -1060,7 +1052,11 @@ Syscall<URV>::emulate()
 	return copyOk? rc : SRV(-1);
       }
 #endif
-
+    case 82:       // fsync
+      {
+	    int fd = effectiveFd(SRV(a0));
+        return URV(fsync(fd));
+    }
     case 80:       // fstat
       {
 	int fd = effectiveFd(SRV(a0));
@@ -1079,7 +1075,20 @@ Syscall<URV>::emulate()
 	return copyOk? rc : SRV(-1);
       }
 
-
+    case 172: // getpid
+    {
+        return URV(getpid());
+    }
+    case 221: // execve
+    {
+        if(not a0) {
+              std::pair<URV, URV> origSpVal = hart_.getInitSpVal();
+              if(origSpVal.second)
+                  memChanges_.push_back(AddrLen{origSpVal.first-origSpVal.second,origSpVal.second});
+            return 0;
+        }
+        break;
+    }
     case 214: // brk
        {
      	  URV newBrk = a0;
@@ -1309,12 +1318,7 @@ Syscall<URV>::emulate()
     	bool maymove = a3 & MREMAP_MAYMOVE;
     	return  mmap_remap(addr,old_size,new_size, maymove);
       }
-    case 221: // execv
-    {
-    	if(not a0)
-    		return 0;
-    	break;
-    }
+
     case 222: // mmap2
       {
         URV start = a0;

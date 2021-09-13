@@ -144,6 +144,6 @@ namespace WdRiscv
     std::unordered_set<std::string> writePaths_;
 
     std::vector<AddrLen> memChanges_;  // Memory locations changed by syscall.
-    bool				 isFirstSysCall_;
+
   };
 }
