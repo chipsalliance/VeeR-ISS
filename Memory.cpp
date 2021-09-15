@@ -1056,7 +1056,7 @@ Memory::defineMemoryMappedRegisterArea(size_t addr, size_t size, bool trim, bool
   pmaMgr_.setAttribute(addr, addr + size - 1, attrib);
 
   pmaMgr_.defineMemMappedArea(addr, size, internal);
-
+  //std::cout << "defineMemMappedArea: " << std::hex << addr << "-" << std::hex << (addr+size) << "\n";
   return true;
 }
 
@@ -1087,6 +1087,7 @@ Memory::defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask, uint8_t 
     }
 
   pmaMgr_.setMemMappedMask(addr, mask, size);
+  //std::cout << "defineMemoryMappedRegisterWriteMask: " << std::hex << addr << "-" << std::hex << int(size) << "\n";
 
   return true;
 }

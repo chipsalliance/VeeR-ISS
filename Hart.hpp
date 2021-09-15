@@ -902,6 +902,10 @@ namespace WdRiscv
     /// Return true if given address is cacheable.
     bool isAddrCacheable(size_t addr) const;
 
+    /// Return true if given address is an idempotent region of
+    /// memory.
+    bool isAddrIdempotent(size_t addr) const;
+
     /// Return true if given address is in the memory mapped registers
     /// area of this hart.
     bool isAddrMemMapped(size_t addr) const
@@ -1160,7 +1164,6 @@ namespace WdRiscv
     { return privMode_; }
     ///
     enum class MemMappedAcc {none, internal, external, exc, nmi};
-
     MemMappedAcc getMemMappedAccType(URV addr, bool ld_nst, unsigned size, bool isAmo=false) {
     	uint8_t regSize;
     	bool intMma;
@@ -1174,9 +1177,8 @@ namespace WdRiscv
     	bool err = (size != regSize) or
     			((addr & (regSize-1))!=0 ) or
     			(privMode_ != PrivilegeMode::Machine);
-
     	if(err) {
-        	bool precise = (isAddrIdempotent(addr) and ld_nst) or isAmo;
+        	bool precise = (not isAddrIdempotent(addr) and ld_nst) or isAmo;
     		return precise ? MemMappedAcc::exc: MemMappedAcc::nmi;
     	}
     	else {
@@ -1758,9 +1760,7 @@ namespace WdRiscv
     /// interrupt.
     bool isInterruptPossible(InterruptCause& cause);
 
-    /// Return true if given address is an idempotent region of
-    /// memory.
-    bool isAddrIdempotent(size_t addr) const;
+
 
     /// Check address associated with an atomic memory operation (AMO)
     /// instruction. Return true if AMO access is allowed. Return

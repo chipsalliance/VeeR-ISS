@@ -1757,7 +1757,7 @@ Hart<URV>::wideLoad(uint32_t rd, URV addr)
     }
 
   uint32_t upper = 0, lower = 0;
-  if (not memory_.read(addr + 4, upper) or not memory_.read(addr, lower))
+  if (not memory_.read(addr + 4, upper, false) or not memory_.read(addr, lower, false))
     {
       initiateLoadException(cause, addr, secCause);
       return false;
@@ -1936,7 +1936,7 @@ Hart<URV>::fastLoad(uint32_t rd, uint32_t rs1, int32_t imm)
   typedef typename std::make_unsigned<LOAD_TYPE>::type ULT;
 
   ULT uval = 0;
-  if (memory_.read(addr, uval))
+  if (memory_.read(addr, uval, false))
     {
       URV value;
       if constexpr (std::is_same<ULT, LOAD_TYPE>::value)
@@ -2080,7 +2080,7 @@ bool
 Hart<URV>::fastStore(uint32_t /*rs1*/, URV /*base*/, URV addr,
                      STORE_TYPE storeVal)
 {
-  if (memory_.write(hartIx_, addr, storeVal))
+  if (memory_.write(hartIx_, addr, storeVal, false, false))
     {
       if (toHostValid_ and addr == toHost_ and storeVal != 0)
 	{
@@ -2144,7 +2144,7 @@ Hart<URV>::store(uint32_t rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
     {
       // For the bench: A precise error does write external memory.
       if (forceAccessFail_ and memory_.isDataAddressExternal(addr))
-        memory_.write(hartIx_, addr, storeVal);
+        memory_.write(hartIx_, addr, storeVal, mma==MemMappedAcc::none, mma==MemMappedAcc::internal);
       initiateStoreException(cause, virtAddr, secCause);
       return false;
     }
@@ -2153,7 +2153,7 @@ Hart<URV>::store(uint32_t rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
   if (wideLdSt_)
     return wideStore(addr, storeVal);
 
-  if (memory_.write(hartIx_, addr, storeVal))
+  if (memory_.write(hartIx_, addr, storeVal, mma==MemMappedAcc::none, mma==MemMappedAcc::internal))
     {
       memory_.invalidateOtherHartLr(hartIx_, addr, stSize);
 
@@ -2730,7 +2730,7 @@ Hart<URV>::initiateFastInterrupt(InterruptCause cause, URV pcToSave)
 
   // Fetch the interrupt handler address.
   URV nextPc = 0;
-  if (not memory_.read(addr, nextPc))
+  if (not memory_.read(addr, nextPc, false))
     {
       initiateNmi(URV(NmiCause::DCCM_ACCESS_ERROR), pcToSave);
       return;
@@ -9265,7 +9265,7 @@ Hart<URV>::wideStore(URV addr, URV storeVal)
 
   // Enable when bench is ready.
   uint64_t val = (uint64_t(upper) << 32) | lower;
-  if (not memory_.write(hartIx_, addr, val))
+  if (not memory_.write(hartIx_, addr, val, false, false))
     {
       auto cause = ExceptionCause::STORE_ACC_FAULT;
       auto secCause = SecondaryCause::STORE_ACC_64BIT;
@@ -9333,7 +9333,7 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
             return cause;
           addr = pa;
         }
-      writeOk = memory_.checkWrite(addr, storeVal);
+      writeOk = memory_.checkWrite(addr, storeVal, mma==MemMappedAcc::none);
     }
   else
     {
@@ -9350,7 +9350,7 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
         }
 
       // DCCM unmapped or out of MPU windows. Invalid PIC access handled later.
-      writeOk = memory_.checkWrite(addr, storeVal);
+      writeOk = memory_.checkWrite(addr, storeVal, mma==MemMappedAcc::none);
       if (not writeOk and mma == MemMappedAcc::none)
         {
           secCause = SecondaryCause::STORE_ACC_MEM_PROTECTION;

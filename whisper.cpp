@@ -254,7 +254,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 693;
+  unsigned subversion = 695;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -1012,7 +1012,6 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
 
   // Handle linux/newlib adjusting stack if needed.
   bool clib = enableNewlibOrLinuxFromElf(args, hart) or (args.syscallSlam);
-
   // TBD: Do this once.  Do not do it for each hart.
   if (isa.empty() and args.elfisa)
     if (not getElfFilesIsaString(args, isa))

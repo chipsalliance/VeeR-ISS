@@ -122,7 +122,7 @@ Hart<URV>::amoLoad32(uint32_t rd, uint32_t rs1, uint32_t rs2, URV& value)
     }
 
   uint32_t uval = 0;
-  if (memory_.read(addr, uval))
+  if (memory_.read(addr, uval, mma==MemMappedAcc::none))
     {
       value = SRV(int32_t(uval)); // Sign extend.
 
@@ -174,7 +174,7 @@ Hart<URV>::amoLoad64(uint32_t rd, uint32_t rs1, uint32_t rs2, URV& value)
     }
 
   uint64_t uval = 0;
-  if (memory_.read(addr, uval))
+  if (memory_.read(addr, uval, mma==MemMappedAcc::none))
     {
       value = SRV(int64_t(uval)); // Sign extend.
 
@@ -387,7 +387,7 @@ Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
   if (not memory_.hasLr(hartIx_, addr, sizeof(storeVal)))
     return false;
 
-  if (memory_.write(hartIx_, addr, storeVal))
+  if (memory_.write(hartIx_, addr, storeVal, mma==MemMappedAcc::none, mma==MemMappedAcc::internal))
     {
       invalidateDecodeCache(virtAddr, sizeof(STORE_TYPE));
 

@@ -24,7 +24,6 @@
 #include "PmaManager.hpp"
 #include "Cache.hpp"
 
-
 namespace ELFIO
 {
   class elfio;
@@ -85,7 +84,7 @@ namespace WdRiscv
     /// 4.
 
     template <typename T>
-    bool read(size_t address, T& value, bool toMain=false) const
+    bool read(size_t address, T& value, bool toMain) const
     {
 #ifdef FAST_SLOPPY
       if (address + sizeof(T) > size_)
@@ -158,7 +157,7 @@ namespace WdRiscv
     /// write.  Change value to the maksed value if write is to a
     /// memory mapped register.
     template <typename T>
-    bool checkWrite(size_t address, T& value, bool toMain=false)
+    bool checkWrite(size_t address, T& value, bool toMain)
     {
       Pma pma1 = pmaMgr_.getPma(address);
       if (not pma1.isWrite())
@@ -195,7 +194,7 @@ namespace WdRiscv
     /// inaccessible regions or if the write crosses memory region of
     /// different attributes.
     template <typename T>
-    bool write(unsigned sysHartIx, size_t address, T value, bool toMain=false)
+    bool write(unsigned sysHartIx, size_t address, T value, bool toMain, bool internal)
     {
 #ifdef FAST_SLOPPY
       if (address + sizeof(T) > size_)
@@ -219,7 +218,7 @@ namespace WdRiscv
       // Memory mapped region accessible only with word-size write.
       if (pma1.isMemMappedReg() and not toMain)
         {
-          return writeRegister(sysHartIx, address, value);
+          return writeRegister(sysHartIx, address, value, internal);
 	}
 
       auto& lwd = lastWriteData_.at(sysHartIx);
@@ -244,25 +243,6 @@ namespace WdRiscv
 
       return true;
     }
-
-    /// Write half-word (2 bytes) to given address. Return true on
-    /// success. Return false if address is out of bounds or is not
-    /// writable.
-    bool writeHalfWord(unsigned sysHartIx, size_t address, uint16_t value)
-    { return write(sysHartIx, address, value); }
-
-    /// Read word (4 bytes) from given address into value. Return true
-    /// on success.  Return false if address is out of bounds or is
-    /// not writable.
-    bool writeWord(unsigned sysHartIx, size_t address, uint32_t value)
-    { return write(sysHartIx, address, value); }
-
-    /// Read a double-word (8 bytes) from given address into
-    /// value. Return true on success. Return false if address is out
-    /// of bounds.
-    bool writeDoubleWord(unsigned sysHartIx, size_t address, uint64_t value)
-    { return write(sysHartIx, address, value); }
-
     /// Similar to read but ignore physical-memory-attributes if
     /// usePma is false.
     template <typename T>
@@ -586,7 +566,7 @@ namespace WdRiscv
 
     /// Write a memory mapped register.
     template<typename T>
-    bool writeRegister(unsigned sysHartIx, size_t addr, T value)
+    bool writeRegister(unsigned sysHartIx, size_t addr, T value, bool internal=true)
     {
       uint64_t size;
       T prev = 0;
@@ -594,9 +574,9 @@ namespace WdRiscv
         return false;
       }
 
-      value = doRegisterMasking(addr, value, size);
+      T mvalue = doRegisterMasking(addr, value, size);
 
-      if (not pmaMgr_.writeRegister(addr, value)) {
+      if (not pmaMgr_.writeRegister(addr, mvalue)) {
         return false;
       }
 
@@ -604,7 +584,7 @@ namespace WdRiscv
       lwd.prevValue_ = prev;
       lwd.size_ = size;
       lwd.addr_ = addr;
-      lwd.value_ = value;
+      lwd.value_ = internal ? mvalue : value;
       return true;
     }
 

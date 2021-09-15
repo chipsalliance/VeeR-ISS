@@ -9446,7 +9446,7 @@ Hart<URV>::vectorLoad(const DecodedInst* di, ElementWidth eew, bool faultFirst)
               cause = determineLoadException(rs1, addr, addr, 8, secCause, mma);
               if (cause != ExceptionCause::NONE)
                 break;
-              memory_.read(addr + n, dword);
+              memory_.read(addr + n, dword, mma==MemMappedAcc::none);
               elem <<= 64;
               elem |= dword;
             }
@@ -9456,7 +9456,7 @@ Hart<URV>::vectorLoad(const DecodedInst* di, ElementWidth eew, bool faultFirst)
           auto mma = getMemMappedAccType(addr, true, sizeof(elem));
           if (determineLoadException(rs1, addr, addr, sizeof(elem), secCause, mma) !=
               ExceptionCause::NONE)
-            memory_.read(addr, elem);
+            memory_.read(addr, elem, mma==MemMappedAcc::none);
         }
 
       if (cause != ExceptionCause::NONE)
@@ -9599,7 +9599,7 @@ Hart<URV>::vectorStore(const DecodedInst* di, ElementWidth eew)
               if (cause != ExceptionCause::NONE)
                 break;
 
-              memory_.write(hartIx_, addr + n, dword);
+              memory_.write(hartIx_, addr + n, dword,mma==MemMappedAcc::none, mma==MemMappedAcc::internal);
               elem >>= 64;
             }
         }
@@ -9610,7 +9610,7 @@ Hart<URV>::vectorStore(const DecodedInst* di, ElementWidth eew)
 
           if (determineStoreException(rs1, URV(addr), addr, elem, secCause, forced, mma) !=
               ExceptionCause::NONE)
-            memory_.write(hartIx_, addr, elem);
+            memory_.write(hartIx_, addr, elem,mma==MemMappedAcc::none, mma==MemMappedAcc::internal);
         }
 
       if (cause != ExceptionCause::NONE)
@@ -9727,13 +9727,13 @@ Hart<URV>::vectorLoadWholeReg(const DecodedInst* di, ElementWidth eew)
           for (unsigned n = 0; n < sizeof(elem) and not exception; n += 8)
             {
               uint64_t dword = 0;
-              memory_.read(addr + n, dword);
+              memory_.read(addr + n, dword, false);
               elem <<= 64;
               elem |= dword;
             }
         }
       else
-        memory_.read(addr, elem);
+        memory_.read(addr, elem, false);
 
       if (exception)
         {
@@ -9860,12 +9860,12 @@ Hart<URV>::vectorStoreWholeReg(const DecodedInst* di, ElementWidth eew)
           for (unsigned n = 0; n < sizeof(elem) and not exception; n += 8)
             {
               uint64_t dword = uint64_t(elem);
-              memory_.write(hartIx_, addr + n, dword);
+              memory_.write(hartIx_, addr + n, dword, false, false);
               elem >>= 64;
             }
         }
       else
-        memory_.write(hartIx_, addr, elem);
+        memory_.write(hartIx_, addr, elem, false, false);
 
       if (exception)
         {
@@ -10057,7 +10057,7 @@ Hart<URV>::vectorLoadStrided(const DecodedInst* di, ElementWidth eew)
               cause = determineLoadException(rs1, addr, addr, 8, secCause, mma);
               if (cause != ExceptionCause::NONE)
                 break;
-              memory_.read(addr + n, dword);
+              memory_.read(addr + n, dword, mma==MemMappedAcc::none);
               elem <<= 64;
               elem |= dword;
             }
@@ -10067,7 +10067,7 @@ Hart<URV>::vectorLoadStrided(const DecodedInst* di, ElementWidth eew)
           auto mma = getMemMappedAccType(addr, true, sizeof(elem));
           if (determineLoadException(rs1, addr, addr, sizeof(elem), secCause, mma) !=
               ExceptionCause::NONE)
-            memory_.read(addr, elem);
+            memory_.read(addr, elem, mma==MemMappedAcc::none);
         }
 
       if (cause != ExceptionCause::NONE)
@@ -10202,12 +10202,12 @@ Hart<URV>::vectorStoreStrided(const DecodedInst* di, ElementWidth eew)
           for (unsigned n = 0; n < sizeof(elem) and not exception; n += 8)
             {
               uint64_t dword = uint64_t(elem);
-              memory_.write(hartIx_, addr + n, dword);
+              memory_.write(hartIx_, addr + n, dword, false, false);
               elem >>= 64;
             }
         }
       else
-        memory_.write(hartIx_, addr, elem);
+        memory_.write(hartIx_, addr, elem, false, false);
 
       if (exception)
         {
@@ -10349,7 +10349,7 @@ Hart<URV>::vectorLoadIndexed(const DecodedInst* di, ElementWidth offsetEew)
               cause = determineLoadException(rs1, eaddr, addr, 8, secCause, mma);
               if (cause != ExceptionCause::NONE)
                 break;
-              memory_.read(eaddr + n, dword);
+              memory_.read(eaddr + n, dword, mma==MemMappedAcc::none);
               elem <<= 64;
               elem |= dword;
             }
@@ -10359,7 +10359,7 @@ Hart<URV>::vectorLoadIndexed(const DecodedInst* di, ElementWidth offsetEew)
           auto mma = getMemMappedAccType(addr, true, sizeof(elem));
           if (determineLoadException(rs1, eaddr, eaddr, sizeof(elem), secCause, mma) !=
               ExceptionCause::NONE)
-            memory_.read(eaddr, elem);
+            memory_.read(eaddr, elem, mma==MemMappedAcc::none);
         }
 
       if (cause != ExceptionCause::NONE)
@@ -10482,7 +10482,7 @@ Hart<URV>::vectorStoreIndexed(const DecodedInst* di, ElementWidth offsetEew)
               if (cause != ExceptionCause::NONE)
                 break;
 
-              memory_.write(hartIx_, eaddr + n, dword);
+              memory_.write(hartIx_, eaddr + n, dword, mma==MemMappedAcc::none, mma==MemMappedAcc::internal);
               elem >>= 64;
             }
         }
@@ -10492,7 +10492,7 @@ Hart<URV>::vectorStoreIndexed(const DecodedInst* di, ElementWidth offsetEew)
           auto mma = getMemMappedAccType(addr, false, 8);
           if (determineStoreException(rs1, URV(eaddr), eaddr, elem, secCause, forced, mma) !=
               ExceptionCause::NONE)
-            memory_.write(hartIx_, eaddr, elem);
+            memory_.write(hartIx_, eaddr, elem, mma==MemMappedAcc::none, mma==MemMappedAcc::internal);
         }
 
       if (cause != ExceptionCause::NONE)

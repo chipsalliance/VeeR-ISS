@@ -267,7 +267,7 @@ VirtMem::pageTableWalk(uint64_t address, PrivilegeMode privMode, bool read, bool
       if (not pmp.isRead(privMode, privMode, false))
         return accessFaultType(read, write, exec);
 
-      if (! memory_.read(pteAddr, pte.data_))
+      if (! memory_.read(pteAddr, pte.data_, false))
         return pageFaultType(read, write, exec);
 
       // 4.
@@ -325,7 +325,7 @@ VirtMem::pageTableWalk(uint64_t address, PrivilegeMode privMode, bool read, bool
       if (not pmp.isWrite(privMode, privMode, false))
         return accessFaultType(read, write, exec);
 
-      if (not memory_.write(hartIx_, pteAddr, pte.data_))
+      if (not memory_.write(hartIx_, pteAddr, pte.data_, false, false))
         return pageFaultType(read, write, exec);
     }
 
@@ -453,7 +453,7 @@ VirtMem::printEntries(std::ostream& os, uint64_t addr, std::string path) const
   for (unsigned ix = 0; ix < entryCount; ++ix, eaddr += entrySize)
     {
       PTE pte(0);
-      memory_.read(eaddr, pte.data_);
+      memory_.read(eaddr, pte.data_, false);
 
       if (not pte.valid())
         continue;
@@ -469,7 +469,7 @@ VirtMem::printEntries(std::ostream& os, uint64_t addr, std::string path) const
   for (unsigned ix = 0; ix < entryCount; ++ix, eaddr += entrySize)
     {
       PTE pte(0);
-      memory_.read(eaddr, pte.data_);
+      memory_.read(eaddr, pte.data_, false);
 
       if (not pte.valid())
         continue;

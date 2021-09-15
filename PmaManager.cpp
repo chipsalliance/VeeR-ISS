@@ -175,7 +175,7 @@ PmaManager::changeMemMappedBase(uint64_t newBase)
 
 
 void
-PmaManager::setMemMappedMask(uint64_t addr, uint32_t mask, uint8_t size)
+PmaManager::setMemMappedMask(uint64_t addr, uint64_t mask, uint8_t size)
 {
 	assert((addr & (size-1)) == 0);
 	assert(getMemMappedSection(addr)>=0);
@@ -189,6 +189,7 @@ PmaManager::getMemMappedMask(uint64_t addr, uint64_t& size) const
 {
 	auto t = memMappedRegs_.find(addr);
 	if(t != memMappedRegs_.end()) {
+		//std::cout << "memMasked[" <<std::hex << addr <<"] = " << int(t->second.size) << "\n";
 		size = t->second.size;
 		return t->second.mask;
 	}

@@ -148,7 +148,7 @@ namespace WdRiscv
     void setAttribute(uint64_t addr0, uint64_t addr1, Pma::Attrib attrib);
 
     /// Associate a mask with the word-aligned word at the given address.
-    void setMemMappedMask(uint64_t addr, uint32_t mask, uint8_t size=4);
+    void setMemMappedMask(uint64_t addr, uint64_t mask, uint8_t size=4);
 
     /// Return mask associated with the word-aligned word at the given
     /// address.  Return 0xffffffff if no mask was ever associated
@@ -250,6 +250,7 @@ namespace WdRiscv
 				if(sizeof(T) != it->second.size)
 					return false;
 				value = it->second.data;
+				return true;
 			}
 			else
 				value = 0;
@@ -317,6 +318,7 @@ namespace WdRiscv
     			if(sizeof(T) != it->second.size)
     				return false;
     			it->second.data = value & it->second.mask;
+    			return true;
     		}
     		return sizeof(T) == 4;
     	}

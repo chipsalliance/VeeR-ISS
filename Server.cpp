@@ -417,7 +417,7 @@ Server<URV>::disassembleAnnotateInst(Hart<URV>& hart,
         oss << " [0x" << std::hex << addr << "]" << std::dec;
         text += oss.str();
         bool cacheable = hart.isAddrCacheable(addr);
-        bool io = not hart.isAddrCacheable(addr);
+        bool io = not hart.isAddrIdempotent(addr);
         if (cacheable or io)
           {
             text += " (";
