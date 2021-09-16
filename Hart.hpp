@@ -504,31 +504,31 @@ namespace WdRiscv
     /// returning true on success and false if address is out of
     /// bounds. Memory is little-endian. Bypass physical memory
     /// attribute checking if usePma is false.
-    bool peekMemory(size_t addr, uint8_t& val, bool usePma) const;
+    bool peekMemory(size_t addr, uint8_t& val, bool usePma, bool toMain=false) const;
 
     /// Half-word version of the preceding method.
-    bool peekMemory(size_t addr, uint16_t& val, bool usePma) const;
+    bool peekMemory(size_t addr, uint16_t& val, bool usePma, bool toMain=false) const;
 
     /// Word version of the preceding method.
-    bool peekMemory(size_t addr, uint32_t& val, bool usePma) const;
+    bool peekMemory(size_t addr, uint32_t& val, bool usePma, bool toMain=false) const;
 
     /// Double-word version of the preceding method.
-    bool peekMemory(size_t addr, uint64_t& val, bool usePma) const;
+    bool peekMemory(size_t addr, uint64_t& val, bool usePma, bool toMain=false) const;
 
     /// Set the memory byte at the given address to the given value.
     /// Return true on success and false on failure (address out of
     /// bounds, location not mapped, location not writable etc...)
     /// Bypass physical memory attribute checking if usePma is false.
-    bool pokeMemory(size_t addr, uint8_t val, bool usePma);
+    bool pokeMemory(size_t addr, uint8_t val, bool usePma, bool toMain=false);
 
     /// Half-word version of the preceding method.
-    bool pokeMemory(size_t address, uint16_t val, bool usePma);
+    bool pokeMemory(size_t address, uint16_t val, bool usePma, bool toMain=false);
 
     /// Word version of the preceding method.
-    bool pokeMemory(size_t addr, uint32_t val, bool usePma);
+    bool pokeMemory(size_t addr, uint32_t val, bool usePma, bool toMain=false);
 
     /// Double-word version of the preceding method.
-    bool pokeMemory(size_t addr, uint64_t val, bool usePma);
+    bool pokeMemory(size_t addr, uint64_t val, bool usePma, bool toMain=false);
 
     /// Define value of program counter after a reset.
     void defineResetPc(URV addr)

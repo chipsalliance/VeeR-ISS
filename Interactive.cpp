@@ -383,7 +383,7 @@ peekMemory(Hart<URV>& hart, uint64_t addr0, uint64_t addr1, std::ostream& out)
 
   for (uint64_t addr = addr0; addr <= addr1; addr += 4)
     {
-      if (not hart.peekMemory(addr, word, usePma))
+      if (not hart.peekMemory(addr, word, usePma, true))
         {
           std::cerr << "Peek memory address out of bounds: 0x"
                     << std::hex << addr << std::dec << '\n';
@@ -695,7 +695,7 @@ Interactive<URV>::pokeCommand(Hart<URV>& hart, const std::string& line,
 	return false;
       bool usePma = false; // Ignore physicla memory attributes.
       uint32_t word = value; // Memory peek/poke in words.
-      if (hart.pokeMemory(addr, word, usePma))
+      if (hart.pokeMemory(addr, word, usePma, true))
 	return true;
       std::cerr << "Address out of bounds: " << addrStr << '\n';
       return false;
@@ -761,7 +761,7 @@ Interactive<URV>::disassCommand(Hart<URV>& hart, const std::string& line,
 	{
 	  uint32_t inst = 0;
           bool usePma = false;
-	  if (not hart.peekMemory(addr, inst, usePma))
+	  if (not hart.peekMemory(addr, inst, usePma, true))
 	    {
 	      std::cerr << "Address out of bounds: 0x" << std::hex << addr
 			<< '\n' << std::dec;
@@ -803,7 +803,7 @@ Interactive<URV>::disassCommand(Hart<URV>& hart, const std::string& line,
     {
       uint32_t inst = 0;
       bool usePma = false;
-      if (not hart.peekMemory(addr, inst, usePma))
+      if (not hart.peekMemory(addr, inst, usePma, true))
 	{
 	  std::cerr << "Address out of bounds: 0x" << std::hex << addr
 		    << '\n' << std::dec;

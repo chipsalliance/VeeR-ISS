@@ -203,7 +203,6 @@ namespace WdRiscv
       *(reinterpret_cast<T*>(data_ + address)) = value;
       return true;
 #endif
-
       Pma pma1 = pmaMgr_.getPma(address);
       if (not pma1.isWrite())
 	return false;
@@ -248,6 +247,7 @@ namespace WdRiscv
     template <typename T>
     bool peek(size_t address, T& value, bool usePma, bool toMain=false) const
     {
+      toMain |= not usePma;
       if (address + sizeof(T) > size_)
         return false;
 
@@ -402,6 +402,7 @@ namespace WdRiscv
     template <typename T>
     bool poke(size_t address, T value, bool usePma = true, bool toMain=false)
     {
+      toMain |= not usePma;
       if (address + sizeof(T) > size_)
         return false;
 

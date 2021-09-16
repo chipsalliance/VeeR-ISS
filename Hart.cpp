@@ -665,35 +665,35 @@ Hart<URV>::loadElfFile(const std::string& file, size_t& entryPoint)
 
 template <typename URV>
 bool
-Hart<URV>::peekMemory(size_t address, uint8_t& val, bool usePma) const
+Hart<URV>::peekMemory(size_t address, uint8_t& val, bool usePma, bool toMain) const
 {
-  return memory_.peek(address, val, usePma);
+  return memory_.peek(address, val, usePma, toMain);
 }
   
 
 template <typename URV>
 bool
-Hart<URV>::peekMemory(size_t address, uint16_t& val, bool usePma) const
+Hart<URV>::peekMemory(size_t address, uint16_t& val, bool usePma, bool toMain) const
 {
-  return memory_.peek(address, val, usePma);
+  return memory_.peek(address, val, usePma, toMain);
 }
 
 
 template <typename URV>
 bool
-Hart<URV>::peekMemory(size_t address, uint32_t& val, bool usePma) const
+Hart<URV>::peekMemory(size_t address, uint32_t& val, bool usePma, bool toMain) const
 {
-  return memory_.peek(address, val, usePma);
+  return memory_.peek(address, val, usePma, toMain);
 }
 
 
 template <typename URV>
 bool
-Hart<URV>::peekMemory(size_t address, uint64_t& val, bool usePma) const
+Hart<URV>::peekMemory(size_t address, uint64_t& val, bool usePma, bool toMain) const
 {
   uint32_t high = 0, low = 0;
 
-  if (memory_.peek(address, low, usePma) and memory_.peek(address + 4, high, usePma))
+  if (memory_.peek(address, low, usePma, toMain) and memory_.peek(address + 4, high, usePma))
     {
       val = (uint64_t(high) << 32) | low;
       return true;
@@ -705,13 +705,13 @@ Hart<URV>::peekMemory(size_t address, uint64_t& val, bool usePma) const
 
 template <typename URV>
 bool
-Hart<URV>::pokeMemory(size_t addr, uint8_t val, bool usePma)
+Hart<URV>::pokeMemory(size_t addr, uint8_t val, bool usePma, bool toMain)
 {
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
   memory_.invalidateLrs(addr, sizeof(val));
 
-  if (memory_.poke(addr, val, usePma))
+  if (memory_.poke(addr, val, usePma, toMain))
     {
       invalidateDecodeCache(addr, sizeof(val));
       return true;
@@ -723,13 +723,13 @@ Hart<URV>::pokeMemory(size_t addr, uint8_t val, bool usePma)
 
 template <typename URV>
 bool
-Hart<URV>::pokeMemory(size_t addr, uint16_t val, bool usePma)
+Hart<URV>::pokeMemory(size_t addr, uint16_t val, bool usePma, bool toMain)
 {
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
   memory_.invalidateLrs(addr, sizeof(val));
 
-  if (memory_.poke(addr, val, usePma))
+  if (memory_.poke(addr, val, usePma, toMain))
     {
       invalidateDecodeCache(addr, sizeof(val));
       return true;
@@ -741,7 +741,7 @@ Hart<URV>::pokeMemory(size_t addr, uint16_t val, bool usePma)
 
 template <typename URV>
 bool
-Hart<URV>::pokeMemory(size_t addr, uint32_t val, bool usePma)
+Hart<URV>::pokeMemory(size_t addr, uint32_t val, bool usePma, bool toMain)
 {
   // We allow poke to bypass masking for memory mapped registers
   // otherwise, there is no way for external driver to clear bits that
@@ -751,7 +751,7 @@ Hart<URV>::pokeMemory(size_t addr, uint32_t val, bool usePma)
 
   memory_.invalidateLrs(addr, sizeof(val));
 
-  if (memory_.poke(addr, val, usePma))
+  if (memory_.poke(addr, val, usePma, toMain))
     {
       invalidateDecodeCache(addr, sizeof(val));
       return true;
@@ -763,13 +763,13 @@ Hart<URV>::pokeMemory(size_t addr, uint32_t val, bool usePma)
 
 template <typename URV>
 bool
-Hart<URV>::pokeMemory(size_t addr, uint64_t val, bool usePma)
+Hart<URV>::pokeMemory(size_t addr, uint64_t val, bool usePma, bool toMain)
 {
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
   memory_.invalidateLrs(addr, sizeof(val));
 
-  if (memory_.poke(addr, val, usePma))
+  if (memory_.poke(addr, val, usePma, toMain))
     {
       invalidateDecodeCache(addr, sizeof(val));
       return true;

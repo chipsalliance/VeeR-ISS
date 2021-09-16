@@ -309,10 +309,10 @@ Server<URV>::pokeCommand(const WhisperMessage& req, WhisperMessage& reply)
         if (sizeof(URV) == 4)
           {
             // Poke a word in 32-bit harts.
-            if (hart.pokeMemory(req.address, uint32_t(req.value), usePma))
+            if (hart.pokeMemory(req.address, uint32_t(req.value), usePma, true))
               return true;
           }
-        else if (hart.pokeMemory(req.address, req.value, usePma))
+        else if (hart.pokeMemory(req.address, req.value, usePma, true))
           return true;
       }
       break;
@@ -373,7 +373,7 @@ Server<URV>::peekCommand(const WhisperMessage& req, WhisperMessage& reply)
 	}
       break;
     case 'm':
-      if (hart.peekMemory(req.address, value, false /*usePma*/))
+      if (hart.peekMemory(req.address, value, false /*usePma*/, true))
 	{
 	  reply.value = value;
 	  return true;
