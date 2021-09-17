@@ -1178,7 +1178,7 @@ namespace WdRiscv
     			((addr & (regSize-1))!=0 ) or
     			(privMode_ != PrivilegeMode::Machine);
     	if(err) {
-        	bool precise = (not isAddrIdempotent(addr) and ld_nst) or isAmo;
+        	bool precise = false and ((not isAddrIdempotent(addr) and ld_nst) or isAmo);
     		return precise ? MemMappedAcc::exc: MemMappedAcc::nmi;
     	}
     	else {
