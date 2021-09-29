@@ -457,6 +457,7 @@ Hart<URV>::execFlw(const DecodedInst* di)
   auto secCause = SecondaryCause::NONE;
   auto cause = ExceptionCause::NONE;
 
+  auto mma = getMemMappedAccType(addr,true,ldSize);
 #ifndef FAST_SLOPPY
   if (loadQueueEnabled_)
     removeFromLoadQueue(rs1, false);
@@ -469,7 +470,6 @@ Hart<URV>::execFlw(const DecodedInst* di)
       if (triggerTripped_)
 	return;
     }
-  auto mma = getMemMappedAccType(addr,true,ldSize);
   cause = determineLoadException(rs1, base, addr, ldSize, secCause, mma);
   if (cause != ExceptionCause::NONE)
     {
@@ -1613,6 +1613,7 @@ Hart<URV>::execFld(const DecodedInst* di)
 
   auto secCause = SecondaryCause::NONE;
   auto cause = ExceptionCause::NONE;
+  auto mma = getMemMappedAccType(addr,true,ldSize);
 
 #ifndef FAST_SLOPPY
   if (loadQueueEnabled_)
@@ -1626,7 +1627,6 @@ Hart<URV>::execFld(const DecodedInst* di)
       if (triggerTripped_)
 	return;
     }
-  auto mma = getMemMappedAccType(addr,true,ldSize);
   cause = determineLoadException(rs1, base, addr, ldSize, secCause, mma);
   if (cause != ExceptionCause::NONE)
     {

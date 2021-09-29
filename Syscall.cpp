@@ -265,7 +265,7 @@ copyTimevalToRiscv32(Hart<URV>& hart, const struct timeval& tv, URV addr)
 }
 
 
-// Copy x86 timeval buffer to riscv timeval buffer (32-bit version).
+// Copy x86 timeval buffer to riscv timeval buffer (64-bit version).
 template <typename URV>
 static size_t
 copyTimevalToRiscv64(Hart<URV>& hart, const struct timeval& tv, URV addr)
@@ -282,6 +282,47 @@ copyTimevalToRiscv64(Hart<URV>& hart, const struct timeval& tv, URV addr)
 
   return written;
 }
+
+
+
+// Copy x86 timespec buffer to riscv timespec buffer (32-bit version).
+template <typename URV>
+static size_t
+copyTimespecToRiscv32(Hart<URV>& hart, const struct timespec& tv, URV addr)
+{
+  size_t written = 0;
+  if (not hart.pokeMemory(addr, uint32_t(tv.tv_sec), true))
+    return written;
+  written += sizeof(uint32_t);
+  addr += sizeof(uint32_t);
+
+  if (not hart.pokeMemory(addr, uint64_t(tv.tv_nsec), true))
+    return written;
+  written += sizeof(uint64_t);
+
+  return written;
+}
+
+
+// Copy x86 timespec buffer to riscv timespec buffer (64-bit version).
+template <typename URV>
+static size_t
+copyTimespecToRiscv64(Hart<URV>& hart, const struct timespec& tv, URV addr)
+{
+  size_t written = 0;
+  if (not hart.pokeMemory(addr, uint64_t(tv.tv_sec), true))
+    return written;
+  written += sizeof(uint64_t);
+  addr += sizeof(uint64_t);
+
+  if (not hart.pokeMemory(addr, uint64_t(tv.tv_nsec), true))
+    return written;
+  written += sizeof(uint64_t);
+
+  return written;
+}
+
+
 
 
 // Copy x86 timezone to riscv
@@ -748,7 +789,7 @@ Syscall<URV>::emulate()
     num = hart_.peekIntReg(RegT0);
   else
     num = hart_.peekIntReg(RegA7);
-
+  //std::cout << "sc: " << names[num] << "\n";
   switch (num)
     {
 #ifndef __MINGW64__
@@ -776,7 +817,25 @@ Syscall<URV>::emulate()
         memChanges_.push_back(AddrLen{rvBuff, len});
         return len;
       }
-
+    case 113: // clock_gettime
+    {
+    	timespec ts;
+    	unsigned len = 0;
+    	static const uint64_t oneBillion = 1e9;
+    	uint64_t ic = hart_.getInstructionCount();
+    	ts.tv_sec = ic/oneBillion;
+    	ts.tv_nsec = ic % oneBillion;
+    	std::cout << "clock:" << ic <<" sec:" << ts.tv_sec << "\n";
+    	if(sizeof(URV) == 4)
+    		len = copyTimespecToRiscv32(hart_, ts, a0);
+    	else
+    		len = copyTimespecToRiscv64(hart_, ts, a0);
+    	if (len)
+		  memChanges_.push_back(AddrLen{a0, len});
+    	if(len == 8+sizeof(URV))
+    		return 0;
+    	return SRV(-EINVAL);
+    }
     case 25:       // fcntl
       {
 	int fd = effectiveFd(SRV(a0));

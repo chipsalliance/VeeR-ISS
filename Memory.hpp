@@ -87,6 +87,7 @@ namespace WdRiscv
     bool read(size_t address, T& value, bool toMain) const
     {
 #ifdef FAST_SLOPPY
+      (void)toMain;
       if (address + sizeof(T) > size_)
         return false;
 #else
@@ -197,6 +198,8 @@ namespace WdRiscv
     bool write(unsigned sysHartIx, size_t address, T value, bool toMain, bool internal)
     {
 #ifdef FAST_SLOPPY
+      (void)toMain;
+      (void)internal;
       if (address + sizeof(T) > size_)
         return false;
       sysHartIx = sysHartIx; // Avoid unused var warning.
