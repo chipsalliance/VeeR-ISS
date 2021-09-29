@@ -813,11 +813,8 @@ Hart<URV>::execGorciw(const DecodedInst* di)
 {
   URV shamt = di->op2();
 
-  bool orc_b = (shamt == 0x7);  // orc.b is also in zbb
 
   bool legal = isRvzbp() and isRv64();
-  if (orc_b)
-    legal = legal or isRvzbb();
 
   if (not legal)
     {
