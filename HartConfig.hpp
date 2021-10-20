@@ -56,8 +56,7 @@ namespace WdRiscv
     /// harts. Finalize CSR configuration by defining callbacks for
     /// non-standard CSRs.
     template<typename URV>
-    bool configHarts(System<URV>& system, const std::string& isaString,
-                     bool verbose) const;
+    bool configHarts(System<URV>& system, bool userMode, bool verbose) const;
 
     /// Configure memory.
     template<typename URV>

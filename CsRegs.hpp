@@ -1058,8 +1058,14 @@ namespace WdRiscv
     void enableUserMode(bool flag)
     { userModeEnabled_ = flag; }
 
+    /// Enable/disable F extension.
+    void enableRvf(bool flag);
+
     /// Enable supervisor mode.
     void enableSupervisorMode(bool flag);
+
+    /// Enable supervisor mode.
+    void enableVectorMode(bool flag);
 
     /// Return a legal mstatus value (chanign mpp if necessary).
     URV legalizeMstatusValue(URV value) const;

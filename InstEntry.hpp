@@ -25,9 +25,9 @@ namespace WdRiscv
 
   enum class OperandType { IntReg, FpReg, CsReg, VecReg, Imm, None };
   enum class OperandMode { Read, Write, ReadWrite, None };
-  enum class InstType { Load, Store, Multiply, Divide, Branch, Int, Fp,
+  enum class InstType { Load, Store, Multiply, Divide, Branch, Int, Rvf, Rvd,
                         Csr, Atomic, Vector, Zba, Zbb, Zbc, Zbe, Zbf, Zbm, Zbp,
-                        Zbr, Zbs, Zbt };
+                        Zbr, Zbs, Zbt, Zfh };
 
   /// Return true if given instruction is a 4-byte instruction.
   inline bool

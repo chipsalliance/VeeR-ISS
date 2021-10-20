@@ -455,7 +455,7 @@ namespace WdRiscv
 
     /// Similar to the precedning decode method but with decoded data
     /// placed in the given DecodedInst object.
-    void decode(URV address, uint32_t inst, DecodedInst& decodedInst);
+    void decode(URV addr, uint64_t physAddr, uint32_t inst, DecodedInst& decodedInst);
 
     /// Return the 32-bit instruction corresponding to the given 16-bit
     /// compressed instruction. Return an illegal 32-bit opcode if given
@@ -743,6 +743,14 @@ namespace WdRiscv
     void enableRvzba(bool flag)
     { rvzba_ = flag; }
 
+    /// Enable/disable the f (floating point) extension.
+    void enableRvf(bool flag)
+    { rvf_ = flag; csRegs_.enableRvf(flag); }
+
+    /// Enable/disable the d (double-precision floating point) extension.
+    void enableRvd(bool flag)
+    { rvd_ = flag; }
+
     /// Enable/disable the zbb (bit manipulation base) extension. When
     /// disabled all the instructions in zbb extension result in an
     /// illegal instruction exception.
@@ -796,6 +804,10 @@ namespace WdRiscv
     /// result in an illegal instruction exception.
     void enableRvzbt(bool flag)
     { rvzbt_ = flag; }
+
+    /// Enable/disable the half-precision floating point extension.
+    void enableZfh(bool flag)
+    { rvzfh_ = flag; }
 
     /// Put this hart in debug mode setting the DCSR cause field to
     /// the given cause.
@@ -920,6 +932,11 @@ namespace WdRiscv
     /// extension is enabled in this hart.
     bool isRvf() const
     { return rvf_; }
+
+    /// Return true if the half-precision floating point extension is
+    /// enabled.
+    bool isRvzfh() const
+    { return rvzfh_; }
 
     /// Return true if rv64d (double precision floating point)
     /// extension is enabled in this hart.
@@ -1146,6 +1163,10 @@ namespace WdRiscv
     void enableSupervisorMode(bool flag)
     { rvs_ = flag; csRegs_.enableSupervisorMode(flag); }
 
+    /// Enable supervisor mode.
+    void enableVectorMode(bool flag)
+    { rvv_ = flag; csRegs_.enableVectorMode(flag); }
+
     /// Enable/diable misaligned access. If disabled then misaligned
     /// ld/st will trigger an exception.
     void enableMisalignedData(bool flag)
@@ -1284,8 +1305,14 @@ namespace WdRiscv
     URV syscallSlam() const
     { return syscallSlam_; }
 
+    /// Force floating point rounding mode to the given mode
+    /// regardless of the setting of the FRM CSR. This is useful for
+    /// testing/bringup.
     void forceRoundingMode(RoundingMode mode)
     { forcedRounding_ = mode; forceRounding_ = true; }
+
+    void enableCsvLog(bool flag)
+    { csvTrace_ = flag; }
 
   protected:
 
@@ -1297,8 +1324,14 @@ namespace WdRiscv
     bool isFpEnabled() const
     { return mstatusFs_ != FpFs::Off; }
 
+    // Return true if it is legal to execute an zfh instruction: f and zfh
+    // extensions must be enabled and FS feild of MSTATUS must not be
+    // OFF.
+    bool isZfhLegal() const
+    { return isRvf() and isRvzfh() and isFpEnabled(); }
+
     // Return true if it is legal to execute an FP instruction: F extension must
-    // be enabled and FS feild of MSTATUS must not be OFF.
+    // be enabled and FS field of MSTATUS must not be OFF.
     bool isFpLegal() const
     { return isRvf() and isFpEnabled(); }
 
@@ -1424,10 +1457,12 @@ namespace WdRiscv
     /// exception returning false; otherwise, return true.
     bool checkRoundingModeSp(const DecodedInst* di);
 
-    /// Preamble to double precision instruction execution: If D
-    /// extension is not enabled or if the instruction rounding mode
-    /// is not valid returning, the take an illegal-instruction
-    /// exception returning false; otherwise, return true.
+    /// Similar to checkRoundingModeSp but for for half-precision (zfh
+    /// extension) instructions.
+    bool checkRoundingModeHp(const DecodedInst* di);
+
+    /// Similar to checkRoundingModeSp but for for double-precision (D
+    /// extension) instructions.
     bool checkRoundingModeDp(const DecodedInst* di);
 
     /// Record the destination register and corresponding value (prior
@@ -1620,22 +1655,26 @@ namespace WdRiscv
     // using this method.
     void updatePerformanceCountersForCsr(const DecodedInst& di);
 
-    /// Fetch an instruction. Return true on success. Return false on
-    /// fail (in which case an exception is initiated). May fetch a
-    /// compressed instruction (16-bits) in which case the upper 16
-    /// bits are not defined (may contain arbitrary values).
-    bool fetchInst(URV address, uint32_t& instr);
+    /// Fetch an instruction from the given virtual address. Return
+    /// true on success. Return false on fail (in which case an
+    /// exception is initiated). May fetch a compressed instruction
+    /// (16-bits) in which case the upper 16 bits are not defined (may
+    /// contain arbitrary values). If successful set pysAddr to the
+    /// physical address corresponding to the given virtual address.
+    bool fetchInst(URV virAddr, uint64_t& physAddr, uint32_t& instr);
 
     /// Heler to the run methods: Fetch an instruction taking debug triggers
     /// into consideration. Return true if successful. Return false if
     /// instruction fetch fails (an exception is signaled in that case).
-    bool fetchInstWithTrigger(URV address, uint32_t& inst, FILE* trace);
+    bool fetchInstWithTrigger(URV addr, uint64_t& physAddr, uint32_t& inst,
+			      FILE* trace);
 
     /// Helper to fetchInstWithTrigger. Fetch an instruction given
     /// that a trigger has tripped. Return true on success. Return
     /// false on a a fail in which case either a trigger exception is
     /// initiated (as opposed to an instruction-fail exception).
-    bool fetchInstPostTrigger(URV address, uint32_t& inst, FILE* trace);
+    bool fetchInstPostTrigger(URV virtAddr, uint64_t& physAddr, uint32_t& inst,
+			      FILE* trace);
 
     /// Write trace information about the given instruction to the
     /// given file. This is assumed to be called after instruction
@@ -1643,13 +1682,15 @@ namespace WdRiscv
     /// count after instruction is executed). Tmp is a temporary
     /// string (for performance).
     void printDecodedInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
-                               FILE* out, bool interrupt = false);
+                               FILE* out);
 
     /// Variant of the preceding method for cases where the trace is
     /// printed before decode. If the instruction is not available
     /// then a zero (illegal) value is required.
     void printInstTrace(uint32_t instruction, uint64_t tag, std::string& tmp,
-			FILE* out, bool interrupt = false);
+			FILE* out);
+
+    void printInstCsvTrace(const DecodedInst& di, FILE* out);
 
     /// Start a synchronous exceptions.
     void initiateException(ExceptionCause cause, URV pc, URV info,
@@ -1688,7 +1729,7 @@ namespace WdRiscv
     /// Helper to decode: Decode instructions associated with opcode
     /// 1010011.
     const InstEntry& decodeFp(uint32_t inst, uint32_t& op0, uint32_t& op1,
-			      uint32_t& op2, uint32_t& op3);
+			      uint32_t& op2);
 
     /// Helper to decode: Decode instructions associated with opcode
     /// 1010111.
@@ -1696,14 +1737,17 @@ namespace WdRiscv
                                uint32_t& op2, uint32_t& op3);
 
     /// Helper to decode: Decode vector instructions associated with
-    /// opcode 0100111. For whole register or segment load, op3 is set
-    /// to the code of the register count or segment field count.
-    const InstEntry& decodeVecStore(uint32_t f3, uint32_t imm12, uint32_t& op3);
+    /// opcode 0100111. For whole register or segment load, fieldCount
+    /// is set to the register count or segment field count.
+    const InstEntry& decodeVecStore(uint32_t f3, uint32_t imm12,
+				    uint32_t& fieldCount);
 
     /// Helper to decode: Decode vector instructions associated with
-    /// opcode 0000111. For whole register or segment store, op3 is
-    /// set to the code of the register count or segment field count.
-    const InstEntry& decodeVecLoad(uint32_t f3, uint32_t imm12, uint32_t& op3);
+    /// opcode 0000111. For whole register or segment store,
+    /// fieldCount is set to the register count or segment field
+    /// count.
+    const InstEntry& decodeVecLoad(uint32_t f3, uint32_t imm12,
+				   uint32_t& fieldCount);
 
     /// Helper to disassembleInst32: Disassemble instructions
     /// associated with opcode 1010011.
@@ -1718,8 +1762,10 @@ namespace WdRiscv
     void initiateTrap(bool interrupt, URV cause, URV pcToSave, URV info,
 		      URV secCause);
 
-    /// Illegal instruction. One of the following:
+    /// Illegal instruction. Initiate an illegal instruction trap.
+    /// This is used for one of the following:
     ///   - Invalid opcode.
+    ///   - Extension instruction executed when extension is off in mstatus or misa.
     ///   - Machine mode instruction executed when not in machine mode.
     ///   - Invalid CSR.
     ///   - Write to a read-only CSR.
@@ -1801,6 +1847,57 @@ namespace WdRiscv
       assert(0 and "Register value type must be uint32_t or uint64_t.");
       return 0x1f;
     }
+
+    // Return true if maskable vector instruction is legal. Take an
+    // illegal instuction exception and return false otherwise.
+    bool checkMaskableInst(const DecodedInst* di);
+
+    // Return true if maskable floating point vecotr instruction is
+    // legal. Take an illegal instuction exception and return false
+    // otherwise.
+    bool checkFpMaskableInst(const DecodedInst* di, bool wide = false);
+
+    // Return true if vector operands are mutliples of the given group
+    // multiplier (scaled by 8). Return false initiating an illegal instruction
+    // trap otherwise.
+    bool checkVecOpsVsEmul(const DecodedInst* di, unsigned op0, unsigned op1,
+			   unsigned op2, unsigned groupX8);
+
+    // Similar to above but for 2 vector operand instructions.
+    bool checkVecOpsVsEmul(const DecodedInst* di, unsigned op0, unsigned op1,
+			   unsigned groupX8);
+
+    // Similar to above but for 1 vector operand instructions.
+    bool checkVecOpsVsEmul(const DecodedInst* di, unsigned op0, unsigned groupX8);
+
+    // Check reduction vector operand against the group multiplier. Return true
+    // if operand is a multiple of multiplier and false otherwise. Record group
+    // multiplier for tracing.
+    bool checkRedOpVsEmul(const DecodedInst* di, unsigned op1, unsigned groupX8);
+
+    // Similar to above but 3 vector operands and 1st operand is wide.
+    bool checkVecOpsVsEmulW0(const DecodedInst* di, unsigned op0, unsigned op1,
+			     unsigned op2, unsigned groupX8);
+
+    // Similar to above but 2 vector operands and 1st operand is wide.
+    bool checkVecOpsVsEmulW0(const DecodedInst* di, unsigned op0, unsigned op1,
+			     unsigned groupX8);
+
+    // Similar to above but 3 vector operands and 1st 2 operands are wide.
+    bool checkVecOpsVsEmulW0W1(const DecodedInst* di, unsigned op0, unsigned op1,
+			       unsigned op2, unsigned groupX8);
+
+    // Similar to above but 2 vector operands and 1st 2 operands are wide.
+    bool checkVecOpsVsEmulW0W1(const DecodedInst* di, unsigned op0, unsigned op1,
+			       unsigned groupX8);
+
+    // Similar to above but 3 vector operands with 2nd operand wide.
+    bool checkVecOpsVsEmulW1(const DecodedInst* di, unsigned op0, unsigned op1,
+			     unsigned op2, unsigned groupX8);
+
+    // Similar to above but 2 vector operands with 2nd operand wide.
+    bool checkVecOpsVsEmulW1(const DecodedInst* di, unsigned op0, unsigned op1,
+			     unsigned groupX8);
 
     // rs1: index of source register (value range: 0 to 31)
     // rs2: index of source register (value range: 0 to 31)
@@ -1974,6 +2071,44 @@ namespace WdRiscv
     void execFmv_d_x(const DecodedInst*);
     void execFmv_x_d(const DecodedInst*);
 
+    // zfh (half precision floating point)
+    void execFlh(const DecodedInst*);
+    void execFsh(const DecodedInst*);
+    void execFmadd_h(const DecodedInst*);
+    void execFmsub_h(const DecodedInst*);
+    void execFnmsub_h(const DecodedInst*);
+    void execFnmadd_h(const DecodedInst*);
+    void execFadd_h(const DecodedInst*);
+    void execFsub_h(const DecodedInst*);
+    void execFmul_h(const DecodedInst*);
+    void execFdiv_h(const DecodedInst*);
+    void execFsqrt_h(const DecodedInst*);
+    void execFsgnj_h(const DecodedInst*);
+    void execFsgnjn_h(const DecodedInst*);
+    void execFsgnjx_h(const DecodedInst*);
+    void execFmin_h(const DecodedInst*);
+    void execFmax_h(const DecodedInst*);
+    void execFcvt_s_h(const DecodedInst*);
+    void execFcvt_d_h(const DecodedInst*);
+    void execFcvt_h_s(const DecodedInst*);
+    void execFcvt_h_d(const DecodedInst*);
+    void execFcvt_w_h(const DecodedInst*);
+    void execFcvt_wu_h(const DecodedInst*);
+    void execFmv_x_h(const DecodedInst*);
+    void execFeq_h(const DecodedInst*);
+    void execFlt_h(const DecodedInst*);
+    void execFle_h(const DecodedInst*);
+    void execFclass_h(const DecodedInst*);
+    void execFcvt_h_w(const DecodedInst*);
+    void execFcvt_h_wu(const DecodedInst*);
+    void execFmv_h_x(const DecodedInst*);
+
+    // zfh + rv64
+    void execFcvt_l_h(const DecodedInst*);
+    void execFcvt_lu_h(const DecodedInst*);
+    void execFcvt_h_l(const DecodedInst*);
+    void execFcvt_h_lu(const DecodedInst*);
+
     // atomic
     void execAmoadd_w(const DecodedInst*);
     void execAmoswap_w(const DecodedInst*);
@@ -2105,12 +2240,9 @@ namespace WdRiscv
     void execStore64(const DecodedInst*);
     void execBbarrier(const DecodedInst*);
 
-    // Return true if maskable instruction is legal. Take an illegal instuction
-    // exception and return false otherwise.
-    bool checkMaskableInst(const DecodedInst* di);
-
     void vsetvl(unsigned rd, unsigned rs1, URV vtypeVal);
     void execVsetvli(const DecodedInst*);
+    void execVsetivli(const DecodedInst*);
     void execVsetvl(const DecodedInst*);
 
     template<typename ELEM_TYPE>
@@ -2157,6 +2289,10 @@ namespace WdRiscv
                   unsigned start, unsigned elems, bool masked);
     void execVwaddu_vx(const DecodedInst*);
     void execVwadd_vx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vwsub_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
     void execVwsubu_vx(const DecodedInst*);
     void execVwsub_vx(const DecodedInst*);
 
@@ -2184,6 +2320,63 @@ namespace WdRiscv
     void execVwsub_wv(const DecodedInst*);
 
     template<typename ELEM_TYPE>
+    void vmseq_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmseq_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmseq_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmseq_vx(const DecodedInst*);
+    void execVmseq_vi(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmsne_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmsne_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmsne_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmsne_vx(const DecodedInst*);
+    void execVmsne_vi(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmslt_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmsltu_vv(const DecodedInst*);
+    void execVmslt_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmslt_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmsltu_vx(const DecodedInst*);
+    void execVmslt_vx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmsle_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmsleu_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmsle_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmsleu_vx(const DecodedInst*);
+    void execVmsleu_vi(const DecodedInst*);
+
+    void execVmsle_vv(const DecodedInst*);
+    void execVmsle_vx(const DecodedInst*);
+    void execVmsle_vi(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmsgt_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmsgtu_vx(const DecodedInst*);
+    void execVmsgtu_vi(const DecodedInst*);
+    void execVmsgt_vx(const DecodedInst*);
+    void execVmsgt_vi(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
     void vminu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                   unsigned start, unsigned elems, bool masked);
     void execVminu_vv(const DecodedInst*);
@@ -2192,7 +2385,6 @@ namespace WdRiscv
     void vminu_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
                   unsigned start, unsigned elems, bool masked);
     void execVminu_vx(const DecodedInst*);
-
 
     template<typename ELEM_TYPE>
     void vmin_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
@@ -2276,23 +2468,62 @@ namespace WdRiscv
 
 
     template<typename ELEM_TYPE>
+    void vsll_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVsll_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vsll_vx(unsigned vd, unsigned vs1, URV e2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVsll_vx(const DecodedInst*);
+    void execVsll_vi(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vsr_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		unsigned start, unsigned elems, bool masked);
+    void execVsrl_vv(const DecodedInst*);
+    void execVsra_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vsr_vx(unsigned vd, unsigned vs1, URV e2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVsrl_vx(const DecodedInst*);
+    void execVsrl_vi(const DecodedInst*);
+    void execVsra_vx(const DecodedInst*);
+    void execVsra_vi(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vnsr_wv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		unsigned start, unsigned elems, bool masked);
+    void execVnsrl_wv(const DecodedInst*);
+    void execVnsra_wv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vnsr_wx(unsigned vd, unsigned vs1, URV e2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVnsrl_wx(const DecodedInst*);
+    void execVnsrl_wi(const DecodedInst*);
+    void execVnsra_wx(const DecodedInst*);
+    void execVnsra_wi(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
     void vrgather_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                     unsigned start, unsigned elems);
+                     unsigned start, unsigned elems, bool masked);
     void execVrgather_vv(const DecodedInst*);
 
     template<typename ELEM_TYPE>
     void vrgather_vx(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
-                     unsigned start, unsigned elems);
+                     unsigned start, unsigned elems, bool masked);
     void execVrgather_vx(const DecodedInst*);
 
     template<typename ELEM_TYPE>
     void vrgather_vi(unsigned vd, unsigned vs1, uint32_t imm, unsigned group,
-                     unsigned start, unsigned elems);
+                     unsigned start, unsigned elems, bool masked);
     void execVrgather_vi(const DecodedInst*);
 
     template<typename ELEM_TYPE>
     void vrgatherei16_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                         unsigned start, unsigned elems);
+                         unsigned start, unsigned elems, bool masked);
     void execVrgatherei16_vv(const DecodedInst*);
 
     template<typename ELEM_TYPE>
@@ -2302,43 +2533,49 @@ namespace WdRiscv
 
     template<typename ELEM_TYPE>
     void vredsum_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                    unsigned start, unsigned elems);
+                    unsigned start, unsigned elems, bool masked);
     void execVredsum_vs(const DecodedInst*);
 
     template<typename ELEM_TYPE>
     void vredand_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                    unsigned start, unsigned elems);
+                    unsigned start, unsigned elems, bool masked);
     void execVredand_vs(const DecodedInst*);
 
     template<typename ELEM_TYPE>
     void vredor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                   unsigned start, unsigned elems);
+                   unsigned start, unsigned elems, bool masked);
     void execVredor_vs(const DecodedInst*);
 
     template<typename ELEM_TYPE>
     void vredxor_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                    unsigned start, unsigned elems);
+                    unsigned start, unsigned elems, bool masked);
     void execVredxor_vs(const DecodedInst*);
 
     template<typename ELEM_TYPE>
     void vredminu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                     unsigned start, unsigned elems);
+                     unsigned start, unsigned elems, bool masked);
     void execVredminu_vs(const DecodedInst*);
 
     template<typename ELEM_TYPE>
     void vredmin_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                    unsigned start, unsigned elems);
+                    unsigned start, unsigned elems, bool masked);
     void execVredmin_vs(const DecodedInst*);
 
     template<typename ELEM_TYPE>
     void vredmaxu_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                     unsigned start, unsigned elems);
+                     unsigned start, unsigned elems, bool masked);
     void execVredmaxu_vs(const DecodedInst*);
 
     template<typename ELEM_TYPE>
     void vredmax_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
-                    unsigned start, unsigned elems);
+                    unsigned start, unsigned elems, bool masked);
     void execVredmax_vs(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vwredsum_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		     unsigned start, unsigned elems, bool masked);
+    void execVwredsumu_vs(const DecodedInst*);
+    void execVwredsum_vs(const DecodedInst*);
 
     void execVmand_mm(const DecodedInst*);
     void execVmnand_mm(const DecodedInst*);
@@ -2368,6 +2605,10 @@ namespace WdRiscv
                     unsigned start, unsigned elems, bool masked);
     void execVslidedown_vx(const DecodedInst*);
     void execVslidedown_vi(const DecodedInst*);
+    void execVslide1down_vx(const DecodedInst*);
+
+    void execVfslide1up_vf(const DecodedInst*);
+    void execVfslide1down_vf(const DecodedInst*);
 
     template<typename ELEM_TYPE>
     void vmul_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
@@ -2407,6 +2648,46 @@ namespace WdRiscv
     void execVmulhsu_vx(const DecodedInst*);
 
     template<typename ELEM_TYPE>
+    void vmadd_vv(unsigned vd, unsigned rs1, unsigned v2, unsigned group,
+                    unsigned start, unsigned elems, bool masked);
+    void execVmadd_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmadd_vx(unsigned vd, unsigned rs1, unsigned v2, unsigned group,
+                    unsigned start, unsigned elems, bool masked);
+    void execVmadd_vx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vnmsub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                    unsigned start, unsigned elems, bool masked);
+    void execVnmsub_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vnmsub_vx(unsigned vd, unsigned rs1, unsigned v2, unsigned group,
+                    unsigned start, unsigned elems, bool masked);
+    void execVnmsub_vx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmacc_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                    unsigned start, unsigned elems, bool masked);
+    void execVmacc_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmacc_vx(unsigned vd, unsigned rs1, unsigned v2, unsigned group,
+                    unsigned start, unsigned elems, bool masked);
+    void execVmacc_vx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vnmsac_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                    unsigned start, unsigned elems, bool masked);
+    void execVnmsac_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vnmsac_vx(unsigned vd, unsigned rs1, unsigned v2, unsigned group,
+                    unsigned start, unsigned elems, bool masked);
+    void execVnmsac_vx(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
     void vwmulu_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                    unsigned start, unsigned elems, bool masked);
     void execVwmulu_vv(const DecodedInst*);
@@ -2444,14 +2725,14 @@ namespace WdRiscv
     void execVwmaccu_vv(const DecodedInst*);
 
     template<typename ELEM_TYPE>
-    void vwmaccu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+    void vwmaccu_vx(unsigned vd, ELEM_TYPE e1, unsigned vs2, unsigned group,
                     unsigned start, unsigned elems, bool masked);
     void execVwmaccu_vx(const DecodedInst*);
 
     void execVwmacc_vv(const DecodedInst*);
 
     template<typename ELEM_TYPE>
-    void vwmacc_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+    void vwmacc_vx(unsigned vd, ELEM_TYPE e1, unsigned vs2, unsigned group,
                    unsigned start, unsigned elems, bool masked);
     void execVwmacc_vx(const DecodedInst*);
 
@@ -2461,12 +2742,12 @@ namespace WdRiscv
     void execVwmaccsu_vv(const DecodedInst*);
 
     template<typename ELEM_TYPE>
-    void vwmaccsu_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+    void vwmaccsu_vx(unsigned vd, ELEM_TYPE e1, unsigned vs2, unsigned group,
                      unsigned start, unsigned elems, bool masked);
     void execVwmaccsu_vx(const DecodedInst*);
 
     template<typename ELEM_TYPE>
-    void vwmaccus_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+    void vwmaccus_vx(unsigned vd, ELEM_TYPE e1, unsigned vs2, unsigned group,
                      unsigned start, unsigned elems, bool masked);
     void execVwmaccus_vx(const DecodedInst*);
 
@@ -2572,19 +2853,21 @@ namespace WdRiscv
     void execVmsbc_vxm(const DecodedInst*);
 
     template<typename ELEM_TYPE>
-    void vmerge_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+    void vmerge_vvm(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
                    unsigned start, unsigned elems);
-    void execVmerge_vv(const DecodedInst*);
+    void execVmerge_vvm(const DecodedInst*);
 
     template<typename ELEM_TYPE>
-    void vmerge_vx(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
+    void vmerge_vxm(unsigned vd, unsigned vs1, ELEM_TYPE e2, unsigned group,
                    unsigned start, unsigned elems);
-    void execVmerge_vx(const DecodedInst*);
+    void execVmerge_vxm(const DecodedInst*);
 
-    void execVmerge_vi(const DecodedInst*);
+    void execVmerge_vim(const DecodedInst*);
 
     void execVmv_x_s(const DecodedInst*);
     void execVmv_s_x(const DecodedInst*);
+    void execVfmv_f_s(const DecodedInst*);
+    void execVfmv_s_f(const DecodedInst*);
 
     template<typename ELEM_TYPE>
     void vmv_v_v(unsigned vd, unsigned vs1, unsigned group,
@@ -2732,6 +3015,9 @@ namespace WdRiscv
     void execVse512_v(const DecodedInst*);
     void execVse1024_v(const DecodedInst*);
 
+    void execVlm_v(const DecodedInst*);
+    void execVsm_v(const DecodedInst*);
+
     template <typename ELEM_TYPE>
     void vectorLoadWholeReg(const DecodedInst*, ElementWidth);
 
@@ -2744,17 +3030,12 @@ namespace WdRiscv
     void execVlre512_v(const DecodedInst*);
     void execVlre1024_v(const DecodedInst*);
 
-    template <typename ELEM_TYPE>
-    void vectorStoreWholeReg(const DecodedInst*, ElementWidth);
+    void vectorStoreWholeReg(const DecodedInst*, GroupMultiplier);
 
-    void execVsre8_v(const DecodedInst*);
-    void execVsre16_v(const DecodedInst*);
-    void execVsre32_v(const DecodedInst*);
-    void execVsre64_v(const DecodedInst*);
-    void execVsre128_v(const DecodedInst*);
-    void execVsre256_v(const DecodedInst*);
-    void execVsre512_v(const DecodedInst*);
-    void execVsre1024_v(const DecodedInst*);
+    void execVs1r_v(const DecodedInst*);
+    void execVs2r_v(const DecodedInst*);
+    void execVs4r_v(const DecodedInst*);
+    void execVs8r_v(const DecodedInst*);
 
     void execVle8ff_v(const DecodedInst*);
     void execVle16ff_v(const DecodedInst*);
@@ -2792,18 +3073,584 @@ namespace WdRiscv
     template <typename ELEM_TYPE>
     void vectorLoadIndexed(const DecodedInst*, ElementWidth);
 
-    void execVlxei8_v(const DecodedInst*);
-    void execVlxei16_v(const DecodedInst*);
-    void execVlxei32_v(const DecodedInst*);
-    void execVlxei64_v(const DecodedInst*);
+    void execVloxei8_v(const DecodedInst*);
+    void execVloxei16_v(const DecodedInst*);
+    void execVloxei32_v(const DecodedInst*);
+    void execVloxei64_v(const DecodedInst*);
+    void execVluxei8_v(const DecodedInst*);
+    void execVluxei16_v(const DecodedInst*);
+    void execVluxei32_v(const DecodedInst*);
+    void execVluxei64_v(const DecodedInst*);
 
     template <typename ELEM_TYPE>
     void vectorStoreIndexed(const DecodedInst*, ElementWidth);
 
-    void execVsxei8_v(const DecodedInst*);
-    void execVsxei16_v(const DecodedInst*);
-    void execVsxei32_v(const DecodedInst*);
-    void execVsxei64_v(const DecodedInst*);
+    void execVsoxei8_v(const DecodedInst*);
+    void execVsoxei16_v(const DecodedInst*);
+    void execVsoxei32_v(const DecodedInst*);
+    void execVsoxei64_v(const DecodedInst*);
+    void execVsuxei8_v(const DecodedInst*);
+    void execVsuxei16_v(const DecodedInst*);
+    void execVsuxei32_v(const DecodedInst*);
+    void execVsuxei64_v(const DecodedInst*);
+
+    template <typename ELEM_TYPE>
+    void vectorLoadSeg(const DecodedInst*, ElementWidth, unsigned fields,
+		       uint64_t stride, bool faultOnFirstOnly);
+
+    void execVlsege8_v(const DecodedInst*);
+    void execVlsege16_v(const DecodedInst*);
+    void execVlsege32_v(const DecodedInst*);
+    void execVlsege64_v(const DecodedInst*);
+    void execVlsege128_v(const DecodedInst*);
+    void execVlsege256_v(const DecodedInst*);
+    void execVlsege512_v(const DecodedInst*);
+    void execVlsege1024_v(const DecodedInst*);
+
+    template <typename ELEM_TYPE>
+    void vectorStoreSeg(const DecodedInst*, ElementWidth, unsigned fields,
+			uint64_t stride);
+
+    void execVssege8_v(const DecodedInst*);
+    void execVssege16_v(const DecodedInst*);
+    void execVssege32_v(const DecodedInst*);
+    void execVssege64_v(const DecodedInst*);
+    void execVssege128_v(const DecodedInst*);
+    void execVssege256_v(const DecodedInst*);
+    void execVssege512_v(const DecodedInst*);
+    void execVssege1024_v(const DecodedInst*);
+
+    void execVlssege8_v(const DecodedInst*);
+    void execVlssege16_v(const DecodedInst*);
+    void execVlssege32_v(const DecodedInst*);
+    void execVlssege64_v(const DecodedInst*);
+    void execVlssege128_v(const DecodedInst*);
+    void execVlssege256_v(const DecodedInst*);
+    void execVlssege512_v(const DecodedInst*);
+    void execVlssege1024_v(const DecodedInst*);
+
+    void execVsssege8_v(const DecodedInst*);
+    void execVsssege16_v(const DecodedInst*);
+    void execVsssege32_v(const DecodedInst*);
+    void execVsssege64_v(const DecodedInst*);
+    void execVsssege128_v(const DecodedInst*);
+    void execVsssege256_v(const DecodedInst*);
+    void execVsssege512_v(const DecodedInst*);
+    void execVsssege1024_v(const DecodedInst*);
+
+    template <typename ELEM_TYPE>
+    void vectorLoadSegIndexed(const DecodedInst*, ElementWidth);
+
+    void execVluxsegei8_v(const DecodedInst*);
+    void execVluxsegei16_v(const DecodedInst*);
+    void execVluxsegei32_v(const DecodedInst*);
+    void execVluxsegei64_v(const DecodedInst*);
+    void execVluxsegei128_v(const DecodedInst*);
+    void execVluxsegei256_v(const DecodedInst*);
+    void execVluxsegei512_v(const DecodedInst*);
+    void execVluxsegei1024_v(const DecodedInst*);
+
+    template <typename ELEM_TYPE>
+    void vectorStoreSegIndexed(const DecodedInst*, ElementWidth);
+
+    void execVsuxsegei8_v(const DecodedInst*);
+    void execVsuxsegei16_v(const DecodedInst*);
+    void execVsuxsegei32_v(const DecodedInst*);
+    void execVsuxsegei64_v(const DecodedInst*);
+    void execVsuxsegei128_v(const DecodedInst*);
+    void execVsuxsegei256_v(const DecodedInst*);
+    void execVsuxsegei512_v(const DecodedInst*);
+    void execVsuxsegei1024_v(const DecodedInst*);
+
+    void execVloxsegei8_v(const DecodedInst*);
+    void execVloxsegei16_v(const DecodedInst*);
+    void execVloxsegei32_v(const DecodedInst*);
+    void execVloxsegei64_v(const DecodedInst*);
+    void execVloxsegei128_v(const DecodedInst*);
+    void execVloxsegei256_v(const DecodedInst*);
+    void execVloxsegei512_v(const DecodedInst*);
+    void execVloxsegei1024_v(const DecodedInst*);
+
+    void execVsoxsegei8_v(const DecodedInst*);
+    void execVsoxsegei16_v(const DecodedInst*);
+    void execVsoxsegei32_v(const DecodedInst*);
+    void execVsoxsegei64_v(const DecodedInst*);
+    void execVsoxsegei128_v(const DecodedInst*);
+    void execVsoxsegei256_v(const DecodedInst*);
+    void execVsoxsegei512_v(const DecodedInst*);
+    void execVsoxsegei1024_v(const DecodedInst*);
+
+    void execVlsege8ff_v(const DecodedInst*);
+    void execVlsege16ff_v(const DecodedInst*);
+    void execVlsege32ff_v(const DecodedInst*);
+    void execVlsege64ff_v(const DecodedInst*);
+    void execVlsege128ff_v(const DecodedInst*);
+    void execVlsege256ff_v(const DecodedInst*);
+    void execVlsege512ff_v(const DecodedInst*);
+    void execVlsege1024ff_v(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVfadd_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfadd_vf(unsigned vd, unsigned vs1, unsigned f2, unsigned group,
+		  unsigned start, unsigned elems, bool masked);
+    void execVfadd_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfsub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVfsub_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfsub_vf(unsigned vd, unsigned vs1, unsigned f2, unsigned group,
+		  unsigned start, unsigned elems, bool masked);
+    void execVfsub_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfrsub_vf(unsigned vd, unsigned vs1, unsigned f2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfrsub_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfwadd_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwadd_vf(unsigned vd, unsigned vs1, unsigned f2, unsigned group,
+		  unsigned start, unsigned elems, bool masked);
+    void execVfwadd_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwsub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVfwsub_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwsub_vf(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfwsub_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwadd_wv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfwadd_wv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwadd_wf(unsigned vd, unsigned vs1, unsigned f2, unsigned group,
+		  unsigned start, unsigned elems, bool masked);
+    void execVfwadd_wf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwsub_wv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                 unsigned start, unsigned elems, bool masked);
+    void execVfwsub_wv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwsub_wf(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfwsub_wf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfmadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfmadd_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfmadd_vf(unsigned vd, unsigned f1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfmadd_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfnmadd_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfnmadd_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfnmadd_vf(unsigned vd, unsigned f1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfnmadd_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfmsub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfmsub_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfmsub_vf(unsigned vd, unsigned f1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfmsub_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfnmsub_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		    unsigned start, unsigned elems, bool masked);
+    void execVfnmsub_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfnmsub_vf(unsigned vd, unsigned f1, unsigned vs2, unsigned group,
+		    unsigned start, unsigned elems, bool masked);
+    void execVfnmsub_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfmul_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		  unsigned start, unsigned elems, bool masked);
+    void execVfmul_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfmul_vf(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		  unsigned start, unsigned elems, bool masked);
+    void execVfmul_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfdiv_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfdiv_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfdiv_vf(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfdiv_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfrdiv_vf(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfrdiv_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwmul_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfwmul_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwmul_vf(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfwmul_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfmacc_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfmacc_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfmacc_vf(unsigned vd, unsigned vf1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfmacc_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfnmacc_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfnmacc_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfnmacc_vf(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfnmacc_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfmsac_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfmsac_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfmsac_vf(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfmsac_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfnmsac_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfnmsac_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfnmsac_vf(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfnmsac_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwmacc_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		    unsigned start, unsigned elems, bool masked);
+    void execVfwmacc_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwmacc_vf(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		    unsigned start, unsigned elems, bool masked);
+    void execVfwmacc_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwnmacc_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		     unsigned start, unsigned elems, bool masked);
+    void execVfwnmacc_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwnmacc_vf(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		     unsigned start, unsigned elems, bool masked);
+    void execVfwnmacc_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwmsac_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		    unsigned start, unsigned elems, bool masked);
+    void execVfwmsac_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwmsac_vf(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		    unsigned start, unsigned elems, bool masked);
+    void execVfwmsac_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwnmsac_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		     unsigned start, unsigned elems, bool masked);
+    void execVfwnmsac_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwnmsac_vf(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		     unsigned start, unsigned elems, bool masked);
+    void execVfwnmsac_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfsqrt_v(unsigned vd, unsigned vs1, unsigned group,
+		     unsigned start, unsigned elems, bool masked);
+    void execVfsqrt_v(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfmerge(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+		 unsigned start, unsigned elems);
+    void execVfmerge_vfm(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfmv_v_f(unsigned vd, unsigned rs1, unsigned group,
+		  unsigned start, unsigned elems);
+    void execVfmv_v_f(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmfeq_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmfeq_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmfeq_vf(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmfeq_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmfne_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmfne_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmfne_vf(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmfne_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmflt_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmflt_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmflt_vf(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmflt_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmfle_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmfle_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmfle_vf(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmfle_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmfgt_vf(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmfgt_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vmfge_vf(unsigned vd, unsigned vs1, unsigned rs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVmfge_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfclass_v(unsigned vd, unsigned vs1, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfclass_v(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfcvt_xu_f_v(unsigned vd, unsigned vs1, unsigned group,
+		      unsigned start, unsigned elems, bool masked);
+    void execVfcvt_xu_f_v(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfcvt_x_f_v(unsigned vd, unsigned vs1, unsigned group,
+		      unsigned start, unsigned elems, bool masked);
+    void execVfcvt_x_f_v(const DecodedInst*);
+
+    void execVfcvt_rtz_xu_f_v(const DecodedInst*);
+
+    void execVfcvt_rtz_x_f_v(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfcvt_f_xu_v(unsigned vd, unsigned vs1, unsigned group,
+			  unsigned start, unsigned elems, bool masked);
+    void execVfcvt_f_xu_v(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfcvt_f_x_v(unsigned vd, unsigned vs1, unsigned group,
+			 unsigned start, unsigned elems, bool masked);
+    void execVfcvt_f_x_v(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwcvt_xu_f_v(unsigned vd, unsigned vs1, unsigned group,
+		      unsigned start, unsigned elems, bool masked);
+    void execVfwcvt_xu_f_v(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwcvt_x_f_v(unsigned vd, unsigned vs1, unsigned group,
+		      unsigned start, unsigned elems, bool masked);
+    void execVfwcvt_x_f_v(const DecodedInst*);
+
+    void execVfwcvt_rtz_xu_f_v(const DecodedInst*);
+
+    void execVfwcvt_rtz_x_f_v(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwcvt_f_xu_v(unsigned vd, unsigned vs1, unsigned group,
+		       unsigned start, unsigned elems, bool masked);
+    void execVfwcvt_f_xu_v(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwcvt_f_x_v(unsigned vd, unsigned vs1, unsigned group,
+		      unsigned start, unsigned elems, bool masked);
+    void execVfwcvt_f_x_v(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwcvt_f_f_v(unsigned vd, unsigned vs1, unsigned group,
+		      unsigned start, unsigned elems, bool masked);
+    void execVfwcvt_f_f_v(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfncvt_xu_f_w(unsigned vd, unsigned vs1, unsigned group,
+		       unsigned start, unsigned elems, bool masked);
+    void execVfncvt_xu_f_w(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfncvt_x_f_w(unsigned vd, unsigned vs1, unsigned group,
+		      unsigned start, unsigned elems, bool masked);
+    void execVfncvt_x_f_w(const DecodedInst*);
+
+    void execVfncvt_rtz_xu_f_w(const DecodedInst*);
+
+    void execVfncvt_rtz_x_f_w(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfncvt_f_xu_w(unsigned vd, unsigned vs1, unsigned group,
+		       unsigned start, unsigned elems, bool masked);
+    void execVfncvt_f_xu_w(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfncvt_f_x_w(unsigned vd, unsigned vs1, unsigned group,
+		      unsigned start, unsigned elems, bool masked);
+    void execVfncvt_f_x_w(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfncvt_f_f_w(unsigned vd, unsigned vs1, unsigned group,
+		      unsigned start, unsigned elems, bool masked);
+    void execVfncvt_f_f_w(const DecodedInst*);
+    void execVfncvt_rod_f_f_w(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfredsum_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		      unsigned start, unsigned elems, bool masked);
+    void execVfredsum_vs(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfredosum_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		      unsigned start, unsigned elems, bool masked);
+    void execVfredosum_vs(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfredmin_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		      unsigned start, unsigned elems, bool masked);
+    void execVfredmin_vs(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfredmax_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		      unsigned start, unsigned elems, bool masked);
+    void execVfredmax_vs(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwredsum_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		      unsigned start, unsigned elems, bool masked);
+    void execVfwredsum_vs(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfwredosum_vs(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		      unsigned start, unsigned elems, bool masked);
+    void execVfwredosum_vs(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfrsqrt7_v(unsigned vd, unsigned vs1, unsigned group,
+		    unsigned start, unsigned elems, bool masked);
+    void execVfrsqrt7_v(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfrec7_v(unsigned vd, unsigned vs1, unsigned group,
+		  unsigned start, unsigned elems, bool masked);
+    void execVfrec7_v(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfmin_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVfmin_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfmin_vf(unsigned vd, unsigned vs1, unsigned fs2, unsigned group,
+		 unsigned start, unsigned elems, bool masked);
+    void execVfmin_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfmax_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+                  unsigned start, unsigned elems, bool masked);
+    void execVfmax_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfmax_vf(unsigned vd, unsigned vs1, unsigned fs2, unsigned group,
+		  unsigned start, unsigned elems, bool masked);
+    void execVfmax_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfsgnj_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfsgnj_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfsgnj_vf(unsigned vd, unsigned vs1, unsigned fs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfsgnj_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfsgnjn_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfsgnjn_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfsgnjn_vf(unsigned vd, unsigned vs1, unsigned fs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfsgnjn_vf(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfsgnjx_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfsgnjx_vv(const DecodedInst*);
+
+    template<typename ELEM_TYPE>
+    void vfsgnjx_vf(unsigned vd, unsigned vs1, unsigned fs2, unsigned group,
+		   unsigned start, unsigned elems, bool masked);
+    void execVfsgnjx_vf(const DecodedInst*);
 
   private:
 
@@ -2898,6 +3745,7 @@ namespace WdRiscv
     bool rvd_ = false;           // True if extension D (double fp) enabled.
     bool rve_ = false;           // True if extension E (embedded) enabled.
     bool rvf_ = false;           // True if extension F (single fp) enabled.
+    bool rvzfh_ = false;         // True if extension zfh (half fp) enabled.
     bool rvm_ = true;            // True if extension M (mul/div) enabled.
     bool rvs_ = false;           // True if extension S (supervisor-mode) enabled.
     bool rvu_ = false;           // True if extension U (user-mode) enabled.
@@ -2954,6 +3802,8 @@ namespace WdRiscv
     // same type.
     bool eaCompatWithBase_ = false;
 
+    bool csvTrace_ = false;      // Print trace in CSV format.
+
     uint64_t retiredInsts_ = 0;  // Proxy for minstret CSR.
     uint64_t cycleCount_ = 0;    // Proxy for mcycle CSR.
     URV      fcsrValue_ = 0;     // Proxy for FCSR.
@@ -2993,6 +3843,7 @@ namespace WdRiscv
 
     bool traceLdSt_ = false;        // Trace addr of ld/st insts if true.
     URV ldStAddr_ = 0;              // Address of data of most recent ld/st inst.
+    uint64_t ldStPhysAddr_ = 0;
     bool ldStAddrValid_ = false;    // True if ldStAddr_ valid.
 
     // We keep track of the last committed 8 loads so that we can

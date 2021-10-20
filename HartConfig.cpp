@@ -366,6 +366,13 @@ applyCsrConfig(Hart<URV>& hart, const nlohmann::json& config, bool verbose)
             }
         }
 
+      if (not csr)
+	{
+	  std::cerr << "A CSR number must be provided in configuration of non-standard CSR "
+		    << csrName << '\n';
+	  errors++;
+	  continue;
+	}
       bool exists0 = csr->isImplemented(), isDebug0 = csr->isDebug();
       bool shared0 = csr->isShared();
       URV reset0 = csr->getResetValue(), mask0 = csr->getWriteMask();
@@ -376,8 +383,6 @@ applyCsrConfig(Hart<URV>& hart, const nlohmann::json& config, bool verbose)
           std::cerr << "Warning: Bit corresponding to hart 0 is cleared "
                     << "in reset value of mhartstart CSR -- Bit is ignored\n";
 
-      // Add hart-index to the base-hart-id (which is common to all
-      // the harts in the core).
       if (csrName == "mhartid")
         {
           std::cerr << "CSR mhartid cannot be configured.\n";
@@ -988,6 +993,17 @@ HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
         errors++;
     }
 
+  // Print memory address of load/store instruction in trace log.
+  tag = "print_load_store_address";
+  if (config_ -> count(tag))
+    {
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        hart.setTraceLoadStore(flag);
+      else
+        errors++;
+    }
+
   // Atomic instructions illegal outside of DCCM.
   tag = "amo_illegal_outside_dccm";
   if (config_ -> count(tag))
@@ -1046,7 +1062,7 @@ HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
     }
 
   // Enable debug triggers.
-  tag ="enable_triggers";
+  tag = "enable_triggers";
   if (config_ -> count(tag))
     {
       bool flag = false;
@@ -1057,7 +1073,7 @@ HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
     }
 
   // Enable performance counters.
-  tag ="enable_performance_counters";
+  tag = "enable_performance_counters";
   if (config_ -> count(tag))
     {
       bool flag = false;
@@ -1230,6 +1246,16 @@ HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
         errors++;
     }
 
+  tag = "enable_zfh";
+  if (config_ -> count(tag))
+    {
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ -> at(tag), flag))
+        hart.enableZfh(flag);
+      else
+        errors++;
+    }
+
   tag = "load_queue_size";
   if (config_ -> count(tag))
     {
@@ -1359,22 +1385,30 @@ HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
 	}
     }
 
+  tag = "enable_csv_log";
+  if (config_ -> count(tag))
+    {
+      bool flag = false;
+      if (not getJsonBoolean(tag, config_ -> at(tag), flag))
+	errors++;
+      else
+	hart.enableCsvLog(flag);
+    }
+
   return errors == 0;
 }
 
 
 template<typename URV>
 bool
-HartConfig::configHarts(System<URV>& system, const std::string& isaString,
+HartConfig::configHarts(System<URV>& system, bool userMode,
                         bool verbose) const
 {
-  bool user = this->userModeEnabled();
-
-  user = user or (isaString.find("uU") != std::string::npos);
+  userMode = userMode or this->userModeEnabled();
 
   // Apply JSON configuration.
   for (unsigned i = 0; i < system.hartCount(); ++i)
-    if (not applyConfig(*system.ithHart(i), user, verbose))
+    if (not applyConfig(*system.ithHart(i), userMode, verbose))
       return false;
 
   return finalizeCsrConfig(system);
@@ -2041,12 +2075,10 @@ template bool
 HartConfig::applyConfig<uint64_t>(Hart<uint64_t>&, bool, bool) const;
 
 template bool
-HartConfig::configHarts<uint32_t>(System<uint32_t>&, const std::string&,
-                                  bool) const;
+HartConfig::configHarts<uint32_t>(System<uint32_t>&, bool, bool) const;
 
 template bool
-HartConfig::configHarts<uint64_t>(System<uint64_t>&, const std::string&,
-                                  bool) const;
+HartConfig::configHarts<uint64_t>(System<uint64_t>&, bool, bool) const;
 
 template bool
 HartConfig::configMemory(System<uint32_t>&, bool, bool, bool) const;

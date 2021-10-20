@@ -98,7 +98,12 @@ namespace WdRiscv
       BusLoad,           // 55: Bus load instructions committed
       BusStore,          // 56: Bus store instructions committed
 
-      _End               // 57: Non-event serving as count of events
+      MultDiv,           // 57: M-extension instruction (Multiply/divide)
+      FpHalf,            // 58: Half precision instruction
+      FpSingle,          // 59: Single precision instruction
+      FpDouble,          // 60: Double precision instruction
+      Vector,            // 61: Vector instruction
+      _End               // 62: Non-event serving as count of events
     };
 
 
@@ -190,7 +195,7 @@ namespace WdRiscv
     // Map counter index to enable flag in user mode.
     std::vector<bool> enableUser_;
 
-    // Map counter index to enable flag in user mode.
+    // Map counter index to enable flag in machine mode.
     std::vector<bool> enableMachine_;
 
     // Map an event number to a vector containing the indices of the

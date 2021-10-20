@@ -203,8 +203,16 @@ namespace WdRiscv
         return false;
       sysHartIx = sysHartIx; // Avoid unused var warning.
       *(reinterpret_cast<T*>(data_ + address)) = value;
+
+      auto& lwd = lastWriteData_.at(sysHartIx);
+      lwd.size_ = sizeof(T);
+      lwd.addr_ = address;
+      lwd.value_ = value;
+      lwd.prevValue_ = *(reinterpret_cast<T*>(data_ + address));
+      *(reinterpret_cast<T*>(data_ + address)) = value;
+
       return true;
-#endif
+#else
 
       Pma pma1 = pmaMgr_.getPma(address);
       if (not pma1.isWrite())
@@ -230,7 +238,7 @@ namespace WdRiscv
       lwd.addr_ = address;
       lwd.value_ = value;
 
-#ifdef MEM_CALLBACKS
+  #ifdef MEM_CALLBACKS
       uint64_t val = 0;
       readCallback_(address, sizeof(T), val);
       lwd.prevValue_ = val;
@@ -240,12 +248,13 @@ namespace WdRiscv
           lwd.size_ = 0;
           return false;
         }
-#else
+  #else
       lwd.prevValue_ = *(reinterpret_cast<T*>(data_ + address));
       *(reinterpret_cast<T*>(data_ + address)) = value;
-#endif
+  #endif
 
       return true;
+#endif
     }
 
     /// Write half-word (2 bytes) to given address. Return true on

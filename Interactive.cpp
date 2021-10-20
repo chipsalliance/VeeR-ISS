@@ -1388,7 +1388,7 @@ Interactive<URV>::helpCommand(const std::vector<std::string>& tokens)
       return;
     }
 
-  if (tag == "reset")
+  if (tag == "quit")
     {
       cout << "quit\n"
 	   << "  Terminate the simulator.\n";

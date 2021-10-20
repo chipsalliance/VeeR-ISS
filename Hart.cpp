@@ -256,86 +256,56 @@ Hart<URV>::countImplementedPmpRegisters() const
 }
       
 
-
 template <typename URV>
 void
 Hart<URV>::processExtensions()
 {
-  // D requires F and is enabled only if F is enabled.
-  rva_ = false;
-  rvc_ = false;
-  rvd_ = false;
-  rve_ = false;
-  rvf_ = false;
-  rvm_ = false;
-  rvs_ = false;
-  rvu_ = false;
-  rvv_ = false;
-
   URV value = 0;
-  if (peekCsr(CsrNumber::MISA, value))
+  peekCsr(CsrNumber::MISA, value);
+
+  rva_ = value & 1;   // Atomic ('a') option.
+
+  rvc_ = value & (URV(1) << ('c' - 'a'));  // Compress option.
+
+  bool flag = value & (URV(1) << ('f' - 'a'));  // Single precision FP
+  enableRvf(flag);
+
+  // D requires F and is enabled only if F is enabled.
+  flag = value & (URV(1) << ('d' - 'a'));  // Double precision FP
+  if (flag and not rvf_)
+    std::cerr << "Bit 3 (d) is set in the MISA register but f "
+	      << "extension (bit 5) is not enabled -- ignored\n";
+  else
+    enableRvd(flag);
+
+  rve_ = value & (URV(1) << ('e' - 'a'));
+  if (rve_)
+    intRegs_.regs_.resize(16);
+
+  flag = value & (URV(1) << ('i' - 'a'));
+  if (not flag and not rve_)
+    std::cerr << "Bit 8 (i extension) is cleared in the MISA register "
+	      << " but extension is mandatory -- assuming bit 8 set\n";
+
+  rvm_ = value & (URV(1) << ('m' - 'a'));
+
+  flag = value & (URV(1) << ('s' - 'a'));  // Supervisor-mode option.
+  enableSupervisorMode(flag);
+
+  flag = value & (URV(1) << ('u' - 'a'));  // User-mode option.
+  enableUserMode(flag);
+
+  flag = value & (URV(1) << ('v' - 'a'));  // User-mode option.
+  enableVectorMode(flag);
+
+  for (auto ec : { 'b', 'h', 'j', 'k', 'l', 'n', 'o', 'p',
+		  'q', 'r', 't', 'w', 'x', 'y', 'z' } )
     {
-      if (value & 1)    // Atomic ('a') option.
-	rva_ = true;
-
-      if (value & (URV(1) << ('c' - 'a')))  // Compress option.
-	rvc_ = true;
-
-      if (value & (URV(1) << ('f' - 'a')))  // Single precision FP
-	{
-	  rvf_ = true;
-
-	  bool isDebug = false, shared = true;
-
-	  // Make sure FCSR/FRM/FFLAGS are enabled if F extension is on.
-	  if (not csRegs_.isImplemented(CsrNumber::FCSR))
-	    csRegs_.configCsr("fcsr", true, 0, 0xff, 0xff, isDebug, shared);
-	  if (not csRegs_.isImplemented(CsrNumber::FRM))
-	    csRegs_.configCsr("frm", true, 0, 0x7, 0x7, isDebug, shared);
-	  if (not csRegs_.isImplemented(CsrNumber::FFLAGS))
-	    csRegs_.configCsr("fflags", true, 0, 0x1f, 0x1f, isDebug, shared);
-	}
-
-      if (value & (URV(1) << ('d' - 'a')))  // Double precision FP.
-	{
-	  if (rvf_)
-	    rvd_ = true;
-	  else
-	    std::cerr << "Bit 3 (d) is set in the MISA register but f "
-		      << "extension (bit 5) is not enabled -- ignored\n";
-	}
-
-      if (value & (URV(1) << ('e' - 'a')))
-        {
-          rve_ = true;
-          intRegs_.regs_.resize(16);
-        }
-
-      if (not (value & (URV(1) << ('i' - 'a'))))
-	std::cerr << "Bit 8 (i extension) is cleared in the MISA register "
-		  << " but extension is mandatory -- assuming bit 8 set\n";
-
-      if (value & (URV(1) << ('m' - 'a')))  // Multiply/divide option.
-	rvm_ = true;
-
-      if (value & (URV(1) << ('s' - 'a')))  // Supervisor-mode option.
-        enableSupervisorMode(true);
-
-      if (value & (URV(1) << ('u' - 'a')))  // User-mode option.
-        enableUserMode(true);
-
-      if (value & (URV(1) << ('v' - 'a')))  // User-mode option.
-        rvv_ = true;
-
-      for (auto ec : { 'b', 'g', 'h', 'j', 'k', 'l', 'n', 'o', 'p',
-	    'q', 'r', 't', 'v', 'w', 'x', 'y', 'z' } )
-	{
-	  unsigned bit = ec - 'a';
-	  if (value & (URV(1) << bit))
-	    std::cerr << "Bit " << bit << " (" << ec << ") set in the MISA "
-		      << "register but extension is not supported "
-		      << "-- ignored\n";
-	}
+      unsigned bit = ec - 'a';
+      if (value & (URV(1) << bit))
+	std::cerr << "Bit " << bit << " (" << ec << ") set in the MISA "
+		  << "register but extension is not supported "
+		  << "-- ignored\n";
     }
 }
 
@@ -526,6 +496,7 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
 
   intRegs_.reset();
   csRegs_.reset();
+  vecRegs_.reset();
 
   // Suppress resetting memory mapped register on initial resets sent
   // by the test bench. Otherwise, initial resets obliterate memory
@@ -535,7 +506,6 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   cancelLr(); // Clear LR reservation (if any).
 
   clearPendingNmi();
-  clearTraceData();
 
   loadQueue_.clear();
 
@@ -544,6 +514,11 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
 
   // Enable extensions if corresponding bits are set in the MISA CSR.
   processExtensions();
+
+  // If vector extension enabled but vectors not configured, then
+  // configure for 128-bits per regiser and 32-bits per elemement.
+  if (isRvv() and vecRegs_.registerCount() == 0)
+    vecRegs_.config(16 /*bytesPerReg*/, 4 /*bytesPerElem*/);  
   
   perfControl_ = ~uint32_t(0);
   URV value = 0;
@@ -562,6 +537,15 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
     {
       dcsrStep_ = (value >> 2) & 1;
       dcsrStepIe_ = (value >> 11) & 1;
+    }
+  if (peekCsr(CsrNumber::VTYPE, value))
+    {
+      bool vill = (value >> (8*sizeof(URV) - 1)) & 1;
+      bool ma = (value >> 7) & 1;
+      bool ta = (value >> 6) & 1;
+      GroupMultiplier gm = GroupMultiplier(value & 7);
+      ElementWidth ew = ElementWidth((value >> 3) & 7);
+      vecRegs_.updateConfig(ew, gm, ma, ta, vill);
     }
 
   updateStackChecker();  // Swerv-specific feature.
@@ -600,6 +584,8 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
   // Make all idempotent override entries invalid.
   for (auto& entry : pmaOverrideVec_)
     entry.reset();
+
+  clearTraceData();
 }
 
 
@@ -1196,19 +1182,19 @@ printUnsignedHisto(const char* tag, const std::vector<uint64_t>& histo,
     return;
 
   if (histo.at(0))
-    fprintf(file, "    %s  0          %" PRId64 "\n", tag, histo.at(0));
+    fprintf(file, "    %s 0           %" PRId64 "\n", tag, histo.at(0));
   if (histo.at(1))
-    fprintf(file, "    %s  1          %" PRId64 "\n", tag, histo.at(1));
+    fprintf(file, "    %s 1           %" PRId64 "\n", tag, histo.at(1));
   if (histo.at(2))
-    fprintf(file, "    %s  2          %" PRId64 "\n", tag, histo.at(2));
+    fprintf(file, "    %s 2           %" PRId64 "\n", tag, histo.at(2));
   if (histo.at(3))
-    fprintf(file, "    %s  (2,   16]  %" PRId64 "\n", tag, histo.at(3));
+    fprintf(file, "    %s (2,     16] %" PRId64 "\n", tag, histo.at(3));
   if (histo.at(4))
-    fprintf(file, "    %s  (16,  1k]  %" PRId64 "\n", tag, histo.at(4));
+    fprintf(file, "    %s (16,    1k] %" PRId64 "\n", tag, histo.at(4));
   if (histo.at(5))
-    fprintf(file, "    %s  (1k, 64k]  %" PRId64 "\n", tag, histo.at(5));
+    fprintf(file, "    %s (1k,   64k] %" PRId64 "\n", tag, histo.at(5));
   if (histo.at(6))
-    fprintf(file, "    %s  > 64k      %" PRId64 "\n", tag, histo.at(6));
+    fprintf(file, "    %s > 64k       %" PRId64 "\n", tag, histo.at(6));
 }
 
 
@@ -1752,6 +1738,7 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
 				  unsigned ldSize, SecondaryCause& secCause)
 {
   secCause = SecondaryCause::NONE;
+  addr = URV(addr);   // Truncate to 32 bits in 32-bit mode.
 
   // Misaligned load from io section triggers an exception. Crossing
   // dccm to non-dccm causes an exception.
@@ -1893,6 +1880,10 @@ Hart<URV>::fastLoad(uint32_t rd, uint32_t rs1, int32_t imm)
   URV base = intRegs_.read(rs1);
   URV addr = base + SRV(imm);
 
+  ldStAddr_ = addr;   // For reporting ld/st addr in trace-mode.
+  ldStPhysAddr_ = addr;
+  ldStAddrValid_ = true;  // For reporting ld/st addr in trace-mode.
+
   // Unsigned version of LOAD_TYPE
   typedef typename std::make_unsigned<LOAD_TYPE>::type ULT;
 
@@ -1927,6 +1918,7 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
   unsigned ldSize = sizeof(LOAD_TYPE);
 
   ldStAddr_ = virtAddr;   // For reporting ld/st addr in trace-mode.
+  ldStPhysAddr_ = ldStAddr_;
   ldStAddrValid_ = true;  // For reporting ld/st addr in trace-mode.
 
   if (loadQueueEnabled_)
@@ -1952,6 +1944,7 @@ Hart<URV>::load(uint32_t rd, uint32_t rs1, int32_t imm)
       initiateLoadException(cause, virtAddr, secCause);
       return false;
     }
+  ldStPhysAddr_ = addr;
 
   if (wideLdSt_ and not triggerTripped_)
     return wideLoad(rd, addr);
@@ -2038,6 +2031,10 @@ bool
 Hart<URV>::fastStore(uint32_t /*rs1*/, URV /*base*/, URV addr,
                      STORE_TYPE storeVal)
 {
+  ldStAddr_ = addr;   // For reporting ld/st addr in trace-mode.
+  ldStPhysAddr_ = addr;
+  ldStAddrValid_ = true;  // For reporting ld/st addr in trace-mode.
+
   if (memory_.write(hartIx_, addr, storeVal))
     {
       if (toHostValid_ and addr == toHost_ and storeVal != 0)
@@ -2067,6 +2064,7 @@ Hart<URV>::store(uint32_t rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
   std::lock_guard<std::mutex> lock(memory_.lrMutex_);
 
   ldStAddr_ = virtAddr;   // For reporting ld/st addr in trace-mode.
+  ldStPhysAddr_ = ldStAddr_;
   ldStAddrValid_ = true;  // For reporting ld/st addr in trace-mode.
 
   // ld/st-address or instruction-address triggers have priority over
@@ -2085,6 +2083,7 @@ Hart<URV>::store(uint32_t rs1, URV base, URV virtAddr, STORE_TYPE storeVal)
   bool forcedFail = false;
   ExceptionCause cause = determineStoreException(rs1, base, addr, maskedVal,
                                                  secCause, forcedFail);
+  ldStPhysAddr_ = addr;
 
   // Consider store-data trigger if there is no trap or if the trap is
   // due to an external cause.
@@ -2429,7 +2428,7 @@ Hart<URV>::configMemoryDataAccess(const std::vector< std::pair<URV,URV> >& windo
 template <typename URV>
 inline
 bool
-Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
+Hart<URV>::fetchInst(URV virtAddr, uint64_t& physAddr, uint32_t& inst)
 {
   uint64_t addr = virtAddr;
 
@@ -2448,6 +2447,7 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
           return false;
         }
     }
+  physAddr = virtAddr;
 
   if (virtAddr & 1)
     {
@@ -2596,9 +2596,10 @@ Hart<URV>::fetchInst(URV virtAddr, uint32_t& inst)
 
 template <typename URV>
 bool
-Hart<URV>::fetchInstPostTrigger(URV virtAddr, uint32_t& inst, FILE* traceFile)
+Hart<URV>::fetchInstPostTrigger(URV virtAddr, uint64_t& physAddr,
+				uint32_t& inst, FILE* traceFile)
 {
-  if (fetchInst(virtAddr, inst))
+  if (fetchInst(virtAddr, physAddr, inst))
     return true;
 
   // Fetch failed: take pending trigger-exception.
@@ -3313,6 +3314,43 @@ Hart<URV>::configMemoryProtectionGrain(uint64_t size)
 
 template <typename URV>
 void
+formatVecInstTrace(FILE* out, uint64_t tag, unsigned hartId, URV currPc,
+		   const char* opcode, unsigned vecReg, const uint8_t* data,
+		   unsigned byteCount, const char* assembly);
+
+
+template <>
+void
+formatVecInstTrace<uint32_t>(FILE* out, uint64_t tag, unsigned hartId,
+			     uint32_t currPc, const char* opcode,
+			     unsigned vecReg, const uint8_t* data,
+			     unsigned byteCount, const char* assembly)
+{
+  fprintf(out, "#%" PRId64 " %d %08x %8s v %02x ",
+	  tag, hartId, currPc, opcode, vecReg);
+  for (unsigned i = 0; i < byteCount; ++i)
+    fprintf(out, "%02x", data[byteCount - 1 - i]);
+  fprintf(out, " %s", assembly);
+}
+
+
+template <>
+void
+formatVecInstTrace<uint64_t>(FILE* out, uint64_t tag, unsigned hartId,
+			     uint64_t currPc, const char* opcode,
+			     unsigned vecReg, const uint8_t* data,
+			     unsigned byteCount, const char* assembly)
+{
+  fprintf(out, "#%" PRId64 " %d %016" PRIx64 " %8s v %02x ",
+          tag, hartId, currPc, opcode, vecReg);
+  for (unsigned i = 0; i < byteCount; ++i)
+    fprintf(out, "%02x", data[byteCount - 1 - i]);
+  fprintf(out, " %s", assembly);
+}
+
+
+template <typename URV>
+void
 formatInstTrace(FILE* out, uint64_t tag, unsigned hartId, URV currPc,
 		const char* opcode, char resource, URV addr,
 		URV value, const char* assembly);
@@ -3323,7 +3361,7 @@ formatInstTrace<uint32_t>(FILE* out, uint64_t tag, unsigned hartId, uint32_t cur
 		const char* opcode, char resource, uint32_t addr,
 		uint32_t value, const char* assembly)
 {
-  if (resource == 'r' or resource == 'v')
+  if (resource == 'r')
     {
       fprintf(out, "#%" PRId64 " %d %08x %8s r %02x         %08x  %s",
               tag, hartId, currPc, opcode, addr, value, assembly);
@@ -3344,6 +3382,7 @@ formatInstTrace<uint32_t>(FILE* out, uint64_t tag, unsigned hartId, uint32_t cur
     }
 }
 
+
 template <>
 void
 formatInstTrace<uint64_t>(FILE* out, uint64_t tag, unsigned hartId, uint64_t currPc,
@@ -3354,30 +3393,51 @@ formatInstTrace<uint64_t>(FILE* out, uint64_t tag, unsigned hartId, uint64_t cur
           tag, hartId, currPc, opcode, resource, addr, value, assembly);
 }
 
+
 template <typename URV>
 void
 formatFpInstTrace(FILE* out, uint64_t tag, unsigned hartId, URV currPc,
 		  const char* opcode, unsigned fpReg,
-		  uint64_t fpVal, const char* assembly);
+		  uint64_t fpVal, unsigned width, const char* assembly);
 
 template <>
 void
-formatFpInstTrace<uint32_t>(FILE* out, uint64_t tag, unsigned hartId, uint32_t currPc,
-		  const char* opcode, unsigned fpReg,
-		  uint64_t fpVal, const char* assembly)
+formatFpInstTrace<uint32_t>(FILE* out, uint64_t tag, unsigned hartId,
+			    uint32_t currPc, const char* opcode, unsigned fpReg,
+			    uint64_t fpVal, unsigned width,
+			    const char* assembly)
 {
-  fprintf(out, "#%" PRId64 " %d %08x %8s f %02x %016" PRIx64 "  %s",
-          tag, hartId, currPc, opcode, fpReg, fpVal, assembly);
+  if (width == 64)
+    {
+      fprintf(out, "#%" PRId64 " %d %08x %8s f %02x %016" PRIx64 "  %s",
+	      tag, hartId, currPc, opcode, fpReg, fpVal, assembly);
+    }
+  else
+    {
+      uint32_t val32 = fpVal;
+      fprintf(out, "#%" PRId64 " %d %08x %8s f %02x         %08" PRIx32 "  %s",
+	      tag, hartId, currPc, opcode, fpReg, val32, assembly);
+    }
 }
 
 template <>
 void
-formatFpInstTrace<uint64_t>(FILE* out, uint64_t tag, unsigned hartId, uint64_t currPc,
-		  const char* opcode, unsigned fpReg,
-		  uint64_t fpVal, const char* assembly)
+formatFpInstTrace<uint64_t>(FILE* out, uint64_t tag, unsigned hartId,
+			    uint64_t currPc, const char* opcode, unsigned fpReg,
+			    uint64_t fpVal, unsigned width,
+			    const char* assembly)
 {
-  fprintf(out, "#%" PRId64 " %d %016" PRIx64 " %8s f %016" PRIx64 " %016" PRIx64 "  %s",
+  if (width == 64)
+    {
+      fprintf(out, "#%" PRId64 " %d %016" PRIx64 " %8s f %016" PRIx64 " %016" PRIx64 "  %s",
           tag, hartId, currPc, opcode, uint64_t(fpReg), fpVal, assembly);
+    }
+  else
+    {
+      uint32_t val32 = fpVal;
+      fprintf(out, "#%" PRId64 " %d %016" PRIx64 " %8s f %016" PRIx64 "         %08" PRIx32 "  %s",
+          tag, hartId, currPc, opcode, uint64_t(fpReg), val32, assembly);
+    }
 }
 
 
@@ -3386,32 +3446,61 @@ static std::mutex printInstTraceMutex;
 template <typename URV>
 void
 Hart<URV>::printInstTrace(uint32_t inst, uint64_t tag, std::string& tmp,
-			  FILE* out, bool interrupt)
+			  FILE* out)
 {
-  DecodedInst di;
-  decode(pc_, inst, di);
+  if (not out)
+    return;
 
-  printDecodedInstTrace(di, tag, tmp, out, interrupt);
+  DecodedInst di;
+  uint64_t physPc = pc_;
+  decode(pc_, physPc, inst, di);
+
+  printDecodedInstTrace(di, tag, tmp, out);
 }
 
 
 template <typename URV>
 void
 Hart<URV>::printDecodedInstTrace(const DecodedInst& di, uint64_t tag, std::string& tmp,
-                                 FILE* out, bool interrupt)
+                                 FILE* out)
 {
+  if (not out)
+    return;
+
+  if (csvTrace_)
+    {
+      printInstCsvTrace(di, out);
+      return;
+    }
+
   // Serialize to avoid jumbled output.
   std::lock_guard<std::mutex> guard(printInstTraceMutex);
 
   disassembleInst(di, tmp);
-  if (interrupt)
+  if (hasInterrupt_)
     tmp += " (interrupted)";
 
-  if (traceLdSt_ and ldStAddrValid_)
+  if (traceLdSt_)
     {
-      std::ostringstream oss;
-      oss << "0x" << std::hex << ldStAddr_;
-      tmp += " [" + oss.str() + "]";
+      if (ldStAddrValid_)
+	{
+	  std::ostringstream oss;
+	  oss << "0x" << std::hex << ldStAddr_;
+	  tmp += " [" + oss.str() + "]";
+	}
+      else if (not vecRegs_.ldStAddr_.empty())
+	{
+	  std::ostringstream oss;
+	  for (size_t i = 0; i < vecRegs_.ldStAddr_.size(); ++i)
+	    {
+	      if (i > 0)
+		oss << ";";
+	      oss << "0x" << std::hex << vecRegs_.ldStAddr_.at(i);
+	      if (i < vecRegs_.stData_.size())
+		oss << ':' << "0x" << vecRegs_.stData_.at(i);
+	    }
+	  tmp += " [" + oss.str() + "]";
+	}
     }
 
   char instBuff[128];
@@ -3441,22 +3530,45 @@ Hart<URV>::printDecodedInstTrace(const DecodedInst& di, uint64_t tag, std::strin
     {
       uint64_t val = fpRegs_.readBitsRaw(fpReg);
       if (pending) fprintf(out, "  +\n");
+      unsigned width = isRvd() ? 64 : 32;
       formatFpInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, fpReg,
-			     val, tmp.c_str());
+			     val, width, tmp.c_str());
       pending = true;
     }
 
   // Process vector register diff.
-  unsigned elemWidth = 0, elemIx = 0;
-  int vecReg = vecRegs_.getLastWrittenReg(elemIx, elemWidth);
+  unsigned groupX8 = 8;
+  InstId instId = di.instEntry()->instId();
+  int vecReg = vecRegs_.getLastWrittenReg(groupX8);
   if (vecReg >= 0)
     {
-      if (pending)
-        fprintf(out, " +\n");
-      uint32_t checksum = vecRegs_.checksum(vecReg, 0, elemIx, elemWidth);
-      formatInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff, 'v',
-			   vecReg, checksum, tmp.c_str());
-      pending = true;
+      // We want to report all the registers in the group.
+      unsigned groupSize  = (groupX8 >= 8) ? groupX8/8 : 1;
+      vecReg = di.op0();  // Make sure we have 1st reg in group.
+      if ((instId >= InstId::vlsege8_v and instId <= InstId::vssege1024_v) or
+	  (instId >= InstId::vlsege8ff_v and instId <= InstId::vlsege1024ff_v))
+	{
+	  groupSize = groupSize*di.vecFieldCount();  // Scale by field count
+	}
+      else if (instId >= InstId::vlssege8_v and instId <= InstId::vsssege1024_v)
+	{
+	  groupSize = groupSize*di.vecFieldCount();  // Scale by field count
+	}
+      else if (instId >= InstId::vluxsegei8_v and instId <= InstId::vsoxsegei1024_v)
+	{
+	  groupSize = groupSize*di.vecFieldCount();  // Scale by field count
+	}
+
+      for (unsigned i = 0; i < groupSize; ++i, ++vecReg)
+	{
+	  if (pending)
+	    fprintf(out, " +\n");
+	  formatVecInstTrace<URV>(out, tag, hartIx_, currPc_, instBuff,
+				  vecReg, vecRegs_.getVecData(vecReg),
+				  vecRegs_.bytesPerRegister(),
+				  tmp.c_str());
+	  pending = true;
+	}
     }
 
   // Process memory diff.
@@ -3578,6 +3690,222 @@ Hart<URV>::printDecodedInstTrace(const DecodedInst& di, uint64_t tag, std::strin
 
 template <typename URV>
 void
+Hart<URV>::printInstCsvTrace(const DecodedInst& di, FILE* out)
+{
+  if (not out)
+    return;
+
+  // Serialize to avoid jumbled output.
+  std::lock_guard<std::mutex> guard(printInstTraceMutex);
+
+  if (instCounter_ == 1)
+    fprintf(out, "pc, inst, modified regs, source operands, memory, inst info, privilege, trap, disassembly\n");
+
+  // Program counter.
+  uint64_t virtPc = di.address(), physPc = di.physAddress();
+  fprintf(out, "%lx", virtPc);
+  if (physPc != virtPc)
+    fprintf(out, ":%lx", physPc);
+
+  // Instruction.
+  fprintf(out, ",%x,", di.inst());
+
+  // Changed integer register.
+  int reg = intRegs_.getLastWrittenReg();
+  uint64_t val64 = 0;
+  const char* sep = "";
+  if (reg > 0)
+    {
+      val64 = intRegs_.read(reg);
+      fprintf(out, "x%d=%lx", reg, val64);
+      sep = ";";
+    }
+
+  // Changed fp register.
+  reg = fpRegs_.getLastWrittenReg();
+  if (reg >= 0)
+    {
+      val64 = fpRegs_.readBitsRaw(reg);
+      if (isRvd())
+	fprintf(out, "%sf%d=%lx", sep, reg, val64);
+      else
+	fprintf(out, "%sf%d=%x", sep, reg, uint32_t(val64));
+      sep = ";";
+    }
+
+  // Changed CSR register(s).
+  std::vector<CsrNumber> csrns;
+  std::vector<unsigned> triggers;
+  lastCsr(csrns, triggers);
+  for (auto csrn : csrns)
+    {
+      URV val = 0;
+      peekCsr(csrn, val);
+      fprintf(out, "%sc%d=%lx", sep, unsigned(csrn), uint64_t(val));
+      sep = ";";
+    }
+
+  // Changed vector register group.
+  unsigned groupX8 = 8;
+  int vecReg = vecRegs_.getLastWrittenReg(groupX8);
+  if (vecReg >= 0)
+    {
+      // We want to report all the registers in the group.
+      unsigned groupSize  = (groupX8 >= 8) ? groupX8/8 : 1;
+      vecReg = vecReg - (vecReg % groupSize);
+
+      InstId instId = di.instEntry()->instId();
+      if (instId >= InstId::vlsege8_v and instId <= InstId::vssege1024_v)
+	{
+	  vecReg = di.op0();
+	  groupSize = groupSize*di.vecFieldCount();  // Scale by field count
+	}
+      else if (instId >= InstId::vlssege8_v and instId <= InstId::vsssege1024_v)
+	{
+	  vecReg = di.op0();
+	  groupSize = groupSize*di.vecFieldCount();  // Scale by field count
+	}
+      else if (instId >= InstId::vluxsegei8_v and instId <= InstId::vsoxsegei1024_v)
+	{
+	  vecReg = di.op0();
+	  groupSize = groupSize*di.vecFieldCount();  // Scale by field count
+	}
+
+      for (unsigned i = 0; i < groupSize; ++i, ++vecReg)
+	{
+	  fprintf(out, "%sv%d=", sep, vecReg);
+	  const uint8_t* data = vecRegs_.getVecData(vecReg);
+	  unsigned byteCount = vecRegs_.bytesPerRegister();
+	  for (unsigned i = 0; i < byteCount; ++i)
+	    fprintf(out, "%02x", data[byteCount - 1 - i]);
+	  sep = ";";
+	}
+    }
+
+  // Non sequential PC change.
+  auto instEntry = di.instEntry();
+  bool hasTrap = hasInterrupt_ or hasException_;
+  if (not hasTrap and instEntry->isBranch() and lastBranchTaken_)
+    {
+      fprintf(out, "%spc=%lx", sep, uint64_t(pc_));
+      sep = ";";
+    }
+
+  // Source operands.
+  fputc(',', out);
+  sep = "";
+  for (unsigned i = 0; i < di.operandCount(); ++i)
+    {
+      auto mode = instEntry->ithOperandMode(i);
+      auto type = instEntry->ithOperandType(i);
+      if (mode == OperandMode::Read or mode == OperandMode::ReadWrite or
+	  type == OperandType::Imm)
+	{
+	  if (type ==  OperandType::IntReg)
+	    fprintf(out, "%sx%d", sep, di.ithOperand(i));
+	  else if (type ==  OperandType::FpReg)
+	    fprintf(out, "%sf%d", sep, di.ithOperand(i));
+	  else if (type == OperandType::CsReg)
+	    fprintf(out, "%sc%d", sep, di.ithOperand(i));
+	  else if (type == OperandType::VecReg)
+	    {
+	      fprintf(out, "%sv%d", sep, di.ithOperand(i));
+	      unsigned emul = i < vecRegs_.opsEmul_.size() ? vecRegs_.opsEmul_.at(i) : 1;
+	      if (emul >= 2 and emul <= 8)
+		fprintf(out, "m%d", emul);
+	    }
+	  else if (type == OperandType::Imm)
+	    fprintf(out, "%si%x", sep, di.ithOperand(i));
+	  sep = ";";
+	}
+    }
+
+  // Memory
+  fputc(',', out);
+  bool load = false, store = false;
+  if (ldStAddrValid_)
+    {
+      fprintf(out, "%lx", uint64_t(ldStAddr_));
+      if (ldStPhysAddr_ != ldStAddr_)
+	fprintf(out, ":%lx", ldStPhysAddr_);
+      uint64_t addr = 0, val = 0;
+      if (lastMemory(addr, val))
+	{
+	  store = true;
+	  fprintf(out, "=%lx", val);
+	}
+      else
+	load = true;
+    }
+  else if (not vecRegs_.ldStAddr_.empty())
+    {
+      for (size_t i = 0; i < vecRegs_.ldStAddr_.size(); ++i)
+	{
+	  if (i > 0)
+	    fputc(';', out);
+	  fprintf(out, "%lx", vecRegs_.ldStAddr_.at(i));
+	  if (i < vecRegs_.stData_.size())
+	    fprintf(out, "=%lx", vecRegs_.stData_.at(i));
+	}
+    }
+
+  // Instruction information.
+  fputc(',', out);
+  InstType type = instEntry->type();
+  if (load)
+    fputc('l', out);
+  else if (store)
+    fputc('s', out);
+  else if (instEntry->isBranch())
+    {
+      if (instEntry->isConditionalBranch())
+	fputs(lastBranchTaken_ ? "t" : "nt", out);
+      else
+	{
+	  if (instEntry->isBranchToRegister() and
+	      di.op0() == 0 and di.op1() == IntRegNumber::RegRa and di.op2() == 0)
+	    fputc('r', out);
+	  else if (di.op0() == IntRegNumber::RegRa)
+	    fputc('c', out);
+	  else
+	    fputc('j', out);
+	}
+    }
+  else if (type == InstType::Rvf or type == InstType::Rvd)
+    fputc('f', out);
+  else if (type == InstType::Vector)
+    fputc('v', out);
+  else if (type == InstType::Atomic)
+    fputc('a', out);
+	   
+
+  // Privilege mode.
+  if      (lastPriv_ == PrivilegeMode::Machine)    fputs(",m", out);
+  else if (lastPriv_ == PrivilegeMode::Supervisor) fputs(",s", out);
+  else if (lastPriv_ == PrivilegeMode::User)       fputs(",u", out);
+  else                                             fputs(",",  out);
+
+  // Interrupt/exception cause.
+  if (hasTrap)
+    {
+      URV cause = 0;
+      peekCsr(CsrNumber::MCAUSE, cause);
+      fprintf(out, ",%lx,", uint64_t(cause));
+    }
+  else
+    fputs(",,", out);
+
+  // Disassembly.
+  std::string tmp;
+  disassembleInst(di, tmp);
+  std::replace(tmp.begin(), tmp.end(), ',', ';');
+  fputs(tmp.c_str(), out);
+  fputc('\n', out);
+}
+
+
+template <typename URV>
+void
 Hart<URV>::recordDivInst(unsigned rd, URV value)
 {
   for (size_t i = loadQueue_.size(); i > 0; --i)
@@ -3682,47 +4010,37 @@ addToUnsignedHistogram(std::vector<uint64_t>& histo, uint64_t val)
 }
 
 
-extern bool
-mostSignificantFractionBit(float x);
-
-
-extern bool
-mostSignificantFractionBit(double x);
-
-
 template <typename FP_TYPE>
 void
 addToFpHistogram(std::vector<uint64_t>& histo, FP_TYPE val)
 {
-  bool pos = not std::signbit(val);
-  int type = std::fpclassify(val);
+  if (histo.size() < 13)
+    histo.resize(13);
 
-  if (type == FP_INFINITE)
-    {
-      FpKinds kind = pos? FpKinds::PosInf : FpKinds::NegInf;
-      histo.at(unsigned(kind))++;
-    }
-  else if (type == FP_NORMAL)
-    {
-      FpKinds kind = pos? FpKinds::PosNormal : FpKinds::NegNormal;
-      histo.at(unsigned(kind))++;
-    }
-  else if (type == FP_SUBNORMAL)
-    {
-      FpKinds kind = pos? FpKinds::PosSubnormal : FpKinds::NegSubnormal;
-      histo.at(unsigned(kind))++;
-    }
-  else if (type == FP_ZERO)
-    {
-      FpKinds kind = pos? FpKinds::PosZero : FpKinds::NegZero;
-      histo.at(unsigned(kind))++;
-    }
-  else if (type == FP_NAN)
-    {
-      bool quiet = mostSignificantFractionBit(val);
-      FpKinds kind = quiet? FpKinds::QuietNan : FpKinds::SignalingNan;
-      histo.at(unsigned(kind))++;
-    }
+  unsigned type = fpClassifyRiscv(val);
+  FpKinds kind = FpKinds::PosNormal;
+
+  if (type == unsigned(FpClassifyMasks::PosInfinity))
+    kind = FpKinds::PosInf;
+  else if (type == unsigned(FpClassifyMasks::NegInfinity))
+    kind = FpKinds::NegInf;
+  else if (type == unsigned(FpClassifyMasks::PosNormal))
+    kind = FpKinds::PosNormal;
+  else if (type == unsigned(FpClassifyMasks::NegNormal))
+    kind = FpKinds::NegNormal;
+  else if (type == unsigned(FpClassifyMasks::PosSubnormal))
+    kind = FpKinds::PosSubnormal;
+  else if (type == unsigned(FpClassifyMasks::NegSubnormal))
+    kind = FpKinds::NegSubnormal;
+  else if (type == unsigned(FpClassifyMasks::PosZero))
+    kind = FpKinds::PosZero;
+  else if (type == unsigned(FpClassifyMasks::NegZero))
+    kind = FpKinds::NegZero;
+  else if (type == unsigned(FpClassifyMasks::SignalingNan))
+    kind = FpKinds::SignalingNan;
+  else if (type == unsigned(FpClassifyMasks::QuietNan))
+    kind = FpKinds::QuietNan;
+  histo.at(unsigned(kind))++;
 }
 
 
@@ -3801,10 +4119,14 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
     {
       pregs.updateCounters(EventNumber::Mult, prevPerfControl_,
                            lastPriv_);
+      pregs.updateCounters(EventNumber::MultDiv, prevPerfControl_,
+                           lastPriv_);
     }
   else if (info.isDivide())
     {
       pregs.updateCounters(EventNumber::Div, prevPerfControl_,
+                           lastPriv_);
+      pregs.updateCounters(EventNumber::MultDiv, prevPerfControl_,
                            lastPriv_);
     }
   else if (info.isLoad())
@@ -3879,6 +4201,27 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
 	pregs.updateCounters(EventNumber::BranchTaken, prevPerfControl_,
                              lastPriv_);
     }
+  else if (info.type() == InstType::Rvf)
+    {
+      pregs.updateCounters(EventNumber::FpSingle, prevPerfControl_,
+                           lastPriv_);
+    }
+  else if (info.type() == InstType::Rvd)
+    {
+      pregs.updateCounters(EventNumber::FpDouble, prevPerfControl_,
+                           lastPriv_);
+    }
+  else if (info.type() == InstType::Zfh)
+    {
+      pregs.updateCounters(EventNumber::FpHalf, prevPerfControl_,
+                           lastPriv_);
+    }
+  else if (info.type() == InstType::Vector)
+    {
+      pregs.updateCounters(EventNumber::Vector, prevPerfControl_,
+                           lastPriv_);
+    }
+
 }
 
 
@@ -3924,7 +4267,6 @@ Hart<URV>::accumulateInstructionStats(const DecodedInst& di)
     return;
 
   misalignedLdSt_ = false;
-  lastBranchTaken_ = false;
 
   if (not instFreq_)
     return;
@@ -3950,7 +4292,7 @@ Hart<URV>::accumulateInstructionStats(const DecodedInst& di)
   if (info.isIthOperandWrite(0))
     {
       rdType = info.ithOperandType(0);
-      if (rdType == OperandType::IntReg or rdType == OperandType::FpReg)
+      if (rdType == OperandType::IntReg or rdType == OperandType::FpReg or rdType == OperandType::VecReg)
         {
           prof.destRegFreq_.at(di.op0())++;
           opIx++;
@@ -3959,11 +4301,18 @@ Hart<URV>::accumulateInstructionStats(const DecodedInst& di)
               intRegs_.getLastWrittenReg(rd, rdOrigVal);
               assert(rd == di.op0());
             }
-          else
+          else if (rdType == OperandType::FpReg)
             {
               fpRegs_.getLastWrittenReg(rd, frdOrigVal);
               assert(rd == di.op0());
             }
+	  else if (rdType == OperandType::VecReg)
+	    {
+	      rd = di.op0();
+	      // unsigned groupX8 = 8;
+	      // rd = vecRegs_.getLastWrittenReg(groupX8); 
+	      // assert(rd == di.op0());    // Does not work for load seg.
+	    }
         }
     }
 
@@ -3995,14 +4344,26 @@ Hart<URV>::accumulateInstructionStats(const DecodedInst& di)
           uint64_t val = fpRegs_.readBitsRaw(regIx);
           if (regIx == rd and rdType == OperandType::FpReg)
             val = frdOrigVal;
-          bool sp = fpRegs_.isNanBoxed(val) or not isRvd();
-          if (sp)
+
+	  FpRegs::FpUnion u{val};
+	  bool done = false;
+	  if (isRvzfh() and fpRegs_.isBoxedHalf(val))
+	    {
+	      Float16 hpVal = u.hp;
+	      addToFpHistogram(prof.srcHisto_.at(srcIx), hpVal);
+	      done = true;
+	    }
+          else if (isRvf())
             {
-              FpRegs::FpUnion u{val};
-              float spVal = u.sp.sp;
-              addToFpHistogram(prof.srcHisto_.at(srcIx), spVal);
+	      if (not isRvd() or fpRegs_.isBoxedSingle(val))
+		{
+		  FpRegs::FpUnion u{val};
+		  float spVal = u.sp;
+		  addToFpHistogram(prof.srcHisto_.at(srcIx), spVal);
+		  done = true;
+		}
             }
-          else
+          if (isRvd() and not done)
             {
               FpRegs::FpUnion u{val};
               double dpVal = u.dp;
@@ -4011,6 +4372,12 @@ Hart<URV>::accumulateInstructionStats(const DecodedInst& di)
 
           srcIx++;
         }
+      else if (info.ithOperandType(i) == OperandType::VecReg)
+	{
+	  uint32_t regIx = di.ithOperand(i);
+	  prof.srcRegFreq_.at(srcIx).at(regIx)++;
+	  srcIx++;
+	}
       else if (info.ithOperandType(i) == OperandType::Imm)
         {
           int32_t imm = di.ithOperand(i);
@@ -4073,9 +4440,10 @@ Hart<URV>::clearTraceData()
   intRegs_.clearLastWrittenReg();
   fpRegs_.clearLastWrittenReg();
   csRegs_.clearLastWrittenRegs();
-  vecRegs_.clearLastWrittenReg();
   memory_.clearLastWriteInfo(hartIx_);
   syscall_.clearMemoryChanges();
+  vecRegs_.clearTraceData();
+  lastBranchTaken_ = false;
 }
 
 
@@ -4366,13 +4734,11 @@ Hart<URV>::logStop(const CoreException& ce, uint64_t counter, FILE* traceFile)
     {
       if (minstretEnabled())
         retiredInsts_++;
-      if (traceFile)
-	{
-	  uint32_t inst = 0;
-	  readInst(currPc_, inst);
-	  std::string instStr;
-	  printInstTrace(inst, counter, instStr, traceFile);
-	}
+
+      uint32_t inst = 0;
+      readInst(currPc_, inst);
+      std::string instStr;
+      printInstTrace(inst, counter, instStr, traceFile);
     }
 
   using std::cerr;
@@ -4411,7 +4777,8 @@ isInputPending(int fd)
 template <typename URV>
 inline
 bool
-Hart<URV>::fetchInstWithTrigger(URV addr, uint32_t& inst, FILE* file)
+Hart<URV>::fetchInstWithTrigger(URV addr, uint64_t& physAddr, uint32_t& inst,
+				FILE* file)
 {
   // Process pre-execute address trigger and fetch instruction.
   bool hasTrig = hasActiveInstTrigger();
@@ -4422,7 +4789,7 @@ Hart<URV>::fetchInstWithTrigger(URV addr, uint32_t& inst, FILE* file)
   bool fetchOk = true;
   if (triggerTripped_)
     {
-      if (not fetchInstPostTrigger(addr, inst, file))
+      if (not fetchInstPostTrigger(addr, physAddr, inst, file))
         {
           ++cycleCount_;
           return false;  // Next instruction in trap handler.
@@ -4433,18 +4800,16 @@ Hart<URV>::fetchInstWithTrigger(URV addr, uint32_t& inst, FILE* file)
       uint32_t ix = (addr >> 1) & decodeCacheMask_;
       DecodedInst* di = &decodeCache_[ix];
       if (not di->isValid() or di->address() != pc_)
-        fetchOk = fetchInst(addr, inst);
+        fetchOk = fetchInst(addr, physAddr, inst);
       else
         inst = di->inst();
     }
   if (not fetchOk)
     {
       ++cycleCount_;
-      if (file)
-        {
-          std::string instStr;
-          printInstTrace(inst, instCounter_, instStr, file);
-        }
+
+      std::string instStr;
+      printInstTrace(inst, instCounter_, instStr, file);
 
       if (dcsrStep_)
         enterDebugMode_(DebugModeCause::STEP, pc_);
@@ -4469,10 +4834,6 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
   std::string instStr;
   instStr.reserve(128);
 
-  // Need csr history when tracing or for triggers
-  bool trace = traceFile != nullptr or enableTriggers_;
-  clearTraceData();
-
   uint64_t limit = instCountLim_;
   bool doStats = instFreq_ or enableCounters_;
 
@@ -4486,6 +4847,7 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
     {
       if (userStop)
         break;
+      clearTraceData();
 
       if (enableGdb_ and ++gdbCount >= gdbLimit)
         {
@@ -4526,19 +4888,16 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
 	  ++instCounter_;
 
           if (processExternalInterrupt(traceFile, instStr))
-            continue;
-
-          if (not fetchInstWithTrigger(pc_, inst, traceFile))
-            {
-	      clearTraceData();
-              continue;  // Next instruction in trap handler.
-            }
+            continue;  // Next instruction in trap handler.
+	  uint64_t physPc = 0;
+          if (not fetchInstWithTrigger(pc_, physPc, inst, traceFile))
+	    continue;  // Next instruction in trap handler.
 
 	  // Decode unless match in decode cache.
 	  uint32_t ix = (pc_ >> 1) & decodeCacheMask_;
 	  DecodedInst* di = &decodeCache_[ix];
 	  if (not di->isValid() or di->address() != pc_)
-	    decode(pc_, inst, *di);
+	    decode(pc_, physPc, inst, *di);
 
           // Increment pc and execute instruction
 	  pc_ += di->instSize();
@@ -4550,11 +4909,7 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
 	    {
               if (doStats)
                 accumulateInstructionStats(*di);
-	      if (traceFile)
-		{
-		  printDecodedInstTrace(*di, instCounter_, instStr, traceFile);
-		  clearTraceData();
-		}
+	      printDecodedInstTrace(*di, instCounter_, instStr, traceFile);
 	      continue;
 	    }
 
@@ -4571,13 +4926,7 @@ Hart<URV>::untilAddress(size_t address, FILE* traceFile)
 
 	  if (doStats)
 	    accumulateInstructionStats(*di);
-
-	  if (trace)
-	    {
-	      if (traceFile)
-		printDecodedInstTrace(*di, instCounter_, instStr, traceFile);
-	      clearTraceData();
-	    }
+	  printDecodedInstTrace(*di, instCounter_, instStr, traceFile);
 
 	  bool icountHit = (enableTriggers_ and
 			    icountTriggerHit(privMode_, isInterruptEnabled()));
@@ -4686,9 +5035,10 @@ Hart<URV>::simpleRunWithLimit()
       if (not di->isValid() or di->address() != pc_)
         {
           uint32_t inst = 0;
-          if (not fetchInst(pc_, inst))
+	  uint64_t physPc = 0;
+          if (not fetchInst(pc_, physPc, inst))
             continue;
-          decode(pc_, inst, *di);
+          decode(pc_, physPc, inst, *di);
         }
 
       pc_ += di->instSize();
@@ -4713,9 +5063,10 @@ Hart<URV>::simpleRunNoLimit()
       if (not di->isValid() or di->address() != pc_)
         {
           uint32_t inst = 0;
-          if (not fetchInst(pc_, inst))
+	  uint64_t physPc = 0;
+          if (not fetchInst(pc_, physPc, inst))
             continue;
-          decode(pc_, inst, *di);
+          decode(pc_, physPc, inst, *di);
         }
 
       pc_ += di->instSize();
@@ -4928,8 +5279,7 @@ Hart<URV>::processExternalInterrupt(FILE* traceFile, std::string& instStr)
       nmiCause_ = NmiCause::UNKNOWN;
       uint32_t inst = 0; // Load interrupted inst.
       readInst(currPc_, inst);
-      if (traceFile)  // Trace interrupted instruction.
-	printInstTrace(inst, instCounter_, instStr, traceFile, true);
+      printInstTrace(inst, instCounter_, instStr, traceFile);
       return true;
     }
 
@@ -4941,8 +5291,7 @@ Hart<URV>::processExternalInterrupt(FILE* traceFile, std::string& instStr)
       initiateInterrupt(cause, pc_);
       uint32_t inst = 0; // Load interrupted inst.
       readInst(currPc_, inst);
-      if (traceFile)  // Trace interrupted instruction.
-	printInstTrace(inst, instCounter_, instStr, traceFile, true);
+      printInstTrace(inst, instCounter_, instStr, traceFile);
       ++cycleCount_;
       return true;
     }
@@ -5052,11 +5401,12 @@ Hart<URV>::singleStep(FILE* traceFile)
       if (processExternalInterrupt(traceFile, instStr))
 	return;  // Next instruction in interrupt handler.
 
-      if (not fetchInstWithTrigger(pc_, inst, traceFile))
+      uint64_t physPc = 0;
+      if (not fetchInstWithTrigger(pc_, physPc, inst, traceFile))
         return;
 
       DecodedInst di;
-      decode(pc_, inst, di);
+      decode(pc_, physPc, inst, di);
 
       // Increment pc and execute instruction
       pc_ += di.instSize();
@@ -5075,8 +5425,7 @@ Hart<URV>::singleStep(FILE* traceFile)
 	{
 	  if (doStats)
 	    accumulateInstructionStats(di);
-	  if (traceFile)
-	    printDecodedInstTrace(di, instCounter_, instStr, traceFile);
+	  printDecodedInstTrace(di, instCounter_, instStr, traceFile);
 	  if (dcsrStep_ and not ebreakInstDebug_)
 	    enterDebugMode_(DebugModeCause::STEP, pc_);
 	  return;
@@ -5094,9 +5443,7 @@ Hart<URV>::singleStep(FILE* traceFile)
 
       if (doStats)
 	accumulateInstructionStats(di);
-
-      if (traceFile)
-	printInstTrace(inst, instCounter_, instStr, traceFile);
+      printInstTrace(inst, instCounter_, instStr, traceFile);
 
       // If a register is used as a source by an instruction then any
       // pending load with same register as target is removed from the
@@ -5156,7 +5503,8 @@ Hart<URV>::whatIfSingleStep(uint32_t inst, ChangeRecord& record)
   // Note: triggers not yet supported.
 
   DecodedInst di;
-  decode(pc_, inst, di);
+  uint64_t physPc = pc_;
+  decode(pc_, physPc, inst, di);
 
   // Execute instruction
   pc_ += di.instSize();
@@ -5190,7 +5538,8 @@ Hart<URV>::whatIfSingleStep(URV whatIfPc, uint32_t inst, ChangeRecord& record)
   // Fetch instruction. We don't care about what we fetch. Just checking
   // if there is a fetch exception.
   uint32_t tempInst = 0;
-  bool fetchOk = fetchInst(pc_, tempInst);
+  uint64_t physPc = 0;
+  bool fetchOk = fetchInst(pc_, physPc, tempInst);
 
   if (not fetchOk)
     {
@@ -5564,6 +5913,40 @@ Hart<URV>::execute(const DecodedInst* di)
      &&fcvt_d_l,
      &&fcvt_d_lu,
      &&fmv_d_x,
+     &&flh,
+     &&fsh,
+     &&fmadd_h,
+     &&fmsub_h,
+     &&fnmsub_h,
+     &&fnmadd_h,
+     &&fadd_h,
+     &&fsub_h,
+     &&fmul_h,
+     &&fdiv_h,
+     &&fsqrt_h,
+     &&fsgnj_h,
+     &&fsgnjn_h,
+     &&fsgnjx_h,
+     &&fmin_h,
+     &&fmax_h,
+     &&fcvt_s_h,
+     &&fcvt_d_h,
+     &&fcvt_h_s,
+     &&fcvt_h_d,
+     &&fcvt_w_h,
+     &&fcvt_wu_h,
+     &&fmv_x_h,
+     &&feq_h,
+     &&flt_h,
+     &&fle_h,
+     &&fclass_h,
+     &&fcvt_h_w,
+     &&fcvt_h_wu,
+     &&fmv_h_x,
+     &&fcvt_l_h,
+     &&fcvt_lu_h,
+     &&fcvt_h_l,
+     &&fcvt_h_lu,
      &&mret,
      &&uret,
      &&sret,
@@ -5729,6 +6112,7 @@ Hart<URV>::execute(const DecodedInst* di)
 
      // vevtor
      &&vsetvli,
+     &&vsetivli,
      &&vsetvl,
      &&vadd_vv,
      &&vadd_vx,
@@ -5753,6 +6137,28 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vwadd_wx,
      &&vwsub_wv,
      &&vwsub_wx,
+
+     &&vmseq_vv,
+     &&vmseq_vx,
+     &&vmseq_vi,
+     &&vmsne_vv,
+     &&vmsne_vx,
+     &&vmsne_vi,
+     &&vmsltu_vv,
+     &&vmsltu_vx,
+     &&vmslt_vv,
+     &&vmslt_vx,
+     &&vmsleu_vv,
+     &&vmsleu_vx,
+     &&vmsleu_vi,
+     &&vmsle_vv,
+     &&vmsle_vx,
+     &&vmsle_vi,
+     &&vmsgtu_vx,
+     &&vmsgtu_vi,
+     &&vmsgt_vx,
+     &&vmsgt_vi,
+
      &&vminu_vv,
      &&vminu_vx,
      &&vmin_vv,
@@ -5770,6 +6176,21 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vxor_vv,
      &&vxor_vx,
      &&vxor_vi,
+     &&vsll_vv,
+     &&vsll_vx,
+     &&vsll_vi,
+     &&vsrl_vv,
+     &&vsrl_vx,
+     &&vsrl_vi,
+     &&vsra_vv,
+     &&vsra_vx,
+     &&vsra_vi,
+     &&vnsrl_wv,
+     &&vnsrl_wx,
+     &&vnsrl_wi,
+     &&vnsra_wv,
+     &&vnsra_wx,
+     &&vnsra_wi,
      &&vrgather_vv,
      &&vrgather_vx,
      &&vrgather_vi,
@@ -5783,6 +6204,9 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vredmin_vs,
      &&vredmaxu_vs,
      &&vredmax_vs,
+     &&vwredsumu_vs,
+     &&vwredsum_vs,
+
      &&vmand_mm,
      &&vmnand_mm,
      &&vmandnot_mm,
@@ -5803,6 +6227,9 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vslide1up_vx,
      &&vslidedown_vx,
      &&vslidedown_vi,
+     &&vslide1down_vx,
+     &&vfslide1up_vf,
+     &&vfslide1down_vf,
      &&vmul_vv,
      &&vmul_vx,
      &&vmulh_vv,
@@ -5811,6 +6238,14 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vmulhu_vx,
      &&vmulhsu_vv,
      &&vmulhsu_vx,
+     &&vmadd_vv,
+     &&vmadd_vx,
+     &&vnmsub_vv,
+     &&vnmsub_vx,
+     &&vmacc_vv,
+     &&vmacc_vx,
+     &&vnmsac_vv,
+     &&vnmsac_vx,
      &&vwmulu_vv,
      &&vwmulu_vx,
      &&vwmul_vv,
@@ -5848,11 +6283,13 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vmadc_vim,
      &&vmsbc_vvm,
      &&vmsbc_vxm,
-     &&vmerge_vv,
-     &&vmerge_vx,
-     &&vmerge_vi,
+     &&vmerge_vvm,
+     &&vmerge_vxm,
+     &&vmerge_vim,
      &&vmv_x_s,
      &&vmv_s_x,
+     &&vfmv_f_s,
+     &&vfmv_s_f,
      &&vmv_v_v,
      &&vmv_v_x,
      &&vmv_v_i,
@@ -5892,6 +6329,7 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vnclip_wv,
      &&vnclip_wx,
      &&vnclip_wi,
+
      &&vle8_v,
      &&vle16_v,
      &&vle32_v,
@@ -5908,6 +6346,10 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vse256_v,
      &&vse512_v,
      &&vse1024_v,
+
+     &&vlm_v,
+     &&vsm_v,
+
      &&vlre8_v,
      &&vlre16_v,
      &&vlre32_v,
@@ -5916,14 +6358,11 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vlre256_v,
      &&vlre512_v,
      &&vlre1024_v,
-     &&vsre8_v,
-     &&vsre16_v,
-     &&vsre32_v,
-     &&vsre64_v,
-     &&vsre128_v,
-     &&vsre256_v,
-     &&vsre512_v,
-     &&vsre1024_v,
+     &&vs1r_v,
+     &&vs2r_v,
+     &&vs4r_v,
+     &&vs8r_v,
+
      &&vle8ff_v,
      &&vle16ff_v,
      &&vle32ff_v,
@@ -5932,6 +6371,7 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vle256ff_v,
      &&vle512ff_v,
      &&vle1024ff_v,
+
      &&vlse8_v,
      &&vlse16_v,
      &&vlse32_v,
@@ -5948,14 +6388,203 @@ Hart<URV>::execute(const DecodedInst* di)
      &&vsse256_v,
      &&vsse512_v,
      &&vsse1024_v,
-     &&vlxei8_v,
-     &&vlxei16_v,
-     &&vlxei32_v,
-     &&vlxei64_v,
-     &&vsxei8_v,
-     &&vsxei16_v,
-     &&vsxei32_v,
-     &&vsxei64_v,
+
+     &&vloxei8_v,
+     &&vloxei16_v,
+     &&vloxei32_v,
+     &&vloxei64_v,
+     &&vluxei8_v,
+     &&vluxei16_v,
+     &&vluxei32_v,
+     &&vluxei64_v,
+     &&vsoxei8_v,
+     &&vsoxei16_v,
+     &&vsoxei32_v,
+     &&vsoxei64_v,
+     &&vsuxei8_v,
+     &&vsuxei16_v,
+     &&vsuxei32_v,
+     &&vsuxei64_v,
+
+     &&vlsege8_v,
+     &&vlsege16_v,
+     &&vlsege32_v,
+     &&vlsege64_v,
+     &&vlsege128_v,
+     &&vlsege256_v,
+     &&vlsege512_v,
+     &&vlsege1024_v,
+     &&vssege8_v,
+     &&vssege16_v,
+     &&vssege32_v,
+     &&vssege64_v,
+     &&vssege128_v,
+     &&vssege256_v,
+     &&vssege512_v,
+     &&vssege1024_v,
+
+     &&vlssege8_v,
+     &&vlssege16_v,
+     &&vlssege32_v,
+     &&vlssege64_v,
+     &&vlssege128_v,
+     &&vlssege256_v,
+     &&vlssege512_v,
+     &&vlssege1024_v,
+     &&vsssege8_v,
+     &&vsssege16_v,
+     &&vsssege32_v,
+     &&vsssege64_v,
+     &&vsssege128_v,
+     &&vsssege256_v,
+     &&vsssege512_v,
+     &&vsssege1024_v,
+
+     &&vluxsegei8_v,
+     &&vluxsegei16_v,
+     &&vluxsegei32_v,
+     &&vluxsegei64_v,
+     &&vluxsegei128_v,
+     &&vluxsegei256_v,
+     &&vluxsegei512_v,
+     &&vluxsegei1024_v,
+     &&vsuxsegei8_v,
+     &&vsuxsegei16_v,
+     &&vsuxsegei32_v,
+     &&vsuxsegei64_v,
+     &&vsuxsegei128_v,
+     &&vsuxsegei256_v,
+     &&vsuxsegei512_v,
+     &&vsuxsegei1024_v,
+
+     &&vloxsegei8_v,
+     &&vloxsegei16_v,
+     &&vloxsegei32_v,
+     &&vloxsegei64_v,
+     &&vloxsegei128_v,
+     &&vloxsegei256_v,
+     &&vloxsegei512_v,
+     &&vloxsegei1024_v,
+     &&vsoxsegei8_v,
+     &&vsoxsegei16_v,
+     &&vsoxsegei32_v,
+     &&vsoxsegei64_v,
+     &&vsoxsegei128_v,
+     &&vsoxsegei256_v,
+     &&vsoxsegei512_v,
+     &&vsoxsegei1024_v,
+
+     &&vlsege8ff_v,
+     &&vlsege16ff_v,
+     &&vlsege32ff_v,
+     &&vlsege64ff_v,
+     &&vlsege128ff_v,
+     &&vlsege256ff_v,
+     &&vlsege512ff_v,
+     &&vlsege1024ff_v,
+
+     &&vfadd_vv,
+     &&vfadd_vf,
+     &&vfsub_vv,
+     &&vfsub_vf,
+     &&vfrsub_vf,
+
+     &&vfwadd_vv,
+     &&vfwadd_vf,
+     &&vfwsub_vv,
+     &&vfwsub_vf,
+     &&vfwadd_wv,
+     &&vfwadd_wf,
+     &&vfwsub_wv,
+     &&vfwsub_wf,
+
+     &&vfmul_vv,
+     &&vfmul_vf,
+     &&vfdiv_vv,
+     &&vfdiv_vf,
+     &&vfrdiv_vf,
+     &&vfwmul_vv,
+     &&vfwmul_vf,
+
+     &&vfmadd_vv,
+     &&vfmadd_vf,
+     &&vfnmadd_vv,
+     &&vfnmadd_vf,
+     &&vfmsub_vv,
+     &&vfmsub_vf,
+     &&vfnmsub_vv,
+     &&vfnmsub_vf,
+     &&vfmacc_vv,
+     &&vfmacc_vf,
+     &&vfnmacc_vv,
+     &&vfnmacc_vf,
+     &&vfmsac_vv,
+     &&vfmsac_vf,
+     &&vfnmsac_vv,
+     &&vfnmsac_vf,
+     &&vfwmacc_vv,
+     &&vfwmacc_vf,
+     &&vfwnmacc_vv,
+     &&vfwnmacc_vf,
+     &&vfwmsac_vv,
+     &&vfwmsac_vf,
+     &&vfwnmsac_vv,
+     &&vfwnmsac_vf,
+     &&vfsqrt_v,
+     &&vfmerge_vfm,
+     &&vfmv_v_f,
+     &&vmfeq_vv,
+     &&vmfeq_vf,
+     &&vmfne_vv,
+     &&vmfne_vf,
+     &&vmflt_vv,
+     &&vmflt_vf,
+     &&vmfle_vv,
+     &&vmfle_vf,
+     &&vmfgt_vf,
+     &&vmfge_vf,
+     &&vfclass_v,
+     &&vfcvt_xu_f_v,
+     &&vfcvt_x_f_v,
+     &&vfcvt_rtz_xu_f_v,
+     &&vfcvt_rtz_x_f_v,
+     &&vfcvt_f_xu_v,
+     &&vfcvt_f_x_v,
+
+     &&vfwcvt_xu_f_v,
+     &&vfwcvt_x_f_v,
+     &&vfwcvt_rtz_xu_f_v,
+     &&vfwcvt_rtz_x_f_v,
+     &&vfwcvt_f_xu_v,
+     &&vfwcvt_f_x_v,
+     &&vfwcvt_f_f_v,
+
+     &&vfncvt_xu_f_w,
+     &&vfncvt_x_f_w,
+     &&vfncvt_rtz_xu_f_w,
+     &&vfncvt_rtz_x_f_w,
+     &&vfncvt_f_xu_w,
+     &&vfncvt_f_x_w,
+     &&vfncvt_f_f_w,
+     &&vfncvt_rod_f_f_w,
+     &&vfredsum_vs,
+     &&vfredosum_vs,
+     &&vfredmin_vs,
+     &&vfredmax_vs,
+     &&vfwredsum_vs,
+     &&vfwredosum_vs,
+     &&vfrsqrt7_v,
+     &&vfrec7_v,
+     &&vfmin_vv,
+     &&vfmin_vf,
+     &&vfmax_vv,
+     &&vfmax_vf,
+     &&vfsgnj_vv,
+     &&vfsgnj_vf,
+     &&vfsgnjn_vv,
+     &&vfsgnjn_vf,
+     &&vfsgnjx_vv,
+     &&vfsgnjx_vf,
     };
 
   const InstEntry* entry = di->instEntry();
@@ -6591,6 +7220,142 @@ Hart<URV>::execute(const DecodedInst* di)
   execFmv_d_x(di);
   return;
 
+ flh:
+  execFlh(di);
+  return;
+
+ fsh:
+  execFsh(di);
+  return;
+
+ fmadd_h:
+  execFmadd_h(di);
+  return;
+
+ fmsub_h:
+  execFmsub_h(di);
+  return;
+
+ fnmsub_h:
+  execFnmsub_h(di);
+  return;
+
+ fnmadd_h:
+  execFnmadd_h(di);
+  return;
+
+ fadd_h:
+  execFadd_h(di);
+  return;
+
+ fsub_h:
+  execFsub_h(di);
+  return;
+
+ fmul_h:
+  execFmul_h(di);
+  return;
+
+ fdiv_h:
+  execFdiv_h(di);
+  return;
+
+ fsqrt_h:
+  execFsqrt_h(di);
+  return;
+
+ fsgnj_h:
+  execFsgnj_h(di);
+  return;
+
+ fsgnjn_h:
+  execFsgnjn_h(di);
+  return;
+
+ fsgnjx_h:
+  execFsgnjx_h(di);
+  return;
+
+ fmin_h:
+  execFmin_h(di);
+  return;
+
+ fmax_h:
+  execFmax_h(di);
+  return;
+
+ fcvt_s_h:
+  execFcvt_s_h(di);
+  return;
+
+ fcvt_d_h:
+  execFcvt_d_h(di);
+  return;
+
+ fcvt_h_s:
+  execFcvt_h_s(di);
+  return;
+
+ fcvt_h_d:
+  execFcvt_h_d(di);
+  return;
+
+ fcvt_w_h:
+  execFcvt_w_h(di);
+  return;
+
+ fcvt_wu_h:
+  execFcvt_wu_h(di);
+  return;
+
+ fmv_x_h:
+  execFmv_x_h(di);
+  return;
+
+ feq_h:
+  execFeq_h(di);
+  return;
+
+ flt_h:
+  execFlt_h(di);
+  return;
+
+ fle_h:
+  execFle_h(di);
+  return;
+
+ fclass_h:
+  execFclass_h(di);
+  return;
+
+ fcvt_h_w:
+  execFcvt_h_w(di);
+  return;
+
+ fcvt_h_wu:
+  execFcvt_h_wu(di);
+  return;
+
+ fmv_h_x:
+  execFmv_h_x(di);
+  return;
+
+ fcvt_l_h:
+  execFcvt_l_h(di);
+  return;
+
+ fcvt_lu_h:
+  execFcvt_lu_h(di);
+  return;
+
+ fcvt_h_l:
+  execFcvt_h_l(di);
+  return;
+
+ fcvt_h_lu:
+  execFcvt_h_lu(di);
+  return;
+
  mret:
   execMret(di);
   return;
@@ -7169,6 +7934,10 @@ Hart<URV>::execute(const DecodedInst* di)
   execVsetvli(di);
   return;
 
+ vsetivli:
+  execVsetivli(di);
+  return;
+
  vsetvl:
   execVsetvl(di);
   return;
@@ -7265,6 +8034,86 @@ Hart<URV>::execute(const DecodedInst* di)
   execVwsub_wx(di);
   return;
 
+ vmseq_vv:
+  execVmseq_vv(di);
+  return;
+
+ vmseq_vx:
+  execVmseq_vx(di);
+  return;
+
+ vmseq_vi:
+  execVmseq_vi(di);
+  return;
+
+ vmsne_vv:
+  execVmsne_vv(di);
+  return;
+
+ vmsne_vx:
+  execVmsne_vx(di);
+  return;
+
+ vmsne_vi:
+  execVmsne_vi(di);
+  return;
+
+ vmsltu_vv:
+  execVmsltu_vv(di);
+  return;
+
+ vmsltu_vx:
+  execVmsltu_vx(di);
+  return;
+
+ vmslt_vv:
+  execVmslt_vv(di);
+  return;
+
+ vmslt_vx:
+  execVmslt_vx(di);
+  return;
+
+ vmsleu_vv:
+  execVmsleu_vv(di);
+  return;
+
+ vmsleu_vx:
+  execVmsleu_vx(di);
+  return;
+
+ vmsleu_vi:
+  execVmsleu_vi(di);
+  return;
+
+ vmsle_vv:
+  execVmsle_vv(di);
+  return;
+
+ vmsle_vx:
+  execVmsle_vx(di);
+  return;
+
+ vmsle_vi:
+  execVmsle_vi(di);
+  return;
+
+ vmsgtu_vx:
+  execVmsgtu_vx(di);
+  return;
+
+ vmsgtu_vi:
+  execVmsgtu_vi(di);
+  return;
+
+ vmsgt_vx:
+  execVmsgt_vx(di);
+  return;
+
+ vmsgt_vi:
+  execVmsgt_vi(di);
+  return;
+
  vminu_vv:
   execVminu_vv(di);
   return;
@@ -7333,6 +8182,66 @@ Hart<URV>::execute(const DecodedInst* di)
   execVxor_vi(di);
   return;
 
+ vsll_vv:
+  execVsll_vv(di);
+  return;
+
+ vsll_vx:
+  execVsll_vx(di);
+  return;
+
+ vsll_vi:
+  execVsll_vi(di);
+  return;
+
+ vsrl_vv:
+  execVsrl_vv(di);
+  return;
+
+ vsrl_vx:
+  execVsrl_vx(di);
+  return;
+
+ vsrl_vi:
+  execVsrl_vi(di);
+  return;
+
+ vsra_vv:
+  execVsra_vv(di);
+  return;
+
+ vsra_vx:
+  execVsra_vx(di);
+  return;
+
+ vsra_vi:
+  execVsra_vi(di);
+  return;
+
+ vnsrl_wv:
+  execVnsrl_wv(di);
+  return;
+
+ vnsrl_wx:
+  execVnsrl_wx(di);
+  return;
+
+ vnsrl_wi:
+  execVnsrl_wi(di);
+  return;
+
+ vnsra_wv:
+  execVnsra_wv(di);
+  return;
+
+ vnsra_wx:
+  execVnsra_wx(di);
+  return;
+
+ vnsra_wi:
+  execVnsra_wi(di);
+  return;
+
  vrgather_vv:
   execVrgather_vv(di);
   return;
@@ -7383,6 +8292,14 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vredmax_vs:
   execVredmax_vs(di);
+  return;
+
+ vwredsumu_vs:
+  execVwredsumu_vs(di);
+  return;
+
+ vwredsum_vs:
+  execVwredsum_vs(di);
   return;
 
  vmand_mm:
@@ -7465,6 +8382,18 @@ Hart<URV>::execute(const DecodedInst* di)
   execVslidedown_vi(di);
   return;
 
+ vslide1down_vx:
+  execVslide1down_vx(di);
+  return;
+
+ vfslide1up_vf:
+  execVfslide1up_vf(di);
+  return;
+
+ vfslide1down_vf:
+  execVfslide1down_vf(di);
+  return;
+
  vmul_vv:
   execVmul_vv(di);
   return;
@@ -7495,6 +8424,38 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vmulhsu_vx:
   execVmulhsu_vx(di);
+  return;
+
+ vmadd_vv:
+  execVmadd_vv(di);
+  return;
+
+ vmadd_vx:
+  execVmadd_vx(di);
+  return;
+
+ vnmsub_vv:
+  execVnmsub_vv(di);
+  return;
+
+ vnmsub_vx:
+  execVnmsub_vx(di);
+  return;
+
+ vmacc_vv:
+  execVmacc_vv(di);
+  return;
+
+ vmacc_vx:
+  execVmacc_vx(di);
+  return;
+
+ vnmsac_vv:
+  execVnmsac_vv(di);
+  return;
+
+ vnmsac_vx:
+  execVnmsac_vx(di);
   return;
 
  vwmulu_vv:
@@ -7645,16 +8606,16 @@ Hart<URV>::execute(const DecodedInst* di)
   execVmsbc_vxm(di);
   return;
 
- vmerge_vv:
-  execVmerge_vv(di);
+ vmerge_vvm:
+  execVmerge_vvm(di);
   return;
 
- vmerge_vx:
-  execVmerge_vx(di);
+ vmerge_vxm:
+  execVmerge_vxm(di);
   return;
 
- vmerge_vi:
-  execVmerge_vi(di);
+ vmerge_vim:
+  execVmerge_vim(di);
   return;
 
  vmv_x_s:
@@ -7663,6 +8624,14 @@ Hart<URV>::execute(const DecodedInst* di)
 
  vmv_s_x:
   execVmv_s_x(di);
+  return;
+
+ vfmv_f_s:
+  execVfmv_f_s(di);
+  return;
+
+ vfmv_s_f:
+  execVfmv_s_f(di);
   return;
 
  vmv_v_v:
@@ -7885,6 +8854,14 @@ Hart<URV>::execute(const DecodedInst* di)
   execVse1024_v(di);
   return;
 
+ vlm_v:
+  execVlm_v(di);
+  return;
+
+ vsm_v:
+  execVsm_v(di);
+  return;
+
  vlre8_v:
   execVlre8_v(di);
   return;
@@ -7917,36 +8894,20 @@ Hart<URV>::execute(const DecodedInst* di)
   execVlre1024_v(di);
   return;
 
- vsre8_v:
-  execVsre8_v(di);
+ vs1r_v:
+  execVs1r_v(di);
   return;
 
- vsre16_v:
-  execVsre16_v(di);
+ vs2r_v:
+  execVs2r_v(di);
   return;
 
- vsre32_v:
-  execVsre32_v(di);
+ vs4r_v:
+  execVs4r_v(di);
   return;
 
- vsre64_v:
-  execVsre64_v(di);
-  return;
-
- vsre128_v:
-  execVsre128_v(di);
-  return;
-
- vsre256_v:
-  execVsre256_v(di);
-  return;
-
- vsre512_v:
-  execVsre512_v(di);
-  return;
-
- vsre1024_v:
-  execVsre1024_v(di);
+ vs8r_v:
+  execVs8r_v(di);
   return;
 
  vle8ff_v:
@@ -8045,38 +9006,745 @@ Hart<URV>::execute(const DecodedInst* di)
   execVsse1024_v(di);
   return;
 
- vlxei8_v:
-  execVlxei8_v(di);
+ vloxei8_v:
+  execVloxei8_v(di);
   return;
 
- vlxei16_v:
-  execVlxei16_v(di);
+ vloxei16_v:
+  execVloxei16_v(di);
   return;
 
- vlxei32_v:
-  execVlxei32_v(di);
+ vloxei32_v:
+  execVloxei32_v(di);
   return;
 
- vlxei64_v:
-  execVlxei64_v(di);
+ vloxei64_v:
+  execVloxei64_v(di);
   return;
 
- vsxei8_v:
-  execVsxei8_v(di);
+ vluxei8_v:
+  execVluxei8_v(di);
   return;
 
- vsxei16_v:
-  execVsxei16_v(di);
+ vluxei16_v:
+  execVluxei16_v(di);
   return;
 
- vsxei32_v:
-  execVsxei32_v(di);
+ vluxei32_v:
+  execVluxei32_v(di);
   return;
 
- vsxei64_v:
-  execVsxei64_v(di);
+ vluxei64_v:
+  execVluxei64_v(di);
   return;
 
+ vsoxei8_v:
+  execVsoxei8_v(di);
+  return;
+
+ vsoxei16_v:
+  execVsoxei16_v(di);
+  return;
+
+ vsoxei32_v:
+  execVsoxei32_v(di);
+  return;
+
+ vsoxei64_v:
+  execVsoxei64_v(di);
+  return;
+
+ vsuxei8_v:
+  execVsuxei8_v(di);
+  return;
+
+ vsuxei16_v:
+  execVsuxei16_v(di);
+  return;
+
+ vsuxei32_v:
+  execVsuxei32_v(di);
+  return;
+
+ vsuxei64_v:
+  execVsuxei64_v(di);
+  return;
+
+ vlsege8_v:
+  execVlsege8_v(di);
+  return;
+
+ vlsege16_v:
+  execVlsege16_v(di);
+  return;
+
+ vlsege32_v:
+  execVlsege32_v(di);
+  return;
+
+ vlsege64_v:
+  execVlsege64_v(di);
+  return;
+
+ vlsege128_v:
+  execVlsege128_v(di);
+  return;
+
+ vlsege256_v:
+  execVlsege256_v(di);
+  return;
+
+ vlsege512_v:
+  execVlsege512_v(di);
+  return;
+
+ vlsege1024_v:
+  execVlsege1024_v(di);
+  return;
+
+ vssege8_v:
+  execVssege8_v(di);
+  return;
+
+ vssege16_v:
+  execVssege16_v(di);
+  return;
+
+ vssege32_v:
+  execVssege32_v(di);
+  return;
+
+ vssege64_v:
+  execVssege64_v(di);
+  return;
+
+ vssege128_v:
+  execVssege128_v(di);
+  return;
+
+ vssege256_v:
+  execVssege256_v(di);
+  return;
+
+ vssege512_v:
+  execVssege512_v(di);
+  return;
+
+ vssege1024_v:
+  execVssege1024_v(di);
+  return;
+
+ vlssege8_v:
+  execVlssege8_v(di);
+  return;
+
+ vlssege16_v:
+  execVlssege16_v(di);
+  return;
+
+ vlssege32_v:
+  execVlssege32_v(di);
+  return;
+
+ vlssege64_v:
+  execVlssege64_v(di);
+  return;
+
+ vlssege128_v:
+  execVlssege128_v(di);
+  return;
+
+ vlssege256_v:
+  execVlssege256_v(di);
+  return;
+
+ vlssege512_v:
+  execVlssege512_v(di);
+  return;
+
+ vlssege1024_v:
+  execVlssege1024_v(di);
+  return;
+
+ vsssege8_v:
+  execVsssege8_v(di);
+  return;
+
+ vsssege16_v:
+  execVsssege16_v(di);
+  return;
+
+ vsssege32_v:
+  execVsssege32_v(di);
+  return;
+
+ vsssege64_v:
+  execVsssege64_v(di);
+  return;
+
+ vsssege128_v:
+  execVsssege128_v(di);
+  return;
+
+ vsssege256_v:
+  execVsssege256_v(di);
+  return;
+
+ vsssege512_v:
+  execVsssege512_v(di);
+  return;
+
+ vsssege1024_v:
+  execVsssege1024_v(di);
+  return;
+
+ vluxsegei8_v:
+  execVluxsegei8_v(di);
+  return;
+
+ vluxsegei16_v:
+  execVluxsegei16_v(di);
+  return;
+
+ vluxsegei32_v:
+  execVluxsegei32_v(di);
+  return;
+
+ vluxsegei64_v:
+  execVluxsegei64_v(di);
+  return;
+
+ vluxsegei128_v:
+  execVluxsegei128_v(di);
+  return;
+
+ vluxsegei256_v:
+  execVluxsegei256_v(di);
+  return;
+
+ vluxsegei512_v:
+  execVluxsegei512_v(di);
+  return;
+
+ vluxsegei1024_v:
+  execVluxsegei1024_v(di);
+  return;
+
+ vsuxsegei8_v:
+  execVsuxsegei8_v(di);
+  return;
+
+ vsuxsegei16_v:
+  execVsuxsegei16_v(di);
+  return;
+
+ vsuxsegei32_v:
+  execVsuxsegei32_v(di);
+  return;
+
+ vsuxsegei64_v:
+  execVsuxsegei64_v(di);
+  return;
+
+ vsuxsegei128_v:
+  execVsuxsegei128_v(di);
+  return;
+
+ vsuxsegei256_v:
+  execVsuxsegei256_v(di);
+  return;
+
+ vsuxsegei512_v:
+  execVsuxsegei512_v(di);
+  return;
+
+ vsuxsegei1024_v:
+  execVsuxsegei1024_v(di);
+  return;
+
+ vloxsegei8_v:
+  execVloxsegei8_v(di);
+  return;
+
+ vloxsegei16_v:
+  execVloxsegei16_v(di);
+  return;
+
+ vloxsegei32_v:
+  execVloxsegei32_v(di);
+  return;
+
+ vloxsegei64_v:
+  execVloxsegei64_v(di);
+  return;
+
+ vloxsegei128_v:
+  execVloxsegei128_v(di);
+  return;
+
+ vloxsegei256_v:
+  execVloxsegei256_v(di);
+  return;
+
+ vloxsegei512_v:
+  execVloxsegei512_v(di);
+  return;
+
+ vloxsegei1024_v:
+  execVloxsegei1024_v(di);
+  return;
+
+ vsoxsegei8_v:
+  execVsoxsegei8_v(di);
+  return;
+
+ vsoxsegei16_v:
+  execVsoxsegei16_v(di);
+  return;
+
+ vsoxsegei32_v:
+  execVsoxsegei32_v(di);
+  return;
+
+ vsoxsegei64_v:
+  execVsoxsegei64_v(di);
+  return;
+
+ vsoxsegei128_v:
+  execVsoxsegei128_v(di);
+  return;
+
+ vsoxsegei256_v:
+  execVsoxsegei256_v(di);
+  return;
+
+ vsoxsegei512_v:
+  execVsoxsegei512_v(di);
+  return;
+
+ vsoxsegei1024_v:
+  execVsoxsegei1024_v(di);
+  return;
+
+ vlsege8ff_v:
+  execVlsege8ff_v(di);
+  return;
+
+ vlsege16ff_v:
+  execVlsege16ff_v(di);
+  return;
+
+ vlsege32ff_v:
+  execVlsege32ff_v(di);
+  return;
+
+ vlsege64ff_v:
+  execVlsege64ff_v(di);
+  return;
+
+ vlsege128ff_v:
+  execVlsege128ff_v(di);
+  return;
+
+ vlsege256ff_v:
+  execVlsege256ff_v(di);
+  return;
+
+ vlsege512ff_v:
+  execVlsege512ff_v(di);
+  return;
+
+ vlsege1024ff_v:
+  execVlsege1024ff_v(di);
+  return;
+
+ vfadd_vv:
+  execVfadd_vv(di);
+  return;
+
+ vfadd_vf:
+  execVfadd_vf(di);
+  return;
+
+ vfsub_vv:
+  execVfsub_vv(di);
+  return;
+
+ vfsub_vf:
+  execVfsub_vf(di);
+  return;
+
+ vfrsub_vf:
+  execVfrsub_vf(di);
+  return;
+
+ vfwadd_vv:
+  execVfwadd_vv(di);
+  return;
+
+ vfwadd_vf:
+  execVfwadd_vf(di);
+  return;
+
+ vfwsub_vv:
+  execVfwsub_vv(di);
+  return;
+
+ vfwsub_vf:
+  execVfwsub_vf(di);
+  return;
+
+ vfwadd_wv:
+  execVfwadd_wv(di);
+  return;
+
+ vfwadd_wf:
+  execVfwadd_wf(di);
+  return;
+
+ vfwsub_wv:
+  execVfwsub_wv(di);
+  return;
+
+ vfwsub_wf:
+  execVfwsub_wf(di);
+  return;
+
+ vfmul_vv:
+  execVfmul_vv(di);
+  return;
+
+ vfmul_vf:
+  execVfmul_vf(di);
+  return;
+
+ vfdiv_vv:
+  execVfdiv_vv(di);
+  return;
+
+ vfdiv_vf:
+  execVfdiv_vf(di);
+  return;
+
+ vfrdiv_vf:
+  execVfrdiv_vf(di);
+  return;
+
+ vfwmul_vv:
+  execVfwmul_vv(di);
+  return;
+
+ vfwmul_vf:
+  execVfwmul_vf(di);
+  return;
+
+ vfmadd_vv:
+  execVfmadd_vv(di);
+  return;
+
+ vfmadd_vf:
+  execVfmadd_vf(di);
+  return;
+
+ vfnmadd_vv:
+  execVfnmadd_vv(di);
+  return;
+
+ vfnmadd_vf:
+  execVfnmadd_vf(di);
+  return;
+
+ vfmsub_vv:
+  execVfmsub_vv(di);
+  return;
+
+ vfmsub_vf:
+  execVfmsub_vf(di);
+  return;
+
+ vfnmsub_vv:
+  execVfnmsub_vv(di);
+  return;
+
+ vfnmsub_vf:
+  execVfnmsub_vf(di);
+  return;
+
+ vfmacc_vv:
+  execVfmacc_vv(di);
+  return;
+
+ vfmacc_vf:
+  execVfmacc_vf(di);
+  return;
+
+ vfnmacc_vv:
+  execVfnmacc_vv(di);
+  return;
+
+ vfnmacc_vf:
+  execVfnmacc_vf(di);
+  return;
+
+ vfmsac_vv:
+  execVfmsac_vv(di);
+  return;
+
+ vfmsac_vf:
+  execVfmsac_vf(di);
+  return;
+
+ vfnmsac_vv:
+  execVfnmsac_vv(di);
+  return;
+
+ vfnmsac_vf:
+  execVfnmsac_vf(di);
+  return;
+
+ vfwmacc_vv:
+  execVfwmacc_vv(di);
+  return;
+
+ vfwmacc_vf:
+  execVfwmacc_vf(di);
+  return;
+
+ vfwnmacc_vv:
+  execVfwnmacc_vv(di);
+  return;
+
+ vfwnmacc_vf:
+  execVfwnmacc_vf(di);
+  return;
+
+ vfwmsac_vv:
+  execVfwmsac_vv(di);
+  return;
+
+ vfwmsac_vf:
+  execVfwmsac_vf(di);
+  return;
+
+ vfwnmsac_vv:
+  execVfwnmsac_vv(di);
+  return;
+
+ vfwnmsac_vf:
+  execVfwnmsac_vf(di);
+  return;
+
+ vfsqrt_v:
+  execVfsqrt_v(di);
+  return;
+
+ vfmerge_vfm:
+  execVfmerge_vfm(di);
+  return;
+
+ vfmv_v_f:
+  execVfmv_v_f(di);
+  return;
+
+ vmfeq_vv:
+  execVmfeq_vv(di);
+  return;
+
+ vmfeq_vf:
+  execVmfeq_vf(di);
+  return;
+
+ vmfne_vv:
+  execVmfne_vv(di);
+  return;
+
+ vmfne_vf:
+  execVmfne_vf(di);
+  return;
+
+ vmflt_vv:
+  execVmflt_vv(di);
+  return;
+
+ vmflt_vf:
+  execVmflt_vf(di);
+  return;
+
+ vmfle_vv:
+  execVmfle_vv(di);
+  return;
+
+ vmfle_vf:
+  execVmfle_vf(di);
+  return;
+
+ vmfgt_vf:
+  execVmfgt_vf(di);
+  return;
+
+ vmfge_vf:
+  execVmfge_vf(di);
+  return;
+
+ vfclass_v:
+  execVfclass_v(di);
+  return;
+
+ vfcvt_xu_f_v:
+  execVfcvt_xu_f_v(di);
+  return;
+
+ vfcvt_x_f_v:
+  execVfcvt_x_f_v(di);
+  return;
+
+ vfcvt_rtz_xu_f_v:
+  execVfcvt_rtz_xu_f_v(di);
+  return;
+
+ vfcvt_rtz_x_f_v:
+  execVfcvt_rtz_x_f_v(di);
+  return;
+
+ vfcvt_f_xu_v:
+  execVfcvt_f_xu_v(di);
+  return;
+
+ vfcvt_f_x_v:
+  execVfcvt_f_x_v(di);
+  return;
+
+ vfwcvt_xu_f_v:
+  execVfwcvt_xu_f_v(di);
+  return;
+
+ vfwcvt_x_f_v:
+  execVfwcvt_x_f_v(di);
+  return;
+
+ vfwcvt_rtz_xu_f_v:
+  execVfwcvt_rtz_xu_f_v(di);
+  return;
+
+ vfwcvt_rtz_x_f_v:
+  execVfwcvt_rtz_x_f_v(di);
+  return;
+
+ vfwcvt_f_xu_v:
+  execVfwcvt_f_xu_v(di);
+  return;
+
+ vfwcvt_f_x_v:
+  execVfwcvt_f_x_v(di);
+  return;
+
+ vfwcvt_f_f_v:
+  execVfwcvt_f_f_v(di);
+  return;
+
+ vfncvt_xu_f_w:
+  execVfncvt_xu_f_w(di);
+  return;
+
+ vfncvt_x_f_w:
+  execVfncvt_x_f_w(di);
+  return;
+
+ vfncvt_rtz_xu_f_w:
+  execVfncvt_rtz_xu_f_w(di);
+  return;
+
+ vfncvt_rtz_x_f_w:
+  execVfncvt_rtz_x_f_w(di);
+  return;
+
+ vfncvt_f_xu_w:
+  execVfncvt_f_xu_w(di);
+  return;
+
+ vfncvt_f_x_w:
+  execVfncvt_f_x_w(di);
+  return;
+
+ vfncvt_f_f_w:
+  execVfncvt_f_f_w(di);
+  return;
+
+ vfncvt_rod_f_f_w:
+  execVfncvt_rod_f_f_w(di);
+  return;
+
+ vfredsum_vs:
+  execVfredsum_vs(di);
+  return;
+
+ vfredosum_vs:
+  execVfredosum_vs(di);
+  return;
+
+ vfredmin_vs:
+  execVfredmin_vs(di);
+  return;
+
+ vfredmax_vs:
+  execVfredmax_vs(di);
+  return;
+
+ vfwredsum_vs:
+  execVfwredsum_vs(di);
+  return;
+
+ vfwredosum_vs:
+  execVfwredosum_vs(di);
+  return;
+
+ vfrsqrt7_v:
+  execVfrsqrt7_v(di);
+  return;
+
+ vfrec7_v:
+  execVfrec7_v(di);
+  return;
+
+ vfmin_vv:
+  execVfmin_vv(di);
+  return;
+
+ vfmin_vf:
+  execVfmin_vf(di);
+  return;
+
+ vfmax_vv:
+  execVfmax_vv(di);
+  return;
+
+ vfmax_vf:
+  execVfmax_vf(di);
+  return;
+
+ vfsgnj_vv:
+  execVfsgnj_vv(di);
+  return;
+
+ vfsgnj_vf:
+  execVfsgnj_vf(di);
+  return;
+
+ vfsgnjn_vv:
+  execVfsgnjn_vv(di);
+  return;
+
+ vfsgnjn_vf:
+  execVfsgnjn_vf(di);
+  return;
+
+ vfsgnjx_vv:
+  execVfsgnjx_vv(di);
+  return;
+
+ vfsgnjx_vf:
+  execVfsgnjx_vf(di);
+  return;
 }
 
 
@@ -8817,7 +10485,7 @@ Hart<URV>::doCsrRead(const DecodedInst* di, CsrNumber csr, URV& value)
     }
 
   if (csr == CsrNumber::FCSR or csr == CsrNumber::FRM or csr == CsrNumber::FFLAGS)
-    if (not isFpEnabled())
+    if (not isFpLegal())
       {
         illegalInst(di);
         return false;
@@ -8874,7 +10542,7 @@ Hart<URV>::doCsrWrite(const DecodedInst* di, CsrNumber csr, URV csrVal,
     }
 
   if (csr == CsrNumber::FCSR or csr == CsrNumber::FRM or csr == CsrNumber::FFLAGS)
-    if (not isFpEnabled())
+    if (not isFpLegal())
       {
         illegalInst(di);
         return;
@@ -9209,6 +10877,8 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
   forcedFail = false;
   unsigned stSize = sizeof(STORE_TYPE);
 
+  addr = URV(addr);  // Truncate to 32 bits in 32-bit mode.
+
   // Misaligned store to io section causes an exception. Crossing
   // dccm to non-dccm causes an exception.
   constexpr unsigned alignMask = sizeof(STORE_TYPE) - 1;
@@ -9369,6 +11039,12 @@ template<typename URV>
 void
 Hart<URV>::execMul(const DecodedInst* di)
 {
+  if (not isRvm())
+    {
+      illegalInst(di);
+      return;
+    }
+
   SRV a = intRegs_.read(di->op1());
   SRV b = intRegs_.read(di->op2());
 
@@ -9384,6 +11060,12 @@ namespace WdRiscv
   void
   Hart<uint32_t>::execMulh(const DecodedInst* di)
   {
+    if (not isRvm())
+      {
+	illegalInst(di);
+	return;
+      }
+
     int64_t a = int32_t(intRegs_.read(di->op1()));  // sign extend.
     int64_t b = int32_t(intRegs_.read(di->op2()));
     int64_t c = a * b;
@@ -9397,6 +11079,12 @@ namespace WdRiscv
   void
   Hart<uint32_t>::execMulhsu(const DecodedInst* di)
   {
+    if (not isRvm())
+      {
+	illegalInst(di);
+	return;
+      }
+
     int64_t a = int32_t(intRegs_.read(di->op1()));
     uint64_t b = uint32_t(intRegs_.read(di->op2()));
     int64_t c = a * b;
@@ -9410,6 +11098,12 @@ namespace WdRiscv
   void
   Hart<uint32_t>::execMulhu(const DecodedInst* di)
   {
+    if (not isRvm())
+      {
+	illegalInst(di);
+	return;
+      }
+
     uint64_t a = uint32_t(intRegs_.read(di->op1()));
     uint64_t b = uint32_t(intRegs_.read(di->op2()));
     uint64_t c = a * b;
@@ -9423,6 +11117,12 @@ namespace WdRiscv
   void
   Hart<uint64_t>::execMulh(const DecodedInst* di)
   {
+    if (not isRvm())
+      {
+	illegalInst(di);
+	return;
+      }
+
     Int128 a = int64_t(intRegs_.read(di->op1()));  // sign extend.
     Int128 b = int64_t(intRegs_.read(di->op2()));
     Int128 c = a * b;
@@ -9436,6 +11136,11 @@ namespace WdRiscv
   void
   Hart<uint64_t>::execMulhsu(const DecodedInst* di)
   {
+    if (not isRvm())
+      {
+	illegalInst(di);
+	return;
+      }
 
     Int128 a = int64_t(intRegs_.read(di->op1()));
     Int128 b = intRegs_.read(di->op2());
@@ -9450,6 +11155,12 @@ namespace WdRiscv
   void
   Hart<uint64_t>::execMulhu(const DecodedInst* di)
   {
+    if (not isRvm())
+      {
+	illegalInst(di);
+	return;
+      }
+
     Uint128 a = intRegs_.read(di->op1());
     Uint128 b = intRegs_.read(di->op2());
     Uint128 c = a * b;
@@ -9465,6 +11176,12 @@ template <typename URV>
 void
 Hart<URV>::execDiv(const DecodedInst* di)
 {
+  if (not isRvm())
+    {
+      illegalInst(di);
+      return;
+    }
+
   SRV a = intRegs_.read(di->op1());
   SRV b = intRegs_.read(di->op2());
   SRV c = -1;   // Divide by zero result
@@ -9487,6 +11204,12 @@ template <typename URV>
 void
 Hart<URV>::execDivu(const DecodedInst* di)
 {
+  if (not isRvm())
+    {
+      illegalInst(di);
+      return;
+    }
+
   URV a = intRegs_.read(di->op1());
   URV b = intRegs_.read(di->op2());
   URV c = ~ URV(0);  // Divide by zero result.
@@ -9504,6 +11227,12 @@ template <typename URV>
 void
 Hart<URV>::execRem(const DecodedInst* di)
 {
+  if (not isRvm())
+    {
+      illegalInst(di);
+      return;
+    }
+
   SRV a = intRegs_.read(di->op1());
   SRV b = intRegs_.read(di->op2());
   SRV c = a;  // Divide by zero remainder.
@@ -9527,6 +11256,12 @@ template <typename URV>
 void
 Hart<URV>::execRemu(const DecodedInst* di)
 {
+  if (not isRvm())
+    {
+      illegalInst(di);
+      return;
+    }
+
   URV a = intRegs_.read(di->op1());
   URV b = intRegs_.read(di->op2());
   URV c = a;  // Divide by zero remainder.
@@ -9978,11 +11713,19 @@ Hart<URV>::execBbarrier(const DecodedInst* di)
 
 template
 bool
+WdRiscv::Hart<uint32_t>::store<uint16_t>(uint32_t, uint32_t, uint32_t, uint16_t);
+
+template
+bool
 WdRiscv::Hart<uint32_t>::store<uint32_t>(uint32_t, uint32_t, uint32_t, uint32_t);
 
 template
 bool
 WdRiscv::Hart<uint32_t>::store<uint64_t>(uint32_t, uint32_t, uint32_t, uint64_t);
+
+template
+bool
+WdRiscv::Hart<uint64_t>::store<uint16_t>(uint32_t, uint64_t, uint64_t, uint16_t);
 
 template
 bool

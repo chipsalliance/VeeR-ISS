@@ -316,6 +316,14 @@ Server<URV>::pokeCommand(const WhisperMessage& req, WhisperMessage& reply)
           return true;
       }
       break;
+
+    case 'p':
+      {
+	URV val = static_cast<URV>(req.value);
+	hart.pokePc(val);
+	return true;
+      }
+      break;
     }
 
   reply.type = Invalid;
@@ -380,10 +388,8 @@ Server<URV>::peekCommand(const WhisperMessage& req, WhisperMessage& reply)
 	}
       break;
     case 'p':
-      {
-        reply.value = hart.peekPc();
-        break;
-      }
+      reply.value = hart.peekPc();
+      return true;
     }
 
   reply.type = Invalid;
@@ -926,11 +932,18 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
 	    case Poke:
 	      pokeCommand(msg, reply);
 	      if (commandLog)
-		fprintf(commandLog, "hart=%d poke %c %s %s # ts=%s tag=%s\n", hartId,
-			msg.resource,
-			(boost::format(hexForm) % msg.address).str().c_str(),
-			(boost::format(hexForm) % msg.value).str().c_str(),
-			timeStamp.c_str(), msg.tag);
+		{
+		  if (msg.resource == 'p')
+                    fprintf(commandLog, "hart=%d poke pc %s # ts=%s tag=%s\n", hartId,
+			    (boost::format(hexForm) % msg.value).str().c_str(),
+			    timeStamp.c_str(), msg.tag);
+		  else
+		    fprintf(commandLog, "hart=%d poke %c %s %s # ts=%s tag=%s\n", hartId,
+			    msg.resource,
+			    (boost::format(hexForm) % msg.address).str().c_str(),
+			    (boost::format(hexForm) % msg.value).str().c_str(),
+			    timeStamp.c_str(), msg.tag);
+		}
 	      break;
 
 	    case Peek:

@@ -181,6 +181,7 @@ struct Args
   StringVec   targets;         // Target (ELF file) programs and associated
                                // program options to be loaded into simulator
                                // memory. Each target plus args is one string.
+  StringVec   isaVec;          // Isa string split around _ with rv32/rv64 prefix removed.
   std::string targetSep = " "; // Target program argument separator.
 
   std::optional<std::string> toHostSym;
@@ -215,6 +216,7 @@ struct Args
   bool verbose = false;
   bool version = false;
   bool traceLdSt = false;  // Trace ld/st data address if true.
+  bool csv = false;        // Log files in CSV format when true.
   bool triggers = false;   // Enable debug triggers when true.
   bool counters = false;   // Enable performance counters when true.
   bool gdb = false;        // Enable gdb mode when true.
@@ -229,6 +231,7 @@ struct Args
   bool iccmRw = false;
   bool quitOnAnyHart = false;    // True if run quits when any hart finishes.
   bool noConInput = false;       // If true console io address is not used for input (ld).
+  bool relativeInstCount = false;
 
   // Expand each target program string into program name and args.
   void expandTargets();
@@ -254,7 +257,7 @@ void
 printVersion()
 {
   unsigned version = 1;
-  unsigned subversion = 687;
+  unsigned subversion = 739;
   std::cout << "Version " << version << "." << subversion << " compiled on "
 	    << __DATE__ << " at " << __TIME__ << '\n';
 }
@@ -300,6 +303,7 @@ collectCommandLineValues(const boost::program_options::variables_map& varMap,
       auto numStr = varMap["maxinst"].as<std::string>();
       if (not parseCmdLineNumber("maxinst", numStr, args.instCountLim))
 	ok = false;
+      args.relativeInstCount = not numStr.empty() and numStr.at(0) == '+';
     }
 
   if (varMap.count("memorysize"))
@@ -420,6 +424,8 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
 	 "HEX file to load into simulator memory.")
 	("logfile,f", po::value(&args.traceFile),
 	 "Enable tracing to given file of executed instructions.")
+	("csvlog", po::bool_switch(&args.csv),
+	 "Enable CSV format for log file.")
 	("consoleoutfile", po::value(&args.consoleOutFile),
 	 "Redirect console output to given file.")
 	("commandlog", po::value(&args.commandLogFile),
@@ -447,7 +453,7 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
          "consoleio is not specified on the command line). Deafult: "
          "\"__whisper_console_io\".")
 	("maxinst,m", po::value<std::string>(),
-	 "Limit executed instruction count to arg.")
+	 "Limit executed instruction count to arg. With a leading plus sign interpret the count as relative to the loaded (from a snapshot) instruction count.")
 	("memorysize", po::value<std::string>(),
 	 "Memory size (must be a multiple of 4096).")
 	("interactive,i", po::bool_switch(&args.interactive),
@@ -690,43 +696,65 @@ applyCmdLineRegInit(const Args& args, Hart<URV>& hart)
 template<typename URV>
 static
 bool
-applyZisaStrings(const std::vector<std::string>& zisa, Hart<URV>& hart)
+applyZisaString(const std::string& zisa, Hart<URV>& hart)
+{
+  if (zisa.empty())
+    return true;
+
+  std::string ext = zisa;
+
+  if (ext.at(0) == 'z')
+    ext = ext.substr(1);
+
+  if (boost::starts_with(ext, "ba"))
+    hart.enableRvzba(true);
+  else if (boost::starts_with(ext, "bb"))
+    hart.enableRvzbb(true);
+  else if (boost::starts_with(ext, "bc"))
+    hart.enableRvzbc(true);
+  else if (boost::starts_with(ext, "be"))
+    hart.enableRvzbe(true);
+  else if (boost::starts_with(ext, "bf"))
+    hart.enableRvzbf(true);
+  else if (boost::starts_with(ext, "bm"))
+    hart.enableRvzbm(true);
+  else if (boost::starts_with(ext, "bp"))
+    hart.enableRvzbp(true);
+  else if (boost::starts_with(ext, "br"))
+    hart.enableRvzbr(true);
+  else if (boost::starts_with(ext, "bs"))
+    hart.enableRvzbs(true);
+  else if (boost::starts_with(ext, "bt"))
+    hart.enableRvzbt(true);
+  else if (boost::starts_with(ext, "bmini"))
+    {
+      hart.enableRvzbb(true);
+      hart.enableRvzbs(true);
+      std::cerr << "ISA option zbmini is deprecated. Using zbb and zbs.\n";
+    }
+  else if (boost::starts_with(ext, "fh"))
+    hart.enableZfh(true);
+  else
+    {
+      std::cerr << "No such Z extension: " << zisa << '\n';
+      return false;
+    }
+
+  return true;
+}
+
+
+template<typename URV>
+static
+bool
+applyZisaStrings(const StringVec& zisa, Hart<URV>& hart)
 {
   unsigned errors = 0;
 
   for (const auto& ext : zisa)
     {
-      if (ext == "zba" or ext == "ba")
-	hart.enableRvzba(true);
-      else if (ext == "zbb" or ext == "bb")
-	hart.enableRvzbb(true);
-      else if (ext == "zbc" or ext == "bc")
-	hart.enableRvzbc(true);
-      else if (ext == "zbe" or ext == "be")
-	hart.enableRvzbe(true);
-      else if (ext == "zbf" or ext == "bf")
-	hart.enableRvzbf(true);
-      else if (ext == "zbm" or ext == "bm")
-	hart.enableRvzbm(true);
-      else if (ext == "zbp" or ext == "bp")
-	hart.enableRvzbp(true);
-      else if (ext == "zbr" or ext == "br")
-	hart.enableRvzbr(true);
-      else if (ext == "zbs" or ext == "bs")
-	hart.enableRvzbs(true);
-      else if (ext == "zbt" or ext == "bt")
-	hart.enableRvzbt(true);
-      else if (ext == "zbmini" or ext == "bmini")
-	{
-	  hart.enableRvzbb(true);
-	  hart.enableRvzbs(true);
-	  std::cerr << "ISA option zbmini is deprecated. Using zbb and zbs.\n";
-	}
-      else
-	{
-	  std::cerr << "No such Z extension: " << ext << '\n';
-	  errors++;
-	}
+      if (not applyZisaString(ext, hart))
+	errors++;
     }
 
   return errors == 0;
@@ -736,13 +764,20 @@ applyZisaStrings(const std::vector<std::string>& zisa, Hart<URV>& hart)
 template<typename URV>
 static
 bool
-applyIsaString(const std::string& isaStr, Hart<URV>& hart)
+applyIsaStrings(const StringVec& isaStrings, Hart<URV>& hart)
 {
+  if (isaStrings.empty())
+    return true;
+
   URV isa = 0;
   unsigned errors = 0;
 
-  for (auto c : isaStr)
+  for (const auto& isaStr : isaStrings)
     {
+      if (isaStr.empty())
+	continue;
+
+      char c = isaStr.at(0);
       switch(c)
 	{
 	case 'a':
@@ -762,6 +797,11 @@ applyIsaString(const std::string& isaStr, Hart<URV>& hart)
           isa |= 0x1 | 0x8 | 0x20 | 0x1000;
           break;
 
+	case 'z':
+	  if (not applyZisaString(isaStr, hart))
+	    errors++;
+	  break;
+	  
 	default:
 	  std::cerr << "Extension \"" << c << "\" is not supported.\n";
 	  errors++;
@@ -777,10 +817,7 @@ applyIsaString(const std::string& isaStr, Hart<URV>& hart)
 
   if (isa & (URV(1) << ('d' - 'a')))
     if (not (isa & (URV(1) << ('f' - 'a'))))
-      {
-	std::cerr << "Extension \"d\" requires \"f\" -- Enabling \"f\"\n";
-	isa |= URV(1) << ('f' -  'a');
-      }
+      std::cerr << "Warning Extension \"d\" enabled without \"f\"\n";
 
   // Set the xlen bits: 1 for 32-bits and 2 for 64.
   URV xlen = sizeof(URV) == 4? 1 : 2;
@@ -968,29 +1005,17 @@ getElfFilesIsaString(const Args& args, std::string& isaString)
         errors++;
     }
 
-  std::unordered_set<char> isaChars;
+  if (archTags.empty())
+    return errors == 0;
+
+  const std::string& ref = archTags.front();
 
   for (const auto& tag : archTags)
-    {
-      if (args.verbose)
-        std::cerr << "Collecting ISA string from ELF file tag: " << tag << '\n';
+    if (tag != ref)
+      std::cerr << "Warning differen ELF files have different ISA strings: "
+		<< tag << " and " << ref << '\n';
 
-      // Example tag:   rv32i2p0_m2p0_a2p0_f2p0_d2p0_c2p0
-      std::vector<std::string> extensions;
-      boost::split(extensions, tag, boost::is_any_of("_"));
-      for (size_t i = 1; i < extensions.size(); ++i)
-        {
-          const auto& ext = extensions.at(i);
-          if (not ext.empty())
-            {
-              char cc = ext.front();
-              isaChars.insert(cc);
-            }
-        }
-    }
-
-  for (auto cc : isaChars)
-    isaString.push_back(cc);
+  isaString = ref;
 
   if (args.verbose)
     std::cerr << "ISA string from ELF file(s): " << isaString << '\n';
@@ -999,34 +1024,51 @@ getElfFilesIsaString(const Args& args, std::string& isaString)
 }
 
 
+/// Return the string representing the current contents of the MISA CSR.
+template<typename URV>
+static
+std::string
+getIsaStringFromCsr(const Hart<URV>& hart)
+{
+  std::string res;
+
+  URV val;
+  if (not hart.peekCsr(CsrNumber::MISA, val))
+    return res;
+
+  URV mask = 1;
+  for (char c = 'a'; c <= 'z'; ++c, mask <<= 1)
+    if (val & mask)
+      res += c;
+
+  return res;
+}
+
 /// Apply command line arguments: Load ELF and HEX files, set
 /// start/end/tohost. Return true on success and false on failure.
 template<typename URV>
 static
 bool
-applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
+applyCmdLineArgs(const Args& args, StringVec isaVec, Hart<URV>& hart, System<URV>& system)
 {
   unsigned errors = 0;
-
-  std::string isa = args.isa;
 
   // Handle linux/newlib adjusting stack if needed.
   bool clib = enableNewlibOrLinuxFromElf(args, hart);
 
-  // TBD: Do this once.  Do not do it for each hart.
-  if (isa.empty() and args.elfisa)
-    if (not getElfFilesIsaString(args, isa))
-      errors++;
-
-  if (clib and isa.empty() and not args.raw)
+  if (clib and isaVec.empty() and not args.raw)
     {
       if (args.verbose)
-        std::cerr << "Enabling a/c/m/f/d extensions for newlib/linux\n";
-      isa = "icmafd";
+        std::cerr << "Adding a/c/m/f/d extensions for newlib/linux\n";
+      std::string isa = getIsaStringFromCsr(hart);
+      for (auto c : std::string("icmafd"))
+	if (isa.find(c) == std::string::npos)
+	  isa += c;
+      for (auto c : isa)
+	isaVec.push_back(std::string(1, c));
     }
 
-  if (not isa.empty())
-    if (not applyIsaString(isa, hart))
+  if (not applyIsaStrings(isaVec, hart))
       errors++;
 
   if (not applyZisaStrings(args.zisa, hart))
@@ -1119,10 +1161,15 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
 
   // Set instruction count limit.
   if (args.instCountLim)
-    hart.setInstructionCountLimit(*args.instCountLim);
+    {
+      uint64_t count = args.relativeInstCount? hart.getInstructionCount() : 0;
+      count += *args.instCountLim;
+      hart.setInstructionCountLimit(count);
+    }
 
   // Print load-instruction data-address when tracing instructions.
-  hart.setTraceLoadStore(args.traceLdSt);
+  if (args.traceLdSt)
+    hart.setTraceLoadStore(args.traceLdSt);
 
   // Setup periodic external interrupts.
   if (args.alarmInterval)
@@ -1133,12 +1180,15 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
       hart.setupPeriodicTimerInterrupts(ticks);
     }
 
-  hart.enableTriggers(args.triggers);
+  if (args.triggers)
+    hart.enableTriggers(args.triggers);
   hart.enableGdb(args.gdb);
   if (args.gdbTcpPort.size()>hart.sysHartIndex())
     hart.setGdbTcpPort(args.gdbTcpPort[hart.sysHartIndex()]);
-  hart.enablePerformanceCounters(args.counters);
-  hart.enableAbiNames(args.abiNames);
+  if (args.counters)
+    hart.enablePerformanceCounters(args.counters);
+  if (args.abiNames)
+    hart.enableAbiNames(args.abiNames);
 
   if (args.fastExt)
     hart.enableFastInterrupts(args.fastExt);
@@ -1173,6 +1223,9 @@ applyCmdLineArgs(const Args& args, Hart<URV>& hart, System<URV>& system)
       std::cerr << "Warning: Target program options present which requires\n"
 		<< "         the use of --newlib/--linux. Options ignored.\n";
     }
+
+  if (args.csv)
+    hart.enableCsvLog(args.csv);
 
   return errors == 0;
 }
@@ -1502,6 +1555,103 @@ snapshotRun(System<URV>& system, FILE* traceFile,
 }
 
 
+static
+bool
+extractOptVersion(const std::string& isa, size_t& i, std::string& opt)
+{
+  while (i+1 < isa.size() and std::isdigit(isa.at(i+1)))
+    opt.push_back(isa.at(++i));
+  if (std::isdigit(opt.back()))
+    {
+      if (i+1 < isa.size() and isa.at(i+1) == 'p')
+	{
+	  opt.push_back(isa.at(++i));
+	  while (i+1 < isa.size() and std::isdigit(isa.at(i+1)))
+	    opt.push_back(isa.at(++i));
+	  if (opt.back() == 'p')
+	    return false;
+	}
+    }
+  return true;
+}
+
+
+static
+bool
+determineIsa(const Args& args, StringVec& isaVec)
+{
+  isaVec.clear();
+
+  if (not args.isa.empty() and args.elfisa)
+    std::cerr << "Warning: Both --isa and --elfisa present: Using --isa\n";
+
+  std::string isa = args.isa;
+
+  if (isa.empty() and args.elfisa)
+    if (not getElfFilesIsaString(args, isa))
+      return false;
+
+  if (isa.empty())
+    return true;
+
+  // Xlen part of isa is processed in determineRegisterWidth
+  if (boost::starts_with(isa, "rv32") or boost::starts_with(isa, "rv64"))
+    isa = isa.substr(4);
+  else if (boost::starts_with(isa, "rv") and isa.size() > 2 and std::isdigit(isa.at(2)))
+    {
+      std::cerr << "Unsupported ISA: " << isa << '\n';
+      return false;
+    }
+
+  bool hasZ = false, good = true;
+  
+  for (size_t i = 0; i < isa.size() and good; ++i)
+    {
+      char c = isa.at(i);
+      if (c == '_')  { good = i > 0; continue; }
+      if (c == 'z')
+	{
+	  if (i == 0)
+	    good = false;
+	  else if (hasZ and i > 0 and isa.at(i-1) != '_')
+	    good = false;
+	  else if (i+3 > isa.size())
+	    good = false;
+	  else if (std::isdigit(i+1) or std::isdigit(i+2))
+	    good = false;
+	  else
+	    {
+	      hasZ = true;
+	      std::string opt = isa.substr(i, 3);
+	      i += 2;
+	      good = extractOptVersion(isa, i, opt);
+	      if (good)
+		isaVec.push_back(opt);
+	    }
+	}
+      else if (c >= 'a' and c < 'z')
+	{
+	  if (hasZ)
+	    good = false;
+	  else
+	    {
+	      std::string opt = isa.substr(i, 1);
+	      good = extractOptVersion(isa, i, opt);
+	      if (good)
+		isaVec.push_back(opt);
+	    }
+	}
+      else
+	good = false;
+    }
+
+  if (not good)
+    std::cerr << "Invalid ISA: " << isa << '\n';
+
+  return good;
+}
+
+
 /// Depending on command line args, start a server, run in interactive
 /// mode, or initiate a batch run.
 template <typename URV>
@@ -1509,8 +1659,12 @@ static
 bool
 sessionRun(System<URV>& system, const Args& args, FILE* traceFile, FILE* cmdLog)
 {
+  StringVec isaVec;
+  if (not determineIsa(args, isaVec))
+    return false;
+
   for (unsigned i = 0; i < system.hartCount(); ++i)
-    if (not applyCmdLineArgs(args, *system.ithHart(i), system))
+    if (not applyCmdLineArgs(args, isaVec, *system.ithHart(i), system))
       if (not args.interactive)
 	return false;
 
@@ -1731,7 +1885,8 @@ session(const Args& args, const HartConfig& config)
   assert(system.hartCount() > 0);
 
   // Configure harts. Define callbacks for non-standard CSRs.
-  if (not config.configHarts(system, args.isa, args.verbose))
+  bool userMode = args.isa.find_first_of("uU") != std::string::npos;
+  if (not config.configHarts(system, userMode, args.verbose))
     if (not args.interactive)
       return false;
 
@@ -1814,12 +1969,57 @@ static
 unsigned
 determineRegisterWidth(const Args& args, const HartConfig& config)
 {
-  unsigned width = 32;
+  unsigned isaLen = 0;
+  if (not args.isa.empty())
+    {
+      if (boost::starts_with(args.isa, "rv32"))
+	isaLen = 32;
+      else if (boost::starts_with(args.isa, "rv64"))
+	isaLen = 64;
+    }
+
+  // 1. If --xlen used, go with that.
   if (args.hasRegWidth)
-    width = args.regWidth;
-  else if (not config.getXlen(width))
-    getXlenFromElfFile(args, width);
-  return width;
+    {
+      unsigned xlen = args.regWidth;
+      if (args.verbose)
+	std::cerr << "Setting xlen from --xlen: " << xlen << "\n";
+      if (isaLen and xlen != isaLen)
+	{
+	  std::cerr << "Xlen value from --xlen (" << xlen
+		    << ") different from --isa (" << args.isa
+		    << "), using: " << xlen << "\n";
+	}
+      return xlen;
+    }
+
+  // 2. If --isa specifies xlen, go with that.
+  if (isaLen)
+    {
+      if (args.verbose)
+        std::cerr << "Setting xlen from --isa: " << isaLen << "\n";
+      return isaLen;
+    }
+
+  // 3. If config file specifies xlen, go with that.
+  unsigned xlen = 32;
+  if (config.getXlen(xlen))
+    {
+      if (args.verbose)
+	std::cerr << "Setting xlen from config file: " << xlen << "\n";
+      return xlen;
+    }
+
+  // 4. Get xlen from ELF file.
+  if (getXlenFromElfFile(args, xlen))
+    {
+      if (args.verbose)
+	std::cerr << "Setting xlen from ELF file: " << xlen << "\n";
+    }
+  else if (args.verbose)
+    std::cerr << "Using default for xlen: " << xlen << "\n";
+  
+  return xlen;
 }
 
 

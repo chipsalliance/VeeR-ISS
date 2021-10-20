@@ -507,12 +507,123 @@ printFp2Rm(const Hart<URV>& hart, std::ostream& stream, const char* inst,
 }
 
 
+static
+std::string
+insertFieldCountInName(const std::string& name, unsigned count, unsigned n)
+{
+  std::string res = name.substr(0, n) + std::to_string(count) + name.substr(n);
+  return res;
+}
+
+
+template <typename URV>
+static
+void
+printVecInst(Hart<URV>& hart, std::ostream& out, const DecodedInst& di)
+{
+  uint32_t opcode7 = di.inst() & 0x7f;  // Least sig 7 bits
+  InstId id = di.instEntry()->instId();
+
+  if (opcode7 == 0x7 or opcode7 == 0x27)
+    {  // Vector load store
+      std::string name = di.instEntry()->name();
+      if (id >= InstId::vlre8_v and id <= InstId::vlre1024_v)
+	name = insertFieldCountInName(name, di.vecFieldCount(), 2);
+      else if ((id >= InstId::vlsege8_v and id <= InstId::vssege1024_v) or
+	       (id >= InstId::vlsege8ff_v and id <= InstId::vlsege1024ff_v))
+	name = insertFieldCountInName(name, di.vecFieldCount(), 5);
+      else if (id >= InstId::vlssege8_v and id <= InstId::vsssege1024_v)
+	name = insertFieldCountInName(name, di.vecFieldCount(), 6);
+      else if (id >= InstId::vluxsegei8_v and id <= InstId::vsoxsegei1024_v)
+	name = insertFieldCountInName(name, di.vecFieldCount(), 7);
+      out << name << " v" << di.op0();
+      out << ", ("  << hart.intRegName(di.op1()) << ")";
+      if (di.operandCount() == 3)
+	{
+	  if (di.ithOperandType(2) == OperandType::IntReg)
+	    out << ", " << hart.intRegName(di.ithOperand(2));
+	  else
+	    out << ", v" << di.op2();
+	}
+      if (di.isMasked())
+	out << ", v0.t";
+      return;
+    }
+
+  if (id == InstId::vsetvli or id == InstId::vsetivli)
+    {
+      out << di.instEntry()->name() << ' ' << hart.intRegName(di.op0()) << ", ";
+      if (id == InstId::vsetivli)
+	out << di.op1();
+      else
+	out << hart.intRegName(di.op1());
+      out << ", ";
+      std::string mm = ((di.op2() >> 7) & 1) ? "ma" : "mu";
+      std::string tt = ((di.op2() >> 6) & 1) ? "ta" : "tu";
+      auto gm = VecRegs::to_string(GroupMultiplier(di.op2() & 7));
+      auto ew = VecRegs::to_string(ElementWidth((di.op2() >> 3) & 7));
+      out << ew << ',' << gm << ',' << tt << ',' << mm;
+      return;
+    }
+
+  if (id == InstId::vsetvl)
+    {
+      out << "vsetvl " << hart.intRegName(di.op0()) << ", "
+	  << hart.intRegName(di.op1()) << ", " << hart.intRegName(di.op2());
+      return;
+    }
+
+  std::string name = di.instEntry()->name();
+  if (id >= InstId::vmadc_vvm and id <= InstId::vmsbc_vxm and not di.isMasked())
+    name = name.substr(0, name.size() - 1);
+  out << name;
+
+  const char* sep = " ";
+
+  for (unsigned i = 0; i < di.operandCount(); ++i)
+    {
+      out << sep; sep = ", ";
+
+      auto type = di.ithOperandType(i);
+      switch (type)
+	{
+	case OperandType::IntReg:
+	  out << hart.intRegName(di.ithOperand(i));
+	  break;
+	case OperandType::FpReg:
+	  out << hart.fpRegName(di.ithOperand(i));
+	  break;
+	case OperandType::VecReg:
+	  out << "v" << di.ithOperand(i);
+	  break;
+	case OperandType::Imm:
+	  out << di.ithOperandAsInt(i);
+	  break;
+	default:
+	  out << "??";
+	  break;
+	}
+    }
+
+  if (di.isMasked())
+    {
+      if ((id >= InstId::vadc_vvm and id <= InstId::vmsbc_vxm) or
+	  (id >= InstId::vmerge_vvm and id <= InstId::vmerge_vim) or
+	  (id == InstId::vfmerge_vfm))
+	out << sep << "v0";
+      else
+	out << sep << "v0.t";
+    }
+}
+	  
+
 template <typename URV>
 void
 Hart<URV>::disassembleInst(uint32_t inst, std::ostream& stream)
 {
   DecodedInst di;
-  decode(pc_, inst, di);
+  uint64_t physPc = pc_;
+  decode(pc_, physPc, inst, di);
   disassembleInst(di, stream);
 }
 
@@ -1172,7 +1283,7 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
 
     case InstId::fcvt_d_w:
       out << "fcvt.d.w " << fpRegName(di.op0()) << ", " << intRegName(di.op1())
-	  << roundingModeString(di.roundingMode());
+	  << ", " << roundingModeString(di.roundingMode());
       break;
 
     case InstId::fcvt_d_wu:
@@ -1208,6 +1319,161 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
 
     case InstId::fmv_d_x:
       out << "fmv.d.x " << fpRegName(di.op0()) << ", " << intRegName(di.op1());
+      break;
+
+    case InstId::flh:
+      printFpLdSt(*this, out, "flh", di);
+      break;
+
+    case InstId::fsh:
+      printFpLdSt(*this, out, "fsh", di);
+      break;
+
+    case InstId::fmadd_h:
+      printFp4Rm(*this, out, "fmadd.h", di);
+      break;
+
+    case InstId::fmsub_h:
+      printFp4Rm(*this, out, "fmsub.h", di);
+      break;
+
+    case InstId::fnmsub_h:
+      printFp4Rm(*this, out, "fnmsub.h", di);
+      break;
+
+    case InstId::fnmadd_h:
+      printFp4Rm(*this, out, "fnmadd.h", di);
+      break;
+
+    case InstId::fadd_h:
+      printFp3Rm(*this, out, "fadd.h", di);
+      break;
+
+    case InstId::fsub_h:
+      printFp3Rm(*this, out, "fsub.h", di);
+      break;
+
+    case InstId::fmul_h:
+      printFp3Rm(*this, out, "fmul.h", di);
+      break;
+
+    case InstId::fdiv_h:
+      printFp3Rm(*this, out, "fdiv.h", di);
+      break;
+
+    case InstId::fsqrt_h:
+      printFp2Rm(*this, out, "fsqrt.h", di);
+      break;
+
+    case InstId::fsgnj_h:
+      printFp3(*this, out, "fsgnj.h", di);
+      break;
+
+    case InstId::fsgnjn_h:
+      printFp3(*this, out, "fsgnjn.h", di);
+      break;
+
+    case InstId::fsgnjx_h:
+      printFp3(*this, out, "fsgnjx.h", di);
+      break;
+
+    case InstId::fmin_h:
+      printFp3(*this, out, "fmin.h", di);
+      break;
+
+    case InstId::fmax_h:
+      printFp3(*this, out, "fmax.h", di);
+      break;
+
+    case InstId::fcvt_s_h:
+      printFp2(*this, out, "fcvt.s.h", di);
+      break;
+
+    case InstId::fcvt_d_h:
+      printFp2(*this, out, "fcvt.d.h", di);
+      break;
+
+    case InstId::fcvt_h_s:
+      printFp2(*this, out, "fcvt.h.s", di);
+      break;
+
+    case InstId::fcvt_h_d:
+      printFp2(*this, out, "fcvt.h.d", di);
+      break;
+
+    case InstId::fcvt_w_h:
+      out << "fcvt.w.h "  << intRegName(di.op0()) << ", "
+	  << fpRegName(di.op1()) << ", "
+	  << roundingModeString(di.roundingMode());
+      break;
+
+    case InstId::fcvt_wu_h:
+      out << "fcvt.wu.h "  << intRegName(di.op0()) << ", "
+	  << fpRegName(di.op1()) << ", "
+	  << roundingModeString(di.roundingMode());
+      break;
+
+    case InstId::fmv_x_h:
+      out << "fmv.x.h  " << intRegName(di.op0()) << ", " << fpRegName(di.op1());
+      break;
+
+    case InstId::feq_h:
+      out << "feq.h    " << intRegName(di.op0()) << ", " << fpRegName(di.op1())
+	  << ", " << fpRegName(di.op2());
+      break;
+
+    case InstId::flt_h:
+      out << "flt.h    " << intRegName(di.op0()) << ", " << fpRegName(di.op1())
+	  << ", " << fpRegName(di.op2());
+      break;
+
+    case InstId::fle_h:
+      out << "fle.h    " << intRegName(di.op0()) << ", " << fpRegName(di.op1())
+	  << ", " << fpRegName(di.op2());
+      break;
+
+    case InstId::fclass_h:
+      out << "fclass.h " << intRegName(di.op0()) << ", " << fpRegName(di.op1());
+      break;
+
+    case InstId::fcvt_h_w:
+      out << "fcvt.h.w " << fpRegName(di.op0()) << ", "
+	  << intRegName(di.op1()) << ", "
+	  << roundingModeString(di.roundingMode());
+      break;
+
+    case InstId::fcvt_h_wu:
+      out << "fcvt.h.wu " << fpRegName(di.op0()) << ", "
+	  << intRegName(di.op1()) << ", "
+	  << roundingModeString(di.roundingMode());
+      break;
+
+    case InstId::fmv_h_x:
+      out << "fmv.h.x  " << fpRegName(di.op0()) << ", " << intRegName(di.op1());
+      break;
+
+    case InstId::fcvt_l_h:
+      out << "fcvt.l.h "  << intRegName(di.op0()) << ", "
+	  << fpRegName(di.op1()) << ", "
+	  << roundingModeString(di.roundingMode());
+      break;
+
+    case InstId::fcvt_lu_h:
+      out << "fcvt.lu.h "  << intRegName(di.op0()) << ", "
+	  << fpRegName(di.op1()) << ", "
+	  << roundingModeString(di.roundingMode());
+      break;
+
+    case InstId::fcvt_h_l:
+      out << "fcvt.h.l " << fpRegName(di.op0()) << ", "
+	  << intRegName(di.op1()) << ", "
+	  << roundingModeString(di.roundingMode());
+      break;
+
+    case InstId::fcvt_h_lu:
+      out << "fcvt.h.lu " << fpRegName(di.op0()) << ", "
+	  << intRegName(di.op1()) << ", "
+	  << roundingModeString(di.roundingMode());
       break;
 
     case InstId::mret:
@@ -1810,1081 +2076,11 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       out << "bbarrier";
       break;
 
-    case InstId::vsetvli:
-      {
-        out << "vsetvli x" << di.op0() << ", x" << di.op1() << ", ";
-        std::string mm = ((di.op2() >> 7) & 1) ? "ma" : "mu";
-        std::string tt = ((di.op2() >> 6) & 1) ? "ta" : "tu";
-        auto gm = VecRegs::to_string(GroupMultiplier(di.op2() & 7));
-        auto ew = VecRegs::to_string(ElementWidth((di.op2() >> 3) & 7));
-        out << ew << ',' << gm << ',' << tt << ',' << mm;
-      }
-      break;
-
-    case InstId::vsetvl:
-      out << "vsetvl x" << di.op0() << ", x" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vadd_vv:
-      out << "vadd.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vadd_vx:
-      out << "vadd.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vadd_vi:
-      out << "vadd.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vsub_vv:
-      out << "vsub.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vsub_vx:
-      out << "vsub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vrsub_vx:
-      out << "vrsub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vrsub_vi:
-      out << "vrsub.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vwaddu_vv:
-      out << "vwaddu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vwaddu_vx:
-      out << "vwaddu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vwsubu_vv:
-      out << "vwsubu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vwsubu_vx:
-      out << "vwsubu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vwadd_vv:
-      out << "vwadd.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vwadd_vx:
-      out << "vwadd.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vwsub_vv:
-      out << "vwsub.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vwsub_vx:
-      out << "vwsub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vwaddu_wv:
-      out << "vwaddu.wv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vwaddu_wx:
-      out << "vwaddu.wx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vwsubu_wv:
-      out << "vwsubu.wv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vwsubu_wx:
-      out << "vwsubu.wx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vwadd_wv:
-      out << "vwadd.wv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vwadd_wx:
-      out << "vwadd.wx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vwsub_wv:
-      out << "vwsub.wv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vwsub_wx:
-      out << "vwsub.wx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vminu_vv:
-      out << "vminu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vminu_vx:
-      out << "vminu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vmin_vv:
-      out << "vmin.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vmin_vx:
-      out << "vmin.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vmaxu_vv:
-      out << "vmaxu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vmaxu_vx:
-      out << "vmaxu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vmax_vv:
-      out << "vmax.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vmax_vx:
-      out << "vmax.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vand_vv:
-      out << "vand.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vand_vx:
-      out << "vand.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vand_vi:
-      out << "vand.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vor_vv:
-      out << "vor.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vor_vx:
-      out << "vor.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vor_vi:
-      out << "vor.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vxor_vv:
-      out << "vxor.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vxor_vx:
-      out << "vxor.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vxor_vi:
-      out << "vxor.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vrgather_vv:
-      out << "vrgather.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vrgather_vx:
-      out << "vrgather.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vrgather_vi:
-      out << "vrgather.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vrgatherei16_vv:
-      out << "vrgatherei16.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vcompress_vm:
-      out << "vcompress.vm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vredsum_vs:
-      out << "vredsum.vs v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vredand_vs:
-      out << "vredand.vs v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vredor_vs:
-      out << "vredor.vs v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vredxor_vs:
-      out << "vredxor.vs v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vredminu_vs:
-      out << "vredminu.vs v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vredmin_vs:
-      out << "vredmin.vs v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vredmaxu_vs:
-      out << "vredmaxu.vs v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vredmax_vs:
-      out << "vredmax.vs v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vmand_mm:
-      out << "vmand.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vmnand_mm:
-      out << "vmnand.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vmandnot_mm:
-      out << "vmandnot.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vmxor_mm:
-      out << "vmxor.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vmor_mm:
-      out << "vmor.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vmnor_mm:
-      out << "vmnor.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vmornot_mm:
-      out << "vmornot.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vmxnor_mm:
-      out << "vmxnor.mm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vpopc_m:
-      out << "vpopc.m x" << di.op0() << ", v" << di.op1();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vfirst_m:
-      out << "vfirst.m x" << di.op0() << ", v" << di.op1();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vmsbf_m:
-      out << "vmsbf.m v" << di.op0() << ", v" << di.op1();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vmsif_m:
-      out << "vmsif.m v" << di.op0() << ", v" << di.op1();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vmsof_m:
-      out << "vmsof.m v" << di.op0() << ", v" << di.op1();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::viota_m:
-      out << "viota.m v" << di.op0() << ", v" << di.op1();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vid_v:
-      out << "vid.v v" << di.op0();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vslideup_vx:
-      out << "vslideup.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vslideup_vi:
-      out << "vslideup.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2();
-      break;
-
-    case InstId::vslide1up_vx:
-      out << "vslide1up.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vslidedown_vx:
-      out << "vslidedown.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vslidedown_vi:
-      out << "vslidedown.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2();
-      break;
-
-    case InstId::vmul_vv:
-      out << "vmul.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vmul_vx:
-      out << "vmul.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vmulh_vv:
-      out << "vmulh.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vmulh_vx:
-      out << "vmulh.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vmulhu_vv:
-      out << "vmulhu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vmulhu_vx:
-      out << "vmulhu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vmulhsu_vv:
-      out << "vmulhsu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vmulhsu_vx:
-      out << "vmulhsu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vwmulu_vv:
-      out << "vwmulu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vwmulu_vx:
-      out << "vwmulu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vwmul_vv:
-      out << "vwmul.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vwmul_vx:
-      out << "vwmul.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vwmulsu_vv:
-      out << "vwmulsu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vwmulsu_vx:
-      out << "vwmulsu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vwmaccu_vv:
-      out << "vwmaccu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vwmaccu_vx:
-      out << "vwmaccu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vwmacc_vv:
-      out << "vwmacc.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vwmacc_vx:
-      out << "vwmacc.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vwmaccsu_vv:
-      out << "vwmaccsu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vwmaccsu_vx:
-      out << "vwmaccsu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vwmaccus_vx:
-      out << "vwmaccsu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vdivu_vv:
-      out << "vdivu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vdivu_vx:
-      out << "vdivu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vdiv_vv:
-      out << "vdiv.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vdiv_vx:
-      out << "vdiv.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vremu_vv:
-      out << "vremu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vremu_vx:
-      out << "vremu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vrem_vv:
-      out << "vrem.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vrem_vx:
-      out << "vrem.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vsext_vf2:
-      out << "vsext.vf2 v" << di.op0() << ", v" << di.op1();
-      break;
-
-    case InstId::vsext_vf4:
-      out << "vsext.vf4 v" << di.op0() << ", v" << di.op1();
-      break;
-
-    case InstId::vsext_vf8:
-      out << "vsext.vf8 v" << di.op0() << ", v" << di.op1();
-      break;
-
-    case InstId::vzext_vf2:
-      out << "vzext.vf2 v" << di.op0() << ", v" << di.op1();
-      break;
-
-    case InstId::vzext_vf4:
-      out << "vzext.vf4 v" << di.op0() << ", v" << di.op1();
-      break;
-
-    case InstId::vzext_vf8:
-      out << "vzext.vf8 v" << di.op0() << ", v" << di.op1();
-      break;
-
-    case InstId::vadc_vvm:
-      out << "vadc.vvm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      out << ", v0";
-      break;
-
-    case InstId::vadc_vxm:
-      out << "vadc.vxm v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      out << ", v0";
-      break;
-
-    case InstId::vadc_vim:
-      out << "vadc.vim v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
-      out << ", v0";
-      break;
-
-    case InstId::vsbc_vvm:
-      out << "vsbc.vvm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      out << ", v0";
-      break;
-
-    case InstId::vsbc_vxm:
-      out << "vsbc.vxm v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      out << ", v0";
-      break;
-
-    case InstId::vmadc_vvm:
-      out << "vmadc.vvm v" << di.op0() << ", v" << di.op1() << ", " << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vmadc_vxm:
-      out << "vmadc.vxm v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vmadc_vim:
-      out << "vmadc.vim v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vmsbc_vvm:
-      out << "vmsbc.vvm v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vmsbc_vxm:
-      out << "vmsbc.vxm v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vmerge_vv:
-      out << "vmerge.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      break;
-
-    case InstId::vmerge_vx:
-      out << "vmerge.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      break;
-
-    case InstId::vmerge_vi:
-      out << "vmerge.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
-      break;
-
-    case InstId::vmv_x_s:
-      out << "vmv.x.s x" << di.op0() << ", v" << di.op1();
-      break;
-
-    case InstId::vmv_s_x:
-      out << "vmv.s.x v" << di.op0() << ", x" << di.op1();
-      break;
-
-    case InstId::vmv_v_v:
-      out << "vmv.v.v v" << di.op0() << ", v" << di.op1();
-      break;
-
-    case InstId::vmv_v_x:
-      out << "vmv.v.x v" << di.op0() << ", x" << di.op1();
-      break;
-
-    case InstId::vmv_v_i:
-      out << "vmv.v.i v" << di.op0() << ", " << di.op1As<int32_t>();
-      break;
-
-    case InstId::vmv1r_v:
-      out << "vmv1r.v v" << di.op0() << ", v" << di.op1();
-      break;
-
-    case InstId::vmv2r_v:
-      out << "vmv2r.v v" << di.op0() << ", v" << di.op1();
-      break;
-
-    case InstId::vmv4r_v:
-      out << "vmv4r.v v" << di.op0() << ", v" << di.op1();
-      break;
-
-    case InstId::vmv8r_v:
-      out << "vmv8r.v v" << di.op0() << ", v" << di.op1();
-      break;
-
-    case InstId::vsaddu_vv:
-      out << "vsaddu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vsaddu_vx:
-      out << "vsaddu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vsaddu_vi:
-      out << "vsaddu.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vsadd_vv:
-      out << "vsadd.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vsadd_vx:
-      out << "vsadd.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vsadd_vi:
-      out << "vsadd.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2As<int32_t>();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vssubu_vv:
-      out << "vssubu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vssubu_vx:
-      out << "vssubu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vssub_vv:
-      out << "vssub.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vssub_vx:
-      out << "vssub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vaaddu_vv:
-      out << "vaaddu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vaaddu_vx:
-      out << "vaaddu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vaadd_vv:
-      out << "vaadd.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vaadd_vx:
-      out << "vaadd.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vasubu_vv:
-      out << "vasubu.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vasubu_vx:
-      out << "vasubu.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vasub_vv:
-      out << "vasub.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vasub_vx:
-      out << "vasub.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vsmul_vv:
-      out << "vsmul.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vsmul_vx:
-      out << "vsmul.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vssrl_vv:
-      out << "vssrl.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vssrl_vx:
-      out << "vssrl.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vssrl_vi:
-      out << "vssra.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vssra_vv:
-      out << "vssra.vv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vssra_vx:
-      out << "vssra.vx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vssra_vi:
-      out << "vssra.vi v" << di.op0() << ", v" << di.op1() << ", " << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vnclipu_wv:
-      out << "vnclipu.wv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vnclipu_wx:
-      out << "vnclipu.wx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vnclipu_wi:
-      out << "vnclipu.wi v" << di.op0() << ", v" << di.op1() << ", " << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vnclip_wv:
-      out << "vnclip.wv v" << di.op0() << ", v" << di.op1() << ", v" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vnclip_wx:
-      out << "vnclip.wx v" << di.op0() << ", v" << di.op1() << ", x" << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vnclip_wi:
-      out << "vnclip.wi v" << di.op0() << ", v" << di.op1() << ", " << di.op2();
-      if (di.isMasked()) out << ", v0.t";
-      break;
-
-    case InstId::vle8_v:
-      out << "vle8.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vle16_v:
-      out << "vle16.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vle32_v:
-      out << "vle32.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vle64_v:
-      out << "vle64.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vle128_v:
-      out << "vle128.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vle256_v:
-      out << "vle256.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vle512_v:
-      out << "vle512.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vle1024_v:
-      out << "vle1024.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vse8_v:
-      out << "vse8.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vse16_v:
-      out << "vse16.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vse32_v:
-      out << "vse32.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vse64_v:
-      out << "vse64.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vse128_v:
-      out << "vse128.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vse256_v:
-      out << "vse256.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vse512_v:
-      out << "vse512.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vse1024_v:
-      out << "vse1024.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlre8_v:
-      out << "vl" << di.op3() << "re8.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlre16_v:
-      out << "vl" << di.op3() << "re16.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlre32_v:
-      out << "vl" << di.op3() << "re32.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlre64_v:
-      out << "vl" << di.op3() << "re64.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlre128_v:
-      out << "vl" << di.op3() << "re128.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlre256_v:
-      out << "vl" << di.op3() << "re256.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlre512_v:
-      out << "vl" << di.op3() << "re512.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlre1024_v:
-      out << "vl" << di.op3() << "re1024.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsre8_v:
-      out << "vs" << di.op3() << "re8.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsre16_v:
-      out << "vs" << di.op3() << "re16.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsre32_v:
-      out << "vs" << di.op3() << "re32.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsre64_v:
-      out << "vs" << di.op3() << "re64.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsre128_v:
-      out << "vs" << di.op3() << "re128.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsre256_v:
-      out << "vs" << di.op3() << "re256.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsre512_v:
-      out << "vs" << di.op3() << "re512.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsre1024_v:
-      out << "vs" << di.op3() << "re1024.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vle8ff_v:
-      out << "vle8ff.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vle16ff_v:
-      out << "vle16ff.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vle32ff_v:
-      out << "vle32ff.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vle64ff_v:
-      out << "vle64ff.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vle128ff_v:
-      out << "vle128ff.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vle256ff_v:
-      out << "vle256ff.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vle512ff_v:
-      out << "vle512ff.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vle1024ff_v:
-      out << "vle1024ff.v v" << di.op0() << ", (x" << di.op1() << ")";
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlse8_v:
-      out << "vlse8.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlse16_v:
-      out << "vlse16.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlse32_v:
-      out << "vlse32.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlse64_v:
-      out << "vlse64.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlse128_v:
-      out << "vlse128.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlse256_v:
-      out << "vlse256.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlse512_v:
-      out << "vlse512.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlse1024_v:
-      out << "vlse1024.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsse8_v:
-      out << "vsse8.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsse16_v:
-      out << "vsse16.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsse32_v:
-      out << "vsse32.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsse64_v:
-      out << "vsse64.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsse128_v:
-      out << "vsse128.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsse256_v:
-      out << "vsse256.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsse512_v:
-      out << "vsse512.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsse1024_v:
-      out << "vsse1024.v v" << di.op0() << ", (x" << di.op1() << "), x" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlxei8_v:
-      out << "vlxei8.v v" << di.op0() << ", (x" << di.op1() << "), v" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlxei16_v:
-      out << "vlxei16.v v" << di.op0() << ", (x" << di.op1() << "), v" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlxei32_v:
-      out << "vlxei32.v v" << di.op0() << ", (x" << di.op1() << "), v" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vlxei64_v:
-      out << "vlxei64.v v" << di.op0() << ", (x" << di.op1() << "), v" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsxei8_v:
-      out << "vsxei8.v v" << di.op0() << ", (x" << di.op1() << "), v" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsxei16_v:
-      out << "vsxei16.v v" << di.op0() << ", (x" << di.op1() << "), v" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsxei32_v:
-      out << "vsxei32.v v" << di.op0() << ", (x" << di.op1() << "), v" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
-    case InstId::vsxei64_v:
-      out << "vsxei64.v v" << di.op0() << ", (x" << di.op1() << "), v" << di.op2();
-      if (di.isMasked()) out << ", v0";
-      break;
-
     default:
-      out << "illegal";
+      if (di.instEntry()->isVector())
+	printVecInst(*this, out, di);
+      else
+	out << "illegal";
     }
 }
 
