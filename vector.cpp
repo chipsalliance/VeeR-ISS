@@ -809,11 +809,11 @@ Hart<URV>::vsetvl(unsigned rd, unsigned rs1, URV vtypeVal)
       // VL is not writeable: Poke it.
       csRegs_.poke(CsrNumber::VL, elems);
       recordCsrWrite(CsrNumber::VL);
-      vecRegs_.elemCount(elems);  // Update cached value of VL.
     }
 
   csRegs_.peek(CsrNumber::VL, elems);
   intRegs_.write(rd, elems);
+  vecRegs_.elemCount(elems);  // Update cached value of VL.
 
   // Pack vtype values and update vtype
   URV vtype = 0;
