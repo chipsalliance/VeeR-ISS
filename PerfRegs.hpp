@@ -128,10 +128,10 @@ namespace WdRiscv
     /// Define numCounters counters. These correspond to mhp
     PerfRegs(unsigned numCounters = 0);
 
-    /// Configure numCounters counters initialized to zero.  This
+    /// Configure numCounters counters initializing them to zero.  This
     /// should not be used if some CSR registers are tied to the
     /// counters in here.
-    void config(unsigned numCounters, unsigned maxEventId);
+    void config(unsigned numCounters);
 
     /// Update (count-up) all the performance counters currently
     /// associated with the given event and enabled for the given
@@ -139,14 +139,12 @@ namespace WdRiscv
     bool updateCounters(EventNumber event, uint32_t perfControl,
                         PrivilegeMode mode)
     {
-      size_t eventIx = size_t(event);
-      if (eventIx >= countersOfEvent_.size())
-	return false;
-      const auto& counterIndices = countersOfEvent_.at(eventIx);
       bool user = (mode == PrivilegeMode::User);
       bool machine = (mode == PrivilegeMode::Machine);
-      for (auto counterIx : counterIndices)
+      for (unsigned counterIx = 0; counterIx < eventOfCounter_.size(); ++counterIx)
 	{
+	  if (event != eventOfCounter_.at(counterIx))
+	    continue;
           // Performance counters handeled in here are MHPMCOUNTER3 to
           // MHPMCOUNTER31 and they are indexed 0 to 29.
           if ((perfControl >> (3+counterIx)) & 1)
@@ -197,10 +195,6 @@ namespace WdRiscv
 
     // Map counter index to enable flag in machine mode.
     std::vector<bool> enableMachine_;
-
-    // Map an event number to a vector containing the indices of the
-    // counters currently associated with that event.
-    std::vector< std::vector<unsigned> > countersOfEvent_;
 
     std::vector<uint64_t> counters_;
 

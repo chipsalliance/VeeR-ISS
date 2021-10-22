@@ -561,7 +561,7 @@ CsRegs<URV>::configMachineModePerfCounters(unsigned numCounters)
 
   if (errors == 0)
     {
-      mPerfRegs_.config(numCounters, maxEventId_);
+      mPerfRegs_.config(numCounters);
       tiePerfCounters(mPerfRegs_.counters_);
     }
 

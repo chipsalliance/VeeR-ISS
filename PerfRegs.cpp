@@ -24,21 +24,18 @@ PerfRegs::PerfRegs(unsigned numCounters)
   // 29 counters: MHPMCOUNTER3 to MHPMCOUNTER31
   counters_.resize(29);
 
-  config(numCounters, unsigned(EventNumber::_End));
+  config(numCounters);
 }
 
 
 void
-PerfRegs::config(unsigned numCounters, unsigned maxEventId)
+PerfRegs::config(unsigned numCounters)
 {
   assert(numCounters < counters_.size());
 
   eventOfCounter_.resize(numCounters);
   enableUser_.resize(numCounters);
   enableMachine_.resize(numCounters);
-
-  unsigned numEvents = std::max(unsigned(EventNumber::_End), maxEventId) + 1;
-  countersOfEvent_.resize(numEvents);
 }
 
 
@@ -53,20 +50,6 @@ PerfRegs::applyPerfEventAssign()
   if (pendingCounter_ >= eventOfCounter_.size())
     return false;
 
-  // Disassociate counter from its previous event.
-  EventNumber prevEvent = eventOfCounter_.at(pendingCounter_);
-  if (prevEvent != EventNumber::None)
-    {
-      auto& vec = countersOfEvent_.at(size_t(prevEvent));
-      vec.erase(std::remove(vec.begin(), vec.end(), pendingCounter_), vec.end());
-    }
-
-  if (size_t(pendingEvent_) >= countersOfEvent_.size())
-    return false;
-
-  if (pendingEvent_ != EventNumber::None)
-    countersOfEvent_.at(size_t(pendingEvent_)).push_back(pendingCounter_);
-
   eventOfCounter_.at(pendingCounter_) = pendingEvent_;
   enableUser_.at(pendingCounter_) = pendingUser_;
   enableMachine_.at(pendingCounter_) = pendingMachine_;
@@ -79,7 +62,4 @@ void
 PerfRegs::reset()
 {
   eventOfCounter_.assign(eventOfCounter_.size(), EventNumber::None);
-
-  for (auto& vec : countersOfEvent_)
-    vec.clear();
 }
