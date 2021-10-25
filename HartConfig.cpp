@@ -668,6 +668,58 @@ applyTriggerConfig(Hart<URV>& hart, const nlohmann::json& config)
 template <typename URV>
 static
 bool
+applyPerfEventMap(Hart<URV>& hart, const nlohmann::json& config)
+{
+  const char* tag = "mmode_perf_event_map";
+  if (not config.count(tag))
+    return true;
+
+  auto& perfMap = config.at(tag);
+  if (not perfMap.is_object())
+    {
+      std::cerr << "Invalid " << tag << " entry in config file (expecting an object)\n";
+      return false;
+    }
+
+  std::unordered_set<URV> eventNumbers;
+
+  unsigned errors = 0;
+  for (auto it = perfMap.begin(); it != perfMap.end(); ++it)
+    {
+      const std::string& eventName = it.key();
+      const auto& valObj = it.value();
+      std::string path = std::string(tag) + "." + eventName;
+      URV value = 0;
+      if (not getJsonUnsigned(path, valObj,  value))
+	{
+	  errors++;
+	  continue;
+	}
+
+      EventNumber eventId = EventNumber::None;
+      if (not PerfRegs::findEvent(eventName, eventId))
+	{
+	  std::cerr << "No such performance event: " << eventName << '\n';
+	  errors++;
+	  continue;
+	}
+      
+      if (eventNumbers.count(value))
+	{
+	  std::cerr << "Event number " << value << " associaged with more than one event in mmode_perf_event_map in config file.\n";
+	  errors++;
+	}
+      hart.configEventNumber(value, eventId);
+      eventNumbers.insert(value);
+    }
+
+  return errors == 0;
+}
+
+
+template <typename URV>
+static
+bool
 applyPerfEvents(Hart<URV>& hart, const nlohmann::json& config,
                 bool userMode, bool /*verbose*/)
 {
@@ -735,6 +787,9 @@ applyPerfEvents(Hart<URV>& hart, const nlohmann::json& config,
         }
       hart.configPerfEvents(eventsVec);
     }
+
+  if (not applyPerfEventMap(hart, config))
+    errors++;
 
   return errors == 0;
 }

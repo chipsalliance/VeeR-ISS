@@ -299,6 +299,12 @@ namespace WdRiscv
     void configPerfEvents(std::vector<unsigned>& eventVec)
     { csRegs_.configPerfEvents(eventVec); }
 
+    /// Map the give user event number to the given internal event id.
+    /// Wehn the given user number is written to an mphpmevent csr, then
+    /// the corresponding event-id is associated with the event counter csr.
+    void configEventNumber(URV userNumber, EventNumber eventId)
+    { csRegs_.mPerfRegs_.configEventNumber(userNumber, eventId); }
+
     /// Configure vector unit of this hart.
     void configVector(unsigned bytesPerVec, unsigned maxBytesPerElem)
     { vecRegs_.config(bytesPerVec, maxBytesPerElem); }

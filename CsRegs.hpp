@@ -815,7 +815,7 @@ namespace WdRiscv
     bool assignEventToCounter(URV event, unsigned counter,
                               bool user, bool machine)
     {
-      return mPerfRegs_.assignEventToCounter(EventNumber(event), counter,
+      return mPerfRegs_.assignEventToCounter(event, counter,
                                              user, machine);
     }
 

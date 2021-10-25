@@ -103,7 +103,8 @@ namespace WdRiscv
       FpSingle,          // 59: Single precision instruction
       FpDouble,          // 60: Double precision instruction
       Vector,            // 61: Vector instruction
-      _End               // 62: Non-event serving as count of events
+      Csr,               // 62: Csr instruction
+      _End               // 63: Non-event serving as count of events
     };
 
 
@@ -163,10 +164,19 @@ namespace WdRiscv
     /// counter to count up by 1 in user mode if enableUser is true
     /// and in machine mode if enableMachine is true. Return true on
     /// success. Return false if counter number is out of bounds.
-    bool assignEventToCounter(EventNumber event, unsigned counter,
+    bool assignEventToCounter(uint64_t event, unsigned counter,
                               bool enableUser, bool enableMachine)
     {
-      pendingEvent_ = event;
+      EventNumber eventId = EventNumber::None;
+      if (userNumberToId_.empty())
+	eventId = EventNumber(event);
+      else
+	{
+	  const auto iter = userNumberToId_.find(event);
+	  if (iter != userNumberToId_.end())
+	    eventId = iter->second;
+	}
+      pendingEvent_ = eventId;
       pendingCounter_ = counter;
       pendingUser_ = enableUser;
       pendingMachine_ = enableMachine;
@@ -177,6 +187,25 @@ namespace WdRiscv
     /// Return the number of perormance counters.
     size_t size() const
     { return counters_.size(); }
+
+
+    /// Map the give user event number to the given internal event id.
+    /// Wehn the given user number is written to an mphpmevent csr, then
+    /// the corresponding event-id is associated with the event counter csr.
+    void configEventNumber(uint64_t userNumber, EventNumber eventId)
+    { userNumberToId_[userNumber] = eventId; }
+
+    /// Set id to event-id (tag from enum EventNumber) coresponding to the
+    /// given event name returning true. Return false leaving id unmodified
+    /// if given string is not an event name.
+    static bool findEvent(const std::string& name, EventNumber& id)
+    {
+      auto iter = eventNameToId_.find(name);
+      if (iter == eventNameToId_.end())
+	return false;
+      id = iter->second;
+      return true;
+    }
 
   protected:
 
@@ -197,6 +226,12 @@ namespace WdRiscv
     std::vector<bool> enableMachine_;
 
     std::vector<uint64_t> counters_;
+
+    // Map an event name to an event id.
+    static std::unordered_map<std::string, EventNumber> eventNameToId_;
+
+    // Map a user event number to an internal event id.
+    std::unordered_map<uint64_t, EventNumber> userNumberToId_;
 
     // Pending event assignment to counter.
     EventNumber pendingEvent_ = EventNumber::None;
