@@ -6800,6 +6800,8 @@ Hart<URV>::execVslide1up_vx(const DecodedInst* di)
 
   if (not checkVecOpsVsEmul(di, vd, vs1, group))
     return;
+  if (elems == 0)
+    return;
 
   URV amount = 1;
 
@@ -7015,6 +7017,8 @@ Hart<URV>::execVfslide1up_vf(const DecodedInst* di)
     }
 
   if (not checkVecOpsVsEmul(di, vd, vs1, group))
+    return;
+  if (elems == 0)
     return;
 
   URV amount = 1;
