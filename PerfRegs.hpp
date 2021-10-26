@@ -188,7 +188,6 @@ namespace WdRiscv
     size_t size() const
     { return counters_.size(); }
 
-
     /// Map the give user event number to the given internal event id.
     /// Wehn the given user number is written to an mphpmevent csr, then
     /// the corresponding event-id is associated with the event counter csr.
