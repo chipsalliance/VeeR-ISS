@@ -306,8 +306,9 @@ namespace WdRiscv
     { csRegs_.mPerfRegs_.configEventNumber(userNumber, eventId); }
 
     /// Configure vector unit of this hart.
-    void configVector(unsigned bytesPerVec, unsigned maxBytesPerElem)
-    { vecRegs_.config(bytesPerVec, maxBytesPerElem); }
+    void configVector(unsigned bytesPerVec, unsigned minBytesPerElem,
+		      unsigned maxBytesPerElem)
+    { vecRegs_.config(bytesPerVec, minBytesPerElem, maxBytesPerElem); }
 
     /// Get the values of the three components of the given debug
     /// trigger. Return true on success and false if trigger is out of

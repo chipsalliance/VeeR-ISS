@@ -426,7 +426,8 @@ namespace WdRiscv
     /// It is convenient to contruct an empty regiter file (bytesPerReg = 0)
     /// and configure it later. Old configuration is lost. Register of
     /// newly configured file are initlaized to zero.
-    void config(uint32_t bytesPerReg, uint32_t maxBytesPerElem);
+    void config(uint32_t bytesPerReg, uint32_t minBytesPerElem,
+		uint32_t maxBytesPerElem);
 
     void reset();
 
@@ -493,7 +494,8 @@ namespace WdRiscv
 
     uint32_t regCount_ = 0;
     uint32_t bytesPerReg_ = 0;
-    uint32_t bytesPerElem_ = 0;
+    uint32_t minBytesPerElem_ = 0;
+    uint32_t maxBytesPerElem_ = 0;
     uint32_t bytesInRegFile_ = 0;
     uint8_t* data_ = nullptr;
 

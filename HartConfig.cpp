@@ -836,38 +836,44 @@ applyVectorConfig(Hart<URV>& hart, const nlohmann::json& config)
         }
     }
 
-  unsigned bytesPerElem = 0;
-  tag = "max_bytes_per_elem";
-  if (not vconf.count(tag))
+  std::vector<unsigned> bytesPerElem = { 1, 1 };
+  std::vector<const char*>  tags = { "min_bytes_per_elem", "max_bytes_per_elem" };
+  for (size_t ix = 0; ix < tags.size(); ++ix)
     {
-      std::cerr << "Error: Missing " << tag << " tag in vector section of config file\n";
-      errors++;
-    }
-  else
-    {
-      if (not getJsonUnsigned(tag, vconf.at(tag), bytesPerElem))
+      unsigned bytes = 0;
+      tag = tags.at(ix);
+      if (not vconf.count(tag))
+	{
+	  std::cerr << "Error: Missing " << tag << " tag in vector section of config file\n";
+	  errors++;
+	  continue;
+	}
+
+      if (not getJsonUnsigned(tag, vconf.at(tag), bytes))
         errors++;
-      else if (bytesPerElem == 0 or bytesPerElem > bytesPerVec)
+      else if (bytes == 0 or bytes > bytesPerVec)
         {
-          std::cerr << "Error: Invalid config file max_bytes_per_elem number: "
-                    << bytesPerElem << '\n';
+          std::cerr << "Error: Invalid config file " << tag << "  number: "
+                    << bytes << '\n';
           errors++;
         }
       else
         {
-          unsigned l2BytesPerElem = std::log2(bytesPerElem);
+          unsigned l2BytesPerElem = std::log2(bytes);
           unsigned p2BytesPerElem = uint32_t(1) << l2BytesPerElem;
-          if (p2BytesPerElem != bytesPerElem)
+          if (p2BytesPerElem != bytes)
             {
-              std::cerr << "Error: Config file max_bytes_per_elem ("
-                        << bytesPerElem << ") is not a power of 2\n";
+              std::cerr << "Error: Config file " << tag << " ("
+                        << bytes << ") is not a power of 2\n";
               errors++;
             }
+	  else
+	    bytesPerElem.at(ix) = bytes;
         }
     }
 
   if (errors == 0)
-    hart.configVector(bytesPerVec, bytesPerElem);
+    hart.configVector(bytesPerVec, bytesPerElem.at(0), bytesPerElem.at(1));
 
   return errors == 0;
 }
