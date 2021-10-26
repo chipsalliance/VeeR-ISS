@@ -5390,6 +5390,8 @@ Hart<URV>::execVredsum_vs(const DecodedInst* di)
 
   if (not checkRedOpVsEmul(di, vs1, group))
     return;
+  if (elems == 0)
+    return;
 
   typedef ElementWidth EW;
   switch (sew)
@@ -5455,6 +5457,8 @@ Hart<URV>::execVredand_vs(const DecodedInst* di)
   bool masked = di->isMasked();
 
   if (not checkRedOpVsEmul(di, vs1, group))
+    return;
+  if (elems == 0)
     return;
 
   typedef ElementWidth EW;
@@ -5522,6 +5526,8 @@ Hart<URV>::execVredor_vs(const DecodedInst* di)
 
   if (not checkRedOpVsEmul(di, vs1, group))
     return;
+  if (elems == 0)
+    return;
 
   typedef ElementWidth EW;
   switch (sew)
@@ -5587,6 +5593,8 @@ Hart<URV>::execVredxor_vs(const DecodedInst* di)
   bool masked = di->isMasked();
 
   if (not checkRedOpVsEmul(di, vs1, group))
+    return;
+  if (elems == 0)
     return;
 
   typedef ElementWidth EW;
@@ -5654,6 +5662,8 @@ Hart<URV>::execVredminu_vs(const DecodedInst* di)
 
   if (not checkRedOpVsEmul(di, vs1, group))
     return;
+  if (elems == 0)
+    return;
 
   typedef ElementWidth EW;
   switch (sew)
@@ -5719,6 +5729,8 @@ Hart<URV>::execVredmin_vs(const DecodedInst* di)
   bool masked = di->isMasked();
 
   if (not checkRedOpVsEmul(di, vs1, group))
+    return;
+  if (elems == 0)
     return;
 
   typedef ElementWidth EW;
@@ -5786,6 +5798,8 @@ Hart<URV>::execVredmaxu_vs(const DecodedInst* di)
 
   if (not checkRedOpVsEmul(di, vs1, group))
     return;
+  if (elems == 0)
+    return;
 
   typedef ElementWidth EW;
   switch (sew)
@@ -5851,6 +5865,8 @@ Hart<URV>::execVredmax_vs(const DecodedInst* di)
   bool masked = di->isMasked();
 
   if (not checkRedOpVsEmul(di, vs1, group))
+    return;
+  if (elems == 0)
     return;
 
   typedef ElementWidth EW;
@@ -5931,6 +5947,8 @@ Hart<URV>::execVwredsumu_vs(const DecodedInst* di)
 
   if (not checkRedOpVsEmul(di, vs1, group))
     return;
+  if (elems == 0)
+    return;
 
   typedef ElementWidth EW;
   switch (sew)
@@ -5967,6 +5985,8 @@ Hart<URV>::execVwredsum_vs(const DecodedInst* di)
     }
 
   if (not checkRedOpVsEmul(di, vs1, group))
+    return;
+  if (elems == 0)
     return;
 
   typedef ElementWidth EW;
@@ -21895,6 +21915,8 @@ Hart<URV>::execVfredsum_vs(const DecodedInst* di)
 
   if (not checkRedOpVsEmul(di, vs1, group))
     return;
+  if (elems == 0)
+    return;
 
   typedef ElementWidth EW;
   switch (sew)
@@ -21965,6 +21987,8 @@ Hart<URV>::execVfredosum_vs(const DecodedInst* di)
   bool masked = di->isMasked();
 
   if (not checkRedOpVsEmul(di, vs1, group))
+    return;
+  if (elems == 0)
     return;
 
   typedef ElementWidth EW;
@@ -22044,6 +22068,8 @@ Hart<URV>::execVfredmin_vs(const DecodedInst* di)
 
   if (not checkRedOpVsEmul(di, vs1, group))
     return;
+  if (elems == 0)
+    return;
 
   typedef ElementWidth EW;
   switch (sew)
@@ -22120,6 +22146,8 @@ Hart<URV>::execVfredmax_vs(const DecodedInst* di)
   bool masked = di->isMasked();
 
   if (not checkRedOpVsEmul(di, vs1, group))
+    return;
+  if (elems == 0)
     return;
 
   typedef ElementWidth EW;
@@ -22203,6 +22231,8 @@ Hart<URV>::execVfwredsum_vs(const DecodedInst* di)
 
   if (not checkRedOpVsEmul(di, vs1, group))
     return;
+  if (elems == 0)
+    return;
 
   typedef ElementWidth EW;
   switch (sew)
@@ -22285,6 +22315,8 @@ Hart<URV>::execVfwredosum_vs(const DecodedInst* di)
     }
 
   if (not checkRedOpVsEmul(di, vs1, group))
+    return;
+  if (elems == 0)
     return;
 
   typedef ElementWidth EW;
