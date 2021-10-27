@@ -519,8 +519,8 @@ CSR write instructions.
 ###  vector
 The vector configuration is an object with the following fields:
 * bytes_per_vec: vector size in bytes
-* min_bytes_per_elem: narrowest suppoted element size in bytes
-* max_bytes_per_elem: widest supported element size in bytes
+* min_bytes_per_elem: narrowest suppoted element size in bytes (default 1).
+* max_bytes_per_elem: widest supported element size in bytes (no default).
 
 ###  reset_vec
 Defines the PC value after reset
