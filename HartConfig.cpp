@@ -844,8 +844,11 @@ applyVectorConfig(Hart<URV>& hart, const nlohmann::json& config)
       tag = tags.at(ix);
       if (not vconf.count(tag))
 	{
-	  std::cerr << "Error: Missing " << tag << " tag in vector section of config file\n";
-	  errors++;
+	  if (ix > 0)
+	    {
+	      std::cerr << "Error: Missing " << tag << " tag in vector section of config file\n";
+	      errors++;
+	    }
 	  continue;
 	}
 
