@@ -6397,16 +6397,22 @@ Hart<URV>::execVfirst_m(const DecodedInst* di)
       return;
     }
 
+  bool masked = di->isMasked();
   unsigned rd = di->op0(),  vs1 = di->op1(),  elems = vecRegs_.elemCount();
 
   SRV first = -1;
 
   for (uint32_t ix = start; ix < elems; ++ix)
-    if (vecRegs_.isActive(vs1, ix))
-      {
-        first = ix;
-        break;
-      }
+    {
+      if (masked and not vecRegs_.isActive(0, ix))
+	continue;
+
+      if (vecRegs_.isActive(vs1, ix))
+	{
+	  first = ix;
+	  break;
+	}
+    }
 
   intRegs_.write(rd, first);
 }
