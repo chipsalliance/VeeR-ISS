@@ -584,6 +584,65 @@ Hart<URV>::checkRedOpVsEmul(const DecodedInst* di, unsigned op1, unsigned groupX
 }
 
 
+template <typename URV>
+inline
+bool
+Hart<URV>::checkMaskVecOpsVsEmul(const DecodedInst* di, unsigned /*op0*/, unsigned op1,
+				 unsigned groupX8)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return false;
+    }
+
+  unsigned eg = groupX8 >= 8 ? groupX8 / 8 : 1;
+  unsigned mask = eg - 1;   // Assumes eg is 1, 2, 4, or 8
+
+  if ((op1 & mask) == 0)
+    {
+      vecRegs_.opsEmul_.at(0) = 1;  // Emul of 1 for mask operand.
+      vecRegs_.opsEmul_.at(1) = eg; // Track operand group for logging
+      return true;
+    }
+
+  // Vector operand not a multiple of emul: illegal.
+  illegalInst(di);
+  return false;
+}
+
+
+template <typename URV>
+inline
+bool
+Hart<URV>::checkMaskVecOpsVsEmul(const DecodedInst* di, unsigned /*op0*/, unsigned op1,
+				 unsigned op2, unsigned groupX8)
+{
+  if (not isVecLegal() or not vecRegs_.legalConfig())
+    {
+      illegalInst(di);
+      return false;
+    }
+
+  unsigned eg = groupX8 >= 8 ? groupX8 / 8 : 1;
+  unsigned mask = eg - 1;   // Assumes eg is 1, 2, 4, or 8
+
+  unsigned op = op1 | op2;
+  if ((op & mask) == 0)
+    {
+      vecRegs_.opsEmul_.at(0) = 1;  // Emul of 1 for mask operand.
+      vecRegs_.opsEmul_.at(1) = eg; // Track operand group for logging
+      vecRegs_.opsEmul_.at(2) = eg; // Track operand group for logging
+      return true;
+    }
+
+  // Vector operand not a multiple of emul: illegal.
+  illegalInst(di);
+  return false;
+}
+
+
+
 /// Return true if destination/source overlap is allowed.
 static
 bool
@@ -2203,16 +2262,13 @@ template <typename URV>
 void
 Hart<URV>::execVmseq_vv(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   unsigned group = vecRegs_.groupMultiplierX8();
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, vs2, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, vs2, group))
     return;
 
   typedef ElementWidth EW;
@@ -2265,16 +2321,13 @@ template <typename URV>
 void
 Hart<URV>::execVmseq_vx(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
     return;
 
   SRV e2 = SRV(intRegs_.read(rs2));
@@ -2298,16 +2351,13 @@ template <typename URV>
 void
 Hart<URV>::execVmseq_vi(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1();
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
     return;
 
   int32_t imm = di->op2As<int32_t>();
@@ -2362,16 +2412,13 @@ template <typename URV>
 void
 Hart<URV>::execVmsne_vv(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   unsigned group = vecRegs_.groupMultiplierX8();
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, vs2, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, vs2, group))
     return;
 
   typedef ElementWidth EW;
@@ -2424,16 +2471,13 @@ template <typename URV>
 void
 Hart<URV>::execVmsne_vx(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
     return;
 
   SRV e2 = SRV(intRegs_.read(rs2));
@@ -2457,16 +2501,13 @@ template <typename URV>
 void
 Hart<URV>::execVmsne_vi(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1();
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
     return;
 
   int32_t imm = di->op2As<int32_t>();
@@ -2521,16 +2562,13 @@ template <typename URV>
 void
 Hart<URV>::execVmsltu_vv(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   unsigned group = vecRegs_.groupMultiplierX8();
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, vs2, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, vs2, group))
     return;
 
   typedef ElementWidth EW;
@@ -2583,16 +2621,13 @@ template <typename URV>
 void
 Hart<URV>::execVmsltu_vx(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   unsigned group = vecRegs_.groupMultiplierX8();
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
   unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
     return;
 
   URV e2 = intRegs_.read(rs2);
@@ -2616,16 +2651,13 @@ template <typename URV>
 void
 Hart<URV>::execVmslt_vv(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   unsigned group = vecRegs_.groupMultiplierX8();
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, vs2, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, vs2, group))
     return;
 
   typedef ElementWidth EW;
@@ -2647,16 +2679,13 @@ template <typename URV>
 void
 Hart<URV>::execVmslt_vx(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   unsigned group = vecRegs_.groupMultiplierX8();
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
   unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
     return;
 
   SRV e2 = SRV(intRegs_.read(rs2));
@@ -2711,16 +2740,13 @@ template <typename URV>
 void
 Hart<URV>::execVmsleu_vv(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   unsigned group = vecRegs_.groupMultiplierX8();
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, vs2, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, vs2, group))
     return;
 
   typedef ElementWidth EW;
@@ -2774,16 +2800,13 @@ template <typename URV>
 void
 Hart<URV>::execVmsleu_vx(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   unsigned group = vecRegs_.groupMultiplierX8();
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
   unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
     return;
 
   URV e2 = intRegs_.read(rs2);
@@ -2807,16 +2830,13 @@ template <typename URV>
 void
 Hart<URV>::execVmsleu_vi(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1();
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
     return;
 
   // Immediate is sign exended and then treated as unsigned.
@@ -2841,16 +2861,13 @@ template <typename URV>
 void
 Hart<URV>::execVmsle_vv(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   unsigned group = vecRegs_.groupMultiplierX8();
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, vs2, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, vs2, group))
     return;
 
   typedef ElementWidth EW;
@@ -2872,16 +2889,13 @@ template <typename URV>
 void
 Hart<URV>::execVmsle_vx(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
     return;
 
   SRV e2 = SRV(intRegs_.read(rs2));
@@ -2905,16 +2919,13 @@ template <typename URV>
 void
 Hart<URV>::execVmsle_vi(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1();
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
     return;
 
   int32_t imm = di->op2As<int32_t>();
@@ -2969,16 +2980,13 @@ template <typename URV>
 void
 Hart<URV>::execVmsgtu_vx(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   unsigned group = vecRegs_.groupMultiplierX8();
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
   unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
     return;
 
   URV e2 = intRegs_.read(rs2);
@@ -3002,16 +3010,13 @@ template <typename URV>
 void
 Hart<URV>::execVmsgtu_vi(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1();
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
     return;
 
   // Immediate is sign exended and then treated as unsigned.
@@ -3036,16 +3041,13 @@ template <typename URV>
 void
 Hart<URV>::execVmsgt_vx(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   unsigned group = vecRegs_.groupMultiplierX8();
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
   unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
     return;
 
   URV e2 = intRegs_.read(rs2);
@@ -3069,16 +3071,13 @@ template <typename URV>
 void
 Hart<URV>::execVmsgt_vi(const DecodedInst* di)
 {
-  if (not checkMaskableInst(di))
-    return;
-
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1();
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  if (not checkVecOpsVsEmul(di, vd, vs1, group))
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
     return;
 
   int32_t imm = di->op2As<int32_t>();
@@ -19439,23 +19438,14 @@ template <typename URV>
 void
 Hart<URV>::execVmfeq_vv(const DecodedInst* di)
 {
-  if (not checkFpMaskableInst(di))
-    return;
-
   unsigned group = vecRegs_.groupMultiplierX8();
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
 
-  unsigned eg = group >= 8 ? group / 8 : 1;
-  if ((vs1 % eg) or (vs2 % eg))
-    {
-      illegalInst(di);
-      return;
-    }
-  vecRegs_.opsEmul_.at(1) = eg; // Track operand group for logging.
-  vecRegs_.opsEmul_.at(2) = eg; // Track operand group for logging.
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, vs2, group))
+    return;
 
   typedef ElementWidth EW;
   switch (sew)
@@ -19512,22 +19502,14 @@ template <typename URV>
 void
 Hart<URV>::execVmfeq_vf(const DecodedInst* di)
 {
-  if (not checkFpMaskableInst(di))
-    return;
-
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  unsigned eg = group >= 8 ? group / 8 : 1;
-  if (vs1 % eg)
-    {
-      illegalInst(di);
-      return;
-    }
-  vecRegs_.opsEmul_.at(1) = eg; // Track operand group for logging.
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
+    return;
 
   typedef ElementWidth EW;
   switch (sew)
@@ -19582,23 +19564,14 @@ template <typename URV>
 void
 Hart<URV>::execVmfne_vv(const DecodedInst* di)
 {
-  if (not checkFpMaskableInst(di))
-    return;
-
   unsigned group = vecRegs_.groupMultiplierX8();
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
 
-  unsigned eg = group >= 8 ? group / 8 : 1;
-  if ((vs1 % eg) or (vs2 % eg))
-    {
-      illegalInst(di);
-      return;
-    }
-  vecRegs_.opsEmul_.at(1) = eg; // Track operand group for logging.
-  vecRegs_.opsEmul_.at(2) = eg; // Track operand group for logging.
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, vs2, group))
+    return;
 
   typedef ElementWidth EW;
   switch (sew)
@@ -19655,22 +19628,14 @@ template <typename URV>
 void
 Hart<URV>::execVmfne_vf(const DecodedInst* di)
 {
-  if (not checkFpMaskableInst(di))
-    return;
-
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  unsigned eg = group >= 8 ? group / 8 : 1;
-  if (vs1 % eg)
-    {
-      illegalInst(di);
-      return;
-    }
-  vecRegs_.opsEmul_.at(1) = eg; // Track operand group for logging.
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
+    return;
 
   typedef ElementWidth EW;
   switch (sew)
@@ -19725,23 +19690,14 @@ template <typename URV>
 void
 Hart<URV>::execVmflt_vv(const DecodedInst* di)
 {
-  if (not checkFpMaskableInst(di))
-    return;
-
   unsigned group = vecRegs_.groupMultiplierX8();
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
 
-  unsigned eg = group >= 8 ? group / 8 : 1;
-  if ((vs1 % eg) or (vs2 % eg))
-    {
-      illegalInst(di);
-      return;
-    }
-  vecRegs_.opsEmul_.at(1) = eg; // Track operand group for logging.
-  vecRegs_.opsEmul_.at(2) = eg; // Track operand group for logging.
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, vs2, group))
+    return;
 
   typedef ElementWidth EW;
   switch (sew)
@@ -19798,22 +19754,14 @@ template <typename URV>
 void
 Hart<URV>::execVmflt_vf(const DecodedInst* di)
 {
-  if (not checkFpMaskableInst(di))
-    return;
-
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  unsigned eg = group >= 8 ? group / 8 : 1;
-  if (vs1 % eg)
-    {
-      illegalInst(di);
-      return;
-    }
-  vecRegs_.opsEmul_.at(1) = eg; // Track operand group for logging.
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
+    return;
 
   typedef ElementWidth EW;
   switch (sew)
@@ -19868,23 +19816,14 @@ template <typename URV>
 void
 Hart<URV>::execVmfle_vv(const DecodedInst* di)
 {
-  if (not checkFpMaskableInst(di))
-    return;
-
   unsigned group = vecRegs_.groupMultiplierX8();
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
   unsigned elems = vecRegs_.elemCount(), start = vecRegs_.startIndex();
 
-  unsigned eg = group >= 8 ? group / 8 : 1;
-  if ((vs1 % eg) or (vs2 % eg))
-    {
-      illegalInst(di);
-      return;
-    }
-  vecRegs_.opsEmul_.at(1) = eg; // Track operand group for logging.
-  vecRegs_.opsEmul_.at(2) = eg; // Track operand group for logging.
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, vs2, group))
+    return;
 
   typedef ElementWidth EW;
   switch (sew)
@@ -19941,22 +19880,14 @@ template <typename URV>
 void
 Hart<URV>::execVmfle_vf(const DecodedInst* di)
 {
-  if (not checkFpMaskableInst(di))
-    return;
-
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  unsigned eg = group >= 8 ? group / 8 : 1;
-  if (vs1 % eg)
-    {
-      illegalInst(di);
-      return;
-    }
-  vecRegs_.opsEmul_.at(1) = eg; // Track operand group for logging.
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
+    return;
 
   typedef ElementWidth EW;
   switch (sew)
@@ -20012,22 +19943,14 @@ template <typename URV>
 void
 Hart<URV>::execVmfgt_vf(const DecodedInst* di)
 {
-  if (not checkFpMaskableInst(di))
-    return;
-
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  unsigned eg = group >= 8 ? group / 8 : 1;
-  if (vs1 % eg)
-    {
-      illegalInst(di);
-      return;
-    }
-  vecRegs_.opsEmul_.at(1) = eg; // Track operand group for logging.
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
+    return;
 
   typedef ElementWidth EW;
   switch (sew)
@@ -20083,22 +20006,14 @@ template <typename URV>
 void
 Hart<URV>::execVmfge_vf(const DecodedInst* di)
 {
-  if (not checkFpMaskableInst(di))
-    return;
-
   bool masked = di->isMasked();
   unsigned vd = di->op0(),  vs1 = di->op1(),  rs2 = di->op2();
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  unsigned eg = group >= 8 ? group / 8 : 1;
-  if (vs1 % eg)
-    {
-      illegalInst(di);
-      return;
-    }
-  vecRegs_.opsEmul_.at(1) = eg; // Track operand group for logging.
+  if (not checkMaskVecOpsVsEmul(di, vd, vs1, group))
+    return;
 
   typedef ElementWidth EW;
   switch (sew)

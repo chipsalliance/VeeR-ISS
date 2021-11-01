@@ -1877,6 +1877,16 @@ namespace WdRiscv
     // Similar to above but for 1 vector operand instructions.
     bool checkVecOpsVsEmul(const DecodedInst* di, unsigned op0, unsigned groupX8);
 
+    // Return true if vector operands are mutliples of the given group
+    // multiplier (scaled by 8) for mask instructions (such as
+    // vmseq). Return false initiating an illegal instruction trap
+    // otherwise.
+    bool checkMaskVecOpsVsEmul(const DecodedInst* di, unsigned op0, unsigned op1,
+			       unsigned op2, unsigned groupX8);
+
+    bool checkMaskVecOpsVsEmul(const DecodedInst* di, unsigned op0, unsigned op1,
+			       unsigned groupX8);
+
     // Check reduction vector operand against the group multiplier. Return true
     // if operand is a multiple of multiplier and false otherwise. Record group
     // multiplier for tracing.
