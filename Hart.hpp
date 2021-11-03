@@ -1318,8 +1318,14 @@ namespace WdRiscv
     void forceRoundingMode(RoundingMode mode)
     { forcedRounding_ = mode; forceRounding_ = true; }
 
+    /// Enable logging in CSV (comma separated values) format.
     void enableCsvLog(bool flag)
     { csvTrace_ = flag; }
+
+    /// Enable basic block stats if given file is non-null. Print
+    /// stats every instCount instructions.
+    void enableBasicBlocks(FILE* file, uint64_t instCount)
+    { bbFile_ = file; bbLimit_ = instCount; }
 
   protected:
 
@@ -3740,6 +3746,9 @@ namespace WdRiscv
     void setPc(URV value)
     { pc_ = value & pcMask_; }
 
+    void countBasicBlocks(const DecodedInst* di);
+    void dumpBasicBlocks();
+
   private:
 
     unsigned hartIx_ = 0;        // Hart ix in system, see sysHartIndex method.
@@ -3972,6 +3981,12 @@ namespace WdRiscv
     // the hart will halt if halt is true and will reset if reset is true.
     // If both halt and reset are true, reset takes precedence.
     std::function<void(Hart<URV>&, bool&, bool&)> preInst_ = nullptr;
+
+    // Basic-block stats.
+    uint64_t bbInsts_ = 0;
+    uint64_t bbLimit_ = ~uint64_t(0);
+    std::unordered_map<uint64_t, uint64_t> basicBlocks_; // Map pc to basic-block frequency.
+    FILE* bbFile_ = nullptr;
   };
 }
 

@@ -171,6 +171,7 @@ struct Args
   std::string serverFile;      // File in which to write server host and port.
   std::string instFreqFile;    // Instruction frequency file.
   std::string configFile;      // Configuration (JSON) file.
+  std::string bblockFile;      // Basci block file.
   std::string isa;
   std::string snapshotDir = "snapshot"; // Dir prefix for saving snapshots
   std::string loadFrom;        // Directory for loading a snapshot
@@ -206,6 +207,7 @@ struct Args
   unsigned harts = 1;
   unsigned cores = 1;
   unsigned pageSize = 4*1024;
+  uint64_t bblockInsts = ~uint64_t(0);
 
   bool help = false;
   bool hasRegWidth = false;
@@ -478,6 +480,10 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
 	 "1:x3=0xabc")
 	("configfile", po::value(&args.configFile),
 	 "Configuration file (JSON file defining system features).")
+	("bblockfile", po::value(&args.bblockFile),
+	 "Basic blocks output stats file.")
+	("bblockinterval", po::value(&args.bblockInsts),
+	 "Basic block stats are reported even mulitples of given instruction counts and once at end of run.")
 	("snapshotdir", po::value(&args.snapshotDir),
 	 "Directory prefix for saving snapshots.")
 	("snapshotperiod", po::value<std::string>(),
@@ -1358,7 +1364,7 @@ reportInstructionFrequency(Hart<URV>& hart, const std::string& outPath)
 static
 bool
 openUserFiles(const Args& args, FILE*& traceFile, FILE*& commandLog,
-	      FILE*& consoleOut)
+	      FILE*& consoleOut, FILE*& bblockFile)
 {
   if (not args.traceFile.empty())
     {
@@ -1399,6 +1405,17 @@ openUserFiles(const Args& args, FILE*& traceFile, FILE*& commandLog,
 	}
     }
 
+  if (not args.bblockFile.empty())
+    {
+      bblockFile = fopen(args.bblockFile.c_str(), "w");
+      if (not bblockFile)
+	{
+	  std::cerr << "Failed to open basic block file '"
+		    << args.bblockFile << "' for output\n";
+	  return false;
+	}
+    }
+
   return true;
 }
 
@@ -1406,7 +1423,8 @@ openUserFiles(const Args& args, FILE*& traceFile, FILE*& commandLog,
 /// Counterpart to openUserFiles: Close any open user file.
 static
 void
-closeUserFiles(FILE*& traceFile, FILE*& commandLog, FILE*& consoleOut)
+closeUserFiles(FILE*& traceFile, FILE*& commandLog, FILE*& consoleOut,
+	       FILE*& bblockFile)
 {
   if (consoleOut and consoleOut != stdout)
     fclose(consoleOut);
@@ -1419,6 +1437,10 @@ closeUserFiles(FILE*& traceFile, FILE*& commandLog, FILE*& consoleOut)
   if (commandLog and commandLog != stdout)
     fclose(commandLog);
   commandLog = nullptr;
+
+  if (bblockFile and bblockFile != stdout)
+    fclose(bblockFile);
+  bblockFile = nullptr;
 }
 
 
@@ -1904,13 +1926,16 @@ session(const Args& args, const HartConfig& config)
   FILE* traceFile = nullptr;
   FILE* commandLog = nullptr;
   FILE* consoleOut = stdout;
-  if (not openUserFiles(args, traceFile, commandLog, consoleOut))
+  FILE* bblockFile = nullptr;
+  if (not openUserFiles(args, traceFile, commandLog, consoleOut, bblockFile))
     return false;
 
   for (unsigned i = 0; i < system.hartCount(); ++i)
     {
       auto& hart = *system.ithHart(i);
       hart.setConsoleOutput(consoleOut);
+      if (bblockFile)
+	hart.enableBasicBlocks(bblockFile, args.bblockInsts);
       hart.reset();
     }
 
@@ -1920,7 +1945,7 @@ session(const Args& args, const HartConfig& config)
   if (not args.instFreqFile.empty())
     result = reportInstructionFrequency(hart0, args.instFreqFile) and result;
 
-  closeUserFiles(traceFile, commandLog, consoleOut);
+  closeUserFiles(traceFile, commandLog, consoleOut, bblockFile);
 
   return result;
 }
