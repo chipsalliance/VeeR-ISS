@@ -885,11 +885,11 @@ CsRegs<URV>::defineMachineRegs()
   // Machine status setup.
 
   // mstatus
-  //           S R        T T T M S M X  F  M  R  S M R S U M R S U
-  //           D E        S W V X U P S  S  P  E  P P E P P I E I I
-  //             S        R   M R M R       P  S  P I S I I E S E E
+  //           S R        T T T M S M X  F  M  V  S M R S U M R S U
+  //           D E        S W V X U P S  S  P  S  P P E P P I E I I
+  //             S        R   M R M R       P     P I S I I E S E E
   //                                V               E   E E
-  URV mask = 0b0'00000000'1'1'1'1'1'1'11'11'11'00'1'1'0'1'0'1'0'1'0;
+  URV mask = 0b0'00000000'1'1'1'1'1'1'11'11'11'11'1'1'0'1'0'1'0'1'0;
   URV val = 0;
   if (not rv32_)
     {
