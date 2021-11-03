@@ -58,7 +58,7 @@ Float16::toFloat() const
       uint32_t sig = sigBits();
       assert(sig != 0);
       uint32_t exp = expBits();
-      unsigned mssb = __builtin_clz(sig);  // Most sig set bit
+      unsigned mssb = 8*sizeof(sig) - 1 - __builtin_clz(sig);  // Most sig set bit
       assert(mssb <= 9);
       unsigned shift = 10 - mssb;
       sig = sig & ~(uint32_t(1) << shift);  // Clear most sig bit
