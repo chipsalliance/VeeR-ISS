@@ -2975,10 +2975,6 @@ Hart<URV>::undelegatedInterrupt(URV cause, URV pcToSave, URV nextPc)
   // Save secondary exception cause (WD special).
   csRegs_.write(CsrNumber::MSCAUSE, privMode_, 0);
 
-  // TODO FIXME
-  if(origMode == PrivilegeMode::Supervisor)
-	  csRegs_.write(CsrNumber::SSCAUSE, privMode_, 0);
-
   // Clear mtval
   if (not csRegs_.write(CsrNumber::MTVAL, privMode_, 0))
     assert(0 and "Failed to write MTVAL register");
