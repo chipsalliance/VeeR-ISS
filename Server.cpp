@@ -745,7 +745,7 @@ Server<URV>::stepCommand(const WhisperMessage& req,
   // Execute instruction. Determine if an interrupt was taken or if a
   // trigger got tripped.
   uint64_t interruptCount = hart.getInterruptCount();
-
+  uint64_t trapCount = hart.getTrapCount();
   hart.singleStep(traceFile);
 
   bool interrupted = hart.getInterruptCount() != interruptCount;
@@ -761,6 +761,8 @@ Server<URV>::stepCommand(const WhisperMessage& req,
 
   // Send privilege mode in reply.flags
   reply.flags = privMode;
+  if(trapCount != hart.getTrapCount())
+	  reply.flags |= uint32_t(hart.getLastTrapCause()) << 8;
 
 #if 0
   // Send floating point flags in bits 16 to 19 of reply.flags.
@@ -951,9 +953,17 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
 
 	    case Step:
 	      stepCommand(msg, pendingChanges, reply, traceFile);
-	      if (commandLog)
+	      if (commandLog) {
 		fprintf(commandLog, "hart=%d step #%" PRId64 " # ts=%s\n",
                         hartId, hart.getInstructionCount(), timeStamp.c_str());
+//        uint32_t inst = 0;
+//		hart.readInst(hart.lastPc(), inst);
+//		reply.resource = inst;
+//		std::string text;
+//		hart.disassembleInst(inst, text);
+//        if(hart.privilegeMode() == PrivilegeMode::User)
+//            fprintf(commandLog, "OK  @%s => 0x%08lx : %s\n", timeStamp.c_str(), (unsigned long)(hart.lastPc()), text.c_str());
+            }
 	      break;
 
 	    case ChangeCount:

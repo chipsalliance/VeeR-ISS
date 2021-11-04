@@ -691,6 +691,11 @@ namespace WdRiscv
     uint64_t getInterruptCount() const
     { return interruptCount_; }
 
+    /// return last interrupt cause
+    URV getLastTrapCause() const
+    { return lastTrapCause_; }
+
+
     /// Set pre and post to the count of "before"/"after" triggers
     /// that tripped by the last executed instruction.
     void countTrippedTriggers(unsigned& pre, unsigned& post) const
@@ -1683,6 +1688,7 @@ namespace WdRiscv
 
     /// Start an asynchronous exception (interrupt).
     void initiateInterrupt(InterruptCause cause, URV pc);
+
 
     /// Start an asynchronous exception (interrupt) directly from the
     /// interrupt handler associated with the interrupt id. Return
@@ -2983,6 +2989,7 @@ namespace WdRiscv
     uint64_t instCountLim_ = ~uint64_t(0);
     uint64_t exceptionCount_ = 0;
     uint64_t interruptCount_ = 0;   // Including non-maskable interrupts.
+    URV lastTrapCause_ = 0;
     uint64_t nmiCount_ = 0;
     uint64_t consecutiveIllegalCount_ = 0;
     uint64_t counterAtLastIllegal_ = 0;

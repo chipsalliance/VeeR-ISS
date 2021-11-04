@@ -261,7 +261,7 @@ namespace WdRiscv
 
       // Memory mapped region accessible only with word-size read.
       Pma pma1 = pmaMgr_.getPma(address);
-      if (pma1.isMemMappedReg() and not toMain)
+      if (pma1.isMemMappedReg())
         {
             return readRegister(address, value);
         }
@@ -411,7 +411,7 @@ namespace WdRiscv
 
       // Memory mapped region accessible only with word-size poke.
       Pma pma1 = pmaMgr_.getPma(address);
-      if (pma1.isMemMappedReg() and not toMain)
+      if (pma1.isMemMappedReg())
         {
           return pmaMgr_.writeRegisterNoMask(address, value);
         }

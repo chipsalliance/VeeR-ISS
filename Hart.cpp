@@ -1820,6 +1820,8 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
       return ExceptionCause::LOAD_ACC_FAULT;
     }
 
+
+
   // Address translation
   if (isRvs())
     {
@@ -1831,7 +1833,14 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
           if (cause != ExceptionCause::NONE)
             return cause;
           addr = pa;
+
         }
+      // Phisical address out of memory bound
+	  if (addr > (memory_.size()-ldSize))
+		{
+		  secCause = SecondaryCause::LOAD_ACC_OUT_OF_BOUNDS;
+		  return ExceptionCause::LOAD_ACC_FAULT;
+		}
     }
   else
     {
@@ -1848,16 +1857,18 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
         }
 
       // DCCM unmapped or out of MPU range
+
       bool isReadable = isAddrReadable(addr);
       if (not isReadable)
         {
           secCause = SecondaryCause::LOAD_ACC_MEM_PROTECTION;
-          if (addr > memory_.size() - ldSize)
-            {
-              secCause = SecondaryCause::LOAD_ACC_OUT_OF_BOUNDS;
-              return ExceptionCause::LOAD_ACC_FAULT;
-            }
-          else if (regionHasLocalDataMem_.at(region))
+          // Out of memory bound
+            if (addr > (memory_.size()-ldSize))
+          	{
+          	  secCause = SecondaryCause::LOAD_ACC_OUT_OF_BOUNDS;
+          	  return ExceptionCause::LOAD_ACC_FAULT;
+          	}
+          if (regionHasLocalDataMem_.at(region))
             {
               if (mma != MemMappedAcc::internal)
                 {
@@ -2774,7 +2785,7 @@ Hart<URV>::initiateInterrupt(InterruptCause cause, URV pc)
 
   hasInterrupt_ = true;
   interruptCount_++;
-
+  lastTrapCause_ = URV(cause);
   if (not enableCounters_)
     return;
 
@@ -2797,6 +2808,7 @@ Hart<URV>::initiateException(ExceptionCause cause, URV pc, URV info,
   bool interrupt = false;
   exceptionCount_++;
   hasException_ = true;
+  lastTrapCause_ = URV(cause);
   initiateTrap(interrupt, URV(cause), pc, info, URV(secCause));
 
   PerfRegs& pregs = csRegs_.mPerfRegs_;
@@ -2841,6 +2853,7 @@ Hart<URV>::initiateTrap(bool interrupt, URV cause, URV pcToSave, URV info,
     {
       epcNum = CsrNumber::SEPC;
       causeNum = CsrNumber::SCAUSE;
+      scauseNum = CsrNumber::SSCAUSE;
       tvalNum = CsrNumber::STVAL;
       tvecNum = CsrNumber::STVEC;
     }
@@ -2940,6 +2953,7 @@ Hart<URV>::undelegatedInterrupt(URV cause, URV pcToSave, URV nextPc)
 {
   hasInterrupt_ = true;
   interruptCount_++;
+  lastTrapCause_ = cause;
 
   cancelLr();  // Clear LR reservation (if any).
 
@@ -2960,6 +2974,10 @@ Hart<URV>::undelegatedInterrupt(URV cause, URV pcToSave, URV nextPc)
 
   // Save secondary exception cause (WD special).
   csRegs_.write(CsrNumber::MSCAUSE, privMode_, 0);
+
+  // TODO FIXME
+  if(origMode == PrivilegeMode::Supervisor)
+	  csRegs_.write(CsrNumber::SSCAUSE, privMode_, 0);
 
   // Clear mtval
   if (not csRegs_.write(CsrNumber::MTVAL, privMode_, 0))
@@ -4907,74 +4925,62 @@ Hart<URV>::isInterruptPossible(InterruptCause& cause)
 
   URV mip = csRegs_.peekMip();
   URV mie = csRegs_.peekMie();
-  if ((mie & mip) == 0)
+  URV pending = mie & mip;
+  if (pending == 0)
     return false;  // Nothing enabled that is also pending.
 
   typedef InterruptCause IC;
 
-  // Check for machine-level interrupts if MIE enabled or if user/supervisor.
   URV mstatus = csRegs_.peekMstatus();
   MstatusFields<URV> fields(mstatus);
-  bool globalEnable = fields.bits_.MIE or privMode_ < PrivilegeMode::Machine;
   URV delegVal = 0;
   peekCsr(CsrNumber::MIDELEG, delegVal);
-  for (InterruptCause ic : { IC::M_EXTERNAL, IC::M_LOCAL, IC::M_SOFTWARE,
-                              IC::M_TIMER, IC::M_INT_TIMER0,
-                              IC::M_INT_TIMER1 } )
-    {
-      URV mask = URV(1) << unsigned(ic);
-      bool delegated = (mask & delegVal) != 0;
-      bool enabled = globalEnable;
-      if (delegated)
-        enabled = ((privMode_ == PrivilegeMode::Supervisor and fields.bits_.SIE) or
-                   privMode_ < PrivilegeMode::Supervisor);
-      if (enabled)
-        if (mie & mask & mip)
-          {
-            cause = ic;
-            if (ic == IC::M_TIMER and alarmInterval_ > 0)
-              {
-                // Reset the timer-interrupt pending bit.
-                mip = mip & ~mask;
-                pokeCsr(CsrNumber::MIP, mip);
-              }
-            return true;
-          }
-    }
+  static const std::array<IC, 12> interrupts = {
+		  IC::M_EXTERNAL, IC::M_LOCAL, IC::M_SOFTWARE,
+          IC::M_TIMER, IC::M_INT_TIMER0, IC::M_INT_TIMER1,
+		  IC::S_EXTERNAL, IC::S_SOFTWARE, IC::S_TIMER,
+		  IC::U_EXTERNAL, IC::U_SOFTWARE, IC::U_TIMER
+  };
+  URV mPending = pending & ~delegVal;
+  bool mEnabled = (mPending != 0) and
+		  	  	  (fields.bits_.MIE or (privMode_ < PrivilegeMode::Machine));
 
-  // Supervisor mode interrupts: SIE enabled and supervior mode, or user-mode.
-  if (isRvs())
-    {
-      bool check = ((fields.bits_.SIE and privMode_ == PrivilegeMode::Supervisor)
-                    or privMode_ < PrivilegeMode::Supervisor);
-      if (check)
-        for (auto ic : { IC::S_EXTERNAL, IC::S_SOFTWARE, IC::S_TIMER } )
-          {
-            URV mask = URV(1) << unsigned(ic);
-            if (mie & mask & mip)
-              {
-                cause = ic;
-                return true;
-              }
-          }
+  if(mEnabled) {
+	  for (InterruptCause ic : interrupts )
+		{
+		  URV mask = URV(1) << unsigned(ic);
+		  if (mPending & mask) {
+			cause = ic;
+			if (ic == IC::M_TIMER and alarmInterval_ > 0)
+			  {
+				// Reset the timer-interrupt pending bit.
+				mip = mip & ~mask;
+				pokeCsr(CsrNumber::MIP, mip);
+			  }
+			return true;
+		  }
+		}
+  }
+  URV sPending = pending & delegVal;
+  bool sEnabled = (sPending!=0) and
+		  ((privMode_ == PrivilegeMode::Supervisor and fields.bits_.SIE) or
+				  privMode_ < PrivilegeMode::Supervisor);
+  if(sEnabled) {
+  	  for (InterruptCause ic : interrupts )
+  		{
+  		  URV mask = URV(1) << unsigned(ic);
+  		  if (sPending & mask) {
+  			cause = ic;
+  			if (ic == IC::M_TIMER and alarmInterval_ > 0)
+  			  {
+  				// Reset the timer-interrupt pending bit.
+  				mip = mip & ~mask;
+  				pokeCsr(CsrNumber::MIP, mip);
+  			  }
+  			return true;
+  		  }
+  		}
     }
-
-  // User mode interrupts: UIE enabled and user-mode.
-  if (isRvu())
-    {
-      bool check = fields.bits_.UIE and privMode_ == PrivilegeMode::User;
-      if (check)
-        for (auto ic : { IC::U_EXTERNAL, IC::U_SOFTWARE, IC::U_TIMER } )
-          {
-            URV mask = URV(1) << unsigned(ic);
-            if (mie & mask & mip)
-              {
-                cause = ic;
-                return true;
-              }
-          }
-    }
-
   return false;
 }
 
@@ -9333,6 +9339,10 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
             return cause;
           addr = pa;
         }
+      if (addr > memory_.size() - stSize) {
+		  secCause = SecondaryCause::STORE_ACC_OUT_OF_BOUNDS;
+          return ExceptionCause::STORE_ACC_FAULT;
+      }
       writeOk = memory_.checkWrite(addr, storeVal, mma==MemMappedAcc::none);
     }
   else

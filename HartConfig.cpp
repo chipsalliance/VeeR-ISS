@@ -1805,7 +1805,42 @@ defineMhartstartSideEffects(System<URV>& system)
     }
 }
 
+/// Associate callbacks with write/poke of mhartstart to start harts
+/// when corresponding bits are set in that CSR.
+template <typename URV>
+void
+defineSatpSideEffects(System<URV>& system)
+{
+  for (unsigned i = 0; i < system.hartCount(); ++i)
+    {
+      auto hart = system.ithHart(i);
+      auto csrPtr = hart->findCsr("satp");
+      if (not csrPtr)
+        continue;
+      auto csrNum = csrPtr->getNumber();
 
+
+      auto pre = [hart, csrNum] (Csr<URV>&, URV& val) -> void {
+    	  	  	  bool legal = true;
+    	  	  	  if (sizeof(URV)==8) {
+    	  	  		  unsigned mode = val >> 60;
+    	  	  		  legal = mode == VirtMem::Bare or mode == VirtMem::Sv39;
+    	  	  	  }
+    	  	  	  else {
+    	  	  		  unsigned mode = val >> 30;
+    	  	  		  legal = mode == VirtMem::Bare;
+    	  	  	  }
+    	  	  	  if(not legal) {
+					   URV prev = 0;
+					   hart->peekCsr(csrNum, prev);
+					   val = prev;
+    	  	  	  }
+                 };
+
+      csrPtr->registerPrePoke(pre);
+      csrPtr->registerPreWrite(pre);
+    }
+}
 /// Associate callback with write/poke of mnmipdel to deletage
 /// non-maskable-interrupts to harts.
 template <typename URV>
@@ -1943,6 +1978,7 @@ defineMgpmcSideEffects(System<URV>& system)
 }
 
 
+
 /// Associate callback with write/poke of mcounthinibit
 template <typename URV>
 void
@@ -2014,6 +2050,9 @@ HartConfig::finalizeCsrConfig(System<URV>& system) const
 
   // Define callback to react to write/poke to mcountinhibit CSR.
   defineMcountinhibitSideEffects(system);
+
+  defineSatpSideEffects(system);
+
 
   return true;
 }

@@ -135,19 +135,19 @@ namespace WdRiscv
 
     bool dirty() const      { return bits_.dirty_; }
 
-    uint32_t ppn() const    { return ppn0() | (ppn1() << 9) | (ppn2() << 18); }
+    uint64_t ppn() const    { return ppn0() | (ppn1() << 9) | (ppn2() << 18); }
 
-    uint32_t ppn0() const   { return bits_.ppn0_; }
+    uint64_t ppn0() const   { return bits_.ppn0_; }
 
-    uint32_t ppn1() const   { return bits_.ppn1_; }
+    uint64_t ppn1() const   { return bits_.ppn1_; }
 
-    uint32_t ppn2() const   { return bits_.ppn2_; }
+    uint64_t ppn2() const   { return bits_.ppn2_; }
 
     uint32_t levels() const { return 3; }
 
     uint32_t size() const   { return sizeof(data_); }
 
-    uint32_t ppn(int i) const
+    uint64_t ppn(int i) const
     {
       if (i == 0) { return ppn0(); }
       if (i == 1) { return ppn1(); }
@@ -211,21 +211,21 @@ namespace WdRiscv
 
     bool dirty() const      { return bits_.dirty_; }
 
-    uint32_t ppn() const    { return ppn0() | (ppn1() << 9) | (ppn2() << 18) | (ppn3() << 27); }
+    uint64_t ppn() const    { return ppn0() | (ppn1() << 9) | (ppn2() << 18) | (ppn3() << 27); }
 
-    uint32_t ppn0() const   { return bits_.ppn0_; }
+    uint64_t ppn0() const   { return bits_.ppn0_; }
 
-    uint32_t ppn1() const   { return bits_.ppn1_; }
+    uint64_t ppn1() const   { return bits_.ppn1_; }
 
-    uint32_t ppn2() const   { return bits_.ppn2_; }
+    uint64_t ppn2() const   { return bits_.ppn2_; }
 
-    uint32_t ppn3() const   { return bits_.ppn3_; }
+    uint64_t ppn3() const   { return bits_.ppn3_; }
 
     uint32_t levels() const { return 4; }
 
     uint32_t size() const   { return sizeof(data_); }
 
-    uint32_t ppn(int i) const
+    uint64_t ppn(int i) const
     {
       if (i == 0) { return ppn0(); }
       if (i == 1) { return ppn1(); }
@@ -301,15 +301,15 @@ namespace WdRiscv
     Va39(uint64_t data) : data_(data)
     { }
 
-    uint32_t offset() const { return bits_.offset_; }
+    uint64_t offset() const { return bits_.offset_; }
 
-    uint32_t vpn0() const   { return bits_.vpn0_; }
+    uint64_t vpn0() const   { return bits_.vpn0_; }
 
-    uint32_t vpn1() const   { return bits_.vpn1_; }
+    uint64_t vpn1() const   { return bits_.vpn1_; }
 
-    uint32_t vpn2() const   { return bits_.vpn2_; }
+    uint64_t vpn2() const   { return bits_.vpn2_; }
 
-    uint32_t vpn(int i) const
+    uint64_t vpn(int i) const
     {
       if (i == 0) return vpn0();
       if (i == 1) return vpn1();
@@ -340,17 +340,17 @@ namespace WdRiscv
     Va48(uint64_t data) : data_(data)
     { }
 
-    uint32_t offset() const { return bits_.offset_; }
+    uint64_t offset() const { return bits_.offset_; }
 
-    uint32_t vpn0() const   { return bits_.vpn0_; }
+    uint64_t vpn0() const   { return bits_.vpn0_; }
 
-    uint32_t vpn1() const   { return bits_.vpn1_; }
+    uint64_t vpn1() const   { return bits_.vpn1_; }
 
-    uint32_t vpn2() const   { return bits_.vpn2_; }
+    uint64_t vpn2() const   { return bits_.vpn2_; }
 
-    uint32_t vpn3() const   { return bits_.vpn2_; }
+    uint64_t vpn3() const   { return bits_.vpn2_; }
 
-    uint32_t vpn(int i) const
+    uint64_t vpn(int i) const
     {
       if (i == 0) return vpn0();
       if (i == 1) return vpn1();

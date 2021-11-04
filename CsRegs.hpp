@@ -56,7 +56,9 @@ namespace WdRiscv
       MCAUSE = 0x342,
       MTVAL = 0x343,
       MIP = 0x344,
-
+	  // Machine config pointer
+	  MCONFIGPTR = 0xf15,
+	  MENVCFG = 0x30a,
       // Machine protection and translation.
       PMPCFG0 = 0x3a0,
       PMPCFG1 = 0x3a1,
@@ -192,6 +194,7 @@ namespace WdRiscv
       SIP = 0x144,
       // Supervisor Protection and Translation 
       SATP = 0x180,
+	  SENVCFG = 0x10a,
 
       // User mode registers.
 
@@ -315,7 +318,7 @@ namespace WdRiscv
       MSPCC    = 0x7f6, // Stack pointer checker control
 
       MDBHD   = 0xbc7,  // D-Bus 64-bit high data
-
+	  SSCAUSE = 0x5ff,
       MSCAUSE  = 0x7ff, // Secondary exception cause
 	  DVFFLAGS = 0x1001,
       MAX_CSR_ = 0x1001,
@@ -1043,6 +1046,9 @@ namespace WdRiscv
     /// Return true if given CSR number is a PMPADDR register and if
     /// that register is locked.  Return false otherwise.
     bool isPmpaddrLocked(CsrNumber csrn) const;
+
+    /// Return true if it's SATP with unsupported value
+    bool isUnSupportedSatp(CsrNumber csrn, URV val) const;
 
     /// Set the physical memory protection G parameter. The grain size
     /// is 2 to the power G+2.  The values returned by a read operation

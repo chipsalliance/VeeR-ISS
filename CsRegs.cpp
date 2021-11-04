@@ -20,6 +20,7 @@
 #include "CsRegs.hpp"
 #include "FpRegs.hpp"
 #include "VecRegs.hpp"
+#include "VirtMem.hpp"
 
 using namespace WdRiscv;
 
@@ -151,7 +152,7 @@ CsRegs<URV>::read(CsrNumber number, PrivilegeMode mode, URV& value) const
       auto mcsr = getImplementedCsr(CsrNumber(unsigned(number) + 0x200));
       auto deleg = getImplementedCsr(CsrNumber::MIDELEG);
       if (mcsr and deleg)
-        value = mcsr->read() & (csr->getReadMask() | deleg->read());
+        value = mcsr->read() & (csr->getReadMask() & deleg->read());
       else
         value = csr->read();
       return true;
@@ -175,7 +176,7 @@ CsRegs<URV>::enableSupervisorMode(bool flag)
   if (not flag)
     return;
 
-  for (auto csrn : { CsrNumber::SSTATUS, CsrNumber::SEDELEG, CsrNumber::SIDELEG,
+  for (auto csrn : { CsrNumber::SSTATUS,
                       CsrNumber::STVEC, CsrNumber::SIE, CsrNumber::STVEC,
                       CsrNumber::SCOUNTEREN, CsrNumber::SSCRATCH, CsrNumber::SEPC,
                       CsrNumber::SCAUSE, CsrNumber::STVAL, CsrNumber::SIP,
@@ -227,9 +228,9 @@ template <typename URV>
 URV
 CsRegs<URV>::legalizeMstatusValue(URV value) const
 {
+
   MstatusFields<URV> fields(value);
   PrivilegeMode mode = PrivilegeMode(fields.bits_.MPP);
-
   if (fields.bits_.FS == unsigned(FpFs::Dirty) or fields.bits_.XS == unsigned(FpFs::Dirty))
     fields.bits_.SD = 1;
   else
@@ -238,16 +239,15 @@ CsRegs<URV>::legalizeMstatusValue(URV value) const
   if (mode == PrivilegeMode::Machine)
     return fields.value_;
 
-  if (mode == PrivilegeMode::Supervisor and not supervisorModeEnabled_)
-    mode = PrivilegeMode::User;
 
-  if (mode == PrivilegeMode::Reserved)
-    mode = PrivilegeMode::User;
-
-  if (mode == PrivilegeMode::User and not userModeEnabled_)
-    mode = PrivilegeMode::Machine;
-
-  fields.bits_.MPP = unsigned(mode);
+  if (	(mode == PrivilegeMode::Reserved) or
+		(mode == PrivilegeMode::Supervisor and not supervisorModeEnabled_) or
+		(mode == PrivilegeMode::User and not userModeEnabled_)) {
+		if(userModeEnabled_)
+			fields.bits_.MPP = unsigned(PrivilegeMode::User);
+		else
+			fields.bits_.MPP = unsigned(PrivilegeMode::Machine);
+  }
 
   return fields.value_;
 }
@@ -267,7 +267,7 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
   if (csr->isDebug())
     return false; // Debug-mode register is not accessible by a CSR instruction.
 
-  if (isPmpaddrLocked(number))
+  if (isPmpaddrLocked(number) or isUnSupportedSatp(number, value))
     {
       recordWrite(number);
       return true;  // Writing a locked PMPADDR register has no effect.
@@ -311,7 +311,7 @@ CsRegs<URV>::write(CsrNumber number, PrivilegeMode mode, URV value)
       if (mcsr and deleg)
         {
           URV prevMask = csr->getWriteMask();
-          csr->setWriteMask((prevMask | deleg->read()) & mcsr->getWriteMask());
+          csr->setWriteMask((prevMask & deleg->read()) & mcsr->getWriteMask());
           csr->write(value);
           csr->setWriteMask(prevMask);
         }
@@ -818,9 +818,17 @@ template <typename URV>
 void
 CsRegs<URV>::recordWrite(CsrNumber num)
 {
-  auto& lwr = lastWrittenRegs_;
-  if (std::find(lwr.begin(), lwr.end(), num) == lwr.end())
-    lwr.push_back(num);
+	static std::map<CsrNumber, CsrNumber> aliases = {
+			{CsrNumber::SSTATUS, CsrNumber::MSTATUS},
+			{CsrNumber::SIE, CsrNumber::MIE},
+			{CsrNumber::SIP, CsrNumber::MIP}
+	};
+	auto it = aliases.find(num);
+	if(it != aliases.end())
+		num = it->second;
+	auto& lwr = lastWrittenRegs_;
+	if (std::find(lwr.begin(), lwr.end(), num) == lwr.end())
+		lwr.push_back(num);
 }
 
 
@@ -850,6 +858,7 @@ CsRegs<URV>::defineMachineRegs()
   //             S        R   M R M R       P  S  P I S I I E S E E
   //                                V               E   E E
   URV mask = 0b0'00000000'1'1'1'1'1'1'11'11'11'00'1'1'0'1'0'1'0'1'0;
+  //0x8000000200086122L
   URV val = 0;
   if (not rv32_)
     {
@@ -857,20 +866,34 @@ CsRegs<URV>::defineMachineRegs()
       val |= uint64_t(0b1010) << 32;   // Value of SXL and UXL : sxlen=uxlen=64
     }
   URV pokeMask = mask | (URV(1) << (sizeof(URV)*8 - 1));  // Make SD pokable.
-
   defineCsr("mstatus", Csrn::MSTATUS, mand, imp, val, mask, pokeMask);
   defineCsr("misa", Csrn::MISA, mand,  imp, 0x40001104, rom, rom);
 
-  // Bits corresponding to user-level interrupts are hardwired to zero
-  // in medeleg. If N extension is enabled, we will flip those bits
-  // (currently N extension is not supported).
-  URV userBits = ( (URV(1) << unsigned(InterruptCause::U_SOFTWARE)) |
-                   (URV(1) << unsigned(InterruptCause::U_TIMER)) |
-                   (URV(1) << unsigned(InterruptCause::U_EXTERNAL)) );
-  mask = wam & ~ userBits;
+
+  mask =
+	      //URV(1) << (unsigned(ExceptionCause::INST_ADDR_MISAL )) |
+		  URV(1) << (unsigned(ExceptionCause::INST_ACC_FAULT  )) |
+		  URV(1) << (unsigned(ExceptionCause::ILLEGAL_INST    )) |
+		  URV(1) << (unsigned(ExceptionCause::BREAKP      	  )) |
+		  URV(1) << (unsigned(ExceptionCause::LOAD_ADDR_MISAL )) |
+		  URV(1) << (unsigned(ExceptionCause::LOAD_ACC_FAULT  )) |
+		  URV(1) << (unsigned(ExceptionCause::STORE_ADDR_MISAL)) |
+		  URV(1) << (unsigned(ExceptionCause::STORE_ACC_FAULT )) |
+		  URV(1) << (unsigned(ExceptionCause::U_ENV_CALL      )) |
+		  URV(1) << (unsigned(ExceptionCause::S_ENV_CALL      )) |
+		  //URV(1) << (unsigned(ExceptionCause::M_ENV_CALL      )) |
+		  URV(1) << (unsigned(ExceptionCause::INST_PAGE_FAULT )) |
+		  URV(1) << (unsigned(ExceptionCause::LOAD_PAGE_FAULT )) |
+		  URV(1) << (unsigned(ExceptionCause::STORE_PAGE_FAULT));
+
   defineCsr("medeleg", Csrn::MEDELEG, !mand, !imp, 0, mask, mask);
 
-  defineCsr("mideleg", Csrn::MIDELEG, !mand, !imp, 0, wam, wam);
+  mask =  URV(1) << (unsigned(InterruptCause::S_SOFTWARE)) 	|
+		  URV(1) << (unsigned(InterruptCause::S_TIMER)) 	|
+		  URV(1) << (unsigned(InterruptCause::S_EXTERNAL))  |
+		  URV(1) << (unsigned(InterruptCause::M_INT_TIMER0))|
+		  URV(1) << (unsigned(InterruptCause::M_INT_TIMER1));
+  defineCsr("mideleg", Csrn::MIDELEG, !mand, !imp, 0, mask, mask);
 
   // Interrupt enable: Least sig 12 bits corresponding to the 12
   // interrupt causes are writable.
@@ -969,6 +992,13 @@ CsRegs<URV>::defineMachineRegs()
       name = "mhpmevent" + std::to_string(i);
       defineCsr(name, csrNum, mand, imp, 0, rom, rom);
     }
+  defineCsr("mconfigptr", CsrNumber::MCONFIGPTR, mand, imp, 0, 0, 0);
+  if constexpr (sizeof(URV) == 8) {
+	  mask = URV(1) | URV(16) | URV(32) | URV(64) | URV(128) | (URV(1) << 63);
+	  defineCsr("menvcfg", CsrNumber::MENVCFG, mand, imp, 0, mask, mask);
+  }
+
+
 }
 
 
@@ -1069,17 +1099,27 @@ CsRegs<URV>::defineSupervisorRegs()
   // Supervisor trap SETUP_CSR.
 
   using Csrn = CsrNumber;
-
-  // Only bits sie, spie, upie, ube, spp, fs, xs, sum, mxr, uxl (rv64) and sd of
-  // sstatus are writeable.  The non-writeable bits read zero.
-  uint64_t mask = 0x800de162;
-  if (not rv32_)
-    mask = 0x80000003000de162L;
-  defineCsr("sstatus",    Csrn::SSTATUS,    !mand, !imp, 0, mask, mask);
+  uint64_t mask = 0;
+  MstatusFields<URV> fstatusMask(0);
+  fstatusMask.bits_.SIE      = 1;
+  fstatusMask.bits_.SPIE     = 1;
+  fstatusMask.bits_.SPP      = 1;
+  fstatusMask.bits_.FS       = 3;
+  fstatusMask.bits_.SUM      = 1;
+  fstatusMask.bits_.MXR      = 1;
+  fstatusMask.bits_.SD       = 1;
+  defineCsr("sstatus",    Csrn::SSTATUS,    !mand, !imp, 0, fstatusMask.value_, fstatusMask.value_);
 
   auto sstatus = findCsr(Csrn::SSTATUS);
-  if (sstatus)
-    sstatus->setReadMask(mask);
+
+  if (sstatus) {
+	  MstatusFields<URV> rdMask = fstatusMask;
+	  if constexpr(sizeof(URV) == 8)
+		rdMask.bits_.UXL = 3;
+	  rdMask.bits_.XS = 3;
+	  rdMask.bits_.UBE = 1;
+	  sstatus->setReadMask(rdMask.value_);
+  }
 
   // SSTATUS shadows MSTATUS
   auto mstatus = findCsr(Csrn::MSTATUS);
@@ -1098,25 +1138,38 @@ CsRegs<URV>::defineSupervisorRegs()
   defineCsr("sepc",       Csrn::SEPC,       !mand, !imp, 0, mask, mask);
   defineCsr("scause",     Csrn::SCAUSE,     !mand, !imp, 0, wam, wam);
   defineCsr("stval",      Csrn::STVAL,      !mand, !imp, 0, wam, wam);
-
+  if(auto mideleg = findCsr(Csrn::MIDELEG))
+	  mask = mideleg->getWriteMask();
   // Bits of SIE appear hardwired to zreo unless delegated.
-  defineCsr("sie",        Csrn::SIE,        !mand, !imp, 0, wam, wam);
+  defineCsr("sie",        Csrn::SIE,        !mand, !imp, 0, mask, mask);
+
   auto sie = findCsr(Csrn::SIE);
   auto mie = findCsr(Csrn::MIE);
-  if (sie and mie)
-    sie->tie(mie->valuePtr_);
 
-  // Bits of SIE appear hardwired to zreo unless delegated.
-  mask = 0x2;  // Only ssie bit writable (when delegated)
-  defineCsr("sip",        Csrn::SIP,        !mand, !imp, 0, mask, mask);
+  if (sie and mie) {
+    sie->tie(mie->valuePtr_);
+    sie->setReadMask(mask);
+  }
+
+  URV sipWrMask = wam & (URV(1)<<unsigned(InterruptCause::S_SOFTWARE));
+
+  // Only ssie bit writable (when delegated)
+  defineCsr("sip",        Csrn::SIP,        !mand, !imp, 0, sipWrMask, mask);
 
   auto sip = findCsr(Csrn::SIP);
   auto mip = findCsr(Csrn::MIP);
-  if (sip and mip)
+  if (sip and mip) {
     sip->tie(mip->valuePtr_); // Sip is a shadow if mip
+    sip->setReadMask(mask);
+  }
 
   // Supervisor Protection and Translation 
   defineCsr("satp",       Csrn::SATP,       !mand, !imp, 0, wam, wam);
+
+  // SXLEN-1 8 	 7 		6 	5 4  3 1 	0
+  // WPRI 		CBZE CBCFE CBIE  WPRI FIOM
+  mask = 1 | 16 | 32 | 64 | 128;
+  defineCsr("senvcfg", Csrn::SENVCFG, !mand, !imp, 0, mask, mask);
 }
 
 
@@ -1309,6 +1362,9 @@ CsRegs<URV>::defineNonStandardRegs()
 
   defineCsr("dvfflags",  Csrn::DVFFLAGS, !mand, !imp, 0, wam, wam);
 
+  defineCsr("sscause",  Csrn::SSCAUSE, !mand, !imp, 0, wam, wam);
+
+
 
 }
 
@@ -1345,7 +1401,7 @@ CsRegs<URV>::peek(CsrNumber number, URV& value) const
       auto mcsr = getImplementedCsr(CsrNumber(unsigned(number) + 0x200));
       auto deleg = getImplementedCsr(CsrNumber::MIDELEG);
       if (mcsr and deleg)
-        value = mcsr->read() & (csr->getReadMask() | deleg->read());
+        value = mcsr->read() & (csr->getReadMask() & deleg->read());
       else
         value = csr->read();
       return true;
@@ -1642,6 +1698,19 @@ CsRegs<URV>::legalizePmpcfgValue(URV current, URV value) const
   return legal;
 }  
 
+template <typename URV>
+bool
+CsRegs<URV>::isUnSupportedSatp(CsrNumber csrn, URV val) const {
+	if(csrn != CsrNumber::SATP) return false;
+	if (sizeof(URV)==8) {
+	  unsigned mode = val >> 60;
+	  return mode != VirtMem::Bare and mode != VirtMem::Sv39;
+	}
+	else {
+	  unsigned mode = val >> 30;
+	  return  mode != VirtMem::Bare;
+	}
+}
 
 template <typename URV>
 bool
