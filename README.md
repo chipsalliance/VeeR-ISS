@@ -522,6 +522,7 @@ The vector configuration is an object with the following fields:
 * min_bytes_per_elem: narrowest suppoted element size in bytes (default 1).
 * max_bytes_per_elem: widest supported element size in bytes (no default).
 Example:
+
     "vector" : {
        "bytes_per_vec" : 16,
        "max_bytes_per_elem" : 8
