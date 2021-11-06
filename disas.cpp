@@ -171,7 +171,7 @@ void
 printRs1Rs2(const Hart<URV>& hart, std::ostream& stream, const char* inst,
             const DecodedInst& di)
 {
-  unsigned rs1 = di.op0(), rs2 = di.op1();
+  unsigned rs1 = di.op1(), rs2 = di.op2();
 
   // Print instruction in a 9 character field.
   stream << std::left << std::setw(9) << inst;
