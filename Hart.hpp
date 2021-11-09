@@ -3829,6 +3829,7 @@ namespace WdRiscv
     bool eaCompatWithBase_ = false;
 
     bool csvTrace_ = false;      // Print trace in CSV format.
+    bool traceHeaderPrinted_ = false; // True if trace file header printed.
 
     uint64_t retiredInsts_ = 0;  // Proxy for minstret CSR.
     uint64_t cycleCount_ = 0;    // Proxy for mcycle CSR.

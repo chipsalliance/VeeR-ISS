@@ -3700,8 +3700,11 @@ Hart<URV>::printInstCsvTrace(const DecodedInst& di, FILE* out)
   // Serialize to avoid jumbled output.
   std::lock_guard<std::mutex> guard(printInstTraceMutex);
 
-  if (instCounter_ == 1)
-    fprintf(out, "pc, inst, modified regs, source operands, memory, inst info, privilege, trap, disassembly\n");
+  if (not traceHeaderPrinted_)
+    {
+      traceHeaderPrinted_ = true;
+      fprintf(out, "pc, inst, modified regs, source operands, memory, inst info, privilege, trap, disassembly\n");
+    }
 
   // Program counter.
   uint64_t virtPc = di.address(), physPc = di.physAddress();

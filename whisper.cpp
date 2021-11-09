@@ -799,6 +799,10 @@ applyIsaStrings(const StringVec& isaStrings, Hart<URV>& hart)
 	  isa |= URV(1) << (c -  'a');
 	  break;
 
+	case 'b':
+	  std::cerr << "Warning: Extension \"" << c << "\" is not supported.\n";
+	  break;
+
         case 'g':  // Enable a, d, f, and m
           isa |= 0x1 | 0x8 | 0x20 | 0x1000;
           break;
@@ -809,7 +813,7 @@ applyIsaStrings(const StringVec& isaStrings, Hart<URV>& hart)
 	  break;
 	  
 	default:
-	  std::cerr << "Extension \"" << c << "\" is not supported.\n";
+	  std::cerr << "Error: Extension \"" << c << "\" is not supported.\n";
 	  errors++;
 	  break;
 	}
