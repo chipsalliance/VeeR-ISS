@@ -425,7 +425,7 @@ parseCmdLineArgs(int argc, char* argv[], Args& args)
 	("hex,x", po::value(&args.hexFiles)->multitoken(),
 	 "HEX file to load into simulator memory.")
 	("logfile,f", po::value(&args.traceFile),
-	 "Enable tracing to given file of executed instructions.")
+	 "Enable tracing to given file of executed instructions. Output is compressed (with /usr/bin/gzip) if file name ends with \".gz\".")
 	("csvlog", po::bool_switch(&args.csv),
 	 "Enable CSV format for log file.")
 	("consoleoutfile", po::value(&args.consoleOutFile),
