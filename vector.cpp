@@ -650,7 +650,7 @@ checkDestSourceOverlap(unsigned dest, unsigned destGroupX8, unsigned src,
 		       unsigned srcGroupX8)
 {
   if (srcGroupX8 == destGroupX8)
-    return true;
+    return true;   // Source eew == dest eew
 
   unsigned srcGroup = srcGroupX8 >= 8 ? srcGroupX8/8 : 1;
   unsigned destGroup = destGroupX8 >= 8 ? destGroupX8/8 : 1;
@@ -658,14 +658,29 @@ checkDestSourceOverlap(unsigned dest, unsigned destGroupX8, unsigned src,
   if (src >= dest + destGroup or dest >= src + srcGroup)
     return true;  // No overlap.
 
-  // Destination emul > soure emul: Overlap ok if source group is >=
+  // Destination eew > soure eew: Overlap ok if source group is >=
   // 1 and overlap is at last register in dest.
   if (destGroupX8 > srcGroupX8)
     return srcGroupX8 >= 8 and src == dest + destGroup - 1;
 
-  // Destination emul < source emul: Overlap ok if overlap is at
+  // Destination eew < source eew: Overlap ok if overlap is at
   // first register in source.
   return src == dest;
+}
+
+
+/// Return true if destination and source groups do overlap.
+static
+bool
+hasDestSourceOverlap(unsigned dest, unsigned destGroupX8, unsigned src,
+		     unsigned srcGroupX8)
+{
+  unsigned srcGroup = srcGroupX8 >= 8 ? srcGroupX8/8 : 1;
+  unsigned destGroup = destGroupX8 >= 8 ? destGroupX8/8 : 1;
+
+  if (src >= dest + destGroup or dest >= src + srcGroup)
+    return false;  // No overlap.
+  return true;
 }
 
 
@@ -675,17 +690,17 @@ bool
 Hart<URV>::checkVecOpsVsEmulW0(const DecodedInst* di, unsigned op0,
 			       unsigned op1, unsigned op2, unsigned groupX8)
 {
+  unsigned wideGroupX8 = 2*groupX8;
   unsigned eg = groupX8 >= 8 ? groupX8 / 8 : 1;
   unsigned mask = eg - 1;   // Assumes eg is 1, 2, 4, or 8
-
-  unsigned eg2 = eg*2;
+  unsigned eg2 = wideGroupX8 >= 8 ? wideGroupX8 / 8 : 1;
   unsigned mask2 = eg2 - 1;
 
   // Destination EEW > source EEW, no overlap except in highest destination
   // register and only if source EEW >= 1.
-  bool overlapOk = checkDestSourceOverlap(op0, groupX8*2, op1, groupX8);
+  bool overlapOk = checkDestSourceOverlap(op0, wideGroupX8, op1, groupX8);
   if (op1 != op2)
-    overlapOk = overlapOk and checkDestSourceOverlap(op0, groupX8*2, op2, groupX8);
+    overlapOk = overlapOk and checkDestSourceOverlap(op0, wideGroupX8, op2, groupX8);
 
   unsigned op = op1 | op2;
 
@@ -708,13 +723,13 @@ bool
 Hart<URV>::checkVecOpsVsEmulW0W1(const DecodedInst* di, unsigned op0,
 				 unsigned op1, unsigned op2, unsigned groupX8)
 {
+  unsigned wideGroupX8 = 2*groupX8;
   unsigned eg = groupX8 >= 8 ? groupX8 / 8 : 1;
   unsigned mask = eg - 1;   // Assumes eg is 1, 2, 4, or 8
-
-  unsigned eg2 = eg*2;
+  unsigned eg2 = wideGroupX8 >= 8 ? wideGroupX8 / 8 : 1;
   unsigned mask2 = eg2 - 1;
 
-  bool overlapOk = checkDestSourceOverlap(op0, groupX8*2, op2, groupX8);
+  bool overlapOk = checkDestSourceOverlap(op0, wideGroupX8, op2, groupX8);
 
   unsigned opw = op0 | op1;
 
@@ -737,8 +752,8 @@ bool
 Hart<URV>::checkVecOpsVsEmulW0W1(const DecodedInst* di, unsigned op0,
 				 unsigned op1, unsigned groupX8)
 {
-  unsigned eg = groupX8 >= 8 ? groupX8 / 8 : 1;
-  unsigned eg2 = eg*2;
+  unsigned wideGroupX8 = 2*groupX8;
+  unsigned eg2 = wideGroupX8 >= 8 ? wideGroupX8 / 8 : 1;
   unsigned mask = eg2 - 1;
   
   unsigned op = op0 | op1;
@@ -761,12 +776,13 @@ bool
 Hart<URV>::checkVecOpsVsEmulW1(const DecodedInst* di, unsigned op0,
 			       unsigned op1, unsigned op2, unsigned groupX8)
 {
+  unsigned wideGroupX8 = 2*groupX8;
   unsigned eg = groupX8 >= 8 ? groupX8 / 8 : 1;
   unsigned mask = eg - 1;
-  unsigned eg2 = eg*2;
+  unsigned eg2 = wideGroupX8 >= 8 ? wideGroupX8 / 8 : 1;
   unsigned mask2 = eg2 - 1;
   
-  bool overlapOk = checkDestSourceOverlap(op0, groupX8, op1, groupX8*2);
+  bool overlapOk = checkDestSourceOverlap(op0, groupX8, op1, wideGroupX8);
 
   unsigned op = op0 | op2;
 
@@ -789,12 +805,13 @@ bool
 Hart<URV>::checkVecOpsVsEmulW1(const DecodedInst* di, unsigned op0,
 			       unsigned op1, unsigned groupX8)
 {
+  unsigned wideGroupX8 = 2*groupX8;
   unsigned eg = groupX8 >= 8 ? groupX8 / 8 : 1;
   unsigned mask = eg - 1;
-  unsigned eg2 = eg*2;
+  unsigned eg2 = wideGroupX8 >= 8 ? wideGroupX8 / 8 : 1;
   unsigned mask2 = eg2 - 1;
   
-  bool overlapOk = checkDestSourceOverlap(op0, groupX8, op1, groupX8*2);
+  bool overlapOk = checkDestSourceOverlap(op0, groupX8, op1, wideGroupX8);
 
   if (overlapOk and (op0 & mask) == 0 and (op1 & mask2) == 0)
     {
@@ -2228,7 +2245,7 @@ Hart<URV>::execVwsub_wv(const DecodedInst* di)
 
 
 template <typename URV>
-template<typename ELEM_TYPE>
+template <typename ELEM_TYPE>
 void
 Hart<URV>::vmseq_vv(unsigned vd, unsigned vs1, unsigned vs2, unsigned group,
 		    unsigned start, unsigned elems, bool masked)
@@ -4990,9 +5007,8 @@ Hart<URV>::execVrgather_vv(const DecodedInst* di)
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
 
-  unsigned dist1 = vd > vs1 ? vd - vs1 : vs1 - vd;
-  unsigned dist2 = vd > vs2 ? vd - vs2 : vs2 - vd;
-  if (dist1*8 < group or dist2*8 < group)
+  if (hasDestSourceOverlap(vd, group, vs1, group) or
+      hasDestSourceOverlap(vd, group, vs2, group))
     {
       illegalInst(di);  // Source/dest vecs cannot overlap
       return;
@@ -5068,8 +5084,7 @@ Hart<URV>::execVrgather_vx(const DecodedInst* di)
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
 
-  unsigned dist1 = vd > vs1 ? vd - vs1 : vs1 - vd;
-  if (dist1*8 < group)
+  if (hasDestSourceOverlap(vd, group, vs1, group))
     {
       illegalInst(di);  // Source/dest vecs cannot overlap
       return;
@@ -5140,8 +5155,7 @@ Hart<URV>::execVrgather_vi(const DecodedInst* di)
   ElementWidth sew = vecRegs_.elemWidth();
   bool masked = di->isMasked();
 
-  unsigned dist1 = vd > vs1 ? vd - vs1 : vs1 - vd;
-  if (dist1*8 < group)
+  if (hasDestSourceOverlap(vd, group, vs1, group))
     {
       illegalInst(di);  // Source/dest vecs cannot overlap
       return;
@@ -5241,9 +5255,8 @@ Hart<URV>::execVrgatherei16_vv(const DecodedInst* di)
       return;
     }
 
-  unsigned dist1 = vd > vs1 ? vd - vs1 : vs1 - vd;
-  unsigned dist2 = vd > vs2 ? vd - vs2 : vs2 - vd;
-  if (dist1*8 < group or dist2*8 < v2Group)
+  if (hasDestSourceOverlap(vd, group, vs1, group) or
+      hasDestSourceOverlap(vd, group, vs2, v2Group))
     {
       illegalInst(di);  // Source/dest vecs cannot overlap
       return;
@@ -5309,6 +5322,8 @@ Hart<URV>::execVcompress_vm(const DecodedInst* di)
       return;
     }
 
+  // vs2 is a maks register: elmul2 is 1
+
   unsigned vd = di->op0(),  vs1 = di->op1(),  vs2 = di->op2();
 
   unsigned group = vecRegs_.groupMultiplierX8(),  start = vecRegs_.startIndex();
@@ -5318,9 +5333,8 @@ Hart<URV>::execVcompress_vm(const DecodedInst* di)
   if (not checkVecOpsVsEmul(di, vd, vs1, group))
     return;
 
-  unsigned dist1 = vd > vs1 ? vd - vs1 : vs1 - vd;
-  unsigned dist2 = vd > vs2 ? vd - vs2 : vs2 - vd;
-  if (dist1*8 < group or dist2*8 < 8)
+  if (hasDestSourceOverlap(vd, group, vs1, group) or
+      hasDestSourceOverlap(vd, group, vs2, 1))
     {
       illegalInst(di);  // Source/dest vecs cannot overlap
       return;
@@ -6737,8 +6751,7 @@ Hart<URV>::execVslideup_vx(const DecodedInst* di)
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  unsigned dist = vd > vs1 ? vd - vs1 : vs1 - vd;
-  if (dist*8 < group)
+  if (hasDestSourceOverlap(vd, group, vs1, group))
     {
       illegalInst(di);  // Source/dest vecs cannot overlap
       return;
@@ -6778,8 +6791,7 @@ Hart<URV>::execVslideup_vi(const DecodedInst* di)
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  unsigned dist = vd > vs1 ? vd - vs1 : vs1 - vd;
-  if (dist*8 < group)
+  if (hasDestSourceOverlap(vd, group, vs1, group))
     {
       illegalInst(di);  // Source/dest vecs cannot overlap
       return;
@@ -6818,8 +6830,7 @@ Hart<URV>::execVslide1up_vx(const DecodedInst* di)
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  unsigned dist = vd > vs1 ? vd - vs1 : vs1 - vd;
-  if (dist*8 < group)
+  if (hasDestSourceOverlap(vd, group, vs1, group))
     {
       illegalInst(di);  // Source/dest vecs cannot overlap
       return;
@@ -7036,8 +7047,7 @@ Hart<URV>::execVfslide1up_vf(const DecodedInst* di)
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  unsigned dist = vd > vs1 ? vd - vs1 : vs1 - vd;
-  if (dist*8 < group)
+  if (hasDestSourceOverlap(vd, group, vs1, group))
     {
       illegalInst(di);  // Source/dest vecs cannot overlap
       return;
@@ -8006,14 +8016,11 @@ Hart<URV>::execVmacc_vx(const DecodedInst* di)
   unsigned elems = vecRegs_.elemCount();
   ElementWidth sew = vecRegs_.elemWidth();
 
-  unsigned eg = group >= 8 ? group / 8 : 1;
-  if ((vd % eg) or (vs2 % eg))
+  if (not checkVecOpsVsEmul(di, vd, vs2, vs2, group))
     {
       illegalInst(di);
       return;
     }
-  vecRegs_.opsEmul_.at(0) = eg; // Track operand group for logging.
-  vecRegs_.opsEmul_.at(2) = eg; // Track operand group for logging.
 
   typedef ElementWidth EW;
   switch (sew)
@@ -8745,14 +8752,11 @@ Hart<URV>::execVwmaccu_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned eg = group >= 8 ? group / 8 : 1;
-  if ((vd % (eg*2)) or (vs2 % eg))
+  if (not checkVecOpsVsEmulW0(di, vd, vs2, vs2, group))
     {
       illegalInst(di);
       return;
     }
-  vecRegs_.opsEmul_.at(0) = eg*2; // Track operand group for logging.
-  vecRegs_.opsEmul_.at(2) = eg; // Track operand group for logging.
 
   SRV e1 = SRV(intRegs_.read(rs1));  // Spec says sign extend. Bogus.
 
@@ -8865,14 +8869,11 @@ Hart<URV>::execVwmacc_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned eg = group >= 8 ? group / 8 : 1;
-  if ((vd % (eg*2)) or (vs2 % eg))
+  if (not checkVecOpsVsEmulW0(di, vd, vs2, vs2, group))
     {
       illegalInst(di);
       return;
     }
-  vecRegs_.opsEmul_.at(0) = eg*2; // Track operand group for logging.
-  vecRegs_.opsEmul_.at(2) = eg; // Track operand group for logging.
 
   SRV e1 = SRV(intRegs_.read(rs1));  // Sign extend.
 
@@ -9027,14 +9028,11 @@ Hart<URV>::execVwmaccsu_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned eg = group >= 8 ? group / 8 : 1;
-  if ((vd % (eg*2)) or (vs2 % eg))
+  if (not checkVecOpsVsEmulW0(di, vd, vs2, vs2, group))
     {
       illegalInst(di);
       return;
     }
-  vecRegs_.opsEmul_.at(0) = eg*2; // Track operand group for logging.
-  vecRegs_.opsEmul_.at(2) = eg; // Track operand group for logging.
 
   SRV e1 = SRV(intRegs_.read(rs1));  // Sign extend.
 
@@ -9112,14 +9110,11 @@ Hart<URV>::execVwmaccus_vx(const DecodedInst* di)
       return;
     }
 
-  unsigned eg = group >= 8 ? group / 8 : 1;
-  if ((vd % (eg*2)) or (vs2 % eg))
+  if (not checkVecOpsVsEmulW0(di, vd, vs2, vs2, group))
     {
       illegalInst(di);
       return;
     }
-  vecRegs_.opsEmul_.at(0) = eg*2; // Track operand group for logging.
-  vecRegs_.opsEmul_.at(2) = eg; // Track operand group for logging.
 
   URV e1 = intRegs_.read(rs1);
 
@@ -10646,7 +10641,8 @@ Hart<URV>::execVmadc_vvm(const DecodedInst* di)
       illegalInst(di);
       return;
     }
-  vecRegs_.opsEmul_.at(0) = eg; // Track operand group for logging.
+  vecRegs_.opsEmul_.at(0) = 1; // Track operand group for logging.
+  vecRegs_.opsEmul_.at(1) = eg; // Track operand group for logging.
   vecRegs_.opsEmul_.at(2) = eg; // Track operand group for logging.
 
   typedef ElementWidth EW;
@@ -10686,6 +10682,7 @@ Hart<URV>::execVmadc_vxm(const DecodedInst* di)
       illegalInst(di);
       return;
     }
+  vecRegs_.opsEmul_.at(0) = 1; // Track operand group for logging.
   vecRegs_.opsEmul_.at(1) = eg; // Track operand group for logging.
 
   SRV e2 = SRV(intRegs_.read(di->op2()));
@@ -10728,6 +10725,7 @@ Hart<URV>::execVmadc_vim(const DecodedInst* di)
       illegalInst(di);
       return;
     }
+  vecRegs_.opsEmul_.at(0) = 1; // Track operand group for logging.
   vecRegs_.opsEmul_.at(1) = eg; // Track operand group for logging.
 
   SRV e2 = di->op2As<int32_t>();
@@ -10770,6 +10768,7 @@ Hart<URV>::execVmsbc_vvm(const DecodedInst* di)
       illegalInst(di);
       return;
     }
+  vecRegs_.opsEmul_.at(0) = 1; // Track operand group for logging.
   vecRegs_.opsEmul_.at(1) = eg; // Track operand group for logging.
   vecRegs_.opsEmul_.at(2) = eg; // Track operand group for logging.
 
@@ -10811,6 +10810,7 @@ Hart<URV>::execVmsbc_vxm(const DecodedInst* di)
       illegalInst(di);
       return;
     }
+  vecRegs_.opsEmul_.at(0) = 1; // Track operand group for logging.
   vecRegs_.opsEmul_.at(1) = eg; // Track operand group for logging.
 
   SRV e2 = SRV(intRegs_.read(di->op2()));
