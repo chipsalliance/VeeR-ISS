@@ -1370,9 +1370,19 @@ bool
 openUserFiles(const Args& args, FILE*& traceFile, FILE*& commandLog,
 	      FILE*& consoleOut, FILE*& bblockFile)
 {
+  size_t len = args.traceFile.size();
+  bool doGzip = len > 3 and args.traceFile.substr(len-3) == ".gz";
+
   if (not args.traceFile.empty())
     {
-      traceFile = fopen(args.traceFile.c_str(), "w");
+      if (doGzip)
+	{
+	  std::string cmd = "/usr/bin/gzip -c > ";
+	  cmd += args.traceFile;
+	  traceFile = popen(cmd.c_str(), "w");
+	}
+      else
+	traceFile = fopen(args.traceFile.c_str(), "w");
       if (not traceFile)
 	{
 	  std::cerr << "Failed to open trace file '" << args.traceFile
@@ -1383,7 +1393,7 @@ openUserFiles(const Args& args, FILE*& traceFile, FILE*& commandLog,
 
   if (args.trace and traceFile == NULL)
     traceFile = stdout;
-  if (traceFile)
+  if (traceFile and not doGzip)
     setlinebuf(traceFile);  // Make line-buffered.
 
   if (not args.commandLogFile.empty())
@@ -1427,15 +1437,22 @@ openUserFiles(const Args& args, FILE*& traceFile, FILE*& commandLog,
 /// Counterpart to openUserFiles: Close any open user file.
 static
 void
-closeUserFiles(FILE*& traceFile, FILE*& commandLog, FILE*& consoleOut,
-	       FILE*& bblockFile)
+closeUserFiles(const Args& args, FILE*& traceFile, FILE*& commandLog,
+	       FILE*& consoleOut, FILE*& bblockFile)
 {
   if (consoleOut and consoleOut != stdout)
     fclose(consoleOut);
   consoleOut = nullptr;
 
   if (traceFile and traceFile != stdout)
-    fclose(traceFile);
+    {
+      size_t len = args.traceFile.size();
+      bool doGzip = len > 3 and args.traceFile.substr(len-3) == ".gz";
+      if (doGzip)
+	pclose(traceFile);
+      else
+	fclose(traceFile);
+    }
   traceFile = nullptr;
 
   if (commandLog and commandLog != stdout)
@@ -1949,7 +1966,7 @@ session(const Args& args, const HartConfig& config)
   if (not args.instFreqFile.empty())
     result = reportInstructionFrequency(hart0, args.instFreqFile) and result;
 
-  closeUserFiles(traceFile, commandLog, consoleOut, bblockFile);
+  closeUserFiles(args, traceFile, commandLog, consoleOut, bblockFile);
 
   return result;
 }
