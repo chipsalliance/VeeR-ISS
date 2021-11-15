@@ -1778,7 +1778,7 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
           {
             if (top5 == 0)    return instTable_.getEntry(InstId::amoadd_w);
             if (top5 == 1)    return instTable_.getEntry(InstId::amoswap_w);
-            if (top5 == 2)    return instTable_.getEntry(InstId::lr_w);
+            if (top5 == 2 and op2 == 0)    return instTable_.getEntry(InstId::lr_w);
             if (top5 == 3)    return instTable_.getEntry(InstId::sc_w);
             if (top5 == 4)    return instTable_.getEntry(InstId::amoxor_w);
             if (top5 == 8)    return instTable_.getEntry(InstId::amoor_w);
@@ -1792,7 +1792,7 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
           {
             if (top5 == 0)    return instTable_.getEntry(InstId::amoadd_d);
             if (top5 == 1)    return instTable_.getEntry(InstId::amoswap_d);
-            if (top5 == 2)    return instTable_.getEntry(InstId::lr_d);
+            if (top5 == 2 and op2 == 0)    return instTable_.getEntry(InstId::lr_d);
             if (top5 == 3)    return instTable_.getEntry(InstId::sc_d);
             if (top5 == 4)    return instTable_.getEntry(InstId::amoxor_d);
             if (top5 == 8)    return instTable_.getEntry(InstId::amoor_d);
