@@ -185,11 +185,11 @@ namespace WdRiscv
 
     /// Return true if this is a load instruction (lb, lh, ...)
     bool isLoad() const
-    { return type_ == InstType::Load; }
+    { return isLoad_; }
 
     /// Return true if this is a store instruction (sb, sh, ...)
     bool isStore() const
-    { return type_ == InstType::Store; }
+    { return isStore_; }
 
     /// Return true if this is a branch instruction (beq, jal, ...)
     bool isBranch() const
@@ -242,7 +242,15 @@ namespace WdRiscv
     unsigned storeSize() const
     { return stSize_; }
 
+    /// Return true if instruction has an explicit rouning mode field.
+    bool hasRoundingMode() const
+    { return hasRm_; }
+
   protected:
+
+    /// Mark instruction as having a rounding mode field.
+    void setHasRoundingMode(bool flag)
+    { hasRm_ = flag; }
 
     /// Mark instruction as having unsigned source operands.
     void setIsUnsigned(bool flag)
@@ -250,11 +258,11 @@ namespace WdRiscv
 
     /// Set the size of load instructions.
     void setLoadSize(unsigned size)
-    { ldSize_ = size; }
+    { ldSize_ = size; isLoad_ = true; }
 
     /// Set the size of store instructions.
     void setStoreSize(unsigned size)
-    { stSize_ = size; }
+    { stSize_ = size; isStore_ = true; }
 
     /// Mark as a conditional branch instruction.
     void setConditionalBranch(bool flag)
@@ -295,6 +303,9 @@ namespace WdRiscv
     bool isCond_ = false;      // True if conditional branch.
     bool isRegBranch_ = false; // True if branch to register.
     bool isBitManip_ = false;  // True if bit manipulation instruction.
+    bool isLoad_ = false;
+    bool isStore_ = false;
+    bool hasRm_ = false;       // True if inst has an explicit rounding mode 
   };
 
 

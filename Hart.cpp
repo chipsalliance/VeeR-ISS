@@ -1348,8 +1348,7 @@ Hart<URV>::reportInstructionFrequency(FILE* file) const
 	  auto mode = entry.ithOperandMode(opIx);
 	  auto type = entry.ithOperandType(opIx);
           if ((mode == OperandMode::Read or mode == OperandMode::ReadWrite) and
-              (type == OperandType::IntReg or type == OperandType::FpReg or
-	       type == OperandType::CsReg))
+              type != OperandType::Imm and type != OperandType::None)
             {
               uint64_t count = 0;
               for (auto n : prof.srcRegFreq_.at(srcIx))
@@ -3735,6 +3734,11 @@ Hart<URV>::printInstCsvTrace(const DecodedInst& di, FILE* out)
 	fprintf(out, "%sf%d=%lx", sep, reg, val64);
       else
 	fprintf(out, "%sf%d=%x", sep, reg, uint32_t(val64));
+
+      // Print incremental flags since FRM is sticky.
+      unsigned fpFlags = fpRegs_.getLastFpFlags(); // Incremental FP flags.
+      if (fpFlags != 0)
+	fprintf(out, ";ff=%x", fpFlags);
       sep = ";";
     }
 
@@ -3825,6 +3829,14 @@ Hart<URV>::printInstCsvTrace(const DecodedInst& di, FILE* out)
 	}
     }
 
+  // Print rounding mode with source operands.
+  if (instEntry->hasRoundingMode())
+    {
+      RoundingMode rm = effectiveRoundingMode(di.roundingMode());
+      fprintf(out, "%srm=%x", sep, unsigned(rm));
+      sep = ";";
+    }
+
   // Memory
   fputc(',', out);
   bool load = false, store = false;
@@ -3882,7 +3894,7 @@ Hart<URV>::printInstCsvTrace(const DecodedInst& di, FILE* out)
     fputc('v', out);
   else if (type == InstType::Atomic)
     fputc('a', out);
-	   
+
 
   // Privilege mode.
   if      (lastPriv_ == PrivilegeMode::Machine)    fputs(",m", out);
@@ -4207,7 +4219,9 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
 	pregs.updateCounters(EventNumber::BranchTaken, prevPerfControl_,
                              lastPriv_);
     }
-  else if (info.type() == InstType::Rvf)
+
+  // Some insts (e.g. flw) can be both load/store and FP
+  if (info.type() == InstType::Rvf)
     {
       pregs.updateCounters(EventNumber::FpSingle, prevPerfControl_,
                            lastPriv_);
@@ -4342,7 +4356,6 @@ Hart<URV>::accumulateInstructionStats(const DecodedInst& di)
             addToUnsignedHistogram(prof.srcHisto_.at(srcIx), val);
           else
             addToSignedHistogram(prof.srcHisto_.at(srcIx), SRV(val));
-
           srcIx++;
 	}
       else if (info.ithOperandType(i) == OperandType::FpReg)
@@ -4393,6 +4406,7 @@ Hart<URV>::accumulateInstructionStats(const DecodedInst& di)
 	  if (prof.srcRegFreq_.at(srcIx).size() <= regIx)
 	    prof.srcRegFreq_.at(srcIx).resize(regIx + 1);
 	  prof.srcRegFreq_.at(srcIx).at(regIx)++;
+	  srcIx++;
 	}
       else if (info.ithOperandType(i) == OperandType::Imm)
         {

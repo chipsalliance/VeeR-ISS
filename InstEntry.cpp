@@ -121,6 +121,71 @@ InstTable::InstTable()
   instVec_.at(size_t(InstId::jalr))   .setBranchToRegister(true);
   instVec_.at(size_t(InstId::c_jr))   .setBranchToRegister(true);
   instVec_.at(size_t(InstId::c_jalr)) .setBranchToRegister(true);
+
+  // Mark floating point instructions with rounding mode field.
+  instVec_.at(size_t(InstId::fmadd_s))   .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fmsub_s))   .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fnmsub_s))  .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fnmadd_s))  .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fadd_s))    .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fsub_s))    .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fmul_s))    .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fdiv_s))    .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fsqrt_s))   .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_w_s))  .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_wu_s)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_s_w))  .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_s_wu)) .setHasRoundingMode(true);
+
+  instVec_.at(size_t(InstId::fcvt_l_s))  .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_lu_s)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_s_l))  .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_s_lu)) .setHasRoundingMode(true);
+
+  instVec_.at(size_t(InstId::fmadd_d)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fmsub_d)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fnmsub_d)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fnmadd_d)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fadd_d)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fsub_d)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fmul_d)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fdiv_d)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fsqrt_d)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_s_d)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_d_s)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_w_d)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_wu_d)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_d_w)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_d_wu)) .setHasRoundingMode(true);
+
+  instVec_.at(size_t(InstId::fcvt_l_d)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_lu_d)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_d_l)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_d_lu)) .setHasRoundingMode(true);
+
+  instVec_.at(size_t(InstId::fmadd_h)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fmsub_h)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fnmsub_h)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fnmadd_h)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fadd_h)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fsub_h)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fmul_h)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fdiv_h)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fsqrt_h)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_s_h)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_d_h)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_h_s)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_h_d)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_w_h)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_wu_h)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_h_w)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_h_wu)) .setHasRoundingMode(true);
+
+  // rv64 + zfh
+  instVec_.at(size_t(InstId::fcvt_l_h)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_lu_h)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_h_l)) .setHasRoundingMode(true);
+  instVec_.at(size_t(InstId::fcvt_h_lu)) .setHasRoundingMode(true);
 }
 
 
@@ -722,14 +787,14 @@ InstTable::setupInstVec()
 
       // rv32f
       { "flw", InstId::flw, 0x2007, funct3Low7Mask,
-	InstType::Load,
+	InstType::Rvf,
 	OperandType::FpReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::Imm, OperandMode::None, immTop12 },
 
       // Stored register is in op0.
       { "fsw", InstId::fsw, 0x2027, funct3Low7Mask,
-	InstType::Store,
+	InstType::Rvf,
 	OperandType::FpReg, OperandMode::Read, rs2Mask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::Imm, OperandMode::None, immBeq },
@@ -897,13 +962,13 @@ InstTable::setupInstVec()
 
       // rv32d
       { "fld", InstId::fld, 0x3007, funct3Low7Mask,
-	InstType::Load,
+	InstType::Rvd,
 	OperandType::FpReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::Imm, OperandMode::None, immTop12 },
 
       { "fsd", InstId::fsd, 0x3027, funct3Low7Mask,
-	InstType::Store,
+	InstType::Rvd,
 	OperandType::FpReg, OperandMode::Read, rs2Mask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::Imm, OperandMode::None, immBeq },
@@ -1081,13 +1146,13 @@ InstTable::setupInstVec()
 
       // zfh  (half precision floating point)
       { "flh", InstId::flh, 0x1007, funct3Low7Mask,
-	InstType::Load,
+	InstType::Zfh,
 	OperandType::FpReg, OperandMode::Write, rdMask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::Imm, OperandMode::None, immTop12 },
 
       { "fsh", InstId::fsh, 0x1027, funct3Low7Mask,
-	InstType::Store,
+	InstType::Zfh,
 	OperandType::FpReg, OperandMode::Read, rs2Mask,
 	OperandType::IntReg, OperandMode::Read, rs1Mask,
 	OperandType::Imm, OperandMode::None, immBeq },
@@ -1295,7 +1360,7 @@ InstTable::setupInstVec()
 	OperandType::Imm, OperandMode::None, 0 },
 
       { "c.fld", InstId::c_fld, 0x2000, 0xe003,
-	InstType::Load,
+	InstType::Rvd,
 	OperandType::FpReg, OperandMode::Write, 0,
 	OperandType::IntReg, OperandMode::Read, 0,
 	OperandType::Imm, OperandMode::None, 0 },
@@ -1325,7 +1390,7 @@ InstTable::setupInstVec()
 	OperandType::Imm, OperandMode::None, 0 },
 
       { "c.fsd", InstId::c_fsd, 0xa000, 0xe003,
-	InstType::Store,
+	InstType::Rvd,
 	OperandType::FpReg, OperandMode::Read, 0,
 	OperandType::IntReg, OperandMode::Read, 0,
 	OperandType::Imm, OperandMode::None, 0 },
@@ -1477,7 +1542,7 @@ InstTable::setupInstVec()
 	OperandType::Imm, OperandMode::None, 0 },
 
       { "c.fldsp", InstId::c_fldsp, 0x2002, 0xe003,
-	InstType::Load,
+	InstType::Rvd,
 	OperandType::FpReg, OperandMode::Write, 0,
 	OperandType::IntReg, OperandMode::Read, 0,
 	OperandType::Imm, OperandMode::None, 0 },
@@ -1527,7 +1592,7 @@ InstTable::setupInstVec()
 	OperandType::IntReg, OperandMode::Read, 0x07c },
 
       { "c.fsdsp", InstId::c_fsdsp, 0xa002, 0xe003,
-	InstType::Store,
+	InstType::Rvd,
 	OperandType::FpReg, OperandMode::Read, 0,
 	OperandType::IntReg, OperandMode::Read, 0,
 	OperandType::Imm, OperandMode::None, 0 },
@@ -1539,7 +1604,7 @@ InstTable::setupInstVec()
 	OperandType::Imm, OperandMode::None, 0 },
 
       { "c.fswsp", InstId::c_fswsp, 0xe002, 0xe003,
-	InstType::Store,
+	InstType::Rvf,
 	OperandType::FpReg, OperandMode::Read, 0,
 	OperandType::IntReg, OperandMode::Read, 0,
 	OperandType::Imm, OperandMode::None, 0 },
