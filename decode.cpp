@@ -71,8 +71,8 @@ Hart<URV>::decodeFp(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 	  if (f3 == 0)          return instTable_.getEntry(InstId::fmin_d);
 	  if (f3 == 1)          return instTable_.getEntry(InstId::fmax_d);
 	}
-      if (f7==0x21 and op2==0)  return instTable_.getEntry(InstId::fcvt_d_s);
-      if (f7 == 0x2d)           return instTable_.getEntry(InstId::fsqrt_d);
+      if (f7==0x21 and op2==0)  	return instTable_.getEntry(InstId::fcvt_d_s);
+      if (f7 == 0x2d and op2==0)    return instTable_.getEntry(InstId::fsqrt_d);
       if (f7 == 0x51)
 	{
 	  if (f3 == 0)          return instTable_.getEntry(InstId::fle_d);
@@ -108,7 +108,7 @@ Hart<URV>::decodeFp(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
   if (f7 == 4)      return instTable_.getEntry(InstId::fsub_s);
   if (f7 == 8)      return instTable_.getEntry(InstId::fmul_s);
   if (f7 == 0xc)    return instTable_.getEntry(InstId::fdiv_s);
-  if (f7 == 0x2c)   return instTable_.getEntry(InstId::fsqrt_s);
+  if (f7 == 0x2c and op2==0)   return instTable_.getEntry(InstId::fsqrt_s);
   if (f7 == 0x10)
     {
       if (f3 == 0)  return instTable_.getEntry(InstId::fsgnj_s);
@@ -893,7 +893,8 @@ Hart<URV>::decode16(uint16_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2)
 	{
 	  CiFormInst cif(inst);
 	  unsigned rd = cif.bits.rd;
-	  // rd == 0 is legal per Andrew Watterman
+	  if(rd == 0)
+		  return instTable_.getEntry(InstId::illegal);
 	  op0 = rd; op1 = RegSp; op2 = cif.lwspImmed();
 	  return instTable_.getEntry(InstId::c_lwsp);
 	}
