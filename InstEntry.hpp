@@ -203,6 +203,11 @@ namespace WdRiscv
     bool isDivide() const
     { return type_ == InstType::Divide; }
 
+    /// Return true if a floating point instruction (fadd.s, fadd.d ...)
+    bool isFp() const
+    { return type_ == InstType::Rvf or type_ == InstType::Rvd or
+	type_ == InstType::Zfh; }
+
     /// Return true if this is a CSR instruction.
     bool isCsr() const
     { return type_ == InstType::Csr; }
