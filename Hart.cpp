@@ -93,7 +93,7 @@ Hart<URV>::Hart(unsigned hartIx, URV hartId, Memory& memory)
   : hartIx_(hartIx), memory_(memory), intRegs_(32),
     fpRegs_(32), vecRegs_(), syscall_(*this),
     pmpManager_(memory.size(), 1024*1024),
-    virtMem_(hartIx, memory, memory.pageSize(), pmpManager_, 16 /* FIX: TLB size*/)
+    virtMem_(hartIx, memory, memory.pageSize(), pmpManager_, 1024 /* FIX: TLB size*/)
 {
   regionHasLocalMem_.resize(16);
   regionHasLocalDataMem_.resize(16);

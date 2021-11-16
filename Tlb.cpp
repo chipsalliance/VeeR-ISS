@@ -1,11 +1,14 @@
 #include <cmath>
 #include "VirtMem.hpp"
+#include <bitset>
+#include <sstream>
+#include <iomanip>
 
 using namespace WdRiscv;
 
 
 Tlb::Tlb(unsigned size)
-  : entries_(size)
+  : useFullTlb_(size>1024), entries_((size<=1024)?size:0)
 {
 }
 
@@ -15,12 +18,17 @@ Tlb::insertEntry(uint64_t virtPageNum, uint64_t physPageNum, uint32_t asid,
                  bool global, bool isUser, bool read, bool write, bool exec)
 {
   TlbEntry* best = nullptr;
-  for (size_t i = 0; i < entries_.size(); ++i)
-    {
-      auto& entry = entries_[i];
-      if (not entry.valid_ or (best and entry.time_ < best->time_))
-        best = &entry;
-    }
+  if(useFullTlb_) {
+	  best = &fullTlb_[global].insert(std::make_pair(((virtPageNum<<16) | (asid*global)), TlbEntry())).first->second;
+  }
+  else {
+	  for (size_t i = 0; i < entries_.size(); ++i)
+		{
+		  auto& entry = entries_[i];
+		  if (not entry.valid_ or (best and entry.time_ < best->time_))
+			best = &entry;
+		}
+  }
   best->valid_ = true;
   best->virtPageNum_ = virtPageNum;
   best->physPageNum_ = physPageNum;
@@ -33,10 +41,29 @@ Tlb::insertEntry(uint64_t virtPageNum, uint64_t physPageNum, uint32_t asid,
   best->exec_ = exec;
 }
 
+void Tlb::printTlb(std::ostream& ost) const {
+	for(auto& glb: {true,false})
+		for(auto& it: fullTlb_[glb]) printEntry(ost, it.second);
+	for(auto&te: entries_) printEntry(ost, te);
+}
+
+void Tlb::printEntry(std::ostream& ost, const TlbEntry& te) const {
+	if(not te.valid_) return;
+	ost << std::hex << std::setfill('0') << std::setw(10) << te.virtPageNum_ << ",";
+	if(te.global_) ost << "***";
+	else ost << std::setfill('0') << std::setw(4) << te.asid_;
+	ost << " -> " << std::setfill('0') << std::setw(10) << te.physPageNum_;
+	ost << " P:" << (te.read_?"r":"-") << (te.write_?"w":"-") << (te.exec_?"x":"-");
+	ost << " A:" << (te.accessed_ ? "a" : "-") << (te.dirty_?"d":"-") << "\n";
+}
 
 void
 Tlb::insertEntry(const TlbEntry& te)
 {
+  if(useFullTlb_) {
+	  fullTlb_[te.global_].insert(std::make_pair(((te.virtPageNum_<<16) | (te.asid_*te.global_)), TlbEntry()));
+	  return;
+  }
   TlbEntry* best = nullptr;
   for (size_t i = 0; i < entries_.size(); ++i)
     {

@@ -893,7 +893,7 @@ Hart<URV>::decode16(uint16_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2)
 	{
 	  CiFormInst cif(inst);
 	  unsigned rd = cif.bits.rd;
-	  if(rd == 0)
+	  if(rd == RegX0)
 		  return instTable_.getEntry(InstId::illegal);
 	  op0 = rd; op1 = RegSp; op2 = cif.lwspImmed();
 	  return instTable_.getEntry(InstId::c_lwsp);
@@ -905,6 +905,8 @@ Hart<URV>::decode16(uint16_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2)
 	  unsigned rd = cif.bits.rd;
 	  if (isRv64())
 	    {
+		  if(rd == RegX0)
+			  return instTable_.getEntry(InstId::illegal);
 	      op0 = rd; op1 = RegSp; op2 = cif.ldspImmed();
 	      return instTable_.getEntry(InstId::c_ldsp);
 	    }

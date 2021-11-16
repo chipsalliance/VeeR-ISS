@@ -64,7 +64,7 @@ VirtMem::translateForFetch(uint64_t va, PrivilegeMode priv, uint64_t& pa)
       // Use TLB entry.
       if (priv == PrivilegeMode::User and not entry->user_)
         return pageFaultType(false, true, true);
-      if (priv == PrivilegeMode::Supervisor and entry->user_ and not supervisorOk_)
+      if (priv == PrivilegeMode::Supervisor and entry->user_)
         return pageFaultType(false, false, true);
       if (not entry->exec_)
         return pageFaultType(false, false, true);
@@ -433,7 +433,8 @@ VirtMem::printPageTable(std::ostream& os) const
     printEntries<Pte48, Va48>(os, addr, path);
   else
     os << "Unsupported virtual memory mode\n";
-
+  os << "TLB:\n";
+  tlb_.printTlb(os);
   os.flags(flags);
 }
 

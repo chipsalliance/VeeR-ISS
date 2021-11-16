@@ -881,6 +881,11 @@ serverPrintFinalRegisterState(std::shared_ptr<Hart<URV>> hartPtr)
   Interactive<URV>::peekAllTriggers(*hartPtr, out);
   out << "\n";
   Interactive<URV>::peekAllCsrs(*hartPtr, out);
+  if((*hartPtr).isRvs()) {
+	  out << "\n\n";
+	  Interactive<URV>::peekPageTable(*hartPtr, out);
+  }
+
 }
 
 

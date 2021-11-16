@@ -50,6 +50,15 @@ namespace WdRiscv
     /// such entry.
     TlbEntry* findEntry(uint64_t pageNum, uint32_t asid)
     {
+      if(useFullTlb_) {
+    	  auto ait = fullTlb_[0].find((pageNum<<16) | uint64_t(asid));
+    	  if(ait!=fullTlb_[0].end())
+    		  return &ait->second;
+    	  auto it = fullTlb_[1].find(pageNum<<16);
+    	  if(it!=fullTlb_[0].end())
+			  return &it->second;
+    	  return nullptr;
+      }
       for (auto& entry : entries_)
         if (entry.valid_ and entry.virtPageNum_ == pageNum)
           if (entry.global_ or entry.asid_ == asid)
@@ -59,7 +68,10 @@ namespace WdRiscv
             }
       return nullptr;
     }
-
+    /// print TLB content
+    void printTlb(std::ostream& ost) const;
+    /// print TLB entry
+    void printEntry(std::ostream& ost, const TlbEntry& te) const;
     /// Insert a TLB entry for the given translation parameters. If TLB is full
     /// the contents of the  least recently accessed slot are replaced by the
     /// given parameters.
@@ -76,9 +88,10 @@ namespace WdRiscv
   protected:
 
   private:
-
+    const bool useFullTlb_;
     std::vector<TlbEntry> entries_;
     uint64_t time_ = 0;  // Access time (we use access order as approximation).
+    std::unordered_map<uint64_t, TlbEntry> fullTlb_[2];
   };
 }
 

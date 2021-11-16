@@ -317,6 +317,12 @@ Interactive<URV>::peekAllCsrs(Hart<URV>& hart, std::ostream& out)
     }
 }
 
+template <typename URV>
+void
+Interactive<URV>::peekPageTable(Hart<URV>& hart, std::ostream& out) {
+	hart.printPageTable(out);
+}
+
 
 template <typename URV>
 void

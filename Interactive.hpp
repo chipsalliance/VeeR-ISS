@@ -115,7 +115,7 @@ namespace WdRiscv
     static void peekAllIntRegs(Hart<URV>& hart, std::ostream& out);
     static void peekAllCsrs(Hart<URV>& hart, std::ostream& out);
     static void peekAllTriggers(Hart<URV>& hart, std::ostream& out);
-
+    static void peekPageTable(Hart<URV>& hart, std::ostream& out);
   protected:
 
     /// Helper to interact. Execute a user command.
