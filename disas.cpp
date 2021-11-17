@@ -120,23 +120,6 @@ printInst(const Hart<URV>& hart, std::ostream& out, const DecodedInst& di)
 
 
 /// Helper to disassemble method. Print on the given stream given
-/// instruction which is of the form: inst rd, rs1
-template <typename URV>
-static
-void
-printRdRs1(const Hart<URV>& hart, std::ostream& stream, const char* inst,
-	   const DecodedInst& di)
-{
-  unsigned rd = di.op0(), rs1 = di.op1();
-
-  // Print instruction in a 9 character field.
-  stream << std::left << std::setw(9) << inst;
-
-  stream << hart.intRegName(rd) << ", " << hart.intRegName(rs1);
-}
-
-
-/// Helper to disassemble method. Print on the given stream given
 /// instruction which is of the form: inst rd, rs2, rs1, rs3
 template <typename URV>
 static
@@ -197,13 +180,11 @@ printRdRs1Rs3Imm(const Hart<URV>& hart, std::ostream& stream, const char* inst,
 template <typename URV>
 static
 void
-printCsr(Hart<URV>& hart, std::ostream& stream, const char* inst,
-	 const DecodedInst& di)
+printCsr(Hart<URV>& hart, std::ostream& stream,	 const DecodedInst& di)
 {
   unsigned rd = di.op0(), csrn = di.op2();
 
-  stream << std::left << std::setw(9) << inst;
-
+  stream << std::left << std::setw(9) << di.instEntry()->name();
   stream << hart.intRegName(rd) << ", ";
 
   auto csr = hart.findCsr(CsrNumber(csrn));
@@ -220,36 +201,18 @@ printCsr(Hart<URV>& hart, std::ostream& stream, const char* inst,
 
 
 /// Helper to disassemble method. Print on the given stream given
-/// instruction which is of the form: inst reg, reg, imm where inst is
-/// a shift instruction.
-template <typename URV>
-static
-void
-printShiftImm(const Hart<URV>& hart, std::ostream& stream, const char* inst,
-	      const DecodedInst& di)
-{
-  unsigned rd = di.op0(), rs1 = di.op1();
-  int32_t imm = di.op2As<int32_t>();
-
-  stream << std::left << std::setw(8) << inst << ' ';
-  stream << hart.intRegName(rd) << ", " << hart.intRegName(rs1)
-	 << ", 0x" << std::hex << imm << std::dec;
-}
-
-
-/// Helper to disassemble method. Print on the given stream given
 /// instruction which is of the form: inst reg, reg, imm where imm is
 /// a 12 bit constant.
 template <typename URV>
 static
 void
-printRegRegImm12(const Hart<URV>& hart, std::ostream& stream, const char* inst,
+printRegRegImm12(const Hart<URV>& hart, std::ostream& stream,
 		 const DecodedInst& di)
 {
   unsigned rd = di.op0(), rs1 = di.op1();
   int32_t imm = di.op2As<int32_t>();
 
-  stream << std::left << std::setw(8) << inst << ' ';
+  stream << std::left << std::setw(8) << di.instEntry()->name() << ' ';
 
   stream << hart.intRegName(rd) << ", " << hart.intRegName(rs1) << ", ";
 
@@ -266,12 +229,12 @@ printRegRegImm12(const Hart<URV>& hart, std::ostream& stream, const char* inst,
 template <typename URV>
 static
 void
-printRegRegUimm12(const Hart<URV>& hart, std::ostream& stream, const char* inst,
+printRegRegUimm12(const Hart<URV>& hart, std::ostream& stream,
 		  const DecodedInst& di)
 {
   uint32_t rd = di.op0(), rs1 = di.op1(), imm = di.op2();
 
-  stream << std::left << std::setw(8) << inst << ' ';
+  stream << std::left << std::setw(8) << di.instEntry()->name() << ' ';
   stream << hart.intRegName(rd) << ", " << hart.intRegName(rs1) << ", ";
   stream << "0x" << std::hex << (imm & 0xfff) << std::dec;
 }
@@ -304,13 +267,12 @@ printRegImm(const Hart<URV>& hart, std::ostream& stream, const char* inst,
 template <typename URV>
 static
 void
-printBranch3(const Hart<URV>& hart, std::ostream& stream, const char* inst,
+printBranch3(const Hart<URV>& hart, std::ostream& stream,
 	     const DecodedInst& di)
 {
   unsigned rs1 = di.op0(), rs2 = di.op1();
 
-  stream << std::left << std::setw(8) << inst << ' ';
-
+  stream << std::left << std::setw(8) << di.instEntry()->name() << ' ';
   stream << hart.intRegName(rs1) << ", " << hart.intRegName(rs2) << ", . ";
 
   char sign = '+';
@@ -330,14 +292,12 @@ printBranch3(const Hart<URV>& hart, std::ostream& stream, const char* inst,
 template <typename URV>
 static
 void
-printBranch2(const Hart<URV>& hart, std::ostream& stream, const char* inst,
-	     const DecodedInst& di)
+printBranch2(const Hart<URV>& hart, std::ostream& stream, const DecodedInst& di)
 {
   unsigned rs1 = di.op0();
   int32_t imm = di.op2As<int32_t>();
 
-  stream << std::left << std::setw(8) << inst << ' ';
-
+  stream << std::left << std::setw(8) << di.instEntry()->name() << ' ';
   stream << hart.intRegName(rs1) << ", . ";
 
   char sign = '+';
@@ -588,119 +548,40 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::beq:
-      printBranch3(*this, out, "beq",  di);
-      break;
-
     case InstId::bne:
-      printBranch3(*this, out, "bne",  di);
-      break;
-
     case InstId::blt:
-      printBranch3(*this, out, "blt",  di);
-      break;
-
     case InstId::bge:
-      printBranch3(*this, out, "bge",  di);
-      break;
-
     case InstId::bltu:
-      printBranch3(*this, out, "bltu",  di);
-      break;
-
     case InstId::bgeu:
-      printBranch3(*this, out, "bgeu",  di);
+      printBranch3(*this, out, di);
       break;
 
     case InstId::addi:
-      printRegRegImm12(*this, out, "addi", di);
-      break;
-
     case InstId::slti:
-      printRegRegImm12(*this, out, "slti", di);
+      printRegRegImm12(*this, out, di);
       break;
 
     case InstId::sltiu:
-      printRegRegUimm12(*this, out, "sltiu", di);
+      printRegRegUimm12(*this, out, di);
       break;
 
     case InstId::xori:
-      printRegRegImm12(*this, out, "xori", di);
-      break;
-
     case InstId::ori:
-      printRegRegImm12(*this, out, "ori", di);
-      break;
-
     case InstId::andi:
-      printRegRegImm12(*this, out, "andi", di);
-      break;
-
-    case InstId::slli:
-      printShiftImm(*this, out, "slli", di);
-      break;
-
-    case InstId::srli:
-      printShiftImm(*this, out, "srli", di);
-      break;
-
-    case InstId::srai:
-      printShiftImm(*this, out, "srai", di);
-      break;
-
-    case InstId::fence:
-      out << "fence";
-      break;
-
-    case InstId::fencei:
-      out << "fencei";
-      break;
-
-    case InstId::ecall:
-      out << "ecall";
-      break;
-
-    case InstId::ebreak:
-      out << "ebreak";
+      printRegRegImm12(*this, out, di);
       break;
 
     case InstId::csrrw:
-      printCsr(*this, out, "csrrw", di);
-      break;
-
     case InstId::csrrs:
-      printCsr(*this, out, "csrrs", di);
-      break;
-
     case InstId::csrrc:
-      printCsr(*this, out, "csrrc", di);
-      break;
-
     case InstId::csrrwi:
-      printCsr(*this, out, "csrrwi", di);
-      break;
-
     case InstId::csrrsi:
-      printCsr(*this, out, "csrrsi", di);
-      break;
-
     case InstId::csrrci:
-      printCsr(*this, out, "csrrci", di);
+      printCsr(*this, out, di);
       break;
 
     case InstId::addiw:
-      printRegRegImm12(*this, out, "addiw", di);
-      break;
-
-    case InstId::slliw:
-      printShiftImm(*this, out, "slliw", di);
-      break;
-
-    case InstId::srliw:
-      printShiftImm(*this, out, "srliw", di);
-      break;
-
-    case InstId::sraiw:
-      printShiftImm(*this, out, "sraiw", di);
+      printRegRegImm12(*this, out, di);
       break;
 
     case InstId::lr_w:
@@ -717,22 +598,6 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
 
     case InstId::sc_d:
       printSc(*this, out, "sc.d", di);
-      break;
-
-    case InstId::mret:
-      out << "mret";
-      break;
-
-    case InstId::uret:
-      out << "uret";
-      break;
-
-    case InstId::sret:
-      out << "sret";
-      break;
-
-    case InstId::wfi:
-      out << "wfi";
       break;
 
     case InstId::c_addi4spn:
@@ -836,11 +701,8 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
       break;
 
     case InstId::c_beqz:
-      printBranch2(*this, out, "c.beqz", di);
-      break;
-
     case InstId::c_bnez:
-      printBranch2(*this, out, "c.bnez", di);
+      printBranch2(*this, out, di);
       break;
 
     case InstId::c_slli:
@@ -915,58 +777,6 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
 	  << std::hex << di.op2As<int32_t>() << std::dec;
       break;
 
-    case InstId::rori:
-      printShiftImm(*this, out, "rori", di);
-      break;
-
-    case InstId::roriw:
-      printShiftImm(*this, out, "roriw", di);
-      break;
-
-    case InstId::grevi:
-      printShiftImm(*this, out, "grevi", di);
-      break;
-
-    case InstId::greviw:
-      printShiftImm(*this, out, "greviw", di);
-      break;
-
-    case InstId::gorci:
-      printShiftImm(*this, out, "gorci", di);
-      break;
-
-    case InstId::gorciw:
-      printShiftImm(*this, out, "gorciw", di);
-      break;
-
-    case InstId::shfli:
-      printShiftImm(*this, out, "shfli", di);
-      break;
-
-    case InstId::unshfli:
-      printShiftImm(*this, out, "unshfli", di);
-      break;
-
-    case InstId::bseti:
-      printShiftImm(*this, out, "bseti", di);
-      break;
-
-    case InstId::bclri:
-      printShiftImm(*this, out, "bclri", di);
-      break;
-
-    case InstId::binvi:
-      printShiftImm(*this, out, "binvi", di);
-      break;
-
-    case InstId::bexti:
-      printShiftImm(*this, out, "bexti", di);
-      break;
-
-    case InstId::slli_uw:
-      printShiftImm(*this, out, "slli.uw", di);
-      break;
-
     case InstId::cmov:
       printRdRs2Rs1Rs3(*this, out, "cmov", di);
       break;
@@ -1005,10 +815,6 @@ Hart<URV>::disassembleInst(const DecodedInst& di, std::ostream& out)
 
     case InstId::store64:
       printLdSt(*this, out, di);
-      break;
-
-    case InstId::bbarrier:
-      out << "bbarrier";
       break;
 
     default:
