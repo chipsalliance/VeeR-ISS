@@ -539,7 +539,7 @@ namespace WdRiscv
     /// address.  Return true on success and false if the address is
     /// not within a memory-mapped area (see
     /// defineMemoryMappedRegisterArea).
-    bool defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask, uint8_t size);
+    bool defineMemoryMappedRegisterWriteMask(size_t addr, uint64_t mask, uint8_t size);
 
     /// Called after memory is configured to refine memory access to
     /// sections of regions containing ICCM, DCCM or memory mapped
@@ -574,21 +574,28 @@ namespace WdRiscv
     {
       uint64_t size;
       T prev = 0;
+      auto& lwd = lastWriteData_.at(sysHartIx);
+      if(not internal) {
+    	lwd.prevValue_ = prev;
+		lwd.size_ = sizeof(T);
+		lwd.addr_ = addr;
+		lwd.value_ =  value;
+      }
       if (not readRegister(addr, prev)) {
         return false;
       }
 
-      T mvalue = doRegisterMasking(addr, value, size);
+      value = doRegisterMasking(addr, value, size);
 
-      if (not pmaMgr_.writeRegister(addr, mvalue)) {
+      if (not pmaMgr_.writeRegister(addr, value)) {
         return false;
       }
-
-      auto& lwd = lastWriteData_.at(sysHartIx);
-      lwd.prevValue_ = prev;
-      lwd.size_ = size;
-      lwd.addr_ = addr;
-      lwd.value_ = internal ? mvalue : value;
+      if(internal) {
+		  lwd.prevValue_ = prev;
+		  lwd.size_ = size;
+		  lwd.addr_ = addr;
+		  lwd.value_ = value;
+      }
       return true;
     }
 

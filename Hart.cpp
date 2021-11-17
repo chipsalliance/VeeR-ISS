@@ -2347,7 +2347,7 @@ Hart<URV>::defineMemoryMappedRegisterArea(size_t addr, size_t size, bool interna
 
 template <typename URV>
 bool
-Hart<URV>::defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask, unsigned size)
+Hart<URV>::defineMemoryMappedRegisterWriteMask(size_t addr, uint64_t mask, unsigned size)
 {
   return memory_.defineMemoryMappedRegisterWriteMask(addr, mask, size);
 }

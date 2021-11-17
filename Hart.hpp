@@ -639,7 +639,7 @@ namespace WdRiscv
 
     /// Define a memory mapped register. Address must be within an
     /// area already defined using defineMemoryMappedRegisterArea.
-    bool defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask, unsigned size);
+    bool defineMemoryMappedRegisterWriteMask(size_t addr, uint64_t mask, unsigned size);
 
     bool changeMemMappedBase(uint64_t newBase) { return memory_.changeMemMappedBase(newBase); }
 

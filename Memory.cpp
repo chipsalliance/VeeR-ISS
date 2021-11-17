@@ -1069,7 +1069,7 @@ Memory::resetMemoryMappedRegisters()
 
 
 bool
-Memory::defineMemoryMappedRegisterWriteMask(size_t addr, uint32_t mask, uint8_t size)
+Memory::defineMemoryMappedRegisterWriteMask(size_t addr, uint64_t mask, uint8_t size)
 {
   if ((addr & (size-1)) != 0)
     {
