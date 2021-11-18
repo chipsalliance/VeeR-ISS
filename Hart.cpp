@@ -4322,7 +4322,8 @@ Hart<URV>::takeTriggerAction(FILE* traceFile, URV pc, URV info,
   if (beforeTiming and traceFile)
     {
       uint32_t inst = 0;
-      readInst(currPc_, inst);
+
+      readInstByVirtPc(currPc_, inst);
 
       std::string instStr;
       printInstTrace(inst, counter, instStr, traceFile);
@@ -4457,7 +4458,7 @@ Hart<URV>::logStop(const CoreException& ce, uint64_t counter, FILE* traceFile)
       if (traceFile)
 	{
 	  uint32_t inst = 0;
-	  readInst(currPc_, inst);
+	  readInstByVirtPc(currPc_, inst);
 	  std::string instStr;
 	  printInstTrace(inst, counter, instStr, traceFile);
 	}
@@ -4980,6 +4981,15 @@ Hart<URV>::isInterruptPossible(InterruptCause& cause)
   return false;
 }
 
+template <typename URV>
+bool
+Hart<URV>::readInstByVirtPc(size_t pc, uint32_t& inst) {
+	uint64_t phyPc = currPc_;
+	if(isRvs())
+		if(virtMem_.translateForFetch(pc, privMode_, phyPc) != ExceptionCause::NONE)
+			return readInst(pc, inst);
+	return readInst(phyPc, inst);
+}
 
 template <typename URV>
 bool
@@ -5003,8 +5013,9 @@ Hart<URV>::processExternalInterrupt(FILE* traceFile, std::string& instStr)
       nmiPending_ = false;
       nmiCause_ = NmiCause::UNKNOWN;
       uint32_t inst = 0; // Load interrupted inst.
-      readInst(currPc_, inst);
-      if (traceFile)  // Trace interrupted instruction.
+
+	readInstByVirtPc(currPc_, inst);
+	if (traceFile)  // Trace interrupted instruction.
 	printInstTrace(inst, instCounter_, instStr, traceFile, true);
       return true;
     }
@@ -5016,7 +5027,7 @@ Hart<URV>::processExternalInterrupt(FILE* traceFile, std::string& instStr)
       // Attach changes to interrupted instruction.
       initiateInterrupt(cause, pc_);
       uint32_t inst = 0; // Load interrupted inst.
-      readInst(currPc_, inst);
+      readInstByVirtPc(currPc_, inst);
       if (traceFile)  // Trace interrupted instruction.
 	printInstTrace(inst, instCounter_, instStr, traceFile, true);
       ++cycleCount_;

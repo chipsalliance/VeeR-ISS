@@ -737,7 +737,7 @@ Server<URV>::stepCommand(const WhisperMessage& req,
 
   // Get instruction before execution (in case code is self-modifying).
   uint32_t inst = 0;
-  hart.readInst(hart.peekPc(), inst);
+  hart.readInstByVirtPc(hart.peekPc(), inst);
 
   // Get privilege mode.
   int privMode = int(hart.privilegeMode());
@@ -977,7 +977,7 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
 	      reply.address = hart.lastPc();
 	      {
 		uint32_t inst = 0;
-		hart.readInst(hart.lastPc(), inst);
+		hart.readInstByVirtPc(hart.lastPc(), inst);
 		reply.resource = inst;
 		std::string text;
 		hart.disassembleInst(inst, text);

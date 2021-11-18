@@ -390,6 +390,7 @@ namespace WdRiscv
     /// Same as translate but only check for execute access.
     ExceptionCause translateForFetch(uint64_t va, PrivilegeMode pm, uint64_t& pa);
 
+
     /// Same as translate but only check for read access.
     ExceptionCause translateForLoad(uint64_t va, PrivilegeMode pm, uint64_t& pa);
 

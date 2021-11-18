@@ -609,6 +609,9 @@ namespace WdRiscv
     /// false if address is out of memory bounds.
     bool readInst(size_t address, uint32_t& instr);
 
+    /// Read instruction by virtual
+    bool readInstByVirtPc(size_t pc, uint32_t& instr);
+
     /// Set instruction count limit: When running with tracing the
     /// run and the runUntil methods will stop if the retired instruction
     /// count (true count and not value of minstret) reaches or exceeds
