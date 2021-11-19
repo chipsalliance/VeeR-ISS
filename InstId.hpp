@@ -17,7 +17,7 @@
 namespace WdRiscv
 {
   /// Associate a unique integer identifier with each instruction.
-  enum class InstId
+  enum class InstId : uint32_t
     {
      illegal,
 

@@ -1147,6 +1147,26 @@ HartConfig::applyConfig(Hart<URV>& hart, bool userMode, bool verbose) const
         errors++;
     }
 
+  tag = "perf_count_atomic_load_store";
+  if (config_ -> count(tag))
+    {
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ ->at(tag), flag))
+        hart.perfCountAtomicLoadStore(flag);
+      else
+        errors++;
+    }
+
+  tag = "perf_count_fp_load_store";
+  if (config_ -> count(tag))
+    {
+      bool flag = false;
+      if (getJsonBoolean(tag, config_ ->at(tag), flag))
+        hart.perfCountFpLoadStore(flag);
+      else
+        errors++;
+    }
+
   // Enable rollback of memory on store error.
   tag = "store_error_rollback";
   if (config_ -> count(tag))

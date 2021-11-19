@@ -82,7 +82,7 @@ RVCORE_SRCS += HartConfig.cpp Server.cpp Interactive.cpp decode.cpp disas.cpp
 RVCORE_SRCS += Syscall.cpp PmaManager.cpp DecodedInst.cpp snapshot.cpp
 RVCORE_SRCS += PmpManager.cpp VirtMem.cpp Core.cpp System.cpp Cache.cpp
 RVCORE_SRCS += Tlb.cpp VecRegs.cpp vector.cpp wideint.cpp float.cpp bitmanip.cpp
-RVCORE_SRCS += amo.cpp SparseMem.cpp
+RVCORE_SRCS += amo.cpp SparseMem.cpp InstProfile.cpp
 
 # List of All CPP source files for the project
 SRCS += $(RVCORE_SRCS) whisper.cpp

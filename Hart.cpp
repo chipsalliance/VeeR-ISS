@@ -1300,34 +1300,21 @@ template <typename URV>
 void
 Hart<URV>::reportInstructionFrequency(FILE* file) const
 {
-  struct CompareFreq
-  {
-    CompareFreq(const std::vector<InstProfile>& profileVec)
-      : profileVec(profileVec)
-    { }
-
-    bool operator()(size_t a, size_t b) const
-    { return profileVec.at(a).freq_ < profileVec.at(b).freq_; }
-
-    const std::vector<InstProfile>& profileVec;
-  };
-
-  std::vector<size_t> indices(instProfileVec_.size());
-  for (size_t i = 0; i < indices.size(); ++i)
-    indices.at(i) = i;
-  std::sort(indices.begin(), indices.end(), CompareFreq(instProfileVec_));
+  std::vector<size_t> indices;
+  instProfs_.sort(indices);
 
   for (auto profIx : indices)
     {
-      InstId id = InstId(profIx);
-
-      const InstEntry& entry = instTable_.getEntry(id);
-      const InstProfile& prof = instProfileVec_.at(profIx);
-      uint64_t freq = prof.freq_;
-      if (not freq)
+      const InstProfile* profPtr = instProfs_.ithEntry(profIx);
+      if (not profPtr or not profPtr->freq_)
 	continue;
 
-      fprintf(file, "%s %" PRId64 "\n", entry.name().c_str(), freq);
+      const InstProfile& prof = *profPtr;
+      const InstEntry& entry = instTable_.getEntry(prof.id_);
+
+      std::string instr = entry.isVector()? entry.name() + "." + VecRegs::to_string(prof.elemWidth_) : entry.name();
+
+      fprintf(file, "%s %" PRId64 "\n", instr.c_str(), prof.freq_);
 
       uint64_t count = 0;
       for (auto n : prof.destRegFreq_) count += n;
@@ -4146,7 +4133,7 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
       pregs.updateCounters(EventNumber::MultDiv, prevPerfControl_,
                            lastPriv_);
     }
-  else if (info.isLoad())
+  else if (info.isPerfLoad())
     {
       pregs.updateCounters(EventNumber::Load, prevPerfControl_,
                            lastPriv_);
@@ -4157,7 +4144,7 @@ Hart<URV>::updatePerformanceCounters(uint32_t inst, const InstEntry& info,
 	pregs.updateCounters(EventNumber::BusLoad, prevPerfControl_,
                              lastPriv_);
     }
-  else if (info.isStore())
+  else if (info.isPerfStore())
     {
       pregs.updateCounters(EventNumber::Store, prevPerfControl_,
                            lastPriv_);
@@ -4290,7 +4277,16 @@ Hart<URV>::accumulateInstructionStats(const DecodedInst& di)
   if (not instFreq_)
     return;
 
-  InstProfile& prof = instProfileVec_.at(size_t(id));
+  InstProfile* profPtr = nullptr;
+  if (info.isVector())
+    profPtr = instProfs_.find(id, vecRegs_.elemWidth());
+  else
+    profPtr = instProfs_.find(id);
+
+  if (not profPtr)
+    return;
+
+  InstProfile& prof = *profPtr;
 
   prof.freq_++;
   if (lastPriv_ == PrivilegeMode::User)
@@ -4396,9 +4392,67 @@ Hart<URV>::accumulateInstructionStats(const DecodedInst& di)
         }
       else if (info.ithOperandType(i) == OperandType::VecReg)
 	{
-	  uint32_t regIx = di.ithOperand(i);
-	  prof.srcRegFreq_.at(srcIx).at(regIx)++;
-	  srcIx++;
+          uint32_t regIx = di.ithOperand(i);
+          prof.srcRegFreq_.at(srcIx).at(regIx)++;
+
+          switch (vecRegs_.elemWidth())
+            {
+              case ElementWidth::Byte:
+                {
+                  int8_t val;
+                  size_t numElem = ((vecRegs_.bytesPerRegister()*vecRegs_.groupMultiplierX8()) >> 3);
+                  for (uint32_t elemIx = 0; elemIx < numElem; elemIx++)
+                    {
+                      if (not vecRegs_.read(regIx, elemIx, vecRegs_.groupMultiplierX8(), val))
+                        std::cerr << "Error in vector config" << '\n';
+                      else
+                        addToSignedHistogram(prof.srcHisto_.at(srcIx), val);
+                    }
+                  break;
+                }
+              case ElementWidth::Half:
+                {
+                  int16_t val;
+                  size_t numElem = (((vecRegs_.bytesPerRegister()*vecRegs_.groupMultiplierX8()) >> 3) >> 1);
+                  for (uint32_t elemIx = 0; elemIx < numElem; elemIx++)
+                    {
+                      if (not vecRegs_.read(regIx, elemIx, vecRegs_.groupMultiplierX8(), val))
+                        std::cerr << "Error in vector config" << '\n';
+                      else
+                        addToSignedHistogram(prof.srcHisto_.at(srcIx), val);
+                    }
+                  break;
+                }
+              case ElementWidth::Word:
+                {
+                  int32_t val;
+                  size_t numElem = (((vecRegs_.bytesPerRegister()*vecRegs_.groupMultiplierX8()) >> 3) >> 2);
+                  for (uint32_t elemIx = 0; elemIx < numElem; elemIx++)
+                    {
+                      if (not vecRegs_.read(regIx, elemIx, vecRegs_.groupMultiplierX8(), val))
+                        std::cerr << "Error in vector config" << '\n';
+                      else
+                        addToSignedHistogram(prof.srcHisto_.at(srcIx), val);
+                    }
+                  break;
+                }
+              case ElementWidth::Word2:
+                {
+                  int64_t val;
+                  size_t numElem = (((vecRegs_.bytesPerRegister()*vecRegs_.groupMultiplierX8()) >> 3) >> 3);
+                  for (uint32_t elemIx = 0; elemIx < numElem; elemIx++)
+                    {
+                      if (not vecRegs_.read(regIx, elemIx, vecRegs_.groupMultiplierX8(), val))
+                        std::cerr << "Error in vector config" << '\n';
+                      else
+                        addToSignedHistogram(prof.srcHisto_.at(srcIx), val);
+                    }
+                  break;
+                }
+              default:
+                break;
+            }
+          srcIx++;
 	}
       else if (info.ithOperandType(i) == OperandType::CsReg)
 	{
@@ -9838,22 +9892,7 @@ Hart<URV>::enableInstructionFrequency(bool b)
 {
   instFreq_ = b;
   if (b)
-    {
-      instProfileVec_.resize(size_t(InstId::maxId) + 1);
-
-      auto regCount = intRegCount();
-      for (auto& inst : instProfileVec_)
-	{
-	  inst.destRegFreq_.resize(regCount);
-          inst.srcRegFreq_.resize(3);  // Up to 3 source operands
-          for (auto& vec : inst.srcRegFreq_)
-            vec.resize(regCount);
-
-          inst.srcHisto_.resize(3);  // Up to 3 source historgrams
-          for (auto& vec : inst.srcHisto_)
-            vec.resize(13);  // FIX: avoid magic 13
-	}
-    }
+    instProfs_.configure();
 }
 
 

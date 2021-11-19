@@ -17,7 +17,7 @@
 #include <vector>
 #include <unordered_map>
 #include "InstId.hpp"
-
+#include "VecRegs.hpp"
 
 namespace WdRiscv
 {
@@ -29,6 +29,7 @@ namespace WdRiscv
     uint64_t user_ = 0;       // Number of times exeuted in user mode.
     uint64_t supervisor_ = 0; // Number of times exeuted in supervisor mode.
     uint64_t machine_ = 0;    // Number of times exeuted in machine mode.
+    ElementWidth elemWidth_ = ElementWidth::Byte;  // For vector instructions.
 
     // One entry per integer register: Count of times register was used
     // by instruction as destination register.
@@ -48,7 +49,46 @@ namespace WdRiscv
     int32_t minImm_ = 0;  // Minimum immediate operand value.
     int32_t maxImm_ = 0;  // Maximum immediate operand value.
   };
+
+
+  class InstProfiles
+  {
+  public:
+
+    InstProfiles()
+    { }
+
+    void configure();
+
+    InstProfile* find(InstId id)
+    { return size_t(id) < vec_.size()? &vec_.at(size_t(id)) : nullptr; }
+
+    InstProfile* find(InstId id, ElementWidth width)
+    {
+      unsigned base = unsigned(InstId::maxId) + 1;
+      unsigned multiplier = unsigned(width);
+      size_t ix = base*multiplier + size_t(id);
+      return ix < vec_.size()? &vec_.at(ix) : nullptr;
+    }
+
+    /// Set the elements of the given vector to the indices of the
+    /// instruction records sorted by frequency.
+    void sort(std::vector<size_t>& indices) const;
+
+    /// Return number of records in this container.
+    size_t size();
+
+    /// Return the ith entry in this container or null if i is out of
+    /// bounds.
+    const InstProfile* ithEntry(size_t i) const
+    { return i < vec_.size() ? &vec_.at(i) : nullptr; }
+
+  private:
+
+    std::vector<InstProfile> vec_;
+  };
 }
+
 
 
     
