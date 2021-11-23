@@ -1666,12 +1666,7 @@ Interactive<URV>::executeLine(unsigned& currentHartId,
       return true;
     }
 
-  if (command == "decode_all") {
-    runAllOpcodes(hart); 
-    return true;
-  }
-
-  if (command == "h" or command == "?" or command == "help")
+   if (command == "h" or command == "?" or command == "help")
     {
       helpCommand(tokens);
       return true;

@@ -34,7 +34,7 @@ simulator. In particular you would need:
    ```
 
 3. The Whisper source code which can be downloaded from 
-   [github.](https://github.com/westerndigitalcorporation/swerv-ISS)
+   [github.](https://github.com/chipsalliance/SweRV-ISS)
 
 4. The g++ compiler version 7.2 or higher to compiler Whisper. The g++
    compiler can be installed from a Linux distribution. Alternatively,
@@ -49,7 +49,7 @@ simulator. In particular you would need:
 # Compiling Whisper
 
 On a Unix system, in the whisper directory, do the following:
-    make BOOST_DIR=x
+    make BOOST_DIR=x 
 where x is the path to your boost library installation.
 
 
@@ -185,8 +185,10 @@ The following is a brief description of the command line options:
        Select the RISCV options to enable. The currently supported options are
        a (atomic), c (compressed instructions), d (double precision fp), 
        f (single precision fp), i (base integer), m (multiply divide),
-       s (supervisor mode), and u (user mode). By default, only i, m and c
-       are enabled. Note that option i cannot be turned off. Example: --isa imcf
+       s (supervisor mode), u (user mode), and v (vector). By default, only i, m and c
+       are enabled. Note that option i cannot be turned off. Example: "--isa imcf".
+       It is recommended to avoid this option if the configuration of the "misa" CSR is
+       included in the JSON configuration file.
 
     --target program
        Specify target program (ELF file) to load into simulated memory. In newlib
@@ -417,6 +419,171 @@ gdb command as follows:
 
 # Configuring Whisper
 
+A JSON configuration file may be specified on the command line using the
+--configfile switch. Numeric parameters may be specified as integers or
+as strings. For example, a core count of 4 may be specified as:
+  "cores" : 4
+or
+  "cores" : "4"
+If expressed as a string, a numeric value may be prefixed with 0x to
+specify headecimal notation (JSON does not support hexadecimal notation
+for integers).
+
+The value of a boolean parameters may be specified as an integer with 0
+indicating false and non-zero indicating true. Alternatively it may
+be specified using the strings "false", "False", "true", or "True".
+
+Command line options override settings in the configuration file.
+
+Here is a sample configuration file:
+
+    {
+        "xlen" : 32,
+        "enable_zfh" : "true",
+        "enable_zba" : "true",
+        "enable_zbb" : "true",
+        "abi_names" : "true",
+    
+        "csr" : {
+            "misa" : {
+                "reset-comment" : "imabfv",
+                "reset" : "0x40201123",
+                "mask-comment" : "Misa is not writable by CSR instructions",
+                "mask" : "0x0"
+             },
+             "mstatus" : {
+                "mstatus-comment" : "Hardwired to zero except for FS, VS, and SD.",
+                "reset" : "0x80006600",
+                "mask" : "0x0",
+                "poke_mask" : "0x0"
+             }
+        }
+    }
+
+## Configuration parameters
+
+### cores
+Number of cores in simulated system.
+
+### xlen
+Integer register size in bits.
+
+### memmap
+Object defining memory organization. Fields of memap:
+* size: Field defining physical memory size
+* page_size: Field defining page size
+* inst: Array of entries defining areas of physical memory where
+instruction fetch is legal (if not used, then all of memory is valid
+for fetch). Each entry is an array of 2 integers defining the start
+and end address of a fetch region.
+* data: Array of entries defining areas of physical memory where
+data load/store is legal (if not used, then all of memory is
+valid for load/store). Each entry is an array of 2 integers
+defining the start and end address of a data region.
+
+Example:
+
+    "memmap" : { "size" : "0x100000000", "page_size" : 4096,
+                 "inst" : [0, "0x20000000"] }
+
+##### internal and external memory mapped registers
+A memory region may be a memory-mapped register (e.g. PIC/PLIC/CLINT) of arbitrary size.
+In json file you can define multiple memory-mapped-register regions
+each has its own base address and size and an indication if the region 
+is *internal* or *external*. In addition, there is a single map for all
+implemented registers in all regions, each register has name, count,
+size and mask. Unimplemented register has mask=0.
+
+Access to memory-map-register region either for implemented or unimplemented 
+register must be aligned to register size (default 4) and access size must 
+be equals to register size
+
+Example:
+
+     "memory_mapped_registers" : {
+        "default_mask" : 0,
+        "address" : [
+           "0x8000000",
+           "0x4000000"
+        ],
+        "size" : [
+           65536,
+           67108864
+        ],
+        "internal" : "false",
+       "registers" : {
+           "meip" : {
+              "count" : 31,
+              "address" : "0x4001000",
+              "mask" : "0x0"
+           },
+           "meipl" : {
+              "count" : 31,
+              "address" : "0x4000004",
+              "mask" : "0xf"
+           },
+           "mtime" : {
+              "count" : 1,
+              "address" : "0x800bff8",
+              "size" : 8,
+              "mask" : "0xffffffffffffffff"
+           } 
+       }
+     }
+
+       
+### num_mmode_perf_regs
+Number of implemented performance counters. If specified number is n,
+then CSRs (counters) mhpmcounter3 to mhpmcounter3+n-1 are implemented
+and the remaining counters are hardwired to zero. Same for the
+mhpmevent CSRs.
+
+###  enable_performance_counters
+Whisper will count events associated with performance counters when
+this is set to true. Note that pipeline specific events (such as
+mispredicted branches) are not supported. Synchronous events (such as
+count retired load insructions) are supported.
+
+###  abi_names
+If set to true then registers are identified by their ABI names in the
+log file (e.g. ra instead of x1).
+
+###  csr
+The CSR configuration is a map wher each key is a CSR name and the
+corresponding value is an object with the following fields: "number",
+"reset", "mask", "poke_mask", "exists", and "shared". Set "exists" to
+"false" to mark a non implemented CSR (read/write instructions to such a
+CSR will trigger illegal instruciton exception). Set "mask" to the
+write mask of the CSR (zero bits correspond to bits that will be
+preserved by write instructions). Set "reset" to reset value of the
+CSR. Set "shared" to "true" for CSRs that are shared between harts. The
+"number" fields should be used to define the number (address) of a
+non-standard CSR. The poke_mask should be used for the rare cases
+where poke operation may modify some bits that are not modifiable by
+CSR write instructions.
+
+###  vector
+The vector configuration is an object with the following fields:
+* bytes_per_vec: vector size in bytes
+* min_bytes_per_elem: narrowest suppoted element size in bytes (default 1).
+* max_bytes_per_elem: widest supported element size in bytes (no default).
+
+Example:
+
+    "vector" : {
+       "bytes_per_vec" : 16,
+       "max_bytes_per_elem" : 8
+    }
+
+###  reset_vec
+Defines the PC value after reset
+
+###  nmi_vec
+Defines the PC address after a non-maskable-interrupt.
+
+###  enable_triggers
+Enable support for debug triggers.
+
 # Limitations
 
 The MISA register is read only. It is not possible to change XLEN at
@@ -427,5 +594,5 @@ implemented unless you compile with the softfloat library: "make
 SOFT_FLOAT=1" in which case simulation of floating point instructions
 slows down significantly.
 
-Only extensions A, C, D, F, I, M, S and U are supported.
+Suppprted extensions: A, B, C, D, F, I, M, S, U, V, ZFH, ZBA, ZBB, and ZBS.
 
