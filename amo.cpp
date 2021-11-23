@@ -91,6 +91,7 @@ Hart<URV>::amoLoad32(uint32_t rd, uint32_t rs1, uint32_t rs2, URV& value)
   URV virtAddr = intRegs_.read(rs1);
 
   ldStAddr_ = virtAddr;   // For reporting load addr in trace-mode.
+  ldStPhysAddr_ = ldStAddr_;
   ldStAddrValid_ = true;  // For reporting load addr in trace-mode.
 
   if (loadQueueEnabled_)
@@ -113,6 +114,7 @@ Hart<URV>::amoLoad32(uint32_t rd, uint32_t rs1, uint32_t rs2, URV& value)
   uint64_t addr = virtAddr;
   auto mma = getMemMappedAccType(addr, true, ldSize, true);
   auto cause = validateAmoAddr(rs1, addr, ldSize, secCause, mma);
+  ldStPhysAddr_ = addr;
 
   if (cause != ExceptionCause::NONE)
     {
@@ -144,6 +146,7 @@ Hart<URV>::amoLoad64(uint32_t rd, uint32_t rs1, uint32_t rs2, URV& value)
   URV virtAddr = intRegs_.read(rs1);
 
   ldStAddr_ = virtAddr;   // For reporting load addr in trace-mode.
+  ldStPhysAddr_ = ldStAddr_;
   ldStAddrValid_ = true;  // For reporting load addr in trace-mode.
 
   if (loadQueueEnabled_)
@@ -165,6 +168,7 @@ Hart<URV>::amoLoad64(uint32_t rd, uint32_t rs1, uint32_t rs2, URV& value)
   uint64_t addr = virtAddr;
   auto mma = getMemMappedAccType(addr, true, ldSize, true);
   auto cause = validateAmoAddr(rs1, addr, ldSize, secCause, mma);
+  ldStPhysAddr_ = addr;
 
   if (cause != ExceptionCause::NONE)
     {
@@ -198,6 +202,7 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
   URV virtAddr = intRegs_.read(rs1);
 
   ldStAddr_ = virtAddr;   // For reporting load addr in trace-mode.
+  ldStPhysAddr_ = ldStAddr_;
   ldStAddrValid_ = true;  // For reporting load addr in trace-mode.
 
   if (loadQueueEnabled_)
@@ -232,6 +237,7 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
           secCause = SecondaryCause::LOAD_ACC_AMO;
         }
     }
+  ldStPhysAddr_ = addr;
 
   // Check if invalid unless cacheable.
   if (amoInCacheableOnly_ and not isAddrCacheable(addr))
@@ -316,6 +322,7 @@ bool
 Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
 {
   ldStAddr_ = virtAddr;   // For reporting ld/st addr in trace-mode.
+  ldStPhysAddr_ = ldStAddr_;
   ldStAddrValid_ = true;  // For reporting ld/st addr in trace-mode.
 
   // ld/st-address or instruction-address triggers have priority over
@@ -347,6 +354,7 @@ Hart<URV>::storeConditional(uint32_t rs1, URV virtAddr, STORE_TYPE storeVal)
       cause = ExceptionCause::STORE_ACC_FAULT;
       secCause = SecondaryCause::STORE_ACC_AMO;
     }
+  ldStPhysAddr_ = addr;
 
   // Check if invalid unless cacheable.
   if (amoInCacheableOnly_ and not isAddrCacheable(addr))

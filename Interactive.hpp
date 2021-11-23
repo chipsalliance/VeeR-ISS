@@ -110,6 +110,8 @@ namespace WdRiscv
 		       const std::vector<std::string>& tokens,
 		       FILE* traceFile, FILE* commandLog,
 		       std::ifstream& replayStream, bool& done);
+    
+    void runAllOpcodes(Hart<URV>& hart);
 
     static void peekAllFpRegs(Hart<URV>& hart, std::ostream& out);
     static void peekAllIntRegs(Hart<URV>& hart, std::ostream& out);

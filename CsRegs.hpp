@@ -818,7 +818,7 @@ namespace WdRiscv
     bool assignEventToCounter(URV event, unsigned counter,
                               bool user, bool machine)
     {
-      return mPerfRegs_.assignEventToCounter(EventNumber(event), counter,
+      return mPerfRegs_.assignEventToCounter(event, counter,
                                              user, machine);
     }
 
@@ -1064,8 +1064,14 @@ namespace WdRiscv
     void enableUserMode(bool flag)
     { userModeEnabled_ = flag; }
 
+    /// Enable/disable F extension.
+    void enableRvf(bool flag);
+
     /// Enable supervisor mode.
     void enableSupervisorMode(bool flag);
+
+    /// Enable supervisor mode.
+    void enableVectorMode(bool flag);
 
     /// Return a legal mstatus value (chanign mpp if necessary).
     URV legalizeMstatusValue(URV value) const;
@@ -1101,7 +1107,7 @@ namespace WdRiscv
 
     bool mdseacLocked_ = false; // Once written, MDSEAC persists until
                                 // MDEAU is written.
-    URV maxEventId_ = 16*1024;
+    URV maxEventId_ = ~URV(0);  // Default unlimited.
     bool hasPerfEventSet_ = false;
     std::unordered_set<unsigned> perfEventSet_;
 

@@ -350,7 +350,7 @@ VirtMem::pageTableWalk(uint64_t address, PrivilegeMode privMode, bool read, bool
   tlbEntry.exec_ = pte.exec();
   tlbEntry.accessed_ = pte.accessed();
   tlbEntry.dirty_ = pte.dirty();
-
+  tlbEntry.levels_ = 1+ii;
   return ExceptionCause::NONE;
 }
 

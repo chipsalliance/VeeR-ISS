@@ -54,7 +54,8 @@ void Tlb::printEntry(std::ostream& ost, const TlbEntry& te) const {
 	else ost << std::setfill('0') << std::setw(4) << te.asid_;
 	ost << " -> " << std::setfill('0') << std::setw(10) << te.physPageNum_;
 	ost << " P:" << (te.read_?"r":"-") << (te.write_?"w":"-") << (te.exec_?"x":"-");
-	ost << " A:" << (te.accessed_ ? "a" : "-") << (te.dirty_?"d":"-") << "\n";
+	ost << " A:" << (te.accessed_ ? "a" : "-") << (te.dirty_?"d":"-");
+	ost << " S:" << (te.levels_==3?"1G" : te.levels_==2?"2M" : "4K") << "\n";
 }
 
 void

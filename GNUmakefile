@@ -87,18 +87,15 @@ IFLAGS := $(addprefix -isystem ,$(BOOST_INC)) -I.
 
 # Command to compile .cpp files.
 ifeq (CYGWIN_NT-10.0,$(shell uname -s))
-override CXXFLAGS += -MMD -MP -std=c++17 -D_GNU_SOURCE $(OFLAGS) $(IFLAGS) -pedantic -Wall -Wextra
+override CXXFLAGS += -MMD -MP -mfma -std=c++17 -D_GNU_SOURCE $(OFLAGS) $(IFLAGS) -pedantic -Wall -Wextra
 else
-override CXXFLAGS += -MMD -MP -std=c++17 $(OFLAGS) $(IFLAGS) -pedantic -Wall -Wextra
+override CXXFLAGS += -MMD -MP -mfma -std=c++17 $(OFLAGS) $(IFLAGS) -fPIC -pedantic -Wall -Wextra
 endif
-
-# Command to compile .c files
-override CFLAGS += -MMD -MP $(OFLAGS) $(IFLAGS) -pedantic -Wall -Wextra
 
 # Rule to make a .o from a .cpp file.
 $(BUILD_DIR)/%.cpp.o:  %.cpp
 	@if [ ! -d "$(dir $@)" ]; then $(MKDIR_P) $(dir $@); fi
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
 
 # Rule to make a .o from a .c file.
 $(BUILD_DIR)/%.c.o:  %.c
@@ -119,7 +116,7 @@ RVCORE_SRCS := IntRegs.cpp CsRegs.cpp FpRegs.cpp instforms.cpp \
 	    Syscall.cpp PmaManager.cpp DecodedInst.cpp snapshot.cpp \
 	    PmpManager.cpp VirtMem.cpp Core.cpp System.cpp Cache.cpp \
 	    Tlb.cpp VecRegs.cpp vector.cpp wideint.cpp float.cpp bitmanip.cpp \
-	    amo.cpp SparseMem.cpp
+	    amo.cpp SparseMem.cpp InstProfile.cpp decodeall.cpp
 
 # List of All CPP Sources for the project
 SRCS_CXX += $(RVCORE_SRCS) whisper.cpp

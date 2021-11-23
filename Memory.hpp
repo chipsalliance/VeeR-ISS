@@ -84,7 +84,7 @@ namespace WdRiscv
     /// 4.
 
     template <typename T>
-    bool read(size_t address, T& value, bool toMain) const
+    bool read(size_t address, T& value, bool toMain=false) const
     {
 #ifdef FAST_SLOPPY
       (void)toMain;
@@ -103,8 +103,8 @@ namespace WdRiscv
         }
 
       // Memory mapped region accessible only with word-size read.
-      if (not toMain and pma1.isMemMappedReg()) {
-            return readRegister(address, value);}
+      if (not toMain and pma1.isMemMappedReg())
+            return readRegister(address, value);
 #endif
 
 #ifdef MEM_CALLBACKS
@@ -158,7 +158,7 @@ namespace WdRiscv
     /// write.  Change value to the maksed value if write is to a
     /// memory mapped register.
     template <typename T>
-    bool checkWrite(size_t address, T& value, bool toMain)
+    bool checkWrite(size_t address, T& value, bool toMain=false)
     {
       Pma pma1 = pmaMgr_.getPma(address);
       if (not pma1.isWrite())
@@ -195,7 +195,7 @@ namespace WdRiscv
     /// inaccessible regions or if the write crosses memory region of
     /// different attributes.
     template <typename T>
-    bool write(unsigned sysHartIx, size_t address, T value, bool toMain, bool internal)
+    bool write(unsigned sysHartIx, size_t address, T value, bool toMain=false, bool internal=false)
     {
 #ifdef FAST_SLOPPY
       (void)toMain;
@@ -245,6 +245,23 @@ namespace WdRiscv
 
       return true;
     }
+    /// Write half-word (2 bytes) to given address. Return true on
+    /// success. Return false if address is out of bounds or is not
+    /// writable.
+    bool writeHalfWord(unsigned sysHartIx, size_t address, uint16_t value)
+    { return write(sysHartIx, address, value); }
+
+    /// Read word (4 bytes) from given address into value. Return true
+    /// on success.  Return false if address is out of bounds or is
+    /// not writable.
+    bool writeWord(unsigned sysHartIx, size_t address, uint32_t value)
+    { return write(sysHartIx, address, value); }
+
+    /// Read a double-word (8 bytes) from given address into
+    /// value. Return true on success. Return false if address is out
+    /// of bounds.
+    bool writeDoubleWord(unsigned sysHartIx, size_t address, uint64_t value)
+    { return write(sysHartIx, address, value); }
     /// Similar to read but ignore physical-memory-attributes if
     /// usePma is false.
     template <typename T>

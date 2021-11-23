@@ -24,21 +24,18 @@ PerfRegs::PerfRegs(unsigned numCounters)
   // 29 counters: MHPMCOUNTER3 to MHPMCOUNTER31
   counters_.resize(29);
 
-  config(numCounters, unsigned(EventNumber::_End));
+  config(numCounters);
 }
 
 
 void
-PerfRegs::config(unsigned numCounters, unsigned maxEventId)
+PerfRegs::config(unsigned numCounters)
 {
   assert(numCounters < counters_.size());
 
   eventOfCounter_.resize(numCounters);
   enableUser_.resize(numCounters);
   enableMachine_.resize(numCounters);
-
-  unsigned numEvents = std::max(unsigned(EventNumber::_End), maxEventId) + 1;
-  countersOfEvent_.resize(numEvents);
 }
 
 
@@ -53,20 +50,6 @@ PerfRegs::applyPerfEventAssign()
   if (pendingCounter_ >= eventOfCounter_.size())
     return false;
 
-  // Disassociate counter from its previous event.
-  EventNumber prevEvent = eventOfCounter_.at(pendingCounter_);
-  if (prevEvent != EventNumber::None)
-    {
-      auto& vec = countersOfEvent_.at(size_t(prevEvent));
-      vec.erase(std::remove(vec.begin(), vec.end(), pendingCounter_), vec.end());
-    }
-
-  if (size_t(pendingEvent_) >= countersOfEvent_.size())
-    return false;
-
-  if (pendingEvent_ != EventNumber::None)
-    countersOfEvent_.at(size_t(pendingEvent_)).push_back(pendingCounter_);
-
   eventOfCounter_.at(pendingCounter_) = pendingEvent_;
   enableUser_.at(pendingCounter_) = pendingUser_;
   enableMachine_.at(pendingCounter_) = pendingMachine_;
@@ -79,7 +62,52 @@ void
 PerfRegs::reset()
 {
   eventOfCounter_.assign(eventOfCounter_.size(), EventNumber::None);
-
-  for (auto& vec : countersOfEvent_)
-    vec.clear();
 }
+
+
+// Map a performance event name (string) to the corresponding internal id (enum).
+std::unordered_map<std::string, EventNumber>
+PerfRegs::eventNameToId_ = {
+  { "None", EventNumber::None },
+  { "InstCommited", EventNumber::InstCommited },
+  { "Inst16Commited", EventNumber::Inst16Commited },
+  { "Inst32Commited", EventNumber::Inst32Commited },
+  { "InstAligned", EventNumber::InstAligned },
+  { "Mult", EventNumber::Mult },
+  { "Div", EventNumber::Div },
+  { "Load", EventNumber::Load },
+  { "Store", EventNumber::Store },
+  { "MisalignLoad", EventNumber::MisalignLoad },
+  { "MisalignStore", EventNumber::MisalignStore },
+  { "Alu", EventNumber::Alu },
+  { "CsrRead", EventNumber::CsrRead },
+  { "CsrReadWrite", EventNumber::CsrReadWrite },
+  { "CsrWrite", EventNumber::CsrWrite },
+  { "Ebreak", EventNumber::Ebreak },
+  { "Ecall", EventNumber::Ecall },
+  { "Fence", EventNumber::Fence },
+  { "Fencei", EventNumber::Fencei },
+  { "Mret", EventNumber::Mret },
+  { "Branch", EventNumber::Branch },
+  { "BranchTaken", EventNumber::BranchTaken },
+  { "Exception", EventNumber::Exception },
+  { "TimerInterrupt", EventNumber::TimerInterrupt },
+  { "ExternalInterrupt", EventNumber::ExternalInterrupt },
+  { "BusFetch", EventNumber::BusFetch },
+  { "BusTransactions", EventNumber::BusTransactions },
+  { "BusMisalign", EventNumber::BusMisalign },
+  { "IbusError", EventNumber::IbusError },
+  { "DbusError", EventNumber::DbusError },
+  { "Atomic", EventNumber::Atomic },
+  { "Lr", EventNumber::Lr },
+  { "Sc", EventNumber::Sc },
+  { "Bitmanip", EventNumber::Bitmanip },
+  { "BusLoad", EventNumber::BusLoad },
+  { "BusStore", EventNumber::BusStore },
+  { "MultDiv", EventNumber::MultDiv },
+  { "FpHalf", EventNumber::FpHalf },
+  { "FpSingle", EventNumber::FpSingle },
+  { "FpDouble", EventNumber::FpDouble },
+  { "Vector", EventNumber::Vector },
+  { "Csr", EventNumber::Csr }
+};

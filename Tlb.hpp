@@ -34,6 +34,7 @@ namespace WdRiscv
     bool exec_ = false;      // Execute Access.
     bool accessed_ = false;
     bool dirty_ = false;
+    uint8_t levels_ = 3;
   };
 
 

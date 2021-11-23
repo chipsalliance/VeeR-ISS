@@ -43,25 +43,29 @@ namespace WdRiscv
     
     /// Default contructor: Define an invalid object.
     DecodedInst()
-      : addr_(0), inst_(0), size_(0), entry_(nullptr),
-	op0_(0), op1_(0), op2_(0), op3_(0), valid_(false), masked_(false)
+      : addr_(0), physAddr_(0), inst_(0), size_(0), entry_(nullptr), op0_(0),
+	op1_(0), op2_(0), op3_(0), valid_(false), masked_(false), vecFields_(0)
     { values_[0] = values_[1] = values_[2] = values_[3] = 0; }
 
     /// Constructor.
     DecodedInst(uint64_t addr, uint32_t inst, const InstEntry* entry,
 		uint32_t op0, uint32_t op1, uint32_t op2, uint32_t op3)
-      : addr_(addr), inst_(inst), size_(instructionSize(inst)), entry_(entry),
-	op0_(op0), op1_(op1), op2_(op2), op3_(op3), valid_(entry != nullptr),
-        masked_(false)
+      : addr_(addr), physAddr_(0), inst_(inst), size_(instructionSize(inst)),
+	entry_(entry), op0_(op0), op1_(op1), op2_(op2), op3_(op3),
+	valid_(entry != nullptr), masked_(false), vecFields_(0)
     { values_[0] = values_[1] = values_[2] = values_[3] = 0; }
 
     /// Return instruction size in bytes.
     uint32_t instSize() const
     { return size_; }
 
-    /// Return address of instruction.
+    /// Return the virtual address of the instruction.
     uint64_t address() const
     { return addr_; }
+
+    /// Return the physical address of the instruction.
+    uint64_t physAddress() const
+    { return physAddr_; }
 
     /// Return instruction code.
     uint32_t inst() const
@@ -174,6 +178,11 @@ namespace WdRiscv
     bool isMasked() const
     { return masked_; }
 
+    /// Return number of fields in vector ld/st instruction. Return zero
+    /// if this is not a vector ld/st.
+    unsigned vecFieldCount() const
+    { return vecFields_; }
+
   protected:
 
     friend class Hart<uint32_t>;
@@ -203,10 +212,15 @@ namespace WdRiscv
     void setMasked(bool flag)
     { masked_ = flag; }
 
-    void reset(uint64_t addr, uint32_t inst, const InstEntry* entry,
+    void setVecFieldCount(uint32_t count)
+    { vecFields_ = count; }
+
+    void reset(uint64_t addr, uint64_t physAddr, uint32_t inst,
+	       const InstEntry* entry,
 	       uint32_t op0, uint32_t op1, uint32_t op2, uint32_t op3)
     {
       addr_ = addr;
+      physAddr_ = physAddr;
       inst_ = inst;
       entry_ = entry;
       op0_ = op0; op1_ = op1; op2_ = op2; op3_ = op3;
@@ -217,6 +231,7 @@ namespace WdRiscv
   private:
 
     uint64_t addr_;
+    uint64_t physAddr_;
     uint32_t inst_;
     uint32_t size_;
     const InstEntry* entry_;
@@ -228,6 +243,7 @@ namespace WdRiscv
     uint64_t values_[4];  // Values of operands.
     bool valid_;
     bool masked_;     // For vector instructions.
+    uint8_t vecFields_;   // For vector ld/st instructions.
   };
 
 

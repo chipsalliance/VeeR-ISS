@@ -31,17 +31,15 @@ VecRegs::VecRegs()
   for (auto& groupFlags : legalConfigs_)
     groupFlags.resize(size_t(VecEnums::GroupLimit));
 
-  // Temporary, for testing, make all combinations legal. FIX.
+  // Start by making all combinations of width/grouping legal. This
+  // gets adjusted when config method is called.
   for (auto& groupFlags : legalConfigs_)
     groupFlags.assign(groupFlags.size(), true);
 
-  // Temporary, for testing. FIX.
-  sew_ = ElementWidth::Word2;
-  sewInBits_ = 64;
-
-  // Temporary, for testing. FIX.
-  elems_ = 2;
-
+  // Operands effective group multiplier is used for tracing/logging.
+  // Worst case we have 3 vector operands.
+  opsEmul_.resize(3);
+  opsEmul_.assign(opsEmul_.size(), 1);
 }
 
 
@@ -56,7 +54,8 @@ VecRegs::~VecRegs()
 
 
 void
-VecRegs::config(unsigned bytesPerReg, unsigned bytesPerElem)
+VecRegs::config(unsigned bytesPerReg, unsigned minBytesPerElem,
+		unsigned maxBytesPerElem)
 {
   if (bytesPerReg > 4096)
     {
@@ -81,61 +80,81 @@ VecRegs::config(unsigned bytesPerReg, unsigned bytesPerElem)
       bytesPerReg = p2BytesPerReg;
     }
 
-  if (bytesPerElem < 1)
+  if (minBytesPerElem < 1)
+    {
+      std:: cerr << "VecRegd::configure: zero min-bytes-per-element -- using 1\n";
+      minBytesPerElem = 1;
+    }
+
+  if (maxBytesPerElem < 1)
     {
       std:: cerr << "VecRegd::configure: zero max-bytes-per-element -- using 1\n";
-      bytesPerElem = 1;
+      maxBytesPerElem = 1;
     }
 
-  unsigned l2BytesPerElem = std::log2(bytesPerElem);
+  if (minBytesPerElem > maxBytesPerElem)
+    {
+      std:: cerr << "VecRegd::configure: min-bytes-per-elem larger than max -- using max\n";
+      minBytesPerElem = maxBytesPerElem;
+    }
+
+  unsigned l2BytesPerElem = std::log2(maxBytesPerElem);
   unsigned p2BytesPerElem = uint32_t(1) << l2BytesPerElem;
-  if (p2BytesPerElem != bytesPerElem)
+  if (p2BytesPerElem != maxBytesPerElem)
     {
-      std::cerr << "VecRegs::configure: max-bytes-per-element (" << bytesPerElem
+      std::cerr << "VecRegs::configure: max-bytes-per-element (" << maxBytesPerElem
                 << ") not a power of 2 -- using " << p2BytesPerElem << "\n";
-      bytesPerElem = p2BytesPerElem;
+      maxBytesPerElem = p2BytesPerElem;
     }
 
-  if (bytesPerElem > bytesPerReg)
+  if (maxBytesPerElem > bytesPerReg)
     {
-      std::cerr << "VecRegs::configure: max-bytes-per-element (" << bytesPerElem
-                << ") is greater than the bytes-per-regidter (" << bytesPerReg
-                << " -- using " << p2BytesPerReg << "\n";
-      bytesPerElem = bytesPerReg;
+      std::cerr << "VecRegs::configure: max-bytes-per-element (" << maxBytesPerElem
+                << ") is greater than the bytes-per-register (" << bytesPerReg
+                << " -- using " << bytesPerReg << "\n";
+      maxBytesPerElem = bytesPerReg;
+    }
+
+  l2BytesPerElem = std::log2(minBytesPerElem);
+  p2BytesPerElem = uint32_t(1) << l2BytesPerElem;
+  if (p2BytesPerElem != minBytesPerElem)
+    {
+      std::cerr << "VecRegs::configure: min-bytes-per-element (" << minBytesPerElem
+                << ") not a power of 2 -- using " << p2BytesPerElem << "\n";
+      minBytesPerElem = p2BytesPerElem;
+    }
+
+  if (minBytesPerElem > bytesPerReg)
+    {
+      std::cerr << "VecRegs::configure: min-bytes-per-element (" << minBytesPerElem
+                << ") is greater than the bytes-per-register (" << bytesPerReg
+                << " -- using " << bytesPerReg << "\n";
+      minBytesPerElem = bytesPerReg;
     }
 
   regCount_ = 32;
   bytesPerReg_ = bytesPerReg;
-  bytesPerElem_ = bytesPerElem;
+  minBytesPerElem_ = minBytesPerElem;
+  maxBytesPerElem_ = maxBytesPerElem;
   bytesInRegFile_ = regCount_ * bytesPerReg_;
+
+  // Make illegal all group entries for element-widths greater than
+  // the max-element-width (which is in bytesPerElem_) or smaller
+  // than the min-element-width.
+  for (unsigned i = 0; i <= unsigned(ElementWidth::Word32); ++i)
+    {
+      ElementWidth ew = ElementWidth(i);
+      unsigned bytes = VecRegs::elementWidthInBytes(ew);
+      if (bytes > maxBytesPerElem_ or bytes < minBytesPerElem_ )
+	{
+	  auto& groupFlags = legalConfigs_.at(size_t(ew));
+	  groupFlags.assign(groupFlags.size(), false);
+	}
+    }
 
   delete [] data_;
   data_ = new uint8_t[bytesInRegFile_];
   memset(data_, 0, bytesInRegFile_);
-}
-
-
-uint64_t
-VecRegs::checksum(unsigned regIx, unsigned elemIx0, unsigned elemIx1,
-                  unsigned elemWidth) const
-{
-  uint64_t sum = 0;
-
-  unsigned byteIx0 = (elemWidth*elemIx0) / 8;
-  unsigned byteIx1 = (elemWidth*elemIx1) / 8;
-
-  const uint8_t* regData = getVecData(regIx);
-  const uint8_t* end = data_ + bytesInRegFile_;
-
-  for (unsigned i = byteIx0; i <= byteIx1; ++i)
-    {
-      uint8_t byte = 0;
-      if (regData and regData + i < end)
-        byte = regData[i];
-      sum += byte;  // FIX BOGUS replace my md5sum
-    }      
-
-  return sum;
 }
 
 
@@ -145,6 +164,5 @@ VecRegs::reset()
   if (data_)
     memset(data_, 0, bytesInRegFile_);
   lastWrittenReg_ = -1;
-  lastElemIx_ = 0;
-  lastElemWidth_ = 0;
+  lastGroupX8_ = 8;
 }

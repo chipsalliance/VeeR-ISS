@@ -18,7 +18,6 @@
 #include <vector>
 #include <unordered_map>
 #include <map>
-
 namespace WdRiscv
 {
 
@@ -175,7 +174,8 @@ namespace WdRiscv
     bool isExternalAddr(size_t addr) const {
     	int memMappedIx = getMemMappedSection(addr);
     	return not isAddrInDccm(addr) and not (memMappedIx>=0 and
-    			memMappedSections_.at(memMappedIx).isInternal);
+    			memMappedSections_.at(memMappedIx).isInternal) and 
+                not (memMappedIx<0 and isAddrMemMapped(addr));
     }
 
     bool isExternalMemMapped(size_t addr) const {
@@ -234,7 +234,6 @@ namespace WdRiscv
     /// Set value to the value of the memory mapped regiser at addr
     /// returning true if addr is valid. Return false if addr is not word
     /// aligned or is outside of the memory-mapped-regiser area.
-
     template<typename T>
     bool
     readRegister(uint64_t addr, T& value) const
@@ -262,26 +261,27 @@ namespace WdRiscv
     }
 
     const class MemMappedRegister* getRegister(uint64_t byteAddr, uint64_t& regAddr) const {
-    	regAddr = byteAddr;
-    	while(regAddr&0x7) {
-    		auto it = memMappedRegs_.find(regAddr);
-    		if(it!=memMappedRegs_.end()) {
-    			return &it->second;
-    		}
-    		regAddr--;
-    	}
-    	return nullptr;
+        regAddr = byteAddr;
+		for(;;)  {
+			auto it = memMappedRegs_.find(regAddr);
+			if(it!=memMappedRegs_.end() and ((regAddr&~uint64_t(it->second.size-1)) == (byteAddr&~uint64_t(it->second.size-1))))
+				return &it->second;
+			if(regAddr&0x7) regAddr--;
+            else break;
+        }
+		return nullptr;
+
     }
 
     class MemMappedRegister* getRegister(uint64_t byteAddr, uint64_t& regAddr) {
 		regAddr = byteAddr;
-		while(regAddr&0x7) {
+		for(;;) {
 			auto it = memMappedRegs_.find(regAddr);
-			if(it!=memMappedRegs_.end()) {
+			if(it!=memMappedRegs_.end() and ((regAddr&~uint64_t(it->second.size-1)) == (byteAddr&~uint64_t(it->second.size-1))))
 				return &it->second;
-			}
-			regAddr--;
-		}
+			if(regAddr&0x7) regAddr--;
+            else break;
+        }
 		return nullptr;
 	}
 
@@ -290,16 +290,24 @@ namespace WdRiscv
     /// is outside of the memory-mapped-regiser area.
     bool readRegisterByte(uint64_t addr, uint8_t& value) const
     {
-      uint64_t word = 0;
+      uint64_t dword = 0;
       uint64_t wordAddr;
       if(auto r = getRegister(addr, wordAddr)) {
-		  if (not readRegister(wordAddr, word))
-			return false;
+          if(r->size==4) {
+              uint32_t word;
+              if (not readRegister(wordAddr, word))
+                return false;
+              dword = word;
+          }
+          else if(not readRegister(wordAddr, dword))
+            return false;
+        
 		  unsigned byteInWord = addr & (r->size-1);
-		  value = (word >> (byteInWord*8)) & 0xff;
+		  value = (dword >> (byteInWord*8)) & 0xff;
 		  return true;
       }
-      return false;
+      value = 0;
+      return true;
     }
 
     /// Set the value of the memory mapped regiser at addr to the
@@ -333,6 +341,11 @@ namespace WdRiscv
     	auto ix = getMemMappedSection(addr);
     	if(ix>=0) {
     		auto it = memMappedRegs_.find(addr);
+            if(it == memMappedRegs_.end()) {
+                setMemMappedMask(addr,0,4);
+                it = memMappedRegs_.find(addr);
+            }
+                
     		if(it != memMappedRegs_.end()) {
     			if(addr & (it->second.size-1))
     				return false;

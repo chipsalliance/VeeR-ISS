@@ -25,9 +25,9 @@ namespace WdRiscv
 
   enum class OperandType { IntReg, FpReg, CsReg, VecReg, Imm, None };
   enum class OperandMode { Read, Write, ReadWrite, None };
-  enum class InstType { Load, Store, Multiply, Divide, Branch, Int, Fp,
+  enum class InstType { Load, Store, Multiply, Divide, Branch, Int, Rvf, Rvd,
                         Csr, Atomic, Vector, Zba, Zbb, Zbc, Zbe, Zbf, Zbm, Zbp,
-                        Zbr, Zbs, Zbt };
+                        Zbr, Zbs, Zbt, Zfh };
 
   /// Return true if given instruction is a 4-byte instruction.
   inline bool
@@ -183,13 +183,25 @@ namespace WdRiscv
     InstType type() const
     { return type_; }
 
-    /// Return true if this is a load instruction (lb, lh, ...)
+    /// Return true if this is a load instruction (lb, lh, flw, lr ...)
     bool isLoad() const
-    { return type_ == InstType::Load; }
+    { return isLoad_; }
 
-    /// Return true if this is a store instruction (sb, sh, ...)
+    /// Return true if this is a store instruction (sb, sh, fsw, sc ...)
     bool isStore() const
-    { return type_ == InstType::Store; }
+    { return isStore_; }
+
+    /// Return true if this instruction is viewed as a load by the
+    /// performance counters. By default LR is not a perf-load
+    /// instuctions. Also by default FP loads are not perf-loads.
+    bool isPerfLoad() const
+    { return isPerfLoad_; }
+
+    /// Return true if this instruction is viewed as a store by the
+    /// performance counters. By default SC is not a perf-store
+    /// instuctions. Also by default FP stores are not perf-stores.
+    bool isPerfStore() const
+    { return isPerfStore_; }
 
     /// Return true if this is a branch instruction (beq, jal, ...)
     bool isBranch() const
@@ -202,6 +214,11 @@ namespace WdRiscv
     /// Return true if this is a divide instruction (div, rem, ...)
     bool isDivide() const
     { return type_ == InstType::Divide; }
+
+    /// Return true if a floating point instruction (fadd.s, fadd.d ...)
+    bool isFp() const
+    { return type_ == InstType::Rvf or type_ == InstType::Rvd or
+	type_ == InstType::Zfh; }
 
     /// Return true if this is a CSR instruction.
     bool isCsr() const
@@ -242,7 +259,15 @@ namespace WdRiscv
     unsigned storeSize() const
     { return stSize_; }
 
+    /// Return true if instruction has an explicit rouning mode field.
+    bool hasRoundingMode() const
+    { return hasRm_; }
+
   protected:
+
+    /// Mark instruction as having a rounding mode field.
+    void setHasRoundingMode(bool flag)
+    { hasRm_ = flag; }
 
     /// Mark instruction as having unsigned source operands.
     void setIsUnsigned(bool flag)
@@ -250,11 +275,11 @@ namespace WdRiscv
 
     /// Set the size of load instructions.
     void setLoadSize(unsigned size)
-    { ldSize_ = size; }
+    { ldSize_ = size; isLoad_ = true; isPerfLoad_ = true; }
 
     /// Set the size of store instructions.
     void setStoreSize(unsigned size)
-    { stSize_ = size; }
+    { stSize_ = size; isStore_ = true; isPerfStore_ = true; }
 
     /// Mark as a conditional branch instruction.
     void setConditionalBranch(bool flag)
@@ -295,6 +320,11 @@ namespace WdRiscv
     bool isCond_ = false;      // True if conditional branch.
     bool isRegBranch_ = false; // True if branch to register.
     bool isBitManip_ = false;  // True if bit manipulation instruction.
+    bool isLoad_ = false;
+    bool isStore_ = false;
+    bool isPerfLoad_ = false;  // True if perf counters view instr as load.
+    bool isPerfStore_ = false; // True if perf counters view instr as store.
+    bool hasRm_ = false;       // True if instr has an explicit rounding mode 
   };
 
 
@@ -318,6 +348,18 @@ namespace WdRiscv
 
     // Return true if given instance name is present in the table.
     bool hasInfo(const std::string& name) const;
+
+    /// Mark lr as a load instruction and sc as a store for the
+    /// purpose of performance counters if flag is true; otherwise,
+    /// lr and sc are not counted as load/store.
+    void perfCountAtomicLoadStore(bool flag);
+
+    /// Mark floating point load/store instructions as load/store for
+    /// the purpose of performance counters if flag is true;
+    /// otherwise, floating point load/store are not counted.  If flag
+    /// is true, flw will count as both a load instruction and as an
+    /// fp instruction.
+    void perfCountFpLoadStore(bool flag);
 
   private:
 

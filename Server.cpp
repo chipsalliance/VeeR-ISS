@@ -309,11 +309,19 @@ Server<URV>::pokeCommand(const WhisperMessage& req, WhisperMessage& reply)
         if (sizeof(URV) == 4)
           {
             // Poke a word in 32-bit harts.
-            if (hart.pokeMemory(req.address, uint32_t(req.value), usePma, true))
+            if (hart.pokeMemory(req.address, uint32_t(req.value), usePma, false))
               return true;
           }
-        else if (hart.pokeMemory(req.address, req.value, usePma, true))
+        else if (hart.pokeMemory(req.address, req.value, usePma, false)) {
           return true;
+        }
+      }
+      break;
+	      case 'p':
+      {
+	URV val = static_cast<URV>(req.value);
+	hart.pokePc(val);
+	return true;
       }
       break;
     }
@@ -373,17 +381,15 @@ Server<URV>::peekCommand(const WhisperMessage& req, WhisperMessage& reply)
 	}
       break;
     case 'm':
-      if (hart.peekMemory(req.address, value, false /*usePma*/, true))
+      if (hart.peekMemory(req.address, value, false /*usePma*/, false))
 	{
 	  reply.value = value;
 	  return true;
 	}
       break;
     case 'p':
-      {
-        reply.value = hart.peekPc();
-        break;
-      }
+      reply.value = hart.peekPc();
+      return true;
     }
 
   reply.type = Invalid;
@@ -745,7 +751,6 @@ Server<URV>::stepCommand(const WhisperMessage& req,
   // Execute instruction. Determine if an interrupt was taken or if a
   // trigger got tripped.
   uint64_t interruptCount = hart.getInterruptCount();
-  uint64_t trapCount = hart.getTrapCount();
   hart.singleStep(traceFile);
 
   bool interrupted = hart.getInterruptCount() != interruptCount;
@@ -761,8 +766,6 @@ Server<URV>::stepCommand(const WhisperMessage& req,
 
   // Send privilege mode in reply.flags
   reply.flags = privMode;
-  if(trapCount != hart.getTrapCount())
-	  reply.flags |= uint32_t(hart.getLastTrapCause()) << 8;
 
 #if 0
   // Send floating point flags in bits 16 to 19 of reply.flags.
@@ -933,11 +936,18 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
 	    case Poke:
 	      pokeCommand(msg, reply);
 	      if (commandLog)
-		fprintf(commandLog, "hart=%d poke %c %s %s # ts=%s tag=%s\n", hartId,
-			msg.resource,
-			(boost::format(hexForm) % msg.address).str().c_str(),
-			(boost::format(hexForm) % msg.value).str().c_str(),
-			timeStamp.c_str(), msg.tag);
+		{
+		  if (msg.resource == 'p')
+                    fprintf(commandLog, "hart=%d poke pc %s # ts=%s tag=%s\n", hartId,
+			    (boost::format(hexForm) % msg.value).str().c_str(),
+			    timeStamp.c_str(), msg.tag);
+		  else
+		    fprintf(commandLog, "hart=%d poke %c %s %s # ts=%s tag=%s\n", hartId,
+			    msg.resource,
+			    (boost::format(hexForm) % msg.address).str().c_str(),
+			    (boost::format(hexForm) % msg.value).str().c_str(),
+			    timeStamp.c_str(), msg.tag);
+		}
 	      break;
 
 	    case Peek:
@@ -958,17 +968,9 @@ Server<URV>::interact(int soc, FILE* traceFile, FILE* commandLog)
 
 	    case Step:
 	      stepCommand(msg, pendingChanges, reply, traceFile);
-	      if (commandLog) {
+	      if (commandLog)
 		fprintf(commandLog, "hart=%d step #%" PRId64 " # ts=%s\n",
                         hartId, hart.getInstructionCount(), timeStamp.c_str());
-//        uint32_t inst = 0;
-//		hart.readInst(hart.lastPc(), inst);
-//		reply.resource = inst;
-//		std::string text;
-//		hart.disassembleInst(inst, text);
-//        if(hart.privilegeMode() == PrivilegeMode::User)
-//            fprintf(commandLog, "OK  @%s => 0x%08lx : %s\n", timeStamp.c_str(), (unsigned long)(hart.lastPc()), text.c_str());
-            }
 	      break;
 
 	    case ChangeCount:

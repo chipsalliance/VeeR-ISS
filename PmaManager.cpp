@@ -151,17 +151,18 @@ PmaManager::changeMemMappedBase(uint64_t newBase)
 {
 	if(memMappedSections_.size() != 1)
 		return false;
-	auto mms = memMappedSections_[0];
+	auto& mms = memMappedSections_[0];
 	uint64_t currBase = mms.base;
 	if (newBase == currBase)
 		return true;
 	if (memSize_ - mms.size < newBase)
 	    return false;
 	std::unordered_map<uint64_t, MemMappedRegister> tmp;
-	tmp.insert(memMappedRegs_.begin(), memMappedRegs_.end());
-	memMappedRegs_.clear();
-	for(auto& r: tmp)
-		memMappedRegs_.insert(std::make_pair(uint64_t(newBase+currBase-r.first), r.second));
+    for(auto&r : memMappedRegs_) {
+        uint64_t newAddr = uint64_t(newBase+r.first-currBase);
+        tmp.insert(std::make_pair(newAddr, r.second));
+    }
+    memMappedRegs_.swap(tmp);
 
 	// Mark old area as non-memory-mapped.
 	disable(mms.base, mms.base+mms.size - 1, Pma::MemMapped);
@@ -201,11 +202,10 @@ PmaManager::getMemMappedMask(uint64_t addr, uint64_t& size) const
 bool
 PmaManager::defineMemMappedArea(uint64_t base, uint64_t size, bool isInternal)
 {
-	if(size & 3) return false;
+    size = (size>>2)<<2;
 	memMappedSections_.push_back(MemMappedSection(base, size, isInternal));
 	return true;
 }
-
 
 
 bool
