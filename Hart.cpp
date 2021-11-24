@@ -1802,8 +1802,10 @@ Hart<URV>::determineLoadException(unsigned rs1, URV base, uint64_t& addr,
         {
           uint64_t pa = 0;
           cause = virtMem_.translateForLoad(addr, mode, pa);
-          if (cause != ExceptionCause::NONE)
+          if (cause != ExceptionCause::NONE) {
+          	secCause = SecondaryCause::NONE;
             return cause;
+          }
           addr = pa;
 
         }
@@ -11120,8 +11122,10 @@ Hart<URV>::determineStoreException(uint32_t rs1, URV base, uint64_t& addr,
         {
           uint64_t pa = 0;
           cause = virtMem_.translateForStore(addr, mode, pa);
-          if (cause != ExceptionCause::NONE)
+          if (cause != ExceptionCause::NONE) {
+        	secCause = SecondaryCause::NONE;
             return cause;
+          }
           addr = pa;
         }
       if (addr > memory_.size() - stSize) {
