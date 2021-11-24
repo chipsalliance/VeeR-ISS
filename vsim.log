@@ -1,0 +1,38 @@
+vsim -run mmu_no_ifault.s -seed 2532626162
+vsim: version: vsim,240
+
+vsim: Thu Nov 18 07:30:42 PST 2021
+vsim: PROJECT: EHX3
+vsim: Read config from /wdc/proj/riscv/mustang/users/avishai.tvila/work/swerv_ehx3//configs/vsim.config
+[31mvsim: Using $RV_ROOT : /wdc/proj/riscv/mustang/users/avishai.tvila/work/swerv_ehx3/ [  lsu_perf
+  master
+* super :: a843582]
+[0mvsim: NOTE > Unparsed args :(mmu_no_ifault.s)
+vsim: NOTE > SNAPSHOT = default
+vsim: NOTE > BUILD_PATH = /home/avishai.tvila/git/trunk/whisper/snapshots/default
+vsim: NOTE > SEED = 2532626162
+vsim: NOTE > HOST : uls-ep-hpcbe117 
+vsim: NOTE > VOV_JOBID : 017499091
+vsim: SEED = 2532626162 (input)
+vsim: asm cmd : vascom -use_local_write  mmu_no_ifault.s   -DTB_CORE  
+vascom: conf config is /wdc/proj/riscv/mustang/users/avishai.tvila/work/swerv_ehx3//configs/vascom.config
+vascom: version: vascom,81
+
+[31mvascom: Using $RV_ROOT : /wdc/proj/riscv/mustang/users/avishai.tvila/work/swerv_ehx3/
+[0m[31mvascom: Could not find derived configuration files at /home/avishai.tvila/git/trunk/whisper/snapshots/default ..
+[0mvascom: Execute configuration to generate defines.h
+[31mvsim: ERROR > run_asm() failed (ret=0)
+[0m[31mFAILED!
+[0m--------------------status.log--------------------
+FAILED!
+    
+Total wall clock time 0 seconds
+SNAPSHOT : default
+ARGS: 
+[31mFAILED!
+[0m--------------------status.log--------------------
+FAILED!
+    
+Total wall clock time 0 seconds
+SNAPSHOT : default
+ARGS: 
