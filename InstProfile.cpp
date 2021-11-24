@@ -52,7 +52,11 @@ InstProfiles::configure()
 	    vec.resize(regCount);
 
 	  inst.srcHisto_.resize(3);  // Up to 3 source historgrams
+	  inst.dstHisto_.resize(3);  // Up to 3 source historgrams
+
 	  for (auto& vec : inst.srcHisto_)
+	    vec.resize(13);  // FIX: avoid magic 13
+	  for (auto& vec : inst.dstHisto_)
 	    vec.resize(13);  // FIX: avoid magic 13
 	}
     }
