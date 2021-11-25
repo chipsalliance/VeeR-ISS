@@ -2166,6 +2166,7 @@ Hart<URV>::decode(uint32_t inst, uint32_t& op0, uint32_t& op1, uint32_t& op2,
 		if (amt == 0)    return instTable_.getEntry(InstId::clz);
 		if (amt == 1)    return instTable_.getEntry(InstId::ctz);
 		if (amt == 2)    return instTable_.getEntry(InstId::cpop);
+		if (amt == 3)    return instTable_.getEntry(InstId::bmatflip);
                 if (amt == 0x04) return instTable_.getEntry(InstId::sext_b);
                 if (amt == 0x05) return instTable_.getEntry(InstId::sext_h);
                 if (amt == 0x10) return instTable_.getEntry(InstId::crc32_b);
