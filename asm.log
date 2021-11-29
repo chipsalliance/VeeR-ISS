@@ -1,6 +1,0 @@
-vascom: conf config is /wdc/proj/riscv/mustang/users/avishai.tvila/work/swerv_ehx3//configs/vascom.config
-vascom: version: vascom,81
-
-[31mvascom: Using $RV_ROOT : /wdc/proj/riscv/mustang/users/avishai.tvila/work/swerv_ehx3/
-[0m[31mvascom: Could not find derived configuration files at /home/avishai.tvila/git/trunk/whisper/snapshots/default ..
-[0mvascom: Execute configuration to generate defines.h

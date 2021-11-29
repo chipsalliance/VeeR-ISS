@@ -1,6 +1,0 @@
-make -f GNUmakefile.wdc SOFT_FLOAT=1 MEM_CALLBACKS=1 -j24
-chmod 777 /wdc/apps/riscv/whisper/whisper,1.714
-cp opt/whisper /wdc/apps/riscv/whisper/whisper,1.714
-chmod 555 /wdc/apps/riscv/whisper/whisper,1.714
-rm /wdc/apps/riscv/bin/whisper,1.714
-ln -s /wdc/apps/riscv/whisper/whisper,1.714 /wdc/apps/riscv/bin/

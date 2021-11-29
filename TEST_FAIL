@@ -1,1 +1,0 @@
-vsim -run mmu_no_ifault.s -seed 2532626162 -seed=2532626162
