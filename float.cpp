@@ -3754,3 +3754,6 @@ Hart<uint64_t>::execFcvt_h_lu(const DecodedInst* di)
 
 template class WdRiscv::Hart<uint32_t>;
 template class WdRiscv::Hart<uint64_t>;
+template unsigned WdRiscv::fpClassifyRiscv<float>(float);
+template unsigned WdRiscv::fpClassifyRiscv<double>(double);
+template unsigned WdRiscv::fpClassifyRiscv<Float16>(Float16);
