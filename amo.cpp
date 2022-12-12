@@ -247,7 +247,7 @@ Hart<URV>::loadReserve(uint32_t rd, uint32_t rs1, uint64_t& physAddr)
         secCause = SecondaryCause::LOAD_ACC_AMO_UNCACHED;
       }
 
-  // Address outside DCCM causes an exception (this is swerv specific).
+  // Address outside DCCM causes an exception (this is veer specific).
   bool fail = amoInDccmOnly_ and not isAddrInDccm(addr);
 
   // Access must be naturally aligned.

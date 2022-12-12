@@ -1,7 +1,7 @@
 # Introduction
 
 Whisper is a RISCV instruction set simulator (ISS) developed for the
-verification of the Swerv micro-controller. It allows the user to run
+verification of the Veer micro-controller. It allows the user to run
 RISCV code without RISCV hardware. It has an interactive mode where
 the user can single step the target RISCV code and inspect/modify the
 RISCV registers or the simulated system memory. It can also run in
@@ -34,7 +34,7 @@ simulator. In particular you would need:
    ```
 
 3. The Whisper source code which can be downloaded from 
-   [github.](https://github.com/chipsalliance/SweRV-ISS)
+   [github.](https://github.com/chipsalliance/VeeR-ISS)
 
 4. The g++ compiler version 7.2 or higher to compiler Whisper. The g++
    compiler can be installed from a Linux distribution. Alternatively,

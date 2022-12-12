@@ -1621,11 +1621,11 @@ namespace WdRiscv
     template<typename STORE_TYPE>
     bool storeConditional(unsigned rs1, URV addr, STORE_TYPE value);
 
-    /// Do a 64-bit wide load in one transaction. This is swerv
+    /// Do a 64-bit wide load in one transaction. This is veer
     /// specfic.
     bool wideLoad(unsigned rd, URV addr);
 
-    /// Do a 64-bit wide store in one transaction. This is swerv
+    /// Do a 64-bit wide store in one transaction. This is veer
     /// specfic.
     bool wideStore(URV addr, URV storeVal);
 

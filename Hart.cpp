@@ -548,8 +548,8 @@ Hart<URV>::reset(bool resetMemoryMappedRegs)
       vecRegs_.updateConfig(ew, gm, ma, ta, vill);
     }
 
-  updateStackChecker();  // Swerv-specific feature.
-  wideLdSt_ = false;  // Swerv-specific feature.
+  updateStackChecker();  // Veer-specific feature.
+  wideLdSt_ = false;  // Veer-specific feature.
 
   hartStarted_ = true;
 
@@ -2692,7 +2692,7 @@ Hart<URV>::unimplemented(const DecodedInst* di)
 }
 
 
-// This is a swerv-specific special code that corresponds to special
+// This is a veer-specific special code that corresponds to special
 // hardware that maps the interrupt id (claim id) to a specific
 // interrupt handler routine by looking up the routine address in a
 // table.
