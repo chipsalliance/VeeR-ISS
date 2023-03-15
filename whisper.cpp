@@ -15,6 +15,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <optional>
 #include <thread>
 #include <atomic>
 #if defined(__cpp_lib_filesystem)
