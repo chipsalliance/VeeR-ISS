@@ -22,6 +22,7 @@
 #include <cassert>
 #include "trapEnums.hpp"
 
+#include <boost/algorithm/string.hpp>
 
 namespace WdRiscv
 {
