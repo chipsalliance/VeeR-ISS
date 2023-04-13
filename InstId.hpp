@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 namespace WdRiscv
 {
   /// Associate a unique integer identifier with each instruction.

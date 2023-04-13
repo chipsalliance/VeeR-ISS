@@ -17,6 +17,7 @@
 #include <sstream>
 #include <thread>
 #include <atomic>
+#include <optional>
 #if defined(__cpp_lib_filesystem)
   #include <filesystem>
   namespace FileSystem = std::filesystem;
