@@ -1,0 +1,36 @@
+name: VeeR-ISS CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    env:
+      DEBIAN_FRONTEND: "noninteractive"
+
+    steps:
+      - name: Install prerequisities
+        run: |
+          sudo apt -qqy update && sudo apt -qqy --no-install-recommends install \
+            git build-essential libboost-all-dev
+
+      - name: Setup repository
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+          path: veer-iss
+
+      - name: Build
+        run: |
+          cd veer-iss
+          make -j`nproc`
+
+      - name: Pack artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build
+          path: veer-iss/build-Linux/whisper
+
