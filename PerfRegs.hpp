@@ -16,6 +16,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <string>
 #include <vector>
 #include <unordered_map>
 #include <type_traits>
