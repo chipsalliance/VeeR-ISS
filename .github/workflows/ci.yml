@@ -7,15 +7,56 @@ on:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - gcc
+          - clang
+        # FIXME: GCC 9 and 10 won't link, probably due to libboost compatibility issues
+        version: [11, 12, 13, 14, 15]
+        exclude:
+          - compiler: clang
+            version:  9
+          - compiler: clang
+            version:  10
+          - compiler: clang
+            version:  11
+          - compiler: gcc
+            version:  13
+          - compiler: gcc
+            version:  14
+          - compiler: gcc
+            version:  15
     env:
       DEBIAN_FRONTEND: "noninteractive"
 
     steps:
       - name: Install prerequisities
         run: |
+
+          if [ "${{ matrix.compiler }}" = "gcc" ]; then
+              export CC=gcc-${{ matrix.version }}
+              export CXX=g++-${{ matrix.version }}
+              export AR=gcc-ar-${{ matrix.version }}
+              export PACKAGES="${CC} ${CXX}"
+          elif [ "${{ matrix.compiler }}" = "clang" ]; then
+              export CC=clang-${{ matrix.version }}
+              export CXX=clang++-${{ matrix.version }}
+              export AR=llvm-ar-${{ matrix.version }}
+              export PACKAGES="${CC} llvm-${{ matrix.version }}"
+          else
+              echo "Unsupported compiler ${{ matrix.compiler }}"
+              exit -1
+          fi
+
           sudo apt -qqy update && sudo apt -qqy --no-install-recommends install \
-            git build-essential libboost-all-dev
+            git make libc6-dev libstdc++-12-dev libboost-all-dev ${PACKAGES}
+
+          echo "CC=${CC}" >> $GITHUB_ENV
+          echo "CXX=${CXX}" >> $GITHUB_ENV
+          echo "AR=${AR}" >> $GITHUB_ENV
 
       - name: Setup repository
         uses: actions/checkout@v2
@@ -25,12 +66,16 @@ jobs:
 
       - name: Build
         run: |
+
+          ${CC}  --version
+          ${CXX} --version
+          ${AR}  --version
+
           cd veer-iss
-          make -j`nproc`
+          make -j`nproc` -k
 
       - name: Pack artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: build
+          name: build-${{ matrix.compiler }}-${{ matrix.version }}
           path: veer-iss/build-Linux/whisper
-
