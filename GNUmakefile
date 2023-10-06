@@ -17,6 +17,9 @@ STATIC_LINK := 1
 # Or run make with these options
 # $ make CC=gcc-8 CXX=g++-8 AR=gcc-ar-8
 
+# Set to desired arch or set to "" when cross-compiling
+ARCH_FLAGS ?= -march=native -mtune=native
+
 # We use boost 1.67.
 # Set the BOOST_ROOT environment variable to point to the base install
 # location of the Boost Libraries
@@ -87,9 +90,9 @@ IFLAGS := $(addprefix -isystem ,$(BOOST_INC)) -I.
 
 # Command to compile .cpp files.
 ifeq (CYGWIN_NT-10.0,$(shell uname -s))
-override CXXFLAGS += -MMD -MP -mtune=native -std=c++17 -D_GNU_SOURCE $(OFLAGS) $(IFLAGS) -pedantic -Wall -Wextra
+override CXXFLAGS += -MMD -MP ${ARCH_FLAGS} -std=c++17 -D_GNU_SOURCE $(OFLAGS) $(IFLAGS) -pedantic -Wall -Wextra
 else
-override CXXFLAGS += -MMD -MP -mtune=native -std=c++17 $(OFLAGS) $(IFLAGS) -fPIC -pedantic -Wall -Wextra
+override CXXFLAGS += -MMD -MP ${ARCH_FLAGS} -std=c++17 $(OFLAGS) $(IFLAGS) -fPIC -pedantic -Wall -Wextra
 endif
 
 # Rule to make a .o from a .cpp file.
